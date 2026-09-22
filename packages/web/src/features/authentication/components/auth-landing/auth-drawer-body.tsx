@@ -75,7 +75,7 @@ const RESEND_COOLDOWN_SECONDS = 60;
 // label, not a statement that slows the eye down. 400 is the lightest weight
 // actually loaded; 300 would silently fall back and look identical.
 const AUTH_TITLE_CLASS =
-  'text-center text-[21px] font-normal leading-snug tracking-[-0.02em] text-balance text-foreground';
+  'text-center text-[22px] font-bold leading-tight tracking-tight text-foreground';
 
 // Steps cross-fade instead of snapping, and the card animates to the new
 // height, so moving between email → code → password reads as one surface
@@ -277,7 +277,10 @@ function AuthStep({
   if (!emailAuthEnabled) {
     return (
       <DrawerShell>
-        <Heading title={t('Welcome')} />
+        <Heading
+          title={t('Masuk ke Anticeil Flow')}
+          subtitle={t('Satu akun terhubung ke workspace cloud dan kuota AI.')}
+        />
         <ThirdPartyLogin
           isSignUp={mode === 'signup'}
           onSamlClick={() => setSamlOpen(true)}
@@ -299,25 +302,29 @@ function AuthStep({
           }
         />
         {showThirdParty && (
+          <ThirdPartyLogin
+            isSignUp={effectiveMode === 'signup'}
+            onSamlClick={() => setSamlOpen(true)}
+          />
+        )}
+        {emailAuthEnabled && (
           <>
-            <ThirdPartyLogin
-              isSignUp={effectiveMode === 'signup'}
-              onSamlClick={() => setSamlOpen(true)}
-            />
-            <HorizontalSeparatorWithText className="my-5 text-muted-foreground">
-              {t('or')}
-            </HorizontalSeparatorWithText>
+            {showThirdParty && (
+              <HorizontalSeparatorWithText className="my-5 text-muted-foreground">
+                {t('or')}
+              </HorizontalSeparatorWithText>
+            )}
+            {effectiveMode === 'signup' ? (
+              <SignUpForm
+                showCheckYourEmailNote={checkEmailNote}
+                setShowCheckYourEmailNote={setCheckEmailNote}
+              />
+            ) : (
+              <SignInForm />
+            )}
+            {!firstUser && <ModeSwitch mode={mode} onSwitch={setMode} />}
           </>
         )}
-        {effectiveMode === 'signup' ? (
-          <SignUpForm
-            showCheckYourEmailNote={checkEmailNote}
-            setShowCheckYourEmailNote={setCheckEmailNote}
-          />
-        ) : (
-          <SignInForm />
-        )}
-        {!firstUser && <ModeSwitch mode={mode} onSwitch={setMode} />}
       </DrawerShell>
     );
   }
@@ -925,9 +932,9 @@ function CodeStep({
 
 function DrawerShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex w-full flex-col px-8 pb-7 pt-9">
-      <div className="mb-5 flex justify-center">
-        <FullLogo className="h-7" />
+    <div className="flex w-full flex-col px-7 pb-6 pt-7">
+      <div className="mb-4 flex justify-center">
+        <FullLogo className="h-8" />
       </div>
       {children}
     </div>
@@ -936,10 +943,10 @@ function DrawerShell({ children }: { children: React.ReactNode }) {
 
 function Heading({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <div className="mb-6 text-center">
+    <div className="mb-5 text-center">
       <h1 className={AUTH_TITLE_CLASS}>{title}</h1>
       {subtitle && (
-        <p className="mx-auto mt-1.5 max-w-[19rem] text-balance text-sm font-medium text-muted-foreground">
+        <p className="mx-auto mt-2 max-w-[20rem] text-balance text-xs text-muted-foreground leading-normal">
           {subtitle}
         </p>
       )}

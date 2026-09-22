@@ -28,14 +28,15 @@ const TriggerWidget = ({ isSelected }: { isSelected: boolean }) => {
   return (
     <div
       className={cn(
-        'flex items-center absolute transition-all  -translate-y-[26px] -translate-x-[1px]  border-border border border-1   justify-center gap-1 rounded-t-md bg-background text-muted-foreground text-xs py-1 px-2 z-10 ',
+        'flex items-center absolute transition-all -translate-y-[26px] -translate-x-[1px] border border-solid justify-center gap-1.5 rounded-t-md text-xs py-1 px-2.5 z-10 font-medium',
         {
-          'border-primary text-primary ': isSelected,
-          'group-hover:border-ring ': !isSelected,
+          'border-primary bg-primary/15 text-primary': isSelected,
+          'border-border bg-card text-muted-foreground group-hover:border-ring':
+            !isSelected,
         },
       )}
     >
-      <Goal className="w-[10px] h-[10px]"></Goal> {t('Trigger')}
+      <Goal className="w-3 h-3" /> {t('Trigger')}
     </div>
   );
 };

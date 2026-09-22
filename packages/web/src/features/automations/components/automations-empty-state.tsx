@@ -53,13 +53,13 @@ const ActionRow = ({
     <button
       onClick={onClick}
       disabled={disabled || !hasPermission}
-      className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border-t first:border-t-0"
+      className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border-t border-border"
     >
       <div className="flex items-center gap-3">
-        <span className="text-muted-foreground">{icon}</span>
-        <span className="text-sm font-medium">{label}</span>
+        <span className="text-foreground/60 dark:text-foreground/70">{icon}</span>
+        <span className="text-sm font-medium text-foreground">{label}</span>
       </div>
-      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      <ChevronRight className="h-4 w-4 text-foreground/40 dark:text-foreground/60" />
     </button>
   );
 
@@ -253,7 +253,7 @@ export const AutomationsEmptyState = ({
   return (
     <div className="flex flex-col gap-8 py-8 px-4 max-w-5xl mx-auto">
       <div>
-        <h2 className="text-sm font-medium text-muted-foreground mb-4">
+        <h2 className="text-sm font-semibold text-foreground/70 dark:text-foreground/80 mb-4">
           {t('Get started with {brandName}', {
             brandName: branding.websiteName ?? platform.name,
           })}
@@ -282,15 +282,15 @@ export const AutomationsEmptyState = ({
               >
                 <button
                   disabled={!userHasPermissionToWriteFlow}
-                  className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border-t"
+                  className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border-t border-border"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-muted-foreground">
+                    <span className="text-foreground/60 dark:text-foreground/70">
                       <Upload className="h-4 w-4" />
                     </span>
-                    <span className="text-sm font-medium">{t('Import')}</span>
+                    <span className="text-sm font-medium text-foreground">{t('Import')}</span>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 text-foreground/40 dark:text-foreground/60" />
                 </button>
               </ImportFlowDialog>
             </PermissionNeededTooltip>
@@ -336,13 +336,13 @@ export const AutomationsEmptyState = ({
       {(hasTemplates || isLoadingTemplates) && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-foreground/70 dark:text-foreground/80 flex items-center gap-2">
               {t('Templates For You')}
-              <Sparkles className="h-4 w-4 text-yellow-500" />
+              <Sparkles className="h-4 w-4 text-yellow-400 dark:text-yellow-300" />
             </h2>
             <button
               onClick={handleViewAllTemplates}
-              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+              className="text-sm text-foreground/60 dark:text-foreground/70 hover:text-foreground flex items-center gap-1 transition-colors"
             >
               {t('All templates')}
               <ChevronRight className="h-4 w-4" />

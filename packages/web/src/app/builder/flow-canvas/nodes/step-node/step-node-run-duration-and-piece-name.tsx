@@ -49,10 +49,13 @@ const StepNodeRunDurationAndPieceName = ({
         key={pieceDisplayName + selectedStepOutput?.duration}
       >
         <div
-          className={cn('text-xs text-muted-foreground truncate grow shrink', {
-            'w-full': !isHorizontal,
-            'text-center': isHorizontal,
-          })}
+          className={cn(
+            'text-xs text-muted-foreground dark:text-neutral-300 truncate grow shrink',
+            {
+              'w-full': !isHorizontal,
+              'text-center': isHorizontal,
+            },
+          )}
         >
           {pieceDisplayName}
         </div>

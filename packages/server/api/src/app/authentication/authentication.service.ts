@@ -38,7 +38,8 @@ export const authenticationService = (log: FastifyBaseLogger) => ({
                 email: params.email,
                 platformId,
             })
-            if (system.get(AppSystemProp.ALLOW_OPEN_SIGN_UP) !== 'true') {
+            const isFederated = params.provider === UserIdentityProvider.GOOGLE || params.provider === UserIdentityProvider.JWT || params.provider === UserIdentityProvider.SAML
+            if (!isFederated && system.get(AppSystemProp.ALLOW_OPEN_SIGN_UP) !== 'true') {
                 await authenticationUtils(log).assertUserIsInvitedToPlatformOrProject({
                     email: params.email,
                     platformId,

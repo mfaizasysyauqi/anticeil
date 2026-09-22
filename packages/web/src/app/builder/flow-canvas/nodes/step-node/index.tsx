@@ -133,12 +133,11 @@ const ApStepCanvasNode = React.memo(
         }}
         onContextMenu={(e) => handleContextMenu(e)}
         className={cn(
-          'transition-all border-box rounded-md border border-solid border-border relative overflow-visible  group',
+          'transition-all border-box rounded-md border border-solid border-border relative overflow-visible group shadow-xs',
           {
-            'border-primary': isSelected,
-            'bg-background': !isDragging,
-            'border-none': isDragging,
-            'shadow-none': isDragging,
+            'border-primary ring-1 ring-primary/30': isSelected,
+            'bg-card': !isDragging,
+            'border-none shadow-none': isDragging,
             'bg-accent': isSkipped,
             'rounded-tl-none': isTrigger && !isHorizontal,
             'hover:border-ring': !isSelected,

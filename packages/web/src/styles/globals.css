@@ -35,6 +35,11 @@ span.ap-fn-badge.ap-fn-error {
     border-color: #ef4444 !important;
     color: #b91c1c !important;
 }
+.dark span.ap-fn-badge.ap-fn-error {
+    background-color: rgba(239, 68, 68, 0.25) !important;
+    border-color: #f87171 !important;
+    color: #fca5a5 !important;
+}
 
 /* Unclosed function — no matching ) badge */
 span.ap-fn-badge.ap-fn-unclosed {
@@ -44,6 +49,11 @@ span.ap-fn-badge.ap-fn-unclosed {
     text-decoration: underline wavy #ef4444;
     text-underline-offset: 2px;
 }
+.dark span.ap-fn-badge.ap-fn-unclosed {
+    background-color: rgba(239, 68, 68, 0.22) !important;
+    border-color: #f87171 !important;
+    color: #fca5a5 !important;
+}
 
 /* Unknown function name — referenced in a saved formula but not in the registry */
 span.ap-fn-badge.ap-fn-broken {
@@ -52,6 +62,11 @@ span.ap-fn-badge.ap-fn-broken {
     color: #b91c1c !important;
     text-decoration: line-through;
 }
+.dark span.ap-fn-badge.ap-fn-broken {
+    background-color: rgba(239, 68, 68, 0.22) !important;
+    border-color: #f87171 !important;
+    color: #fca5a5 !important;
+}
 
 /* Deprecated function — still resolves at runtime, but should be replaced */
 span.ap-fn-badge.ap-fn-deprecated {
@@ -59,6 +74,11 @@ span.ap-fn-badge.ap-fn-deprecated {
     border-color: #f59e0b !important;
     color: #b45309 !important;
     text-decoration: line-through solid #b45309;
+}
+.dark span.ap-fn-badge.ap-fn-deprecated {
+    background-color: rgba(245, 158, 11, 0.22) !important;
+    border-color: #fbbf24 !important;
+    color: #fcd34d !important;
 }
 
 /* Formula Editor */
@@ -82,6 +102,10 @@ span.ap-fn-badge.ap-fn-deprecated {
 .ap-fn-name-token { color: #7c3aed; font-weight: 600; }
 .ap-fn-paren-open-token { color: #7c3aed; }
 .ap-fn-paren-close-token { color: #7c3aed; }
+
+.dark .ap-fn-name-token { color: #a78bfa; }
+.dark .ap-fn-paren-open-token { color: #a78bfa; }
+.dark .ap-fn-paren-close-token { color: #a78bfa; }
 
 /* CodeMirror formula editor reset */
 .formula-editor .cm-editor { outline: none; }

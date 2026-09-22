@@ -1,6 +1,6 @@
 import { isNil } from '@activepieces/core-utils'
 import { apVersionUtil } from '@activepieces/server-utils'
-import { ApEdition, ApFlagId, ExecutionMode, Flag } from '@activepieces/shared'
+import { ApEdition, ApFlagId, ExecutionMode, Flag, ThirdPartyAuthnProviderEnum } from '@activepieces/shared'
 import dayjs from 'dayjs'
 import { FastifyBaseLogger } from 'fastify'
 import { In } from 'typeorm'
@@ -136,7 +136,9 @@ export const flagService = (log: FastifyBaseLogger) => ({
             },
             {
                 id: ApFlagId.THIRD_PARTY_AUTH_PROVIDERS_TO_SHOW_MAP,
-                value: {},
+                value: {
+                    [ThirdPartyAuthnProviderEnum.GOOGLE]: !isNil(system.get(AppSystemProp.GOOGLE_CLIENT_ID)) && !isNil(system.get(AppSystemProp.GOOGLE_CLIENT_SECRET)),
+                },
                 created,
                 updated,
             },
@@ -148,7 +150,7 @@ export const flagService = (log: FastifyBaseLogger) => ({
             },
             {
                 id: ApFlagId.EMAIL_AUTH_ENABLED,
-                value: true,
+                value: system.getBoolean('EMAIL_AUTH_ENABLED') ?? false,
                 created,
                 updated,
             },

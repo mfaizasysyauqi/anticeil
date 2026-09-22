@@ -444,8 +444,10 @@ import { AddMcpOAuthCodeNonce1851000000000 } from './migration/postgres/18510000
 const getSslConfig = (): boolean | TlsOptions => {
     const useSsl = system.get(AppSystemProp.POSTGRES_USE_SSL)
     if (useSsl === 'true') {
+        const ca = system.get(AppSystemProp.POSTGRES_SSL_CA)?.replace(/\\n/g, '\n')
         return {
-            ca: system.get(AppSystemProp.POSTGRES_SSL_CA)?.replace(/\\n/g, '\n'),
+            ca,
+            rejectUnauthorized: !isNil(ca),
         }
     }
     return false

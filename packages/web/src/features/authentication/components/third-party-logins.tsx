@@ -6,10 +6,10 @@ import {
   TelemetryEventName,
 } from '@activepieces/shared';
 import { t } from 'i18next';
-import React from 'react';
+import { Loader2, ShieldCheck, Sparkles, Zap } from 'lucide-react';
+import React, { useState } from 'react';
 
 import { authenticationApi } from '@/api/authentication-api';
-import GoogleIcon from '@/assets/img/custom/auth/google-icon.svg';
 import SamlIcon from '@/assets/img/custom/auth/saml.svg';
 import { useTelemetry } from '@/components/providers/telemetry-provider';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,6 @@ import { internalErrorToast } from '@/components/ui/sonner';
 import { oauth2Utils } from '@/features/connections/utils/oauth2-utils';
 import { flagsHooks } from '@/hooks/flags-hooks';
 
-// Mirrors the render gates below so callers can hide surrounding chrome — an
-// "or" divider — or place each provider themselves. SAML is offered on cloud
-// for enterprise SSO, and self-hosted only once a SAML config exists.
 function useThirdPartyAvailability(): ThirdPartyAvailability {
   const { data: thirdPartyAuthProviders } =
     flagsHooks.useFlag<ThirdPartyAuthnProvidersToShowMap>(
@@ -39,9 +36,26 @@ function useShowThirdPartyProviders(): boolean {
   return google || saml;
 }
 
-const ThirdPartyIcon = ({ icon }: { icon: string }) => {
-  return <img src={icon} alt="icon" width={18} height={18} className="mr-2" />;
-};
+const GoogleLogoIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" className="shrink-0">
+    <path
+      fill="#4285F4"
+      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+    />
+  </svg>
+);
 
 const ThirdPartyLogin = React.memo(
   ({
@@ -67,6 +81,7 @@ const ThirdPartyLogin = React.memo(
     const availability = useThirdPartyAvailability();
     const showProviders =
       availability.google || (!hideSaml && availability.saml);
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleProviderClick = async (
       event: React.MouseEvent<HTMLButtonElement, MouseEvent>,
@@ -74,6 +89,7 @@ const ThirdPartyLogin = React.memo(
     ) => {
       event.preventDefault();
       event.stopPropagation();
+      setIsLoading(true);
       capture({
         name: TelemetryEventName.FEDERATED_LOGIN_STARTED,
         payload: {
@@ -83,15 +99,21 @@ const ThirdPartyLogin = React.memo(
               : 'saml',
         },
       });
-      const { loginUrl } = await authenticationApi.getFederatedAuthLoginUrl(
-        providerName,
-      );
+      try {
+        const { loginUrl } = await authenticationApi.getFederatedAuthLoginUrl(
+          providerName,
+        );
 
-      if (!loginUrl || !thirdPartyRedirectUrl) {
+        if (!loginUrl || !thirdPartyRedirectUrl) {
+          internalErrorToast();
+          setIsLoading(false);
+          return;
+        }
+        thirdPartyLogin(loginUrl, providerName);
+      } catch (err) {
+        setIsLoading(false);
         internalErrorToast();
-        return;
       }
-      thirdPartyLogin(loginUrl, providerName);
     };
 
     if (!showProviders) {
@@ -99,23 +121,47 @@ const ThirdPartyLogin = React.memo(
     }
 
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4.5">
+        {/* Anticeil Value Highlights */}
+        <div className="flex flex-col gap-2 rounded-xl border border-border/70 bg-muted/40 p-3.5 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2.5 text-foreground/90">
+            <Zap className="size-3.5 shrink-0 text-amber-500" />
+            <span>{t('Login instan 1-klik tanpa repot mengingat password')}</span>
+          </div>
+          <div className="flex items-center gap-2.5 text-foreground/90">
+            <ShieldCheck className="size-3.5 shrink-0 text-emerald-500" />
+            <span>{t('Keamanan resmi Google OAuth 2.0')}</span>
+          </div>
+          <div className="flex items-center gap-2.5 text-foreground/90">
+            <Sparkles className="size-3.5 shrink-0 text-primary" />
+            <span>{t('Terhubung langsung ke kuota AI & workspace Anticeil')}</span>
+          </div>
+        </div>
+
+        {/* Google OAuth Button */}
         {thirdPartyAuthProviders?.google && (
           <Button
             variant="outline"
-            className="h-10 w-full rounded-lg text-sm font-normal"
+            className="h-12 w-full gap-3 rounded-xl border-border bg-background text-[14px] font-semibold text-foreground shadow-sm transition-all hover:bg-accent hover:border-border-strong active:scale-[0.99] cursor-pointer"
+            disabled={isLoading}
             onClick={(e) =>
               handleProviderClick(e, ThirdPartyAuthnProviderEnum.GOOGLE)
             }
           >
-            <ThirdPartyIcon icon={GoogleIcon} />
-            {t('Continue with Google')}
+            {isLoading ? (
+              <Loader2 className="size-4.5 animate-spin" />
+            ) : (
+              <GoogleLogoIcon />
+            )}
+            <span>{t('Lanjutkan dengan Google')}</span>
           </Button>
         )}
+
+        {/* SAML SSO Option (If Configured) */}
         {!hideSaml && isCloud && (
           <Button
-            variant="outline"
-            className="h-10 w-full rounded-lg text-sm font-normal"
+            variant="ghost"
+            className="h-10 w-full gap-2 text-xs font-medium text-muted-foreground hover:text-foreground"
             onClick={() => {
               capture({
                 name: TelemetryEventName.FEDERATED_LOGIN_STARTED,
@@ -124,16 +170,17 @@ const ThirdPartyLogin = React.memo(
               onSamlClick();
             }}
           >
-            <ThirdPartyIcon icon={SamlIcon} />
+            <img src={SamlIcon} alt="SAML" width={16} height={16} />
             {isSignUp
-              ? `${t(`Sign up With`)} ${t('SAML')}`
-              : `${t(`Sign in With`)} ${t('SAML')}`}
+              ? `${t('Sign up with')} SAML`
+              : `${t('Sign in with')} SAML`}
           </Button>
         )}
+
         {!hideSaml && !isCloud && thirdPartyAuthProviders?.saml && (
           <Button
-            variant="outline"
-            className="h-10 w-full rounded-lg text-sm font-normal"
+            variant="ghost"
+            className="h-10 w-full gap-2 text-xs font-medium text-muted-foreground hover:text-foreground"
             onClick={() => {
               capture({
                 name: TelemetryEventName.FEDERATED_LOGIN_STARTED,
@@ -142,12 +189,19 @@ const ThirdPartyLogin = React.memo(
               window.location.href = '/api/v1/authn/saml/login';
             }}
           >
-            <ThirdPartyIcon icon={SamlIcon} />
+            <img src={SamlIcon} alt="SAML" width={16} height={16} />
             {isSignUp
-              ? `${t(`Sign up With`)} ${t('SAML')}`
-              : `${t(`Sign in With`)} ${t('SAML')}`}
+              ? `${t('Sign up with')} SAML`
+              : `${t('Sign in with')} SAML`}
           </Button>
         )}
+
+        {/* Trust & Privacy Notice */}
+        <p className="mt-1 text-center text-[11px] leading-relaxed text-muted-foreground">
+          {t(
+            'Dengan melanjutkan, Anda menyetujui Ketentuan Layanan & Kebijakan Privasi Anticeil. 100% Aman & Bebas Password.',
+          )}
+        </p>
       </div>
     );
   },

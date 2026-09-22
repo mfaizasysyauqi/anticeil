@@ -20,6 +20,18 @@ const ImageWithColorBackground = ({
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [backgroundColor, setBackgroundColor] = useState<string | null>(null);
+  const [isDarkIcon, setIsDarkIcon] = useState<boolean>(() => {
+    if (typeof src === 'string') {
+      return (
+        src.includes('new-core') ||
+        src.includes('empty-trigger') ||
+        src.includes('loop.svg') ||
+        src.includes('router.svg') ||
+        src.includes('code.svg')
+      );
+    }
+    return false;
+  });
   // Drop crossOrigin on error so logos on CORS-less hosts still render (without the tint).
   const [useCrossOrigin, setUseCrossOrigin] = useState(true);
 
@@ -31,11 +43,16 @@ const ImageWithColorBackground = ({
         .getColorAsync(img, { algorithm: 'simple' })
         .then((color) => {
           const [r, g, b] = color.value;
-          if (colorsUtils.isGrayColor(r, g, b)) {
+          const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+          const isDarkOrMonochrome = colorsUtils.isGrayColor(r, g, b) || luminance < 0.45;
+          
+          if (isDarkOrMonochrome) {
+            setIsDarkIcon(true);
             setBackgroundColor(null);
           } else {
+            setIsDarkIcon(false);
             setBackgroundColor(
-              `color-mix(in srgb, rgb(${r},${g},${b}) 10%, #fff 92%)`,
+              `color-mix(in srgb, rgb(${r},${g},${b}) 15%, var(--card) 85%)`,
             );
           }
         })
@@ -60,15 +77,14 @@ const ImageWithColorBackground = ({
   return (
     <span
       className={cn('relative inline-block h-full w-full', className, {
-        'bg-background': backgroundColor === null,
-        'border border-border/50 dark:bg-foreground/10':
-          backgroundColor === null && border,
+        'bg-muted border border-border': (backgroundColor === null || isDarkIcon) && border,
         'rounded-lg': roundedCorner,
       })}
       style={
-        backgroundColor
+        backgroundColor && !isDarkIcon
           ? {
               backgroundColor: backgroundColor,
+              border: '1px solid var(--border)',
             }
           : {}
       }
@@ -87,10 +103,11 @@ const ImageWithColorBackground = ({
           onLoad={handleLoad}
           onError={handleError}
           className={cn(
-            `transition-opacity duration-500 w-full h-full object-contain`,
+            'transition-opacity duration-500 w-full h-full object-contain',
             {
               'opacity-0': isLoading,
               'opacity-100': !isLoading,
+              'dark:invert dark:brightness-125 dark:contrast-125': isDarkIcon,
             },
           )}
           {...rest}
