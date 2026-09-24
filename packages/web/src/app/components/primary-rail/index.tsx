@@ -1,4 +1,3 @@
-import { Permission } from '@activepieces/core-utils';
 import {
   ApEdition,
   ApFlagId,
