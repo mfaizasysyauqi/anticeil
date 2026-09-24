@@ -89,23 +89,18 @@ function GitHubRunnerPanel() {
       {
         onSuccess: (res) => {
           if (res.success) {
-            toast({
-              title: t('Runner connected!'),
+            toast.success(t('Runner connected!'), {
               description: res.message,
             });
             setToken('');
           } else {
-            toast({
-              variant: 'destructive',
-              title: t('Connection failed'),
+            toast.error(t('Connection failed'), {
               description: res.message,
             });
           }
         },
         onError: (err: any) => {
-          toast({
-            variant: 'destructive',
-            title: t('Connection failed'),
+          toast.error(t('Connection failed'), {
             description: err?.message ?? t('Unknown error'),
           });
         },
