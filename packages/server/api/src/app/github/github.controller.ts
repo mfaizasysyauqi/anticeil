@@ -1,20 +1,19 @@
-import { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
+import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { githubSyncService } from './github-sync.service'
 import { githubDispatcher } from './github-dispatcher'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
-import { flowRunRepo, flowRunService } from '../flows/flow-run/flow-run-service'
-import { FlowRunStatus } from '@activepieces/shared'
+import { flowRunRepo } from '../flows/flow-run/flow-run-service'
+import { FlowRunStatus, AppConnectionType, AppConnectionScope } from '@activepieces/shared'
 import { appConnectionService } from '../app-connection/app-connection-service/app-connection-service'
-import { AppConnectionType, AppConnectionScope } from '@activepieces/shared'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
 const GITHUB_CONNECTION_NAME = 'anticeil_github_runner'
 
-export const githubController: FastifyPluginCallbackZod = (app, _opts, done) => {
+export const githubController: FastifyPluginAsyncZod = async (app) => {
     /**
      * Connect user's GitHub account with Personal Access Token (or OAuth token)
      * Automatically provisions private repo and sets up secrets + workflow file.
@@ -88,7 +87,6 @@ export const githubController: FastifyPluginCallbackZod = (app, _opts, done) => 
                         'utf-8',
                     )
                 } catch {
-                    // Fallback to relative path if running from package root
                     runnerYaml = await fs.readFile(
                         path.resolve(__dirname, '../../../../../../.github/workflows/anticeil-runner.yml'),
                         'utf-8',
@@ -272,6 +270,4 @@ export const githubController: FastifyPluginCallbackZod = (app, _opts, done) => 
             return reply.status(StatusCodes.OK).send({ received: true })
         },
     )
-
-    done()
 }
