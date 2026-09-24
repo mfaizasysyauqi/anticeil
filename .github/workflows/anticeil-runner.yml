@@ -1,0 +1,63 @@
+name: Anticeil Flow Serverless Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      flowId:
+        description: 'ID of the flow to execute'
+        required: true
+        type: string
+      inputPayload:
+        description: 'Base64-encoded or raw JSON input payload'
+        required: false
+        type: string
+  repository_dispatch:
+    types: [anticeil-run-flow]
+
+jobs:
+  execute-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Anticeil Flow Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Prepare Flow Input Payload
+        id: prepare-input
+        run: |
+          if [ -n "${{ github.event.inputs.inputPayload }}" ]; then
+            echo '${{ github.event.inputs.inputPayload }}' > input.json
+          elif [ -n "${{ github.event.client_payload.inputPayload }}" ]; then
+            echo '${{ github.event.client_payload.inputPayload }}' > input.json
+          else
+            echo '{"flowId": "${{ github.event.inputs.flowId }}"}' > input.json
+          fi
+
+      - name: Build Activepieces Engine
+        run: |
+          node packages/server/engine/esbuild.config.mjs
+
+      - name: Execute Activepieces Engine
+        env:
+          NODE_ENV: production
+          AP_TEST_MODE: "false"
+        run: |
+          node dist/packages/engine/cli.js --input ./input.json --output ./output.json
+
+      - name: Upload Execution Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-execution-output
+          path: output.json
+          retention-days: 7

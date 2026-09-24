@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node esbuild.config.mjs",
     "serve": "node esbuild.config.mjs --watch",
+    "cli": "tsx src/cli.ts",
     "lint": "eslint 'src/**/*.ts'",
     "test": "vitest run"
   },

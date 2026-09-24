@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outdir = path.resolve(__dirname, '../../../dist/packages/engine');
 const proxyOutfile = path.join(outdir, 'main.js');
+const cliOutfile = path.join(outdir, 'cli.js');
 
 const watch = process.argv.includes('--watch');
 
@@ -55,9 +56,9 @@ function rebuildLogger(outfile) {
   };
 }
 
-function buildOptions({ outfile }) {
+function buildOptions({ entryPoint, outfile }) {
   return {
-    entryPoints: [path.resolve(__dirname, 'src/main.ts')],
+    entryPoints: [entryPoint],
     bundle: true,
     platform: 'node',
     target: 'node20',
@@ -83,12 +84,13 @@ function buildOptions({ outfile }) {
 
 if (watch) {
   const ctx = await esbuild.context(
-    buildOptions({ outfile: proxyOutfile })
+    buildOptions({ entryPoint: path.resolve(__dirname, 'src/main.ts'), outfile: proxyOutfile })
   );
   await ctx.rebuild();
   await ctx.watch();
 } else {
-  await esbuild.build(
-    buildOptions({ outfile: proxyOutfile })
-  );
+  await Promise.all([
+    esbuild.build(buildOptions({ entryPoint: path.resolve(__dirname, 'src/main.ts'), outfile: proxyOutfile })),
+    esbuild.build(buildOptions({ entryPoint: path.resolve(__dirname, 'src/cli.ts'), outfile: cliOutfile })),
+  ]);
 }
