@@ -464,7 +464,7 @@ The application started on ${await domainHelper.getPublicApiUrl({ path: '' })}, 
     assertReleaseReadable(app.log)
     aiCostReporter.install({
         log: app.log,
-        report: (request) => aiUsageService(app.log).report(request),
+        report: (request: any) => aiUsageService(app.log).report(request),
         pageWebhookUrl: () => system.get(AppSystemProp.PAGE_ONCALL_WEBHOOK),
     })
     installAiKeyHealthReporter(app.log)
@@ -498,7 +498,7 @@ function assertReleaseReadable(log: FastifyBaseLogger): void {
         code: 'RELEASE_VERSION_UNREADABLE',
         message: 'App could not read its release version from package.json (reported as 0.0.0) at startup; worker dispatch is gated and will NOT self-heal until the deployment is fixed (check cwd/packaging)',
         params: { appVersion: version },
-    }).catch((pageError) => {
+    }).catch((pageError: unknown) => {
         log.error({ pageError }, '[appPostBoot] Failed to send on-call page for unreadable release version')
     })
 }

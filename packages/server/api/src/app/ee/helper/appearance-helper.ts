@@ -46,5 +46,7 @@ const enterpriseThemeChecker = async (platform: PlatformWithoutSensitiveData) =>
                 })
             }
             return defaultTheme
+        default:
+            return defaultTheme
     }
 }
