@@ -23,6 +23,18 @@
       ],
       "@activepieces/piece-ai": [
         "../../packages/pieces/community/ai/src"
+      ],
+      "@activepieces/core-utils": [
+        "../../packages/core/utils/src"
+      ],
+      "@activepieces/core-piece-types": [
+        "../../packages/core/piece-types/src"
+      ],
+      "@activepieces/core-formula": [
+        "../../packages/core/formula/src"
+      ],
+      "@activepieces/core-execution": [
+        "../../packages/core/execution/src"
       ]
     }
   },
