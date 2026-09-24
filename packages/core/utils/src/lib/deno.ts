@@ -54,7 +54,7 @@ export const deno = {
                     return
                 }
 
-                if (!message.success) {
+                if ('error' in message) {
                     reject(sandboxError.build({ error: message.error, stdout: userOutput, stderr: capturedStderr }))
                 }
                 else if (code !== 0) {

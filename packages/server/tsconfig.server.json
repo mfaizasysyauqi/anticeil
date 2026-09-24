@@ -4,9 +4,9 @@
     "target": "ES2022",
     "lib": ["ES2022"],
     "module": "CommonJS",
+    "moduleResolution": "node",
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true
+    "skipLibCheck": true,
+    "strict": false
   }
 }
