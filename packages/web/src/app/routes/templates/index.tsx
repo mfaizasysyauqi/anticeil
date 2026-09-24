@@ -26,7 +26,9 @@ const TemplatesPage = () => {
   const navigate = useNavigate();
   const { data: templateCategories } = templatesHooks.useTemplateCategories();
   const { platform } = platformHooks.useCurrentPlatform();
-  const isShowingOfficialTemplates = !platform.plan.manageTemplatesEnabled;
+  // Always show official (community) templates on the Explore page.
+  // Custom templates (platform-specific) are managed separately via platform settings.
+  const isShowingOfficialTemplates = true;
   const { templates, isLoading, search, setSearch, category, setCategory } =
     templatesHooks.useTemplates(
       isShowingOfficialTemplates ? TemplateType.OFFICIAL : TemplateType.CUSTOM,
@@ -91,7 +93,11 @@ const TemplatesPage = () => {
     isLoading || (isShowingOfficialTemplates && isAllTemplatesLoading);
   const showAllCategories =
     isShowingOfficialTemplates && selectedCategory === 'All';
-  const hasTemplates = templates && templates.length > 0;
+  // When showing all categories, use allOfficialTemplates to determine if there's any data.
+  // When showing a specific category, use the filtered templates list.
+  const hasTemplates = showAllCategories
+    ? (allOfficialTemplates && allOfficialTemplates.length > 0)
+    : (templates && templates.length > 0);
   const showCategoryTitleForOfficialTemplates =
     isShowingOfficialTemplates && selectedCategory !== 'All';
 

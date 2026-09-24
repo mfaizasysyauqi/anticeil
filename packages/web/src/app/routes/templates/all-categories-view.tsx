@@ -25,16 +25,19 @@ function LazyCategorySection({
   templates,
   onCategorySelect,
   onTemplateSelect,
+  priority = false,
 }: {
   category: string;
   templates: Template[];
   onCategorySelect: (category: string) => void;
   onTemplateSelect: (template: Template) => void;
+  priority?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(priority);
 
   useEffect(() => {
+    if (priority) return;
     const el = ref.current;
     if (!el) return;
 
@@ -50,7 +53,9 @@ function LazyCategorySection({
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [priority]);
+
+  if (!templates || templates.length === 0) return null;
 
   return (
     <div ref={ref}>
@@ -96,9 +101,13 @@ export const AllCategoriesView = ({
     return <AllCategoriesViewSkeleton hideHeader={hideHeader} />;
   }
 
+  const activeCategories = categories.filter(
+    (c) => c !== 'All' && templatesByCategory[c]?.length > 0,
+  );
+
   return (
     <div className="space-y-6">
-      {categories.map((category) => {
+      {activeCategories.map((category, index) => {
         const categoryTemplates = templatesByCategory[category];
 
         return (
@@ -108,6 +117,7 @@ export const AllCategoriesView = ({
             templates={categoryTemplates}
             onCategorySelect={stableOnCategorySelect}
             onTemplateSelect={stableOnTemplateSelect}
+            priority={index < 4}
           />
         );
       })}

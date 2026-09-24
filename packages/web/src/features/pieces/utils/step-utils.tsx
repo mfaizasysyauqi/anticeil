@@ -85,12 +85,12 @@ export const stepUtils = {
         });
         const actionOrTriggerDisplayName =
           step.type === FlowActionType.PIECE
-            ? piece.actions[step.settings.actionName!].displayName
-            : piece.triggers[step.settings.triggerName!].displayName;
+            ? (piece.actions[step.settings.actionName!]?.displayName ?? piece.displayName)
+            : (piece.triggers[step.settings.triggerName!]?.displayName ?? piece.displayName);
         const actionOrTriggerDescription =
           step.type === FlowActionType.PIECE
-            ? piece.actions[step.settings.actionName!].description
-            : piece.triggers[step.settings.triggerName!].description;
+            ? (piece.actions[step.settings.actionName!]?.description ?? piece.description)
+            : (piece.triggers[step.settings.triggerName!]?.description ?? piece.description);
         return {
           ...metadata,
           errorHandlingOptions: mapErrorHandlingOptions(piece, step),

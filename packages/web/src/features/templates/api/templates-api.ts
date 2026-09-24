@@ -4,7 +4,6 @@ import {
   ListTemplatesRequestQuery,
   Template,
   UpdateTemplateRequestBody,
-  Flag,
 } from '@activepieces/shared';
 
 import { api } from '@/lib/api';
@@ -26,6 +25,6 @@ export const templatesApi = {
     return api.delete<void>(`/v1/templates/${templateId}`);
   },
   getCategories() {
-    return api.get<Flag>(`/v1/templates/categories`);
+    return api.get<string[]>(`/v1/templates/categories`);
   },
 };

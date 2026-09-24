@@ -75,8 +75,8 @@ export const TemplatesBrowseDialog = ({
   const { data: categories } = useQuery<string[]>({
     queryKey: ['template', 'categories'],
     queryFn: async () => {
-      const result = await templatesApi.getCategories();
-      return (result?.value ?? []) as string[];
+      const result: any = await templatesApi.getCategories();
+      return Array.isArray(result) ? result : (result?.value ?? []);
     },
     staleTime: 5 * 60 * 1000,
   });

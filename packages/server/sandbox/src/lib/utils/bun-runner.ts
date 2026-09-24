@@ -4,7 +4,7 @@ import { apDayjsDuration, fileSystemUtils } from '@activepieces/server-utils'
 import { type ApLogger } from '@activepieces/server-utils'
 import { type BuildFailure, build as esbuildBuild, type Message } from 'esbuild'
 import { stepFolderResolvePlugin } from './esbuild-build-options'
-import { CommandOutput, spawnWithKill } from './exec'
+import { CommandOutput, getBunExecutable, spawnWithKill } from './exec'
 
 export const bunRunner = (log: ApLogger) => ({
     async install({ path, filtersPath }: InstallParams): Promise<CommandOutput> {
@@ -19,7 +19,7 @@ export const bunRunner = (log: ApLogger) => ({
         await fileSystemUtils.threadSafeMkdir(path)
         log.debug({ path, args }, '[bunRunner#install]')
         const { error, data } = await tryCatch(async () => spawnWithKill({
-            cmd: 'bun',
+            cmd: getBunExecutable(),
             args,
             options: {
                 cwd: path,
@@ -54,11 +54,12 @@ export const bunRunner = (log: ApLogger) => ({
 })
 
 function sanitizeFilterPath(filterPath: string): string {
+    const normalized = filterPath.replace(/\\/g, '/')
     const allowed = /^(?![.])[a-zA-Z0-9\-_.@/]+$/
-    if (!allowed.test(filterPath)) {
+    if (!allowed.test(normalized)) {
         throw new Error(`Invalid filter path ${filterPath}`)
     }
-    return filterPath
+    return normalized
 }
 
 function isBuildFailure(error: unknown): error is BuildFailure {

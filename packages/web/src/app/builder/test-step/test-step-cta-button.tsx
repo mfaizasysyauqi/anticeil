@@ -305,7 +305,7 @@ const useConfigureStepShortcutToast = (stepIsValid: boolean) => {
     const isMac = /(Mac)/i.test(navigator.userAgent);
     const onKeyDown = (e: KeyboardEvent) => {
       const isCtrlG =
-        e.key.toLowerCase() === 'g' && (isMac ? e.metaKey : e.ctrlKey);
+        e.key?.toLowerCase() === 'g' && (isMac ? e.metaKey : e.ctrlKey);
       if (!isCtrlG) return;
       toast.error(t('Configure step first'));
     };

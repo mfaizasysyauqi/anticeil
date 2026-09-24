@@ -43,17 +43,24 @@ const ImageWithColorBackground = ({
         .getColorAsync(img, { algorithm: 'simple' })
         .then((color) => {
           const [r, g, b] = color.value;
-          const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-          const isDarkOrMonochrome = colorsUtils.isGrayColor(r, g, b) || luminance < 0.45;
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const diff = max - min;
+          const isColored = diff > 24;
+          const isPureDarkMonochrome = !isColored && max < 110;
           
-          if (isDarkOrMonochrome) {
+          if (isPureDarkMonochrome) {
             setIsDarkIcon(true);
             setBackgroundColor(null);
           } else {
             setIsDarkIcon(false);
-            setBackgroundColor(
-              `color-mix(in srgb, rgb(${r},${g},${b}) 15%, var(--card) 85%)`,
-            );
+            if (isColored) {
+              setBackgroundColor(
+                `color-mix(in srgb, rgb(${r},${g},${b}) 15%, var(--card) 85%)`,
+              );
+            } else {
+              setBackgroundColor(null);
+            }
           }
         })
         .catch(() => {

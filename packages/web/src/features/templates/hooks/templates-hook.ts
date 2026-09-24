@@ -12,8 +12,8 @@ export const templatesHooks = {
     return useQuery<string[], Error>({
       queryKey: ['template', 'categories'],
       queryFn: async () => {
-        const result = await templatesApi.getCategories();
-        return (result?.value ?? []) as string[];
+        const result: any = await templatesApi.getCategories();
+        return Array.isArray(result) ? result : (result?.value ?? []);
       },
       staleTime: 5 * 60 * 1000,
     });
@@ -48,7 +48,7 @@ export const templatesHooks = {
     const [debouncedSearch] = useDebounce(search, 300);
 
     const { data: templates, isLoading } = useQuery<Template[], Error>({
-      queryKey: ['templates', debouncedSearch, category],
+      queryKey: ['templates', type, debouncedSearch, category],
       queryFn: async () => {
         const templates = await templatesApi.list({
           type,

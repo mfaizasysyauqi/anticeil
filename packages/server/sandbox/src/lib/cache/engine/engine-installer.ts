@@ -1,5 +1,4 @@
-import { PathLike } from 'fs'
-import { copyFile, rename } from 'node:fs/promises'
+import { copyFile, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { isNil, tryCatch } from '@activepieces/core-utils'
 import { fileSystemUtils } from '@activepieces/server-utils'
@@ -37,12 +36,21 @@ async function copyEngine({ source, path }: CopyEngineParams): Promise<void> {
     await atomicCopy(`${source}.map`, `${path}/main.js.map`)
 }
 
-async function atomicCopy(src: PathLike, dest: PathLike): Promise<void> {
-    const destDir = dirname(dest.toString())
-    const tempPath = join(destDir, `engine.temp.${nanoid()}.js`)
+async function atomicCopy(src: string, dest: string): Promise<void> {
+    const destDir = dirname(dest)
     await fileSystemUtils.threadSafeMkdir(destDir)
-    await copyFile(src, tempPath)
-    await rename(tempPath, dest)
+    const tempPath = join(destDir, `engine.temp.${nanoid()}.js`)
+    try {
+        await copyFile(src, tempPath)
+        await rename(tempPath, dest)
+    }
+    catch {
+        // Fallback for Windows where rename onto existing / locked file can throw EPERM
+        await copyFile(src, dest)
+    }
+    finally {
+        await tryCatch(() => rm(tempPath, { force: true }))
+    }
 }
 
 type CopyEngineParams = {

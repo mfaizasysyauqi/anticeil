@@ -154,14 +154,15 @@ const DynamicPropertiesImplementation = React.memo(
             if (requestId !== optionsRequestId.current) {
               return;
             }
+            const options = response?.options ?? {};
             const defaultValue = formUtils.getDefaultValueForProperties({
-              props: response.options,
+              props: options,
               existingInput: lastKnownValue.current ?? {},
               propertySettings: props.propertySettings ?? {},
             });
-            setPropertyMap(response.options);
+            setPropertyMap(options);
             const schemaWithoutDropdownOptions =
-              removeOptionsFromDropdownPropertiesSchema(response.options);
+              removeOptionsFromDropdownPropertiesSchema(options);
             props.updateFormSchema?.(
               propertyPath,
               schemaWithoutDropdownOptions,

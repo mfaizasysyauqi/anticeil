@@ -133,15 +133,18 @@ const DynamicDropdownPiecePropertyImplementation = React.memo(
             if (requestId === optionsRequestId.current) {
               if (
                 !firstDropdownState.current &&
-                response.options.options.length > 0
+                (response?.options?.options?.length ?? 0) > 0
               ) {
                 firstDropdownState.current = response.options;
               }
-              setDropdownState(response.options);
+              if (response?.options) {
+                setDropdownState(response.options);
+              }
             }
             if (
               !isNil(fullListId) &&
-              fullListId === fullListRequestId.current
+              fullListId === fullListRequestId.current &&
+              response?.options
             ) {
               restoreValueIfStillInOptions(response.options);
             }
