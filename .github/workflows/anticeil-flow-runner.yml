@@ -1,0 +1,117 @@
+name: Anticeil Flow Runner
+
+# This workflow is deployed to each user's private repo.
+# It executes Anticeil flows using the pre-built engine bundle
+# fetched from the Anticeil release CDN — no repo checkout needed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flowId:
+        description: 'Flow ID to execute'
+        required: true
+        type: string
+      runId:
+        description: 'Flow run ID (for result tracking)'
+        required: false
+        type: string
+      inputPayload:
+        description: 'JSON-encoded input payload'
+        required: false
+        type: string
+      engineVersion:
+        description: 'Anticeil engine version to download'
+        required: false
+        default: 'latest'
+        type: string
+
+jobs:
+  run-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Prepare input payload
+        run: |
+          if [ -n "${{ github.event.inputs.inputPayload }}" ]; then
+            echo '${{ github.event.inputs.inputPayload }}' > input.json
+          else
+            echo '{
+              "flowId": "${{ github.event.inputs.flowId }}",
+              "flowRunId": "${{ github.event.inputs.runId }}"
+            }' > input.json
+          fi
+          cat input.json
+
+      - name: Download Anticeil Engine
+        run: |
+          ENGINE_VERSION="${{ github.event.inputs.engineVersion }}"
+          if [ "$ENGINE_VERSION" = "latest" ] || [ -z "$ENGINE_VERSION" ]; then
+            ENGINE_URL="https://github.com/mfaizasysyauqi/anticeil/releases/latest/download/engine-cli.js"
+          else
+            ENGINE_URL="https://github.com/mfaizasysyauqi/anticeil/releases/download/${ENGINE_VERSION}/engine-cli.js"
+          fi
+          echo "Downloading engine from: $ENGINE_URL"
+          curl -fsSL "$ENGINE_URL" -o engine-cli.js || {
+            echo "Release not found, falling back to direct API..."
+            # Fallback: fetch from Anticeil API
+            curl -fsSL "${{ secrets.ANTICEIL_API_URL || 'https://anticeil.com' }}/api/v1/engine/bundle" \
+              -H "Authorization: Bearer ${{ secrets.ANTICEIL_API_KEY }}" \
+              -o engine-cli.js
+          }
+
+      - name: Execute Anticeil Flow
+        env:
+          NODE_ENV: production
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTICEIL_CALLBACK_URL: ${{ secrets.ANTICEIL_CALLBACK_URL }}
+          ANTICEIL_CALLBACK_TOKEN: ${{ secrets.ANTICEIL_CALLBACK_TOKEN }}
+          ANTICEIL_API_KEY: ${{ secrets.ANTICEIL_API_KEY }}
+          FLOW_ID: ${{ github.event.inputs.flowId }}
+          RUN_ID: ${{ github.event.inputs.runId }}
+        run: |
+          node engine-cli.js \
+            --input ./input.json \
+            --output ./output.json \
+            --flow-id "$FLOW_ID" \
+            --run-id "$RUN_ID"
+
+      - name: Report results
+        if: always()
+        env:
+          ANTICEIL_CALLBACK_URL: ${{ secrets.ANTICEIL_CALLBACK_URL }}
+          ANTICEIL_CALLBACK_TOKEN: ${{ secrets.ANTICEIL_CALLBACK_TOKEN }}
+        run: |
+          if [ -f output.json ]; then
+            STATUS=$(cat output.json | node -e "process.stdin.resume();let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const r=JSON.parse(d);console.log(r.status||'UNKNOWN')}catch{console.log('UNKNOWN')}})")
+          else
+            STATUS="FAILED"
+          fi
+
+          echo "Execution status: $STATUS"
+
+          if [ -n "$ANTICEIL_CALLBACK_URL" ]; then
+            OUTPUT=$(cat output.json 2>/dev/null || echo '{}')
+            curl -fsSL -X POST "$ANTICEIL_CALLBACK_URL" \
+              -H "Content-Type: application/json" \
+              ${ANTICEIL_CALLBACK_TOKEN:+-H "Authorization: Bearer $ANTICEIL_CALLBACK_TOKEN"} \
+              -d "{
+                \"runId\": \"${{ github.event.inputs.runId }}\",
+                \"status\": \"$STATUS\",
+                \"durationMs\": 0
+              }" || echo "Warning: callback failed, result already in Supabase"
+          fi
+
+      - name: Upload execution output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anticeil-flow-output-${{ github.run_id }}
+          path: output.json
+          retention-days: 3

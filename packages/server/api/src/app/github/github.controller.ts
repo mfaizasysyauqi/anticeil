@@ -80,17 +80,16 @@ export const githubController: FastifyPluginAsyncZod = async (app) => {
                 })
 
                 // 4. Deploy the default runner workflow to the user repo
+                // Deploy the self-contained runner workflow to user's repo
+                // anticeil-flow-runner.yml is designed for user repos (downloads engine from releases)
+                const runnerFileName = 'anticeil-flow-runner.yml'
                 let runnerYaml = ''
-                try {
-                    runnerYaml = await fs.readFile(
-                        path.resolve(process.cwd(), '.github/workflows/anticeil-runner.yml'),
-                        'utf-8',
-                    )
-                } catch {
-                    runnerYaml = await fs.readFile(
-                        path.resolve(__dirname, '../../../../../../.github/workflows/anticeil-runner.yml'),
-                        'utf-8',
-                    ).catch(() => '')
+                const candidatePaths = [
+                    path.resolve(process.cwd(), `.github/workflows/${runnerFileName}`),
+                    path.resolve(__dirname, `../../../../../../.github/workflows/${runnerFileName}`),
+                ]
+                for (const p of candidatePaths) {
+                    try { runnerYaml = await fs.readFile(p, 'utf-8'); break } catch { /* try next */ }
                 }
 
                 if (runnerYaml) {
@@ -98,8 +97,8 @@ export const githubController: FastifyPluginAsyncZod = async (app) => {
                         token,
                         username,
                         repoName,
-                        flowId: 'runner',
-                        flowTitle: 'Anticeil Engine Runner',
+                        flowId: 'flow-runner',
+                        flowTitle: 'Anticeil Flow Runner',
                         yamlContent: runnerYaml,
                     })
                 }
