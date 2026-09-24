@@ -108,6 +108,8 @@ export const githubController: FastifyPluginCallbackZod = (app, _opts, done) => 
 
                 // 5. Store connection securely in project connections
                 if (request.projectId && request.principal?.platform?.id) {
+                    const { securityHelper } = await import('../helper/security-helper')
+                    const ownerId = await securityHelper.getUserIdFromRequest(request)
                     await appConnectionService(log).upsert({
                         platformId: request.principal.platform.id,
                         projectIds: [request.projectId],
@@ -117,6 +119,7 @@ export const githubController: FastifyPluginCallbackZod = (app, _opts, done) => 
                         pieceVersion: '1.0.0',
                         scope: AppConnectionScope.PROJECT,
                         type: AppConnectionType.CUSTOM_AUTH,
+                        ownerId,
                         value: {
                             type: AppConnectionType.CUSTOM_AUTH,
                             props: {
@@ -151,15 +154,19 @@ export const githubController: FastifyPluginCallbackZod = (app, _opts, done) => 
      */
     app.get('/status', async (request, reply) => {
         const log = request.log
-        if (!request.projectId) {
+        if (!request.projectId || !request.principal?.platform?.id) {
             return reply.send({ connected: false })
         }
 
         try {
-            const connection = await appConnectionService(log).getOneOrThrow({
+            const connection = await appConnectionService(log).getOne({
                 projectId: request.projectId,
+                platformId: request.principal.platform.id,
                 externalId: GITHUB_CONNECTION_NAME,
             })
+            if (!connection) {
+                return reply.send({ connected: false })
+            }
             const props = (connection.value as any)?.props || {}
             return reply.send({
                 connected: true,
@@ -191,10 +198,17 @@ export const githubController: FastifyPluginCallbackZod = (app, _opts, done) => 
             const log = request.log
 
             try {
-                const connection = await appConnectionService(log).getOneOrThrow({
+                if (!request.projectId || !request.principal?.platform?.id) {
+                    throw new Error('Project ID or Platform ID is missing')
+                }
+                const connection = await appConnectionService(log).getOne({
                     projectId: request.projectId,
+                    platformId: request.principal.platform.id,
                     externalId: GITHUB_CONNECTION_NAME,
                 })
+                if (!connection) {
+                    throw new Error('GitHub Runner is not connected for this project')
+                }
                 const { token, username, repoName } = (connection.value as any).props
 
                 const dispatcher = githubDispatcher(log)
