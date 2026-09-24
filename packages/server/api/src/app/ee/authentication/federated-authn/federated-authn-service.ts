@@ -1,5 +1,6 @@
 import {
     FederatedAuthnLoginResponse,
+    ThirdPartyAuthnProviderEnum,
     UserIdentityProvider,
 } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
@@ -9,12 +10,25 @@ import { domainHelper } from '../../../helper/domain-helper'
 import { system } from '../../../helper/system/system'
 import { AppSystemProp } from '../../../helper/system/system-props'
 import { googleAuthnProvider } from './google-authn-provider'
+import { githubAuthnProvider } from './github-authn-provider'
 
 export const federatedAuthnService = (log: FastifyBaseLogger) => ({
     async login({
+        providerName,
         platformId,
     }: LoginParams): Promise<FederatedAuthnLoginResponse> {
-        const { clientId } = getClientIdAndSecret()
+        if (providerName === ThirdPartyAuthnProviderEnum.GITHUB) {
+            const { clientId } = getGithubClientIdAndSecret()
+            const loginUrl = await githubAuthnProvider(log).getLoginUrl({
+                clientId,
+                platformId,
+            })
+            return {
+                loginUrl,
+            }
+        }
+
+        const { clientId } = getGoogleClientIdAndSecret()
         const loginUrl = await googleAuthnProvider(log).getLoginUrl({
             clientId,
             platformId,
@@ -26,10 +40,32 @@ export const federatedAuthnService = (log: FastifyBaseLogger) => ({
     },
 
     async claim({
+        providerName,
         platformId,
         code,
     }: ClaimParams): Promise<AuthenticationResult> {
-        const { clientId, clientSecret } = getClientIdAndSecret()
+        if (providerName === ThirdPartyAuthnProviderEnum.GITHUB) {
+            const { clientId, clientSecret } = getGithubClientIdAndSecret()
+            const profile = await githubAuthnProvider(log).authenticate({
+                clientId,
+                clientSecret,
+                authorizationCode: code,
+                platformId,
+            })
+
+            return authenticationService(log).federatedAuthn({
+                email: profile.email,
+                firstName: profile.firstName ?? 'GitHub',
+                lastName: profile.lastName ?? '',
+                trackEvents: true,
+                newsLetter: true,
+                provider: UserIdentityProvider.GITHUB,
+                predefinedPlatformId: platformId ?? null,
+                imageUrl: profile.imageUrl,
+            })
+        }
+
+        const { clientId, clientSecret } = getGoogleClientIdAndSecret()
         const idToken = await googleAuthnProvider(log).authenticate({
             clientId,
             clientSecret,
@@ -55,18 +91,27 @@ export const federatedAuthnService = (log: FastifyBaseLogger) => ({
     },
 })
 
-function getClientIdAndSecret() {
+function getGoogleClientIdAndSecret() {
     return {
         clientId: system.getOrThrow(AppSystemProp.GOOGLE_CLIENT_ID),
         clientSecret: system.getOrThrow(AppSystemProp.GOOGLE_CLIENT_SECRET),
     }
 }
 
+function getGithubClientIdAndSecret() {
+    return {
+        clientId: system.getOrThrow(AppSystemProp.GITHUB_CLIENT_ID),
+        clientSecret: system.getOrThrow(AppSystemProp.GITHUB_CLIENT_SECRET),
+    }
+}
+
 type LoginParams = {
+    providerName?: ThirdPartyAuthnProviderEnum
     platformId: string | undefined
 }
 
 type ClaimParams = {
+    providerName?: ThirdPartyAuthnProviderEnum
     platformId: string | undefined
     code: string
 }

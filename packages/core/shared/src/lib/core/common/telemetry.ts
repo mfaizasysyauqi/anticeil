@@ -33,7 +33,7 @@ type SignInFailed = {
 }
 
 type FederatedLoginStarted = {
-    provider: 'google' | 'saml'
+    provider: 'google' | 'github' | 'saml'
 }
 
 type EmailVerificationCompleted = Record<string, never>

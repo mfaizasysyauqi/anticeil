@@ -23,11 +23,13 @@ export const enterpriseFlagsHooks: FlagsServiceHooks = {
         const platformId = platformIdFromPrincipal ?? await platformUtils.getPlatformIdForRequest(request)
         const edition = system.getEdition()
         const googleAuthEnabled = !isNil(system.get(AppSystemProp.GOOGLE_CLIENT_ID)) && !isNil(system.get(AppSystemProp.GOOGLE_CLIENT_SECRET))
+        const githubAuthEnabled = !isNil(system.get(AppSystemProp.GITHUB_CLIENT_ID)) && !isNil(system.get(AppSystemProp.GITHUB_CLIENT_SECRET))
         modifiedFlags[ApFlagId.ALLOWED_EMBED_ORIGINS] = system.getList(AppSystemProp.ALLOWED_EMBED_ORIGINS)
         if (isNil(platformId)) {
             if (edition === ApEdition.CLOUD) {
                 modifiedFlags[ApFlagId.THIRD_PARTY_AUTH_PROVIDERS_TO_SHOW_MAP] = {
                     [ThirdPartyAuthnProviderEnum.GOOGLE]: googleAuthEnabled,
+                    [ThirdPartyAuthnProviderEnum.GITHUB]: githubAuthEnabled,
                 }
             }
             return modifiedFlags
@@ -37,6 +39,7 @@ export const enterpriseFlagsHooks: FlagsServiceHooks = {
         const samlConfigured = await platformService(request.log).hasSamlConfigured(platformId)
         modifiedFlags[ApFlagId.THIRD_PARTY_AUTH_PROVIDERS_TO_SHOW_MAP] = {
             [ThirdPartyAuthnProviderEnum.GOOGLE]: googleAuthEnabled && platform.googleAuthEnabled,
+            [ThirdPartyAuthnProviderEnum.GITHUB]: githubAuthEnabled,
             [ThirdPartyAuthnProviderEnum.SAML]: samlConfigured,
         }
         modifiedFlags[ApFlagId.EMAIL_AUTH_ENABLED] = platform.emailAuthEnabled

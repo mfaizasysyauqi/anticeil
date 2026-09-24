@@ -23,6 +23,8 @@ export const useHandleKeyPressOnCanvas = () => {
     showMinimap,
     setDraggedNote,
     setDraggedStep,
+    undo,
+    redo,
   ] = useBuilderStateContext((state) => [
     state.selectedNodes,
     state.flowVersion,
@@ -34,6 +36,8 @@ export const useHandleKeyPressOnCanvas = () => {
     state.showMinimap,
     state.setDraggedNote,
     state.setActiveDraggingStep,
+    state.undo,
+    state.redo,
   ]);
 
   const handleKeyDown = useCallback(
@@ -55,6 +59,14 @@ export const useHandleKeyPressOnCanvas = () => {
       const selectedNodesWithoutTrigger = selectedNodes.filter(
         (node) => node !== flowVersion.trigger.name,
       );
+
+      // Ctrl+Shift+Z = Redo (intercepted before main handler to avoid conflict)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.stopPropagation();
+        e.preventDefault();
+        if (!readonly) redo();
+        return;
+      }
 
       shortcutHandler(e, {
         Minimap: () => {
@@ -105,6 +117,12 @@ export const useHandleKeyPressOnCanvas = () => {
           setDraggedNote(null, null);
           setDraggedStep(null);
         },
+        Undo: () => {
+          if (!readonly) undo();
+        },
+        Redo: () => {
+          if (!readonly) redo();
+        },
         Paste: () => {
           if (
             readonly ||
@@ -149,6 +167,8 @@ export const useHandleKeyPressOnCanvas = () => {
       showMinimap,
       setDraggedNote,
       setDraggedStep,
+      undo,
+      redo,
     ],
   );
 
@@ -162,13 +182,18 @@ const shortcutHandler = (
   handlers: Record<keyof CanvasShortcutsProps, () => void>,
 ) => {
   const shortcutActivated = Object.entries(CanvasShortcuts).find(
-    ([_, shortcut]) =>
-      shortcut.shortcutKey?.toLowerCase() === event.key.toLowerCase() &&
-      !!(
+    ([_, shortcut]) => {
+      const keyMatch =
+        shortcut.shortcutKey?.toLowerCase() === event.key.toLowerCase() ||
+        // Treat Backspace as alias for Delete shortcut
+        (shortcut.shortcutKey === 'Delete' && event.key === 'Backspace');
+      const ctrlMatch = !!(
         shortcut.withCtrl === event.ctrlKey ||
         shortcut.withCtrl === event.metaKey
-      ) &&
-      !!shortcut.withShift === event.shiftKey,
+      );
+      const shiftMatch = !!shortcut.withShift === event.shiftKey;
+      return keyMatch && ctrlMatch && shiftMatch;
+    },
   );
   if (shortcutActivated) {
     handlers[shortcutActivated[0] as keyof CanvasShortcutsProps]();
@@ -193,7 +218,7 @@ export const CanvasShortcuts: CanvasShortcutsProps = {
   },
   Delete: {
     withCtrl: false,
-    withShift: true,
+    withShift: false,
     shortcutKey: 'Delete',
   },
   Copy: {
@@ -205,5 +230,15 @@ export const CanvasShortcuts: CanvasShortcutsProps = {
     withCtrl: true,
     withShift: false,
     shortcutKey: 'e',
+  },
+  Undo: {
+    withCtrl: true,
+    withShift: false,
+    shortcutKey: 'z',
+  },
+  Redo: {
+    withCtrl: true,
+    withShift: false,
+    shortcutKey: 'y',
   },
 };

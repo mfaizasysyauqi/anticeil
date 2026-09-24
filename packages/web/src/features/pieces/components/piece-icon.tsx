@@ -11,7 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 
 const pieceIconVariants = cva(
-  'flex rounded-md items-center justify-center bg-background  ',
+  'flex rounded-md items-center justify-center bg-card text-card-foreground',
   {
     variants: {
       size: {
@@ -25,7 +25,7 @@ const pieceIconVariants = cva(
         tile: 'size-[26px] min-w-[26px] min-h-[26px]',
       },
       border: {
-        true: 'border border-solid',
+        true: 'border border-border/60',
       },
     },
     defaultVariants: {},
@@ -71,7 +71,11 @@ const PieceIcon = React.memo(
               pieceIconVariants({ border, size }),
               'overflow-hidden',
             )}
-            style={background ? { backgroundColor: background } : undefined}
+            style={
+              background && background !== 'white'
+                ? { backgroundColor: background }
+                : undefined
+            }
           >
             {logoUrl ? (
               <ImageWithColorBackground

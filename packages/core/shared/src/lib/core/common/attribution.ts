@@ -71,6 +71,7 @@ export enum SignUpMethod {
     PASSWORD = 'password',
     EMAIL_CODE = 'email_code',
     GOOGLE = 'google',
+    GITHUB = 'github',
     SAML = 'saml',
     JWT = 'jwt',
 }
@@ -85,6 +86,8 @@ function signUpMethodFromProvider({ provider }: { provider: UserIdentityProvider
             return SignUpMethod.EMAIL_CODE
         case UserIdentityProvider.GOOGLE:
             return SignUpMethod.GOOGLE
+        case UserIdentityProvider.GITHUB:
+            return SignUpMethod.GITHUB
         case UserIdentityProvider.SAML:
             return SignUpMethod.SAML
         case UserIdentityProvider.JWT:

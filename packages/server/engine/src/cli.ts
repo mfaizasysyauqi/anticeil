@@ -123,7 +123,7 @@ async function main() {
     
     if (args.includes('--help') || args.includes('-h')) {
         console.log(`
-Anticeil Flow — Activepieces Serverless Engine Runner
+Anticeil — Activepieces Serverless Engine Runner
 
 Usage:
   npx tsx packages/server/engine/src/cli.ts [options]

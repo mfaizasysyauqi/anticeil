@@ -11,10 +11,10 @@ const FullLogo = ({ className }: { className?: string }) => {
       <img
         className="h-7 w-auto max-h-[32px] object-contain shrink-0"
         src={branding?.logos?.fullLogoUrl || '/logo.png'}
-        alt={branding?.websiteName || 'Anticeil Flow'}
+        alt={branding?.websiteName || 'Anticeil'}
       />
       <span className="font-bold text-[17px] tracking-tight text-foreground font-sans">
-        {branding?.websiteName || 'Anticeil Flow'}
+        {branding?.websiteName || 'Anticeil'}
       </span>
     </div>
   );

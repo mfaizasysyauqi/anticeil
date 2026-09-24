@@ -33,7 +33,7 @@ export const githubSyncService = (log?: FastifyBaseLogger) => ({
                     {
                         name: repoName,
                         private: true,
-                        description: 'Anticeil Flow Serverless Workflows (2,000 free minutes/mo)',
+                        description: 'Anticeil Serverless Workflows (2,000 free minutes/mo)',
                         auto_init: true,
                     },
                     { headers },

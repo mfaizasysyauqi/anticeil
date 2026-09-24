@@ -185,6 +185,8 @@ const systemPropValidators: {
 
     // AppSystemProp
     // Cloud
+    [AppSystemProp.GITHUB_CLIENT_ID]: stringValidator,
+    [AppSystemProp.GITHUB_CLIENT_SECRET]: stringValidator,
     [AppSystemProp.GOOGLE_CLIENT_ID]: stringValidator,
     [AppSystemProp.GOOGLE_CLIENT_SECRET]: stringValidator,
 

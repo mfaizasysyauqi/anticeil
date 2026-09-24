@@ -85,7 +85,11 @@ export function AccountSettingsDialog({
                 onClick={handleAvatarClick}
               >
                 <UserAvatar
-                  name={(user?.firstName ?? '') + ' ' + (user?.lastName ?? '')}
+                  name={
+                    user?.firstName === user?.lastName || !user?.lastName
+                      ? user?.firstName ?? ''
+                      : `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()
+                  }
                   email={user?.email ?? ''}
                   size={64}
                   disableTooltip
@@ -105,7 +109,9 @@ export function AccountSettingsDialog({
               </div>
               <div className="flex-1">
                 <div className="text-sm font-semibold">
-                  {user?.firstName} {user?.lastName}
+                  {user?.firstName === user?.lastName || !user?.lastName
+                    ? user?.firstName
+                    : `${user?.firstName} ${user?.lastName}`.trim()}
                 </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                   <Mail className="w-3.5 h-3.5" />

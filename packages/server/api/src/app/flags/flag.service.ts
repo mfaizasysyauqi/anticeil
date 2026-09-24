@@ -138,6 +138,7 @@ export const flagService = (log: FastifyBaseLogger) => ({
                 id: ApFlagId.THIRD_PARTY_AUTH_PROVIDERS_TO_SHOW_MAP,
                 value: {
                     [ThirdPartyAuthnProviderEnum.GOOGLE]: !isNil(system.get(AppSystemProp.GOOGLE_CLIENT_ID)) && !isNil(system.get(AppSystemProp.GOOGLE_CLIENT_SECRET)),
+                    [ThirdPartyAuthnProviderEnum.GITHUB]: !isNil(system.get(AppSystemProp.GITHUB_CLIENT_ID)) && !isNil(system.get(AppSystemProp.GITHUB_CLIENT_SECRET)),
                 },
                 created,
                 updated,

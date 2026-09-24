@@ -74,7 +74,7 @@ export function generateTheme({
 
 export const defaultTheme = generateTheme({
     primaryColor: '#0073EA',
-    websiteName: 'Anticeil Flow',
+    websiteName: 'Anticeil',
     fullLogoUrl: '/logo.png',
     favIconUrl: '/logo.png',
     logoIconUrl: '/logo.png',

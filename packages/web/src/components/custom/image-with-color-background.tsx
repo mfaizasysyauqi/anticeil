@@ -20,33 +20,46 @@ const ImageWithColorBackground = ({
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [backgroundColor, setBackgroundColor] = useState<string | null>(null);
-  const [isDarkIcon, setIsDarkIcon] = useState<boolean>(() => {
-    if (typeof src === 'string') {
-      return (
-        src.includes('new-core') ||
-        src.includes('empty-trigger') ||
-        src.includes('loop.svg') ||
-        src.includes('router.svg') ||
-        src.includes('code.svg')
-      );
-    }
-    return false;
-  });
+  const isKnownDarkIcon =
+    typeof src === 'string' &&
+    (src.includes('new-core/empty-trigger') ||
+      src.includes('new-core/loop') ||
+      src.includes('new-core/router') ||
+      src.includes('new-core/code.svg') ||
+      src.includes('pieces/github.') ||
+      src.includes('pieces/openai.') ||
+      src.includes('pieces/chatgpt.') ||
+      src.includes('pieces/perplexity.') ||
+      src.includes('pieces/typeform.') ||
+      src.includes('pieces/notion.') ||
+      src.includes('pieces/linear.') ||
+      src.includes('pieces/threads.') ||
+      src.includes('pieces/vercel.'));
+
+  const [isDarkIcon, setIsDarkIcon] = useState<boolean>(() => isKnownDarkIcon);
   // Drop crossOrigin on error so logos on CORS-less hosts still render (without the tint).
   const [useCrossOrigin, setUseCrossOrigin] = useState(true);
 
   const handleLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
       setIsLoading(false);
+      if (isKnownDarkIcon) {
+        setIsDarkIcon(true);
+        setBackgroundColor(null);
+        return;
+      }
       const img = e.currentTarget;
       colorsUtils.fac
         .getColorAsync(img, { algorithm: 'simple' })
         .then((color) => {
           const [r, g, b] = color.value;
           const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-          const isDarkOrMonochrome = colorsUtils.isGrayColor(r, g, b) || luminance < 0.45;
+          const maxDiff = Math.max(Math.abs(r - g), Math.abs(r - b), Math.abs(g - b));
+          // STRICT monochrome check: only pure grayscale/black icons (maxDiff < 12 && luminance < 0.25)
+          // Any colored icon (Groq orange, VS Code blue, Slack, Playwright, etc.) will have maxDiff > 30 and MUST NEVER be inverted.
+          const isMonochromeBlack = maxDiff < 12 && luminance < 0.25;
           
-          if (isDarkOrMonochrome) {
+          if (isMonochromeBlack) {
             setIsDarkIcon(true);
             setBackgroundColor(null);
           } else {
@@ -60,7 +73,7 @@ const ImageWithColorBackground = ({
           setBackgroundColor(null);
         });
     },
-    [],
+    [isKnownDarkIcon],
   );
 
   const handleError = useCallback(() => {

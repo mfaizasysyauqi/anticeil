@@ -44,6 +44,11 @@ export function SidebarUser() {
     authenticationSession.logOut();
   };
 
+  const displayName =
+    user.firstName === user.lastName || !user.lastName
+      ? user.firstName
+      : `${user.firstName} ${user.lastName}`.trim();
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -55,7 +60,7 @@ export function SidebarUser() {
                   className={cn('size-full object-cover', {
                     'scale-150': isNil(user.imageUrl),
                   })}
-                  name={user.firstName + ' ' + user.lastName}
+                  name={displayName}
                   email={user.email}
                   imageUrl={user.imageUrl}
                   size={22}
@@ -66,7 +71,7 @@ export function SidebarUser() {
               {!isCollapsed && (
                 <>
                   <span className="truncate">
-                    {user.firstName + ' ' + user.lastName}
+                    {displayName}
                   </span>
                   <ChevronsUpDown className="ml-auto size-4" />
                 </>
@@ -84,7 +89,7 @@ export function SidebarUser() {
                 <div className="size-8 shrink-0 overflow-hidden rounded-full">
                   <UserAvatar
                     className="size-full object-cover"
-                    name={user.firstName + ' ' + user.lastName}
+                    name={displayName}
                     email={user.email}
                     imageUrl={user.imageUrl}
                     size={32}
@@ -94,7 +99,7 @@ export function SidebarUser() {
 
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">
-                    {user.firstName + ' ' + user.lastName}
+                    {displayName}
                   </span>
                   <span className="truncate text-xs">{user.email}</span>
                 </div>

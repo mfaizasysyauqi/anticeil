@@ -69,6 +69,8 @@
     "@ai-sdk/google-vertex": "5.0.36",
     "@ai-sdk/openai": "4.0.25",
     "@ai-sdk/openai-compatible": "3.0.18",
+    "@ai-sdk/provider": "4.0.17",
+    "@ai-sdk/provider-utils": "5.0.45",
     "@alloc/quick-lru": "5.3.0",
     "@commitlint/cli": "17.7.1",
     "@commitlint/config-conventional": "17.7.0",
@@ -106,6 +108,7 @@
     "eslint-plugin-testing-library": "6.2.2",
     "eslint-plugin-unused-imports": "4.4.1",
     "eslint-plugin-vitest": "0.5.4",
+    "google-auth-library": "^9.0.0",
     "http-status-codes": "2.2.0",
     "husky": "8.0.3",
     "i18next-parser": "9.3.0",
@@ -156,6 +159,10 @@
   "resolutions": {
     "rollup": "npm:@rollup/wasm-node",
     "axios": "1.18.0",
-    "nanoid": "3.3.18"
+    "nanoid": "3.3.18",
+    "@ai-sdk/provider": "4.0.17",
+    "@xmldom/xmldom": "0.8.11",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.14"
   }
 }

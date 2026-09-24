@@ -22,18 +22,29 @@ function useThirdPartyAvailability(): ThirdPartyAvailability {
     flagsHooks.useFlag<ThirdPartyAuthnProvidersToShowMap>(
       ApFlagId.THIRD_PARTY_AUTH_PROVIDERS_TO_SHOW_MAP,
     );
+  const { data: emailAuthEnabledFlag } = flagsHooks.useFlag<boolean>(
+    ApFlagId.EMAIL_AUTH_ENABLED,
+  );
   const { data: edition } = flagsHooks.useFlag<ApEdition>(ApFlagId.EDITION);
   const isCloud = edition === ApEdition.CLOUD;
+  const emailAuthEnabled = emailAuthEnabledFlag ?? false;
+  const hasSpecificConfig =
+    thirdPartyAuthProviders?.google !== undefined ||
+    thirdPartyAuthProviders?.github !== undefined;
+
+  const defaultShow = !emailAuthEnabled && !hasSpecificConfig;
+
   return {
-    google: Boolean(thirdPartyAuthProviders?.google),
+    google: false,
+    github: Boolean(thirdPartyAuthProviders?.github) || defaultShow || true,
     saml: isCloud || Boolean(thirdPartyAuthProviders?.saml),
     samlIsCloud: isCloud,
   };
 }
 
 function useShowThirdPartyProviders(): boolean {
-  const { google, saml } = useThirdPartyAvailability();
-  return google || saml;
+  const { google, github, saml } = useThirdPartyAvailability();
+  return google || github || saml;
 }
 
 const GoogleLogoIcon = () => (
@@ -53,6 +64,16 @@ const GoogleLogoIcon = () => (
     <path
       fill="#EA4335"
       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+    />
+  </svg>
+);
+
+const GithubLogoIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="shrink-0">
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
     />
   </svg>
 );
@@ -80,8 +101,9 @@ const ThirdPartyLogin = React.memo(
     const { capture } = useTelemetry();
     const availability = useThirdPartyAvailability();
     const showProviders =
-      availability.google || (!hideSaml && availability.saml);
-    const [isLoading, setIsLoading] = useState(false);
+      availability.google || availability.github || (!hideSaml && availability.saml);
+    const [loadingProvider, setLoadingProvider] =
+      useState<ThirdPartyAuthnProviderEnum | null>(null);
 
     const handleProviderClick = async (
       event: React.MouseEvent<HTMLButtonElement, MouseEvent>,
@@ -89,14 +111,11 @@ const ThirdPartyLogin = React.memo(
     ) => {
       event.preventDefault();
       event.stopPropagation();
-      setIsLoading(true);
+      setLoadingProvider(providerName);
       capture({
         name: TelemetryEventName.FEDERATED_LOGIN_STARTED,
         payload: {
-          provider:
-            providerName === ThirdPartyAuthnProviderEnum.GOOGLE
-              ? 'google'
-              : 'saml',
+          provider: providerName,
         },
       });
       try {
@@ -106,12 +125,12 @@ const ThirdPartyLogin = React.memo(
 
         if (!loginUrl || !thirdPartyRedirectUrl) {
           internalErrorToast();
-          setIsLoading(false);
+          setLoadingProvider(null);
           return;
         }
         thirdPartyLogin(loginUrl, providerName);
       } catch (err) {
-        setIsLoading(false);
+        setLoadingProvider(null);
         internalErrorToast();
       }
     };
@@ -130,32 +149,52 @@ const ThirdPartyLogin = React.memo(
           </div>
           <div className="flex items-center gap-2.5 text-foreground/90">
             <ShieldCheck className="size-3.5 shrink-0 text-emerald-500" />
-            <span>{t('Keamanan resmi Google OAuth 2.0')}</span>
+            <span>{t('Official OAuth 2.0 security via GitHub')}</span>
           </div>
           <div className="flex items-center gap-2.5 text-foreground/90">
             <Sparkles className="size-3.5 shrink-0 text-primary" />
-            <span>{t('Terhubung langsung ke kuota AI & workspace Anticeil')}</span>
+            <span>{t('Bring your own API key, full control without subscription')}</span>
           </div>
         </div>
 
-        {/* Google OAuth Button */}
-        {thirdPartyAuthProviders?.google && (
-          <Button
-            variant="outline"
-            className="h-12 w-full gap-3 rounded-xl border-border bg-background text-[14px] font-semibold text-foreground shadow-sm transition-all hover:bg-accent hover:border-border-strong active:scale-[0.99] cursor-pointer"
-            disabled={isLoading}
-            onClick={(e) =>
-              handleProviderClick(e, ThirdPartyAuthnProviderEnum.GOOGLE)
-            }
-          >
-            {isLoading ? (
-              <Loader2 className="size-4.5 animate-spin" />
-            ) : (
-              <GoogleLogoIcon />
-            )}
-            <span>{t('Lanjutkan dengan Google')}</span>
-          </Button>
-        )}
+        {/* OAuth Buttons */}
+        <div className="flex flex-col gap-2.5">
+          {availability.google && (
+            <Button
+              variant="outline"
+              className="h-12 w-full gap-3 rounded-xl border-border bg-background text-[14px] font-semibold text-foreground shadow-sm transition-all hover:bg-accent hover:border-border-strong active:scale-[0.99] cursor-pointer"
+              disabled={loadingProvider !== null}
+              onClick={(e) =>
+                handleProviderClick(e, ThirdPartyAuthnProviderEnum.GOOGLE)
+              }
+            >
+              {loadingProvider === ThirdPartyAuthnProviderEnum.GOOGLE ? (
+                <Loader2 className="size-4.5 animate-spin" />
+              ) : (
+                <GoogleLogoIcon />
+              )}
+              <span>{t('Continue with Google')}</span>
+            </Button>
+          )}
+
+          {availability.github && (
+            <Button
+              variant="outline"
+              className="h-12 w-full gap-3 rounded-xl border-border bg-background text-[14px] font-semibold text-foreground shadow-sm transition-all hover:bg-accent hover:border-border-strong active:scale-[0.99] cursor-pointer"
+              disabled={loadingProvider !== null}
+              onClick={(e) =>
+                handleProviderClick(e, ThirdPartyAuthnProviderEnum.GITHUB)
+              }
+            >
+              {loadingProvider === ThirdPartyAuthnProviderEnum.GITHUB ? (
+                <Loader2 className="size-4.5 animate-spin" />
+              ) : (
+                <GithubLogoIcon />
+              )}
+              <span>{t('Continue with GitHub')}</span>
+            </Button>
+          )}
+        </div>
 
         {/* SAML SSO Option (If Configured) */}
         {!hideSaml && isCloud && (
@@ -172,8 +211,8 @@ const ThirdPartyLogin = React.memo(
           >
             <img src={SamlIcon} alt="SAML" width={16} height={16} />
             {isSignUp
-              ? `${t('Sign up with')} SAML`
-              : `${t('Sign in with')} SAML`}
+              ? t('Sign up with SAML')
+              : t('Sign in with SAML')}
           </Button>
         )}
 
@@ -191,15 +230,15 @@ const ThirdPartyLogin = React.memo(
           >
             <img src={SamlIcon} alt="SAML" width={16} height={16} />
             {isSignUp
-              ? `${t('Sign up with')} SAML`
-              : `${t('Sign in with')} SAML`}
+              ? t('Sign up with SAML')
+              : t('Sign in with SAML')}
           </Button>
         )}
 
         {/* Trust & Privacy Notice */}
         <p className="mt-1 text-center text-[11px] leading-relaxed text-muted-foreground">
           {t(
-            'Dengan melanjutkan, Anda menyetujui Ketentuan Layanan & Kebijakan Privasi Anticeil. 100% Aman & Bebas Password.',
+            'By continuing, you agree to the Terms of Service & Privacy Policy. 100% Secure & Passwordless.',
           )}
         </p>
       </div>
@@ -217,6 +256,8 @@ export {
 
 type ThirdPartyAvailability = {
   google: boolean;
+  github: boolean;
   saml: boolean;
   samlIsCloud: boolean;
 };
+

@@ -278,8 +278,8 @@ function AuthStep({
     return (
       <DrawerShell>
         <Heading
-          title={t('Masuk ke Anticeil Flow')}
-          subtitle={t('Satu akun terhubung ke workspace cloud dan kuota AI.')}
+          title={t('Sign in to Anticeil')}
+          subtitle={t('Bring your own API key, full control without subscription.')}
         />
         <ThirdPartyLogin
           isSignUp={mode === 'signup'}

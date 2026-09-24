@@ -11,7 +11,7 @@ import customHtmlPlugin from './vite-plugins/html-plugin';
 export default defineConfig(({ command, mode }) => {
   const isDev = command === 'serve' || mode === 'development';
 
-  const AP_TITLE = 'Anticeil Flow';
+  const AP_TITLE = 'Anticeil';
   const AP_FAVICON = '/logo.svg';
 
   return {
@@ -108,6 +108,12 @@ export default defineConfig(({ command, mode }) => {
         '@codemirror/commands',
       ],
       alias: {
+        // Force bail to v2 (ESM named export) — react-markdown@9 needs bail@2,
+        // but bail@1 (CJS default-only) is hoisted to root and breaks Vite's interop.
+        'bail': path.resolve(
+          __dirname,
+          '../../node_modules/react-markdown/node_modules/unified/node_modules/bail/index.js',
+        ),
         '@': path.resolve(__dirname, './src'),
         '@activepieces/shared': path.resolve(
           __dirname,

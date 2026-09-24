@@ -31,6 +31,12 @@ export type FlowState = {
   outputSampleData: Record<string, unknown | undefined>;
   inputSampleData: Record<string, unknown | undefined>;
   saving: boolean;
+  undoStack: FlowVersion[];
+  redoStack: FlowVersion[];
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
   renameFlowClientSide: (newName: string) => void;
   moveToFolderClientSide: (folderId: string) => void;
   applyOperation: (
@@ -91,12 +97,50 @@ export const createFlowState = (
     },
     1000,
   );
+  const HISTORY_LIMIT = 50;
   return {
     saving: false,
     outputSampleData: initialState.outputSampleData,
     inputSampleData: initialState.inputSampleData,
     flow: initialState.flow,
     flowVersion: initialState.flowVersion,
+    undoStack: [],
+    redoStack: [],
+    canUndo: false,
+    canRedo: false,
+    undo: () =>
+      set((state) => {
+        if (state.readonly || state.undoStack.length === 0) return state;
+        const prev = state.undoStack[state.undoStack.length - 1];
+        const newUndo = state.undoStack.slice(0, -1);
+        const newRedo = [state.flowVersion, ...state.redoStack].slice(
+          0,
+          HISTORY_LIMIT,
+        );
+        return {
+          flowVersion: prev,
+          undoStack: newUndo,
+          redoStack: newRedo,
+          canUndo: newUndo.length > 0,
+          canRedo: true,
+        };
+      }),
+    redo: () =>
+      set((state) => {
+        if (state.readonly || state.redoStack.length === 0) return state;
+        const next = state.redoStack[0];
+        const newRedo = state.redoStack.slice(1);
+        const newUndo = [...state.undoStack, state.flowVersion].slice(
+          -HISTORY_LIMIT,
+        );
+        return {
+          flowVersion: next,
+          undoStack: newUndo,
+          redoStack: newRedo,
+          canUndo: true,
+          canRedo: newRedo.length > 0,
+        };
+      }),
     renameFlowClientSide: (newName: string) => {
       set((state) => {
         return {
@@ -158,6 +202,10 @@ export const createFlowState = (
     isPublishing: false,
     applyOperation: (operation: FlowOperationRequest, onSuccess?: () => void) =>
       set((state) => {
+        // Push snapshot to undo history before mutating
+        const newUndo = [...state.undoStack, state.flowVersion].slice(
+          -HISTORY_LIMIT,
+        );
         if (state.readonly) {
           if (operation.type === FlowOperationType.UPDATE_NOTE) {
             const newFlowVersion = flowOperations.apply(
@@ -256,7 +304,13 @@ export const createFlowState = (
           }
         }
 
-        return { flowVersion: newFlowVersion };
+        return {
+          flowVersion: newFlowVersion,
+          undoStack: newUndo,
+          redoStack: [],
+          canUndo: true,
+          canRedo: false,
+        };
       }),
     setVersion: (
       flowVersion: FlowVersion,

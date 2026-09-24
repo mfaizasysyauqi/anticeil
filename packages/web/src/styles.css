@@ -805,9 +805,25 @@
   }
 
   /* Core piece icons (monochrome SVGs) in dark mode */
-  .dark img[src*='empty-trigger.svg'],
-  .dark img[src*='new-core/'] {
-    filter: invert(0.9) hue-rotate(180deg) brightness(1.3) contrast(1.1);
+  img[src*='new-core/empty-trigger'],
+  img[src*='new-core/loop'],
+  img[src*='new-core/router'],
+  img[src*='new-core/code.svg'],
+  img[src*='new-core/branch'] {
+    filter: brightness(2.6) saturate(1.5) contrast(1.2) !important;
+  }
+
+  /* Only pure black monochrome logos that need inversion to white in dark mode */
+  img[src*='pieces/github.'],
+  img[src*='pieces/openai.'],
+  img[src*='pieces/chatgpt.'],
+  img[src*='pieces/perplexity.'],
+  img[src*='pieces/typeform.'],
+  img[src*='pieces/notion.'],
+  img[src*='pieces/linear.'],
+  img[src*='pieces/threads.'],
+  img[src*='pieces/vercel.'] {
+    filter: invert(1) brightness(1.25) contrast(1.1) !important;
   }
 }
 
@@ -974,6 +990,9 @@
   background-size: 300% 100%;
   animation: auth-anim-gradient-flow 4s ease-in-out infinite;
   -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;

@@ -678,6 +678,11 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
     navigate('/sign-in');
   };
 
+  const displayName =
+    user.firstName === user.lastName || !user.lastName
+      ? user.firstName
+      : `${user.firstName} ${user.lastName}`.trim();
+
   return (
     <div
       className={cn(
@@ -705,7 +710,7 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
                     className={cn('size-full object-cover', {
                       'scale-150': isNil(user.imageUrl),
                     })}
-                    name={user.firstName + ' ' + user.lastName}
+                    name={displayName}
                     email={user.email}
                     imageUrl={user.imageUrl}
                     size={22}
@@ -714,7 +719,7 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
                 </div>
                 {!collapsed && (
                   <span className="min-w-0 flex-1 truncate text-left text-sm">
-                    {user.firstName + ' ' + user.lastName}
+                    {displayName}
                   </span>
                 )}
               </button>
@@ -735,7 +740,7 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
               <div className="size-8 shrink-0 overflow-hidden rounded-full">
                 <UserAvatar
                   className="size-full object-cover"
-                  name={user.firstName + ' ' + user.lastName}
+                  name={displayName}
                   email={user.email}
                   imageUrl={user.imageUrl}
                   size={32}
@@ -744,7 +749,7 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">
-                  {user.firstName + ' ' + user.lastName}
+                  {displayName}
                 </span>
                 <span className="truncate text-xs">{user.email}</span>
               </div>

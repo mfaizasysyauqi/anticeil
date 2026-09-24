@@ -22,6 +22,7 @@ const federatedAuthnController: FastifyPluginAsyncZod = async (app) => {
     app.get('/login', LoginRequestSchema, async (req) => {
         const platformId = await platformUtils.getPlatformIdForRequest(req)
         return federatedAuthnService(req.log).login({
+            providerName: req.query.providerName,
             platformId: platformId ?? undefined,
         })
     })
@@ -29,6 +30,7 @@ const federatedAuthnController: FastifyPluginAsyncZod = async (app) => {
     app.post('/claim', ClaimTokenRequestSchema, async (req) => {
         const platformId = await platformUtils.getPlatformIdForRequest(req)
         const { response, signedUp } = await federatedAuthnService(req.log).claim({
+            providerName: req.body.providerName,
             platformId: platformId ?? undefined,
             code: req.body.code,
         })
@@ -44,10 +46,13 @@ const federatedAuthnController: FastifyPluginAsyncZod = async (app) => {
                     source: 'sso',
                 },
             })
+            const method = req.body.providerName === ThirdPartyAuthnProviderEnum.GITHUB
+                ? SignUpMethod.GITHUB
+                : SignUpMethod.GOOGLE
             rejectedPromiseHandler(telemetry(req.log).identifySignUp({
                 userId: response.id,
                 platformId: response.platformId,
-                method: SignUpMethod.GOOGLE,
+                method,
                 attribution: req.body.attribution,
             }), req.log)
         }

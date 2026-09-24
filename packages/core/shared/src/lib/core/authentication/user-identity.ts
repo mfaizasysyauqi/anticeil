@@ -5,6 +5,7 @@ import { z } from 'zod'
 export enum UserIdentityProvider {
     EMAIL = 'EMAIL',
     GOOGLE = 'GOOGLE',
+    GITHUB = 'GITHUB',
     SAML = 'SAML',
     JWT = 'JWT',
 }
