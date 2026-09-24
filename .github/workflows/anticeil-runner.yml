@@ -7,6 +7,10 @@ on:
         description: 'ID of the flow to execute'
         required: true
         type: string
+      runId:
+        description: 'ID of the flow run'
+        required: false
+        type: string
       inputPayload:
         description: 'Base64-encoded or raw JSON input payload'
         required: false
@@ -40,7 +44,7 @@ jobs:
           elif [ -n "${{ github.event.client_payload.inputPayload }}" ]; then
             echo '${{ github.event.client_payload.inputPayload }}' > input.json
           else
-            echo '{"flowId": "${{ github.event.inputs.flowId }}"}' > input.json
+            echo '{"flowId": "${{ github.event.inputs.flowId }}", "flowRunId": "${{ github.event.inputs.runId }}"}' > input.json
           fi
 
       - name: Build Activepieces Engine
@@ -51,6 +55,10 @@ jobs:
         env:
           NODE_ENV: production
           AP_TEST_MODE: "false"
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTICEIL_CALLBACK_URL: ${{ secrets.ANTICEIL_CALLBACK_URL }}
+          ANTICEIL_CALLBACK_TOKEN: ${{ secrets.ANTICEIL_CALLBACK_TOKEN }}
         run: |
           node dist/packages/engine/cli.js --input ./input.json --output ./output.json
 

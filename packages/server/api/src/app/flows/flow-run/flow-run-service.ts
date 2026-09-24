@@ -18,6 +18,8 @@ import { projectService } from '../../project/project-service'
 import { waitpointService } from '../../waitpoints/waitpoint-service'
 import { jobQueue, JobType } from '../../workers/job-queue/job-queue'
 import { payloadOffloader } from '../../workers/payload-offloader'
+import { appConnectionService } from '../../app-connection/app-connection-service/app-connection-service'
+import { githubDispatcher } from '../../github/github-dispatcher'
 import { flowService } from '../flow/flow.service'
 import { flowVersionService } from '../flow-version/flow-version.service'
 import { sampleDataService } from '../step-run/sample-data.service'
@@ -638,17 +640,57 @@ export async function addToQueue(params: AddToQueueParams, log: FastifyBaseLogge
         sampleData: params.sampleData,
         logsFileId,
     }
-    const data: ExecuteFlowJobData = params.executionType === ExecutionType.RESUME
-        ? {
+    let data: ExecuteFlowJobData
+    if (params.executionType === ExecutionType.RESUME) {
+        data = {
             ...commonJobData,
             executionType: ExecutionType.RESUME,
             resumeReason: params.resumeReason,
         }
-        : {
+    } else {
+        data = {
             ...commonJobData,
             executionType: ExecutionType.BEGIN,
             executeTrigger: params.executeTrigger,
         }
+    }
+    // Anticeil Serverless: Check if project has GitHub Actions runner configured
+    try {
+        const ghConn = await appConnectionService(log).getOne({
+            projectId: params.flowRun.projectId,
+            platformId: params.platformId,
+            externalId: 'anticeil_github_runner',
+        })
+        if (ghConn) {
+            const props = (ghConn.value as any)?.props
+            if (props?.token && props?.username) {
+                log.info({ flowRunId: params.flowRun.id, username: props.username }, '[FlowRunService] Dispatching to user GitHub Actions runner...')
+                const dispatcher = githubDispatcher(log)
+                await dispatcher.dispatchFlow({
+                    config: {
+                        token: props.token,
+                        owner: props.username,
+                        repo: props.repoName || 'anticeil-workflows',
+                        workflowFileName: 'anticeil-flow-runner.yml',
+                    },
+                    flowId: params.flowRun.flowId,
+                    inputPayload: {
+                        ...data,
+                        flowId: params.flowRun.flowId,
+                        flowRunId: params.flowRun.id,
+                    },
+                })
+                await flowRunRepo().update(
+                    { id: params.flowRun.id },
+                    { status: FlowRunStatus.RUNNING, startTime: new Date().toISOString() },
+                )
+                return params.flowRun
+            }
+        }
+    } catch (err) {
+        log.warn({ err }, '[FlowRunService] GitHub serverless dispatch check skipped, using standard queue')
+    }
+
     const aParentIsBlockedOnThisRun = params.flowRun.failParentOnFailure && !isNil(params.flowRun.parentRunId)
     await jobQueue(log).add({
         id: params.jobId ?? params.flowRun.id,
