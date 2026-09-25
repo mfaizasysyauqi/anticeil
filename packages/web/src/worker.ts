@@ -2,7 +2,7 @@
 // Handles 100% serverless backend with Cloudflare Workers + Supabase
 
 interface Env {
-  ASSETS: Fetcher;
+  ASSETS: { fetch: (request: Request) => Promise<Response> };
   SUPABASE_URL?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
   SUPABASE_ANON_KEY?: string;
