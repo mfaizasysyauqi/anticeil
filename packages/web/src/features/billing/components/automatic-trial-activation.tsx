@@ -31,7 +31,7 @@ export const AutomaticTrialActivation = () => {
   const [searchParams] = useSearchParams();
   const [pendingKey, setPendingKey] = useState<string | null>(() => {
     const licenseKey = searchParams.get(TRIAL_KEY_QUERY_PARAM)?.trim();
-    const platformLicenseKey = platform.plan.licenseKey;
+    const platformLicenseKey = platform?.plan?.licenseKey;
     const alreadyLicensed =
       !isNil(platformLicenseKey) && !isEmpty(platformLicenseKey);
     if (
@@ -77,7 +77,7 @@ const TrialActivationScreen = ({
 
   const homeRoute = determineDefaultRoute({
     checkAccess,
-    chatEnabled: platform.plan.chatEnabled,
+    chatEnabled: platform?.plan?.chatEnabled ?? false,
   });
 
   const returnToApp = useCallback(() => {

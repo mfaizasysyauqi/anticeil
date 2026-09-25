@@ -41,7 +41,8 @@ export const aiProviderQueries = {
   useChatProvider: () => {
     const { data: providers, ...rest } =
       aiProviderQueries.useProjectAiProviders();
-    return { ...rest, data: providers?.find((p) => p.enabledForChat) };
+    const list = Array.isArray(providers) ? providers : [];
+    return { ...rest, data: list.find((p) => p.enabledForChat) };
   },
 };
 

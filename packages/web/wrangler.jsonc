@@ -1,8 +1,18 @@
 {
   "name": "anticeil",
+  "main": "src/worker.ts",
   "compatibility_date": "2025-02-24",
   "assets": {
     "directory": "../../dist/packages/web",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "SUPABASE_URL": "https://orshttowaxmjegclecag.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yc2h0dG93YXhtamVnY2xlY2FnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODczOTk3NDAsImV4cCI6MjEwMjk3NTc0MH0._ctevzBSRODLChZmShJ2hSQZpSJXIIOWLr3VCXvrxgo",
+    "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yc2h0dG93YXhtamVnY2xlY2FnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NzM5OTc0MCwiZXhwIjoyMTAyOTc1NzQwfQ.icKdcTI6nDEHrjgIOiUXaJugcmCkTPRW0FfMZd-Colo",
+    "JWT_SECRET": "anticeil_jwt_secret_9948271039841284",
+    "GOOGLE_CLIENT_ID": "",
+    "GOOGLE_CLIENT_SECRET": ""
   }
 }

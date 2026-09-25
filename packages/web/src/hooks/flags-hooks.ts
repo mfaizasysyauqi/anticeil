@@ -72,7 +72,7 @@ const DEFAULT_FLAGS: Record<string, any> = {
     github: false,
     saml: false,
   },
-  [ApFlagId.THIRD_PARTY_AUTH_PROVIDER_REDIRECT_URL]: 'https://anticeil.com/api/v1/authn/federated/redirect',
+  [ApFlagId.THIRD_PARTY_AUTH_PROVIDER_REDIRECT_URL]: 'https://anticeil.com/redirect',
 };
 
 const queryKey = ['flags'];

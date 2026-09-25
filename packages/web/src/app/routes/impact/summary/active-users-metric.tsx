@@ -13,10 +13,11 @@ export const ActiveUsersMetric = ({ report }: ActiveUsersMetricProps) => {
     return <MetricCardSkeleton />;
   }
 
-  const activeUsers = report.users.filter(
+  const users = report.users ?? [];
+  const activeUsers = users.filter(
     (user) => user.status === UserStatus.ACTIVE,
   ).length;
-  const totalUsers = report.users.length;
+  const totalUsers = users.length;
 
   const adoptionRate =
     totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;

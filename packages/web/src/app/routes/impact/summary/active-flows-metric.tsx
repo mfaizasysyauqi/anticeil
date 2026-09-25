@@ -13,10 +13,11 @@ export const ActiveFlowsMetric = ({ report }: ActiveFlowsMetricProps) => {
     return <MetricCardSkeleton />;
   }
 
-  const activeFlows = report.flows.filter(
+  const flows = report.flows ?? [];
+  const activeFlows = flows.filter(
     (flow) => flow.status === FlowStatus.ENABLED,
   ).length;
-  const totalFlows = report.flows.length;
+  const totalFlows = flows.length;
 
   return (
     <MetricCard
