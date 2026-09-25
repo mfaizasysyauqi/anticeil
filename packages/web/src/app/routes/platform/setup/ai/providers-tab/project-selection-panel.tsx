@@ -60,7 +60,7 @@ export function ProjectSelectionPanel({
 
   const columns: ColumnDef<RowDataWithActions<Project>>[] = [
     {
-      accessorKey: 'name',
+      accessorKey: 'displayName',
       header: () => (
         <div className="flex items-center gap-2.5">
           <Checkbox checked={allRowsSelected} onCheckedChange={toggleRows} />

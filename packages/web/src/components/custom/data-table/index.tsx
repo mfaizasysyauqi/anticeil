@@ -273,9 +273,13 @@ export function DataTable<
     },
   });
 
+  const getColumnSafe = (accessorKey: string) => {
+    return table.getAllFlatColumns().find((col) => col.id === accessorKey);
+  };
+
   useEffect(() => {
     filters?.forEach((filter) => {
-      const column = table.getColumn(filter.accessorKey);
+      const column = getColumnSafe(filter.accessorKey);
       if (!column) return;
       if (filter.type === 'input') {
         const value = searchParams.get(filter.accessorKey);
@@ -357,7 +361,7 @@ export function DataTable<
                 filters.map((filter) => (
                   <DataTableFilter
                     key={filter.accessorKey}
-                    column={table.getColumn(filter.accessorKey)}
+                    column={getColumnSafe(filter.accessorKey)}
                     {...filter}
                   />
                 ))}

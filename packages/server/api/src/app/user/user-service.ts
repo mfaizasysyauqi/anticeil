@@ -42,7 +42,7 @@ export const userService = (log: FastifyBaseLogger) => ({
             const newUser = await this.create({
                 identityId: identity.id,
                 platformId,
-                platformRole: PlatformRole.MEMBER,
+                platformRole: system.getEdition() === ApEdition.COMMUNITY ? PlatformRole.ADMIN : PlatformRole.MEMBER,
             })
 
             const platform = await platformService(log).getOneOrThrow(platformId)

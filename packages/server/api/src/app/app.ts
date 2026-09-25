@@ -411,6 +411,10 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             await app.register(otpModule)
             await app.register(federatedAuthModule)
             await app.register(aiToolConfigModule)
+            await app.register(oauthAppModule)
+            await app.register(agentModule)
+            await app.register(agentEvalModule)
+            setPlatformOAuthService(platformOAuth2Service(app.log))
             break
     }
 

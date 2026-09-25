@@ -1,9 +1,11 @@
 import { ActivepiecesError, ErrorCode, isNil, Permission } from '@activepieces/core-utils'
-import { PlatformRole, Principal, PrincipalType, UserIdentityProvider } from '@activepieces/shared'
+import { ApEdition, PlatformRole, Principal, PrincipalType, UserIdentityProvider } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { userIdentityService } from '../../../../authentication/user-identity/user-identity-service'
 import { rbacService } from '../../../../ee/authentication/project-role/rbac-service'
 import { projectMemberService } from '../../../../ee/projects/project-members/project-member.service'
+import { system } from '../../../../helper/system/system'
+import { platformService } from '../../../../platform/platform.service'
 import { userService } from '../../../../user/user-service'
 import { AuthorizationRouteSecurity, ProjectAuthorizationConfig } from '../../authorization/authorization'
 import { AuthorizationType, RouteKind } from '../../authorization/common'
@@ -80,14 +82,24 @@ async function assertPlatformIsOwnedByCurrentPrincipal(principal: Principal, log
         return
     }
     const user = await userService(log).getOneOrFail({ id: principal.id })
-    if (user.platformRole !== PlatformRole.ADMIN) {
-        throw new ActivepiecesError({
-            code: ErrorCode.AUTHORIZATION,
-            params: {
-                message: 'User is not an admin/owner of the platform.',
-            },
-        })
+    if (user.platformRole === PlatformRole.ADMIN) {
+        return
     }
+    if (system.getEdition() === ApEdition.COMMUNITY) {
+        return
+    }
+    if (!isNil(user.platformId)) {
+        const platform = await platformService(log).getOne(user.platformId)
+        if (platform?.ownerId === user.id) {
+            return
+        }
+    }
+    throw new ActivepiecesError({
+        code: ErrorCode.AUTHORIZATION,
+        params: {
+            message: 'User is not an admin/owner of the platform.',
+        },
+    })
 }
 
 

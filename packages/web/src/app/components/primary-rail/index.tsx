@@ -126,7 +126,7 @@ export function PrimaryRail() {
               collapsed && 'items-center',
             )}
           >
-            {platform.plan.chatEnabled && (
+            {(platform?.plan?.chatEnabled ?? true) && (
               <RailNavButton
                 collapsed={collapsed}
                 to="/chat"
