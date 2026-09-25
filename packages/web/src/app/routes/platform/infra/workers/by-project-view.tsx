@@ -173,7 +173,7 @@ function buildColumns({
         row: { original: RowDataWithActions<ProjectWithLimits> };
       }) => (
         <span className="text-sm text-muted-foreground">
-          {row.original.analytics.totalFlows}
+          {row.original.analytics?.totalFlows ?? 0}
         </span>
       ),
     },

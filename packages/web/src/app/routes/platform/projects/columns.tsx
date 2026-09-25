@@ -95,10 +95,10 @@ export const projectsTableColumns = ({
         return (
           <div className="text-left tabular-nums">
             <span className="font-medium">
-              {row.original.analytics.activeFlows}
+              {row.original.analytics?.activeFlows ?? 0}
             </span>
             <span className="text-muted-foreground">
-              {` / ${row.original.analytics.totalFlows}`}
+              {` / ${row.original.analytics?.totalFlows ?? 0}`}
             </span>
           </div>
         );
