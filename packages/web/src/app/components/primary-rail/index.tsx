@@ -26,6 +26,7 @@ import {
   SquarePen,
   Unplug,
   UserCogIcon,
+  Sparkles,
 } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { ComponentType, useState } from 'react';
