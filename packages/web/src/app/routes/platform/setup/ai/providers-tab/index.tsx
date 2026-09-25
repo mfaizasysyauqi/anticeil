@@ -553,7 +553,7 @@ function ChatProviderRow({
         </p>
       </div>
       <Select
-        value={value ?? undefined}
+        value={value ?? ''}
         onValueChange={onChange}
         disabled={isSwitching}
       >

@@ -9,6 +9,7 @@ import { distributedStore } from '../database/redis-connections'
 import { openRouterApi } from '../ee/platform/platform-plan/openrouter/openrouter-api'
 import { flagService } from '../flags/flag.service'
 import { encryptUtils } from '../helper/encryption'
+import { system } from '../helper/system/system'
 import { platformService } from '../platform/platform.service'
 import { AIProviderEntity, AIProviderSchema } from './ai-provider-entity'
 import { aiProviderHealth } from './ai-provider-health'
@@ -454,6 +455,9 @@ async function decryptRowAuth({ aiProvider, platformId }: { aiProvider: AIProvid
     if (aiProvider.provider === AIProviderName.ACTIVEPIECES) {
         const doesHaveKeys = !isNil(auth) && 'apiKey' in auth && !isNil(auth.apiKey) && auth.apiKey !== ''
         if (!doesHaveKeys) {
+            if (!flagService(system.globalLogger()).aiCreditsEnabled()) {
+                return { apiKey: '', apiKeyHash: '' }
+            }
             return enrichWithKeysIfNeeded(aiProvider, platformId)
         }
     }

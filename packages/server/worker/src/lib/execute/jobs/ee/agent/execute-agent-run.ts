@@ -247,7 +247,7 @@ export const executeAgentRunJob: JobHandler<ExecuteAgentRunJobData, FireAndForge
                     return runAgentTurn({
                         ...spreadIfDefined('stepCeiling', data.maxSteps),
                         model,
-                        fastModel: firstStepUsesFastModel({ source, dryRun, runsASavedAgent: !isNil(data.promptOverride) }) ? fastModel : undefined,
+                        fastModel: undefined,
                         provider,
                         systemPrompt: config.systemPrompt,
                         messages: config.messages as ModelMessage[],
@@ -255,7 +255,6 @@ export const executeAgentRunJob: JobHandler<ExecuteAgentRunJobData, FireAndForge
                         allToolNames,
                         tier: config.tier,
                         modelId: config.modelId,
-                        ...spreadIfDefined('fastModelId', dryRun ? undefined : config.fastModelId),
                         phaseState,
                         abortSignal: abortController.signal,
                         log,
@@ -333,6 +332,15 @@ export const executeAgentRunJob: JobHandler<ExecuteAgentRunJobData, FireAndForge
                 throw streamError
             }
 
+            // Guard: if the turn finished "clean" (no streamError, no abort) but produced
+            // zero visible UI parts, the model returned empty responses for every attempt.
+            // Saving this as a success leaves uiMessages without an assistant entry, which
+            // the client reconciles as "no reply" and shows the silent fallback error.
+            // Throw instead so the catch block sends an explicit, descriptive error event.
+            if (uiParts.length === 0 && !truncatedAfterRetries && !budgetExceeded) {
+                throw new Error('The AI provider returned an empty response. This may be a temporary issue — please try again.')
+            }
+
             const autoTitle = await autoTitlePromise
 
             log.info({
@@ -387,8 +395,15 @@ export const executeAgentRunJob: JobHandler<ExecuteAgentRunJobData, FireAndForge
         }
         catch (err) {
             const errorClass = classifyAgentRunError({ error: err, provider: runProvider })
-            log[errorClass === 'internal' ? 'error' : 'warn']({ error: err, conversation: { id: conversationId }, provider: runProvider, model: { id: runModelId }, agentRun: { errorClass, source } }, '[executeAgentRun] Agent job failed')
             const errorMessage = formatPieceError(err).message
+            log[errorClass === 'internal' ? 'error' : 'warn']({
+                error: err instanceof Error ? { message: err.message, stack: err.stack, cause: err.cause } : err,
+                errorMessage,
+                conversation: { id: conversationId },
+                provider: runProvider,
+                model: { id: runModelId },
+                agentRun: { errorClass, source },
+            }, `[executeAgentRun] Agent job failed: ${errorMessage}`)
             const isCreditError = errorClass === 'credit'
             // "User not found" is OpenRouter refusing a key, and reads like a missing account.
             const clientMessage = !isCreditError && isTransientFailureText(errorMessage)

@@ -180,7 +180,7 @@ This connects to Z.ai's international endpoint. A key from bigmodel.cn will not 
   {
     provider: AIProviderName.OLLAMA,
     name: 'Ollama',
-    logoUrl: 'https://cdn.activepieces.com/pieces/ollama.png',
+    logoUrl: '/ollama.svg',
     markdown: t(`Follow these instructions to connect your Ollama instance:
 
 1. Make sure Ollama is running (e.g. \`ollama serve\`).

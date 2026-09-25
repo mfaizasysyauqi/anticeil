@@ -12,6 +12,8 @@ export enum AiToolProvider {
     TAVILY = 'tavily',
     FIRECRAWL = 'firecrawl',
     APIFY = 'apify',
+    BROWSERLESS = 'browserless',
+    CLOUDFLARE_BROWSER = 'cloudflare_browser',
     FAL = 'fal',
 }
 

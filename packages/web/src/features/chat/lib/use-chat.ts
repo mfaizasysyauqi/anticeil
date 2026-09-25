@@ -468,7 +468,10 @@ export function useAgentChat({
       );
       if (errorCode === ErrorCode.QUOTA_EXCEEDED) {
         onCreditsExhaustedRef.current?.();
-        settleStreamRef.current(convId, { suppressNoReply: true });
+        settleStreamRef.current(convId, {
+          errorMessage:
+            errorMessage || t('Credits exhausted or quota limit reached.'),
+        });
         return;
       }
       settleStreamRef.current(convId, { errorMessage });
@@ -510,9 +513,15 @@ export function useAgentChat({
       if (opts?.errorMessage) {
         updateSendStatus({ type: 'error', message: opts.errorMessage });
       } else if (!hasReply && !opts?.suppressNoReply) {
+        const fallbackMsg =
+          streamError || t('The assistant did not respond. Please try again.');
+        chatDebug.warn(
+          { conversation: { id: convId }, streamError, hasReply },
+          'turn settled without assistant reply',
+        );
         updateSendStatus({
           type: 'error',
-          message: t('The assistant did not respond. Please try again.'),
+          message: fallbackMsg,
         });
       }
       clearStreamingState(gen);
@@ -697,9 +706,17 @@ export function useAgentChat({
         });
         if (convError) {
           setOptimisticUserMessage(null);
+          const errorMessage = api.extractServerErrorMessage(
+            convError,
+            convError.message ?? 'Failed to start conversation',
+          );
+          chatDebug.error(
+            { error: errorMessage, raw: convError },
+            'failed to create conversation',
+          );
           updateSendStatus({
             type: 'error',
-            message: convError.message ?? 'Failed to start conversation',
+            message: errorMessage,
           });
           return;
         }
@@ -745,11 +762,16 @@ export function useAgentChat({
         }),
       );
       if (sendError) {
+        const errorMessage = api.extractServerErrorMessage(
+          sendError,
+          sendError.message ?? 'Failed to send message',
+        );
         chatDebug.error(
           {
             conversation: { id: convId },
             run: { id: runId },
-            error: sendError.message,
+            error: errorMessage,
+            raw: sendError,
           },
           'chat message send failed',
         );
@@ -761,7 +783,7 @@ export function useAgentChat({
         } else {
           updateSendStatus({
             type: 'error',
-            message: sendError.message ?? 'Failed to send message',
+            message: errorMessage,
           });
         }
       }

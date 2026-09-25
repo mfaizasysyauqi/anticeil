@@ -21,6 +21,7 @@
       "@activepieces/core-formula": ["packages/core/formula/src/index.ts"],
       "@activepieces/core-piece-types": ["packages/core/piece-types/src/index.ts"],
       "@activepieces/core-execution": ["packages/core/execution/src/index.ts"],
+      "@activepieces/ai-providers": ["packages/core/ai-providers/src/index.ts"],
       "@activepieces/ee-auth": ["packages/ee/auth/src/index.ts"],
       "@activepieces/ee/billing/ui": ["packages/ee/billing/ui/src/index.ts"],
       "@activepieces/engine": ["packages/server/engine/src/main.ts"],
@@ -1581,7 +1582,6 @@
       "@activepieces/piece-zoom": [
         "packages/pieces/community/zoom/src/index.ts"
       ],
-      "@activepieces/ai-providers": ["packages/core/ai-providers/src/index.ts"],
       "@activepieces/pieces-common": ["packages/pieces/common/src/index.ts"],
       "@activepieces/pieces-framework": [
         "packages/pieces/framework/src/index.ts"

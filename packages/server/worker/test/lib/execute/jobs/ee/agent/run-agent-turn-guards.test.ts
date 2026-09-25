@@ -36,21 +36,10 @@ describe('looksEmptyResultText', () => {
 })
 
 describe('firstStepUsesFastModel', () => {
-    it('buys time to first token on the surfaces someone is watching', () => {
-        expect(firstStepUsesFastModel({ source: AgentRunSource.CHAT, runsASavedAgent: false })).toBe(true)
-        expect(firstStepUsesFastModel({ source: AgentRunSource.AGENT, runsASavedAgent: false })).toBe(true)
-    })
-
-    it('leaves a step that runs a saved agent on the model that agent names', () => {
+    it('always returns false so user-selected models are strictly preserved without substitution', () => {
+        expect(firstStepUsesFastModel({ source: AgentRunSource.CHAT, runsASavedAgent: false })).toBe(false)
+        expect(firstStepUsesFastModel({ source: AgentRunSource.AGENT, runsASavedAgent: false })).toBe(false)
         expect(firstStepUsesFastModel({ source: AgentRunSource.FLOW_STEP, runsASavedAgent: true })).toBe(false)
-    })
-
-    it('leaves a step that configures itself exactly as it ran before, so an upgrade changes nothing', () => {
-        expect(firstStepUsesFastModel({ source: AgentRunSource.FLOW_STEP, runsASavedAgent: false })).toBe(true)
-    })
-
-    it('stays off in the playground, which executes nothing', () => {
-        expect(firstStepUsesFastModel({ source: AgentRunSource.CHAT, dryRun: true, runsASavedAgent: false })).toBe(false)
     })
 })
 

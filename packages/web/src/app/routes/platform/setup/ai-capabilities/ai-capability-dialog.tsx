@@ -175,7 +175,11 @@ function CapabilityForm({
                   placeholder={
                     existingConfig
                       ? t('Enter a new key to replace the saved one')
-                      : t('Paste your API key')
+                      : selectedProvider?.id === AiToolProvider.CLOUDFLARE_BROWSER
+                        ? t('Account ID:API Token (e.g. account_id:api_token)')
+                        : selectedProvider?.id === AiToolProvider.BROWSERLESS
+                          ? t('API Token (or token / host for self-hosted)')
+                          : t('Paste your API key')
                   }
                 />
               </FormControl>

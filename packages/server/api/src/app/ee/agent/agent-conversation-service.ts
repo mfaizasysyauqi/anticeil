@@ -229,10 +229,10 @@ export const agentConversationService = (log: FastifyBaseLogger) => ({
 
     async getMessages({ id, platformId, userId }: ConversationIdentifier): Promise<{ data: PersistedAgentMessage[] | AgentHistoryMessage[] }> {
         const conversation = await this.getConversationOrThrow({ id, platformId, userId })
-        if (conversation.uiMessages) {
+        if (conversation.uiMessages && Array.isArray(conversation.uiMessages)) {
             return { data: conversation.uiMessages }
         }
-        const messages = agentHistory.reconstruct(conversation.messages as ModelMessage[])
+        const messages = agentHistory.reconstruct(conversation.messages as ModelMessage[] | undefined)
         return { data: messages }
     },
 

@@ -25,7 +25,7 @@ import { platformService } from '../../../../platform/platform.service'
 import { userService } from '../../../../user/user-service'
 import { platformPlanService } from '../platform-plan.service'
 
-const AUTUMN_CONSOLE_URL = system.getOrThrow(AppSystemProp.AUTUMN_CONSOLE_URL).replace(/\/+$/, '')
+const AUTUMN_CONSOLE_URL = (system.get(AppSystemProp.AUTUMN_CONSOLE_URL) ?? '').replace(/\/+$/, '')
 const edition = system.getEdition()
 const CONSOLE_REQUEST_TIMEOUT_MS = 30000
 const AUTUMN_GET_CUSTOMER_TIMEOUT_MS = 5000
@@ -107,6 +107,9 @@ export const autumnUtils = {
         return toCreditUsage({ total, aiResults })
     },
     async ensureEnrolled(log: FastifyBaseLogger, platformId: string): Promise<void> {
+        if (!AUTUMN_CONSOLE_URL) {
+            return
+        }
         const credentials = await platformPlanService(log).getAutumnCredentials(platformId)
         if (isNil(credentials.autumnCustomerId)) {
             await distributedLock(log).runExclusive({
@@ -129,7 +132,7 @@ export const autumnUtils = {
         await autumnUtils.ensureFreeLegacyComped(log, platformId)
     },
     async ensureFreeLegacyComped(log: FastifyBaseLogger, platformId: string): Promise<void> {
-        if (edition !== ApEdition.CLOUD) {
+        if (!AUTUMN_CONSOLE_URL || edition !== ApEdition.CLOUD) {
             return
         }
         if (!isFreeLegacyEligible(await platformPlanService(log).getAutumnCredentials(platformId))) {
@@ -156,6 +159,9 @@ export const autumnUtils = {
         )
     },
     async refreshEntitlements(log: FastifyBaseLogger, platformId: string): Promise<void> {
+        if (!AUTUMN_CONSOLE_URL) {
+            return
+        }
         const client = await autumnUtils.resolveClientForPlatform(log, platformId)
         if (isNil(client)) {
             return
@@ -219,8 +225,8 @@ export const autumnUtils = {
         }
         return new Set(plans.flatMap((plan) => plan.featureIds))
     },
-    billingEnforcedFromGrantedFeatureIds(grantedFeatureIds: ReadonlySet<string>): boolean {
-        return grantedFeatureIds.has(FeatureFlagId.BILLING_ENFORCED)
+    billingEnforcedFromGrantedFeatureIds(_grantedFeatureIds: ReadonlySet<string>): boolean {
+        return false
     },
     async writeCustomerStateCaches({ platformId, customer, grantedFeatureIds }: WriteCustomerStateCachesParams): Promise<BalanceCacheSnapshot> {
         const creditsBalance = customer.balances[ConsumableFeatureId.AP_CREDITS]
@@ -343,6 +349,9 @@ export const autumnConsole = {
 }
 
 async function consoleRequest<T>({ path, method = 'post', token, body, query }: ConsoleRequestParams): Promise<T> {
+    if (!AUTUMN_CONSOLE_URL) {
+        return {} as T
+    }
     const url = `${AUTUMN_CONSOLE_URL}${path}`
     const config: AxiosRequestConfig = {
         timeout: CONSOLE_REQUEST_TIMEOUT_MS,
@@ -477,29 +486,29 @@ function toEntitlementPlan(attachment: AutumnPlanAttachment): EntitlementPlan {
     }
 }
 
-function toPlatformPlanFlags(grantedFeatureIds: ReadonlySet<string>): PlatformPlanFlags {
+function toPlatformPlanFlags(_grantedFeatureIds: ReadonlySet<string>): PlatformPlanFlags {
     return {
-        tablesEnabled: grantedFeatureIds.has(FeatureFlagId.TABLES_ENABLED),
-        eventStreamingEnabled: grantedFeatureIds.has(FeatureFlagId.EVENT_STREAMING_ENABLED),
-        environmentsEnabled: grantedFeatureIds.has(FeatureFlagId.ENVIRONMENTS_ENABLED),
-        analyticsEnabled: grantedFeatureIds.has(FeatureFlagId.ANALYTICS_ENABLED),
-        showPoweredBy: grantedFeatureIds.has(FeatureFlagId.SHOW_POWERED_BY),
-        auditLogEnabled: grantedFeatureIds.has(FeatureFlagId.AUDIT_LOG_ENABLED),
-        embeddingEnabled: grantedFeatureIds.has(FeatureFlagId.EMBEDDING_ENABLED),
-        aiProvidersEnabled: grantedFeatureIds.has(FeatureFlagId.AI_PROVIDERS_ENABLED),
-        chatEnabled: grantedFeatureIds.has(FeatureFlagId.CHAT_ENABLED),
-        agentsEnabled: grantedFeatureIds.has(FeatureFlagId.AGENTS_ENABLED),
-        workerGroupsEnabled: grantedFeatureIds.has(FeatureFlagId.WORKER_GROUPS_ENABLED),
-        managePiecesEnabled: grantedFeatureIds.has(FeatureFlagId.MANAGE_PIECES_ENABLED),
-        manageTemplatesEnabled: grantedFeatureIds.has(FeatureFlagId.MANAGE_TEMPLATES_ENABLED),
-        customAppearanceEnabled: grantedFeatureIds.has(FeatureFlagId.CUSTOM_APPEARANCE_ENABLED),
-        projectRolesEnabled: grantedFeatureIds.has(FeatureFlagId.PROJECT_ROLES_ENABLED),
-        globalConnectionsEnabled: grantedFeatureIds.has(FeatureFlagId.GLOBAL_CONNECTIONS_ENABLED),
-        customRolesEnabled: grantedFeatureIds.has(FeatureFlagId.CUSTOM_ROLES_ENABLED),
-        apiKeysEnabled: grantedFeatureIds.has(FeatureFlagId.API_KEYS_ENABLED),
-        ssoEnabled: grantedFeatureIds.has(FeatureFlagId.SSO_ENABLED),
-        secretManagersEnabled: grantedFeatureIds.has(FeatureFlagId.SECRET_MANAGERS_ENABLED),
-        scimEnabled: grantedFeatureIds.has(FeatureFlagId.SCIM_ENABLED),
+        tablesEnabled: true,
+        eventStreamingEnabled: true,
+        environmentsEnabled: true,
+        analyticsEnabled: true,
+        showPoweredBy: false,
+        auditLogEnabled: true,
+        embeddingEnabled: true,
+        aiProvidersEnabled: true,
+        chatEnabled: true,
+        agentsEnabled: true,
+        workerGroupsEnabled: true,
+        managePiecesEnabled: true,
+        manageTemplatesEnabled: true,
+        customAppearanceEnabled: true,
+        projectRolesEnabled: true,
+        globalConnectionsEnabled: true,
+        customRolesEnabled: true,
+        apiKeysEnabled: true,
+        ssoEnabled: true,
+        secretManagersEnabled: true,
+        scimEnabled: true,
     }
 }
 

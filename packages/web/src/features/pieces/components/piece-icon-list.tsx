@@ -94,14 +94,14 @@ export function PieceIconList({
 
   return (
     <div className={className || 'flex gap-0.5 '}>
-      {visibleMetadata.map((metadata) => (
+      {visibleMetadata.map((metadata, index) => (
         <PieceIcon
           logoUrl={metadata.logoUrl}
           showTooltip={true}
           size={size ?? 'md'}
           border={true}
           displayName={metadata.displayName}
-          key={metadata.displayName}
+          key={`${metadata.displayName}-${index}`}
           background={background}
         />
       ))}

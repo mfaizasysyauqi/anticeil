@@ -33,7 +33,10 @@ export const openRouterApi = {
 }
 
 async function openRouterRequest<T>({ method, path, body, query }: OpenRouterRequestParams): Promise<T> {
-    const apiKey = system.getOrThrow(AppSystemProp.OPENROUTER_PROVISION_KEY)
+    const apiKey = system.get(AppSystemProp.OPENROUTER_PROVISION_KEY)
+    if (!apiKey) {
+        throw new Error('OPENROUTER_PROVISION_KEY is not configured')
+    }
     const { data: response, error } = await tryCatch(() => safeHttp.axios.request<T>({
         method,
         url: `${OPENROUTER_BASE_URL}${path}`,

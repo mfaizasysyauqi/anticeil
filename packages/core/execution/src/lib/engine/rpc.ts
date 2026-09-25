@@ -93,7 +93,9 @@ export function createNotifyServer<T extends Contract>(
 }
 
 export function apErrorOf(error: unknown): RpcApError | undefined {
-    const source = error instanceof ActivepiecesError ? error.error : isObject(error) ? error[AP_ERROR_PROP] : undefined
+    const source = (error instanceof ActivepiecesError || (isObject(error) && 'error' in error && isObject((error as { error: unknown }).error)))
+        ? (error as { error: { code?: unknown, params?: unknown } }).error
+        : isObject(error) ? error[AP_ERROR_PROP] : undefined
     if (!isObject(source) || typeof source['code'] !== 'string') {
         return undefined
     }

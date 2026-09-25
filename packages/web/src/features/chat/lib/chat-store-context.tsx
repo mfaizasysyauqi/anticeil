@@ -17,20 +17,17 @@ export function ChatStoreProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+const globalFallbackStore = createChatStore();
+
 export function useChatStoreContext<T>(
   selector: (state: ChatStoreState) => T,
 ): T {
   const store = useContext(ChatStoreContext);
-  if (!store)
-    throw new Error(
-      'useChatStoreContext must be used within ChatStoreProvider',
-    );
-  return useStore(store, selector);
+  return useStore(store ?? globalFallbackStore, selector);
 }
 
 export function useChatStoreApi(): ChatStore {
   const store = useContext(ChatStoreContext);
-  if (!store)
-    throw new Error('useChatStoreApi must be used within ChatStoreProvider');
-  return store;
+  return store ?? globalFallbackStore;
 }
+

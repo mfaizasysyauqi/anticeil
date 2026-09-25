@@ -77,7 +77,7 @@ export async function runAgentTurn({ model, fastModel, provider, systemPrompt, m
     const runStreamAttempt = (attemptMessages: ModelMessage[]): ReturnType<typeof streamText> => streamText({
         model,
         maxRetries: 3,
-        maxOutputTokens: tier.thinkingBudget + MAX_RESPONSE_OUTPUT_TOKENS,
+        maxOutputTokens: maxOutputTokensForProvider({ provider, tierThinkingBudget: tier.thinkingBudget }),
         abortSignal,
         instructions: agentAiUtils.buildSystemPromptWithCaching({ systemPrompt, provider }),
         messages: agentAiUtils.stripThinkingBlocks(attemptMessages, provider),
@@ -403,14 +403,19 @@ function boundContextForStep({ baseMessages, steps, systemPrompt, provider }: {
     systemPrompt: string
     provider: AIProviderName
 }): { messages?: ModelMessage[] } {
+    if (steps.length === 0) {
+        return {}
+    }
     const candidate = [...baseMessages, ...agentAiUtils.collectStepMessages(steps)]
     const estimatedTokens = agentAiUtils.estimateTokenCount({ messages: candidate, systemPromptLength: systemPrompt.length })
     const maxContext = aiProviderUtils.getMaxContextTokens({ provider })
-    if (estimatedTokens <= maxContext * IN_LOOP_COMPACTION_THRESHOLD) {
+    const needsCollapse = estimatedTokens > maxContext * IN_LOOP_COMPACTION_THRESHOLD
+    const needsThinkingStrip = provider !== AIProviderName.ANTHROPIC && provider !== AIProviderName.BEDROCK
+    if (!needsCollapse && !needsThinkingStrip) {
         return {}
     }
-    const collapsed = agentAiUtils.collapseStaleToolOutputs({ messages: candidate })
-    return { messages: agentAiUtils.stripThinkingBlocks(collapsed, provider) }
+    const processed = needsCollapse ? agentAiUtils.collapseStaleToolOutputs({ messages: candidate }) : candidate
+    return { messages: agentAiUtils.stripThinkingBlocks(processed, provider) }
 }
 
 function extractResultText(result: unknown): string {
@@ -489,6 +494,31 @@ export type AgentTurnResult = {
 
 type AgentRunErrorClass = 'credit' | 'user' | 'internal'
 
-export function firstStepUsesFastModel({ source, dryRun, runsASavedAgent }: { source: AgentRunSource, dryRun?: boolean, runsASavedAgent: boolean }): boolean {
-    return dryRun !== true && !(source === AgentRunSource.FLOW_STEP && runsASavedAgent)
+export function firstStepUsesFastModel(_params?: { source: AgentRunSource, dryRun?: boolean, runsASavedAgent?: boolean }): boolean {
+    return false
+}
+
+function maxOutputTokensForProvider({ provider, tierThinkingBudget }: { provider?: AIProviderName, tierThinkingBudget: number }): number {
+    switch (provider) {
+        case AIProviderName.GROQ:
+        case AIProviderName.DEEPSEEK:
+        case AIProviderName.MISTRAL:
+        case AIProviderName.OLLAMA:
+        case AIProviderName.XAI:
+        case AIProviderName.QWEN:
+        case AIProviderName.MINIMAX:
+        case AIProviderName.MOONSHOT:
+            return 8_192
+        case AIProviderName.OPENAI:
+        case AIProviderName.GOOGLE:
+        case AIProviderName.VERTEX:
+        case AIProviderName.AZURE:
+            return 16_384
+        case AIProviderName.ANTHROPIC:
+        case AIProviderName.OPENROUTER:
+        case AIProviderName.ACTIVEPIECES:
+        case AIProviderName.BEDROCK:
+        default:
+            return tierThinkingBudget + MAX_RESPONSE_OUTPUT_TOKENS
+    }
 }

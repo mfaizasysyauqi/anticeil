@@ -2,7 +2,6 @@ import { AIProviderName, isNil } from '@activepieces/core-utils';
 import {
   ACTIVEPIECES_CHAT_TIERS,
   AIProviderModel,
-  ALLOWED_CHAT_MODELS_BY_PROVIDER,
 } from '@activepieces/shared';
 import { useQuery } from '@tanstack/react-query';
 
@@ -16,10 +15,10 @@ function getAllowedModelsForProvider(
   allModels: AIProviderModel[],
   modelType: AIModelType,
 ): AIProviderModel[] {
-  const allowedIds =
+  const allowedIds: string[] | undefined =
     provider === AIProviderName.ACTIVEPIECES
       ? ACTIVEPIECES_CHAT_TIERS.map((tier) => tier.modelId)
-      : ALLOWED_CHAT_MODELS_BY_PROVIDER[provider];
+      : undefined;
 
   return allModels
     .filter((model) => model.type === modelType)
@@ -30,14 +29,7 @@ function getAllowedModelsForProvider(
 
       return allowedIds.includes(model.id);
     })
-    .sort((a, b) => {
-      if (isNil(allowedIds)) {
-        return a.name.localeCompare(b.name);
-      }
-      const aIndex = allowedIds.indexOf(a.id);
-      const bIndex = allowedIds.indexOf(b.id);
-      return aIndex - bIndex;
-    })
+    .sort((a, b) => a.name.localeCompare(b.name))
     .map((model) =>
       provider === AIProviderName.ACTIVEPIECES
         ? { ...model, name: managedTierLabel(model.id) ?? model.name }

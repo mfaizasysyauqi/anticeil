@@ -2,7 +2,9 @@ import { isNil, SeekPage } from '@activepieces/core-utils';
 import {
   AgentConversation,
   AgentMessageSource,
+  aiProviderUtils,
   ChatPersonalizationStatus,
+  DEFAULT_CHAT_TIER_ID,
   PlatformRole,
 } from '@activepieces/shared';
 import { useQueryClient } from '@tanstack/react-query';
@@ -26,6 +28,7 @@ import {
 import { ChatUIMessage, chatPartUtils } from '@/features/chat/lib/chat-types';
 import { onboardingPrefillUtils } from '@/features/chat/lib/onboarding-prefill';
 import { useAgentChat } from '@/features/chat/lib/use-chat';
+import { aiModelHooks } from '@/features/agents/ai-model/hooks';
 import { usePersonalization } from '@/features/chat/lib/use-personalization';
 import { aiProviderQueries } from '@/features/platform-admin';
 import { platformHooks } from '@/hooks/platform-hooks';
@@ -132,6 +135,30 @@ function ChatBoxContent({
   const offerRecurringAutomation = useChatStoreContext(
     (s) => s.offerRecurringAutomation,
   );
+
+  const { data: chatProvider } = aiProviderQueries.useChatProvider();
+  const { data: fetchedModels } = aiModelHooks.useGetModelsForProvider(
+    chatProvider?.provider,
+  );
+
+  useEffect(() => {
+    if (chatProvider?.provider) {
+      if (
+        chatProvider.provider !== 'activepieces' &&
+        chatProvider.provider !== 'openrouter'
+      ) {
+        if (
+          fetchedModels &&
+          fetchedModels.length > 0 &&
+          (modelName === DEFAULT_CHAT_TIER_ID ||
+            !modelName ||
+            !fetchedModels.some((m) => m.id === modelName))
+        ) {
+          setModelName(fetchedModels[0].id);
+        }
+      }
+    }
+  }, [chatProvider, fetchedModels, modelName, setModelName]);
 
   useEffect(() => {
     if (initialConversationId) {

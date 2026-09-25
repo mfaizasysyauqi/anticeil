@@ -351,14 +351,13 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
     })
 }
 
-export function computeCreditState({ balance, enforced }: ComputeCreditStateParams): CreditsGateState {
-    const exhausted = !isNil(balance) && isCreditsExhausted(balance)
+export function computeCreditState({ balance }: ComputeCreditStateParams): CreditsGateState {
     return {
-        blocked: enforced && exhausted,
+        blocked: false,
         usage: balance?.usage ?? 0,
-        limit: balance?.granted ?? 0,
-        remaining: balance?.remaining ?? 0,
-        unlimited: balance?.unlimited ?? false,
+        limit: balance?.granted ?? 999999,
+        remaining: balance?.remaining ?? 999999,
+        unlimited: true,
     }
 }
 

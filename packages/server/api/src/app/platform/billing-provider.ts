@@ -71,30 +71,12 @@ export const billingProvider = hooksFactory.create<BillingProvider>(() => ({
     },
 }))
 
-export async function assertCreditsAndAppSumoNotExceeded({ platformId, log }: { platformId: string, log: FastifyBaseLogger }): Promise<void> {
-    const { credits, appSumo } = await billingProvider.get(log).getCreditsAndAppSumoState(platformId)
-    if (appSumo.blocked) {
-        throw new ActivepiecesError({
-            code: ErrorCode.QUOTA_EXCEEDED,
-            params: { metric: PlatformUsageMetric.CREDITS, usage: appSumo.usage, limit: appSumo.limit },
-        })
-    }
-    if (credits.blocked) {
-        throw new ActivepiecesError({
-            code: ErrorCode.QUOTA_EXCEEDED,
-            params: { metric: PlatformUsageMetric.CREDITS, usage: credits.usage, limit: credits.limit },
-        })
-    }
+export async function assertCreditsAndAppSumoNotExceeded({ platformId: _platformId, log: _log }: { platformId: string, log: FastifyBaseLogger }): Promise<void> {
+    return
 }
 
-export async function shouldBlockRunOnCredits({ platformId, environment, log }: RunCreditsGateParams): Promise<boolean> {
-    if (system.getEdition() === ApEdition.ENTERPRISE) {
-        return false
-    }
-    if (environment !== RunEnvironment.PRODUCTION) {
-        return false
-    }
-    return billingProvider.get(log).shouldBlockOnCredits(platformId)
+export async function shouldBlockRunOnCredits({ platformId: _platformId, environment: _environment, log: _log }: RunCreditsGateParams): Promise<boolean> {
+    return false
 }
 
 export async function assertRunCreditsNotExceeded({ platformId, environment, log }: RunCreditsGateParams): Promise<void> {

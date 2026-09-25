@@ -44,4 +44,4 @@ export const aiProviders: Record<AIProviderName, AIProviderStrategy<AIProviderAu
     },
 }
 
-export { AIProviderStrategy } from './ai-provider'
+export type { AIProviderStrategy } from './ai-provider'

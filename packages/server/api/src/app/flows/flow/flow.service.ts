@@ -124,6 +124,9 @@ export const flowService = (log: FastifyBaseLogger) => ({
         const queryBuilder = flowRepo().createQueryBuilder('ff').where({ operationStatus: Not(FlowOperationStatus.DELETING) })
 
         if (projectIds) {
+            if (projectIds.length === 0) {
+                return paginationHelper.createPage([], null)
+            }
             queryBuilder.andWhere({ projectId: In(projectIds) })
         }
         else {
@@ -137,10 +140,16 @@ export const flowService = (log: FastifyBaseLogger) => ({
         }
 
         if (folderIds !== undefined) {
+            if (folderIds.length === 0) {
+                return paginationHelper.createPage([], null)
+            }
             queryBuilder.andWhere({ folderId: In(folderIds) })
         }
 
         if (status !== undefined) {
+            if (status.length === 0) {
+                return paginationHelper.createPage([], null)
+            }
             queryBuilder.andWhere({ status: In(status) })
         }
 

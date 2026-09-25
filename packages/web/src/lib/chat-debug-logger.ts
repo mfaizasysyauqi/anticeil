@@ -7,9 +7,11 @@ const MAX_BUFFER = 50;
 
 function computeEnabled(): boolean {
   try {
-    return (
-      import.meta.env.DEV && window.localStorage.getItem(STORAGE_KEY) === '1'
-    );
+    const storageValue = window.localStorage.getItem(STORAGE_KEY);
+    if (storageValue !== null) {
+      return storageValue === '1';
+    }
+    return import.meta.env.DEV;
   } catch {
     return false;
   }
@@ -27,6 +29,9 @@ function flush(): void {
   if (flushTimer !== null) {
     clearTimeout(flushTimer);
     flushTimer = null;
+  }
+  if (import.meta.env.DEV) {
+    return;
   }
   const token = authenticationSession.getToken();
   void fetch(`${API_URL}/v1/logs/client`, {
@@ -57,8 +62,17 @@ function emit(level: Level, fields: Fields, msg: string): void {
     ...fields,
   };
   // Live console view in addition to the shipped event.
-  // eslint-disable-next-line no-console
-  console.debug(`[chat:${level}] ${msg}`, fields);
+  /* eslint-disable no-console */
+  if (level === 'error') {
+    console.error(`[chat:${level}] ${msg}`, fields);
+  } else if (level === 'warn') {
+    console.warn(`[chat:${level}] ${msg}`, fields);
+  } else if (level === 'info') {
+    console.info(`[chat:${level}] ${msg}`, fields);
+  } else {
+    console.debug(`[chat:${level}] ${msg}`, fields);
+  }
+  /* eslint-enable no-console */
   buffer.push(event);
   if (buffer.length >= MAX_BUFFER) {
     flush();

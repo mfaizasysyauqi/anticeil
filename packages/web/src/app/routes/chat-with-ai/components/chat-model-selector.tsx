@@ -24,6 +24,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { aiModelHooks } from '@/features/agents/ai-model/hooks';
 import { aiProviderQueries } from '@/features/platform-admin';
 import { cn } from '@/lib/utils';
 
@@ -50,22 +51,33 @@ const TIER_CONFIG: Record<
 
 function useModelOptions(): ModelOption[] {
   const { data: chatProvider } = aiProviderQueries.useChatProvider();
-  const curatedModels = isNil(chatProvider)
-    ? undefined
-    : aiProviderUtils.getCuratedChatModels({ provider: chatProvider.provider });
-  if (isNil(curatedModels)) {
+  const { data: fetchedModels } = aiModelHooks.useGetModelsForProvider(
+    chatProvider?.provider,
+  );
+
+  // If no chat provider is configured or it is the native Activepieces/OpenRouter managed tier:
+  if (
+    !chatProvider ||
+    chatProvider.provider === AIProviderName.ACTIVEPIECES ||
+    chatProvider.provider === AIProviderName.OPENROUTER
+  ) {
     return ACTIVEPIECES_CHAT_TIERS.map((tier) => ({
       id: tier.id,
       ...TIER_CONFIG[tier.id],
       displayLabel: tier.label,
     }));
   }
-  return curatedModels.map((model) => ({
-    id: model.id,
-    icon: Sparkles,
-    displayLabel: model.label,
-    description: null,
-  }));
+
+  if (fetchedModels && fetchedModels.length > 0) {
+    return fetchedModels.map((model) => ({
+      id: model.id,
+      icon: Sparkles,
+      displayLabel: model.name || model.id,
+      description: null,
+    }));
+  }
+
+  return [];
 }
 
 export function ChatModelSelector({
@@ -82,17 +94,26 @@ export function ChatModelSelector({
   const showCredits = chatProvider?.provider === AIProviderName.ACTIVEPIECES;
 
   const options = useModelOptions();
-  const selectedOption =
-    options.find((option) => option.id === selectedModel) ?? options[0];
-
-  const focused =
-    focusedIndex === -1 ? options.indexOf(selectedOption) : focusedIndex;
 
   useEffect(() => {
     if (!open) return;
     const rafId = requestAnimationFrame(() => listRef.current?.focus());
     return () => cancelAnimationFrame(rafId);
   }, [open]);
+
+  if (options.length === 0) {
+    return null;
+  }
+
+  const selectedOption =
+    options.find((option) => option.id === selectedModel) ?? options[0];
+
+  if (!selectedOption) {
+    return null;
+  }
+
+  const focused =
+    focusedIndex === -1 ? options.indexOf(selectedOption) : focusedIndex;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -129,7 +150,7 @@ export function ChatModelSelector({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[330px] p-0"
+        className="w-[330px] p-0 overflow-hidden"
         align="end"
         side="top"
         onOpenAutoFocus={(e) => e.preventDefault()}
@@ -138,9 +159,9 @@ export function ChatModelSelector({
           ref={listRef}
           tabIndex={0}
           onKeyDown={handleKeyDown}
-          className="outline-none"
+          className="outline-none flex flex-col max-h-[min(380px,65vh)]"
         >
-          <div className="py-1">
+          <div className="py-1 overflow-y-auto flex-1">
             {options.map((option, index) => {
               const Icon = option.icon;
               const isSelected = selectedOption.id === option.id;
