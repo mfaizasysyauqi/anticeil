@@ -678,7 +678,7 @@ const getStepStatus = (
 };
 function buildNotesGraph(notes: Note[]): ApGraph {
   return {
-    nodes: notes.map((note) => ({
+    nodes: (notes ?? []).map((note) => ({
       id: note.id,
       type: ApNodeType.NOTE,
       draggable: true,

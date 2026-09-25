@@ -33,7 +33,10 @@ export function mergeAndSortItems({
     items.push({
       id: flow.id,
       type: 'flow',
-      name: flow?.version?.displayName || flow?.displayName || 'Untitled Flow',
+      name:
+        flow?.version?.displayName ||
+        (flow as any)?.displayName ||
+        'Untitled Flow',
       data: flow,
       depth: 0,
       folderId: null,
@@ -74,7 +77,10 @@ export function buildFolderChildren({
     children.push({
       id: flow.id,
       type: 'flow',
-      name: flow?.version?.displayName || flow?.displayName || 'Untitled Flow',
+      name:
+        flow?.version?.displayName ||
+        (flow as any)?.displayName ||
+        'Untitled Flow',
       data: flow,
       depth: 1,
       folderId,
@@ -250,7 +256,10 @@ export function buildFilteredTreeItems({
     const item: TreeItem = {
       id: flow.id,
       type: 'flow',
-      name: flow?.version?.displayName || flow?.displayName || 'Untitled Flow',
+      name:
+        flow?.version?.displayName ||
+        (flow as any)?.displayName ||
+        'Untitled Flow',
       data: flow,
       depth: itemFolderId ? 1 : 0,
       folderId: itemFolderId,

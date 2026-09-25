@@ -217,6 +217,44 @@ function formatProject(p: any) {
   };
 }
 
+function formatFlowVersion(v: any, f: any) {
+  const defaultTrigger = {
+    name: 'trigger',
+    type: 'EMPTY',
+    valid: false,
+    displayName: 'Select Trigger',
+    nextAction: undefined,
+    settings: {
+      inputUiInfo: {},
+      input: {},
+    },
+  };
+  return {
+    id: v?.id || generateId(),
+    flowId: f.id,
+    displayName: v?.displayName || f.displayName || 'Untitled Flow',
+    trigger: v?.trigger
+      ? {
+          ...defaultTrigger,
+          ...v.trigger,
+          settings: {
+            inputUiInfo: {},
+            input: {},
+            ...(v.trigger.settings || {}),
+          },
+        }
+      : defaultTrigger,
+    valid: v?.valid ?? false,
+    state: v?.state || 'DRAFT',
+    notes: Array.isArray(v?.notes) ? v.notes : [],
+    agentIds: Array.isArray(v?.agentIds) ? v.agentIds : [],
+    connectionIds: Array.isArray(v?.connectionIds) ? v.connectionIds : [],
+    schemaVersion: v?.schemaVersion || '1',
+    created: v?.created || f.created || new Date().toISOString(),
+    updated: v?.updated || f.updated || new Date().toISOString(),
+  };
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -736,9 +774,45 @@ export default {
         });
       }
 
-      // 9. AI Providers
+      // 9. Analytics
+      if (path.startsWith('/v1/analytics')) {
+        if (request.method === 'POST') {
+          // refresh / mark-outdated — no-op
+          return jsonResponse({
+            runs: [],
+            flows: [],
+            users: [],
+            updated: new Date().toISOString(),
+          });
+        }
+        return jsonResponse({
+          runs: [],
+          flows: [],
+          users: [],
+          updated: new Date().toISOString(),
+        });
+      }
+
+      // 9b. AI Providers
       if (path.startsWith('/v1/ai-providers')) {
         return jsonResponse([]);
+      }
+
+      // 9b. Templates - proxy to Activepieces Cloud
+      if (path.startsWith('/v1/templates')) {
+        try {
+          const apUrl = `https://cloud.activepieces.com/api${path}${url.search}`;
+          const apRes = await fetch(apUrl, {
+            headers: { 'Content-Type': 'application/json' },
+          });
+          if (apRes.ok) {
+            const data = await apRes.json();
+            return jsonResponse(data);
+          }
+        } catch (e) {
+          console.error('Templates proxy error:', e);
+        }
+        return jsonResponse({ data: [], next: null, previous: null });
       }
 
       // 10. Chat & Conversations
@@ -749,22 +823,35 @@ export default {
         return jsonResponse([]);
       }
 
-      // 11. GET /v1/flows or /v1/folders
+      // 11. GET /v1/flows/:id (single flow for editor) or GET /v1/flows (list)
       if (path.startsWith('/v1/flows') && request.method === 'GET') {
+        const flowsSubPath = path.replace(/^\/v1\/flows/, '').split('?')[0];
+        const flowId = flowsSubPath.replace(/^\//, '').split('/')[0];
+
+        // Single flow by ID
+        if (flowId && flowId !== '' && !['count'].includes(flowId)) {
+          const flows = await querySupabase(
+            `flow?id=eq.${flowId}&select=*`,
+            {},
+            env,
+          );
+          const f = flows?.[0];
+          if (!f) {
+            return jsonResponse({ message: 'Flow not found' }, 404);
+          }
+          return jsonResponse({
+            ...f,
+            status: f.status || 'DISABLED',
+            version: formatFlowVersion(f.version, f),
+          });
+        }
+
+        // List flows
         const flows = (await querySupabase('flow?select=*&limit=50', {}, env)) || [];
         const populatedFlows = flows.map((f: any) => ({
           ...f,
           status: f.status || 'DISABLED',
-          version: f.version || {
-            id: generateId(),
-            flowId: f.id,
-            displayName: f.displayName || 'Untitled',
-            trigger: { name: 'trigger', type: 'EMPTY', valid: false, settings: {} },
-            valid: false,
-            state: 'DRAFT',
-            created: f.created || new Date().toISOString(),
-            updated: f.updated || new Date().toISOString(),
-          },
+          version: formatFlowVersion(f.version, f),
         }));
         return jsonResponse({
           data: populatedFlows,
@@ -782,22 +869,87 @@ export default {
         return jsonResponse(folders || []);
       }
 
-      // 12. GET /v1/pieces or /v1/pieces/stats
+      // 12. GET /v1/pieces - proxy to Activepieces Cloud for full catalog
       if (path.startsWith('/v1/pieces')) {
         if (path.startsWith('/v1/pieces/stats')) {
           return jsonResponse({});
         }
-        const pieces = await querySupabase(
-          'piece_metadata?select=*&limit=100',
-          {},
-          env,
-        );
-        return jsonResponse(pieces || []);
+        // POST (options, install, sync) - handle locally
+        if (request.method === 'POST') {
+          return jsonResponse({});
+        }
+        try {
+          const apUrl = `https://cloud.activepieces.com/api${path}${url.search}`;
+          const apRes = await fetch(apUrl, {
+            headers: { 'Content-Type': 'application/json' },
+          });
+          if (apRes.ok) {
+            const data = await apRes.json();
+            // Normalize: frontend expects plain array, cloud may return SeekPage {data:[]}
+            const normalized = Array.isArray(data) ? data : (data?.data ?? []);
+            return jsonResponse(normalized);
+          }
+        } catch (e) {
+          console.error('Pieces proxy error:', e);
+        }
+        return jsonResponse([]);
       }
 
-      // 13. Alerts, App Connections, etc.
+      // 13. Flow runs & count
+      if (path.startsWith('/v1/flow-runs')) {
+        if (path.startsWith('/v1/flow-runs/count-by-status')) {
+          return jsonResponse({});
+        }
+        return jsonResponse({ data: [], next: null, previous: null });
+      }
+
+      // 14. Trigger events & Testing
+      if (
+        path.startsWith('/v1/trigger-events') ||
+        path.startsWith('/v1/test-trigger')
+      ) {
+        return jsonResponse({ data: [], next: null, previous: null });
+      }
+
+      // 15. Sample data
+      if (path.startsWith('/v1/sample-data')) {
+        return jsonResponse(null);
+      }
+
+      // 16. Project releases & Git
+      if (
+        path.startsWith('/v1/project-releases') ||
+        path.startsWith('/v1/git-repos')
+      ) {
+        return jsonResponse({ data: [], next: null, previous: null });
+      }
+
+      // 17. User invitations
+      if (path.startsWith('/v1/user-invitations')) {
+        return jsonResponse({ data: [], next: null, previous: null });
+      }
+
+      // 18. Infrastructure / Workers / Secret Managers
+      if (
+        path.startsWith('/v1/worker-machines') ||
+        path.startsWith('/v1/secret-managers')
+      ) {
+        return jsonResponse([]);
+      }
+
+      // 19. API keys, Audit events, Piece sets, Approvals
+      if (
+        path.startsWith('/v1/api-keys') ||
+        path.startsWith('/v1/audit-events') ||
+        path.startsWith('/v1/piece-sets') ||
+        path.startsWith('/v1/flow-approval-requests')
+      ) {
+        return jsonResponse({ data: [], next: null, previous: null });
+      }
+
+      // 20. Alerts, App Connections, Tags
       if (path.startsWith('/v1/alerts')) {
-        return jsonResponse({ data: [] });
+        return jsonResponse({ data: [], next: null, previous: null });
       }
 
       if (path.startsWith('/v1/app-connections')) {
@@ -808,8 +960,8 @@ export default {
         return jsonResponse([]);
       }
 
-      // Default empty array/object for unmatched /api/* calls
-      return jsonResponse({ data: [] });
+      // Default empty SeekPage for unmatched /api/* calls
+      return jsonResponse({ data: [], next: null, previous: null });
     }
 
     // Pass everything else to Cloudflare Static Assets SPA
