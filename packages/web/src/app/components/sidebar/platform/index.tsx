@@ -5,28 +5,20 @@ import { Link } from 'react-router-dom';
 
 import { McpSvg } from '@/assets/img/custom/mcp';
 import { Github } from 'lucide-react';
-import { ChartLineIcon } from '@/components/icons/chart-line';
 import {
   ChevronLeftIcon,
   ChevronLeftIconHandle,
 } from '@/components/icons/chevron-left';
 import { FileHeartIcon } from '@/components/icons/file-heart';
-import { FileJson2Icon } from '@/components/icons/file-json2';
-import { FrameIcon } from '@/components/icons/frame';
-import { KeyRoundIcon } from '@/components/icons/key-round';
 import { LayoutGridIcon } from '@/components/icons/layout-grid';
-import { LogInIcon } from '@/components/icons/log-in';
 import { MousePointerClickIcon } from '@/components/icons/mouse-pointer-click';
 import { PuzzleIcon } from '@/components/icons/puzzle';
-import { ReceiptIcon } from '@/components/icons/receipt';
 import { ServerIcon } from '@/components/icons/server';
 import { SettingsIcon } from '@/components/icons/settings';
 import { Settings2Icon } from '@/components/icons/settings2';
 import { SparklesIcon } from '@/components/icons/sparkles';
-import { SquareDashedBottomCodeIcon } from '@/components/icons/square-dashed-bottom-code';
 import { UnplugIcon } from '@/components/icons/unplug';
 import { UsersIcon } from '@/components/icons/users';
-import { WebhookIcon } from '@/components/icons/webhook';
 import { buttonVariants } from '@/components/ui/button';
 import {
   Sidebar,
@@ -80,40 +72,14 @@ export function PlatformSidebar() {
       icon: Github,
     },
     {
-      to: '/platform/setup/connections',
-      label: t('Global Connections'),
-      icon: UnplugIcon,
-      locked: !platform.plan.globalConnectionsEnabled,
-    },
-    {
       to: '/platform/setup/pieces',
       label: t('Pieces'),
       icon: PuzzleIcon,
-      locked: !platform.plan.managePiecesEnabled,
     },
     {
       to: '/platform/setup/templates',
       label: t('Templates'),
       icon: LayoutGridIcon,
-      locked: !platform.plan.manageTemplatesEnabled,
-    },
-    {
-      to: '/platform/setup/billing',
-      label: t('Billing & subscription'),
-      icon: ReceiptIcon,
-      locked: edition === ApEdition.COMMUNITY,
-    },
-    {
-      to: '/platform/setup/usage',
-      label: t('Usage'),
-      icon: ChartLineIcon,
-      locked: edition === ApEdition.COMMUNITY,
-    },
-    {
-      to: '/platform/security/embed',
-      label: t('Embedding'),
-      icon: FrameIcon,
-      locked: !platform.plan.embeddingEnabled,
     },
   ];
 
@@ -123,7 +89,6 @@ export function PlatformSidebar() {
       to: string;
       label: string;
       icon?: ComponentType<{ className?: string }>;
-      locked?: boolean;
     }[];
   }[] = [
     {
@@ -133,7 +98,6 @@ export function PlatformSidebar() {
           to: '/platform/projects',
           label: t('Projects'),
           icon: LayoutGridIcon,
-          locked: platform.plan.billedTeamProjectsLimit === 0,
         },
         {
           to: '/platform/users',
@@ -150,52 +114,6 @@ export function PlatformSidebar() {
     {
       label: t('Setup'),
       items: setupItems,
-    },
-    {
-      label: t('Security'),
-      items: [
-        {
-          to: '/platform/security/sso',
-          label: t('Single Sign On'),
-          icon: LogInIcon,
-          locked: !platform.plan.ssoEnabled,
-        },
-        {
-          to: '/platform/security/project-roles',
-          label: t('Project Roles'),
-          icon: Settings2Icon,
-          locked: !platform.plan.projectRolesEnabled,
-        },
-        {
-          to: '/platform/security/api-keys',
-          label: t('API Keys'),
-          icon: FileJson2Icon,
-          locked: !platform.plan.apiKeysEnabled,
-        },
-        {
-          to: '/platform/security/secret-managers',
-          label: t('Secret Managers'),
-          icon: KeyRoundIcon,
-          locked: !platform.plan.secretManagersEnabled,
-        },
-      ],
-    },
-    {
-      label: t('Observability'),
-      items: [
-        {
-          to: '/platform/security/audit-logs',
-          label: t('Audit Logs'),
-          icon: SquareDashedBottomCodeIcon,
-          locked: !platform.plan.auditLogEnabled,
-        },
-        {
-          to: '/platform/infrastructure/event-destinations',
-          label: t('Event Streaming'),
-          icon: WebhookIcon,
-          locked: !platform.plan.eventStreamingEnabled,
-        },
-      ],
     },
     {
       label: t('Infrastructure'),
@@ -246,32 +164,25 @@ export function PlatformSidebar() {
       </SidebarHeader>
       <div className="flex-1 overflow-y-auto">
         <SidebarContent className="gap-0">
-          {groups
-            .map((group) => ({
-              ...group,
-              items: group.items.filter((item) => !item.locked),
-            }))
-            .filter((group) => group.items.length > 0)
-            .map((group, idx) => (
-              <SidebarGroup key={group.label} className="cursor-default shrink-0">
-                {idx > 0 && <SidebarSeparator className="mb-3" />}
-                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {group.items.map((item) => (
-                      <ApSidebarItem
-                        type="link"
-                        key={item.label}
-                        to={item.to}
-                        label={item.label}
-                        icon={item.icon}
-                        locked={item.locked}
-                      />
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            ))}
+          {groups.map((group, idx) => (
+            <SidebarGroup key={group.label} className="cursor-default shrink-0">
+              {idx > 0 && <SidebarSeparator className="mb-3" />}
+              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => (
+                    <ApSidebarItem
+                      type="link"
+                      key={item.label}
+                      to={item.to}
+                      label={item.label}
+                      icon={item.icon}
+                    />
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
         </SidebarContent>
       </div>
 
