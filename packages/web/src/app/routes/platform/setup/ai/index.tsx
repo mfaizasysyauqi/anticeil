@@ -14,12 +14,10 @@ import { CapabilitiesTab } from './capabilities-tab';
 import { ProvidersTab } from './providers-tab';
 
 export default function AIProvidersPage() {
-  const { data: currentUser } = userHooks.useCurrentUser();
-
   return (
     <LockedFeatureGuard
       featureKey="UNIVERSAL_AI"
-      locked={currentUser?.platformRole !== PlatformRole.ADMIN}
+      locked={false}
       lockTitle={t('Unlock AI')}
       lockDescription={t(
         'Set your AI providers so your users enjoy a seamless building experience with our universal AI pieces',

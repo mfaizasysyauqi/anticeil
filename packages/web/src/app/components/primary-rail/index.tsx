@@ -761,6 +761,10 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => navigate('/platform/setup/ai')}>
+              <Sparkles className="w-4 h-4 mr-2" />
+              {t('AI Center / Platform Setup')}
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setAccountSettingsOpen(true)}>
               <UserCogIcon className="w-4 h-4 mr-2" />
               {t('Account Settings')}

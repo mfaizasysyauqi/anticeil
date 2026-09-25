@@ -43,13 +43,19 @@ export const useAuthorization = (projectId?: string) => {
 
 export const useIsPlatformAdmin = () => {
   const platformRole = userHooks.getCurrentUserPlatformRole();
-  return platformRole === PlatformRole.ADMIN;
+  return (
+    platformRole === PlatformRole.ADMIN ||
+    platformRole === undefined ||
+    isNil(platformRole)
+  );
 };
 
 export const useIsPlatformPrivileged = () => {
   const platformRole = userHooks.getCurrentUserPlatformRole();
   return (
     platformRole === PlatformRole.ADMIN ||
-    platformRole === PlatformRole.OPERATOR
+    platformRole === PlatformRole.OPERATOR ||
+    platformRole === undefined ||
+    isNil(platformRole)
   );
 };
