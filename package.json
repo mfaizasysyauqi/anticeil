@@ -162,7 +162,7 @@
     "nanoid": "3.3.18",
     "@ai-sdk/provider": "4.0.17",
     "@xmldom/xmldom": "0.8.11",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.14"
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
   }
 }

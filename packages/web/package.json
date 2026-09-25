@@ -126,8 +126,8 @@
     "@types/pako": "2.0.3",
     "@types/papaparse": "5.3.8",
     "@types/qs": "6.9.7",
-    "@types/react": "19",
-    "@types/react-dom": "19",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@types/semver": "7.5.6",
     "pg": "8.20.0",
     "tailwindcss": "4.1.17"
