@@ -318,10 +318,9 @@ function RailHeader({
 }
 
 function RailPlatformAdminButton({ collapsed }: { collapsed: boolean }) {
-  const showPlatformAdmin = useIsPlatformAdmin();
   const { embedState } = useEmbedding();
 
-  if (embedState.isEmbedded || !showPlatformAdmin) {
+  if (embedState.isEmbedded) {
     return null;
   }
 
@@ -335,7 +334,7 @@ function RailPlatformAdminButton({ collapsed }: { collapsed: boolean }) {
       />
       <RailNavButton
         collapsed={collapsed}
-        to="/platform/projects"
+        to="/platform/setup/ai"
         icon={Shield}
         label={t('Platform Admin')}
         isActive={({ pathname }) => pathname.startsWith('/platform')}
