@@ -4,7 +4,6 @@ import { ComponentType, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
 import { McpSvg } from '@/assets/img/custom/mcp';
-import { Github } from 'lucide-react';
 import {
   ChevronLeftIcon,
   ChevronLeftIconHandle,
@@ -65,11 +64,6 @@ export function PlatformSidebar() {
       to: '/platform/setup/mcp',
       label: t('MCP Server'),
       icon: McpSvg,
-    },
-    {
-      to: '/platform/setup/github-runner',
-      label: t('GitHub Runner'),
-      icon: Github,
     },
     {
       to: '/platform/setup/pieces',

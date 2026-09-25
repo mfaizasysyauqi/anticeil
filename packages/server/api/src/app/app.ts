@@ -82,7 +82,6 @@ import { humanInputModule } from './flows/flow/human-input/human-input.module'
 import { flowRunModule } from './flows/flow-run/flow-run-module'
 import { pieceUpgradeModule } from './flows/flow-version/piece-upgrade.module'
 import { flowModule } from './flows/flow.module'
-import { githubModule } from './github/github.module'
 import { folderModule } from './flows/folder/folder.module'
 import { domainHelper } from './helper/domain-helper'
 import { exceptionHandler } from './helper/exception-handler'
@@ -260,7 +259,6 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     await app.register(mcpActivityController)
     await app.register(agentsModule)
     await app.register(platformUserModule)
-    await app.register(githubModule)
     await app.register(alertsModule)
     await app.register(invitationModule)
     await app.register(workerModule)

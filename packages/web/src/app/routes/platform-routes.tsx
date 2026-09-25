@@ -48,9 +48,6 @@ const SSOPage = React.lazy(() =>
   import('./platform/security/sso').then((m) => ({ default: m.SSOPage })),
 );
 const AIProvidersPage = React.lazy(() => import('./platform/setup/ai'));
-const GitHubRunnerPage = React.lazy(
-  () => import('./platform/setup/github-runner'),
-);
 const PlatformMcpPage = React.lazy(() => import('./platform/setup/mcp'));
 const GeneralPage = React.lazy(() =>
   import('./platform/setup/general').then((m) => ({
@@ -166,18 +163,6 @@ export const platformRoutes = [
         <PageTitle title="MCP Server">
           <SuspenseWrapper>
             <PlatformMcpPage />
-          </SuspenseWrapper>
-        </PageTitle>
-      </PlatformLayout>
-    ),
-  },
-  {
-    path: '/platform/setup/github-runner',
-    element: (
-      <PlatformLayout>
-        <PageTitle title="GitHub Runner">
-          <SuspenseWrapper>
-            <GitHubRunnerPage />
           </SuspenseWrapper>
         </PageTitle>
       </PlatformLayout>
