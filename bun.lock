@@ -11172,10 +11172,7 @@
     },
   },
   "trustedDependencies": [
-    "redis-memory-server",
     "deno",
-    "isolated-vm",
-    "sqlite3",
   ],
   "overrides": {
     "@ai-sdk/provider": "4.0.17",
