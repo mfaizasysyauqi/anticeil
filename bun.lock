@@ -7043,6 +7043,20 @@
         "tslib": "2.6.2",
       },
     },
+    "packages/pieces/community/playwright": {
+      "name": "@activepieces/piece-playwright",
+      "version": "0.1.0",
+      "dependencies": {
+        "@activepieces/core-piece-types": "workspace:*",
+        "@activepieces/core-utils": "workspace:*",
+        "@activepieces/pieces-common": "workspace:*",
+        "@activepieces/pieces-framework": "workspace:*",
+        "playwright": "^1.40.0",
+      },
+      "devDependencies": {
+        "tslib": "2.6.2",
+      },
+    },
     "packages/pieces/community/plunk": {
       "name": "@activepieces/piece-plunk",
       "version": "0.1.0",
@@ -11148,8 +11162,8 @@
         "@types/pako": "2.0.3",
         "@types/papaparse": "5.3.8",
         "@types/qs": "6.9.7",
-        "@types/react": "19",
-        "@types/react-dom": "19",
+        "@types/react": "^19.0.0",
+        "@types/react-dom": "^19.0.0",
         "@types/semver": "7.5.6",
         "jsdom": "26.1.0",
         "pg": "8.20.0",
@@ -11165,6 +11179,8 @@
   ],
   "overrides": {
     "@ai-sdk/provider": "4.0.17",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@xmldom/xmldom": "0.8.11",
     "axios": "1.18.0",
     "nanoid": "3.3.18",
@@ -12204,6 +12220,8 @@
     "@activepieces/piece-placid": ["@activepieces/piece-placid@workspace:packages/pieces/community/placid"],
 
     "@activepieces/piece-plausible": ["@activepieces/piece-plausible@workspace:packages/pieces/community/plausible"],
+
+    "@activepieces/piece-playwright": ["@activepieces/piece-playwright@workspace:packages/pieces/community/playwright"],
 
     "@activepieces/piece-plunk": ["@activepieces/piece-plunk@workspace:packages/pieces/community/plunk"],
 
