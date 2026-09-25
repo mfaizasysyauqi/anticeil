@@ -64,7 +64,7 @@ export const FlowCanvas = React.memo(
         state.panningMode,
         state.selectStepByName,
         state.rightSidebar,
-        state.flowVersion.notes,
+        state.flowVersion?.notes,
         state.canvasOrientation,
       ];
     });

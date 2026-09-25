@@ -61,9 +61,9 @@ export function CapabilitiesTab() {
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {AI_TOOL_CATALOG.map((capabilityInfo) => {
-            const config = configs?.find(
+            const config = Array.isArray(configs) ? configs.find(
               (c) => c.capability === capabilityInfo.capability,
-            );
+            ) : undefined;
             return (
               <CapabilityCard
                 key={capabilityInfo.capability}

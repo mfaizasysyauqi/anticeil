@@ -246,26 +246,32 @@ export function PlatformSidebar() {
       </SidebarHeader>
       <div className="flex-1 overflow-y-auto">
         <SidebarContent className="gap-0">
-          {groups.map((group, idx) => (
-            <SidebarGroup key={group.label} className="cursor-default shrink-0">
-              {idx > 0 && <SidebarSeparator className="mb-3" />}
-              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {group.items.map((item) => (
-                    <ApSidebarItem
-                      type="link"
-                      key={item.label}
-                      to={item.to}
-                      label={item.label}
-                      icon={item.icon}
-                      locked={item.locked}
-                    />
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ))}
+          {groups
+            .map((group) => ({
+              ...group,
+              items: group.items.filter((item) => !item.locked),
+            }))
+            .filter((group) => group.items.length > 0)
+            .map((group, idx) => (
+              <SidebarGroup key={group.label} className="cursor-default shrink-0">
+                {idx > 0 && <SidebarSeparator className="mb-3" />}
+                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {group.items.map((item) => (
+                      <ApSidebarItem
+                        type="link"
+                        key={item.label}
+                        to={item.to}
+                        label={item.label}
+                        icon={item.icon}
+                        locked={item.locked}
+                      />
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            ))}
         </SidebarContent>
       </div>
 

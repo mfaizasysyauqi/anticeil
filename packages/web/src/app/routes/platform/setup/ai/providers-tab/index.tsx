@@ -62,10 +62,10 @@ export function ProvidersTab() {
   const { platform } = platformHooks.useCurrentPlatform();
   const allowWrite = platform.plan.aiProvidersEnabled;
   const { data: projects } = projectCollectionUtils.useAllPlatformProjects();
-  const configs = (providers ?? []).filter(
+  const configs = (Array.isArray(providers) ? providers : []).filter(
     (provider) => provider.provider !== AIProviderName.ACTIVEPIECES,
   );
-  const chatProviderRow = (providers ?? []).find(
+  const chatProviderRow = (Array.isArray(providers) ? providers : []).find(
     (provider) => provider.enabledForChat,
   );
 
@@ -143,7 +143,9 @@ export function ProvidersTab() {
     setCredentialsVersion((version) => version + 1);
   };
   const selectChatConfig = (configId: string) => {
-    const row = (providers ?? []).find((config) => config.id === configId);
+    const row = (Array.isArray(providers) ? providers : []).find(
+      (config) => config.id === configId,
+    );
     if (row) {
       toggleChatProvider({ providerId: row.id, displayName: row.name });
     }
