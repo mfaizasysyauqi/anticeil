@@ -35,8 +35,8 @@ function useThirdPartyAvailability(): ThirdPartyAvailability {
   const defaultShow = !emailAuthEnabled && !hasSpecificConfig;
 
   return {
-    google: false,
-    github: Boolean(thirdPartyAuthProviders?.github) || defaultShow || true,
+    google: Boolean(thirdPartyAuthProviders?.google) || defaultShow || true,
+    github: Boolean(thirdPartyAuthProviders?.github) || false,
     saml: isCloud || Boolean(thirdPartyAuthProviders?.saml),
     samlIsCloud: isCloud,
   };
@@ -149,7 +149,7 @@ const ThirdPartyLogin = React.memo(
           </div>
           <div className="flex items-center gap-2.5 text-foreground/90">
             <ShieldCheck className="size-3.5 shrink-0 text-emerald-500" />
-            <span>{t('Official OAuth 2.0 security via GitHub')}</span>
+            <span>{t('Official OAuth 2.0 security via Google')}</span>
           </div>
           <div className="flex items-center gap-2.5 text-foreground/90">
             <Sparkles className="size-3.5 shrink-0 text-primary" />

@@ -1,0 +1,51 @@
+{
+  "name": "anticeil-flow-runner",
+  "account_id": "acb56d4f3510352de6c91edb9a5d25c3",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-02-24",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+
+  // Custom Domain on Cloudflare
+  "routes": [
+    {
+      "pattern": "runner.anticeil.com",
+      "custom_domain": true
+    }
+  ],
+
+  // 1. Cloudflare Browser Rendering Binding (Playwright / Puppeteer Alternative)
+  "browser": {
+    "binding": "MY_BROWSER"
+  },
+
+  // 2. Cloudflare Workflows Binding (Durable Step Execution Engine)
+  "workflows": [
+    {
+      "name": "anticeil-flow-workflow",
+      "binding": "FLOW_WORKFLOW",
+      "class_name": "AnticeilFlowWorkflow"
+    }
+  ],
+
+  // 3. Cloudflare R2 Storage (Media, Output, and Log Storage)
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "anticeil-storage"
+    }
+  ],
+
+  // 4. Scheduled Triggers (Cron Automation)
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
+
+  // 5. Environment Variables & Secrets
+  "vars": {
+    "ENVIRONMENT": "production"
+  }
+}
