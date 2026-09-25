@@ -89,11 +89,23 @@ function buildCreateRequest({
     case AIProviderName.QWEN:
     case AIProviderName.MINIMAX:
     case AIProviderName.MOONSHOT:
+    case AIProviderName.GROQ:
       return {
         provider,
         displayName,
         config: {},
         auth: { apiKey: value('apiKey') },
+      };
+    case AIProviderName.OLLAMA:
+      return {
+        provider,
+        displayName,
+        config: {
+          baseUrl: value('baseUrl') || 'http://localhost:11434/v1',
+          apiKeyHeader: 'Authorization',
+          models,
+        },
+        auth: { apiKey: value('apiKey') || 'ollama' },
       };
     case AIProviderName.ACTIVEPIECES:
       throw new Error(`Provider ${provider} cannot be connected manually`);

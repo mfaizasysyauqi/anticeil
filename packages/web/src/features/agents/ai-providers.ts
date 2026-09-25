@@ -168,6 +168,27 @@ This connects to Z.ai's international endpoint. A key from bigmodel.cn will not 
 `),
   },
   {
+    provider: AIProviderName.GROQ,
+    name: 'Groq',
+    logoUrl: 'https://cdn.activepieces.com/pieces/groq.png',
+    markdown: t(`Follow these instructions to get your Groq API Key:
+
+1. Go to https://console.groq.com/keys and sign in.
+2. Click **Create API Key**, enter a name, copy the key, and paste it below.
+`),
+  },
+  {
+    provider: AIProviderName.OLLAMA,
+    name: 'Ollama',
+    logoUrl: 'https://cdn.activepieces.com/pieces/ollama.png',
+    markdown: t(`Follow these instructions to connect your Ollama instance:
+
+1. Make sure Ollama is running (e.g. \`ollama serve\`).
+2. Set the Base URL (default is \`http://localhost:11434/v1\` or your remote server address).
+3. If connecting from a browser or remote server, ensure \`OLLAMA_ORIGINS=*\` is set in Ollama environment variables.
+`),
+  },
+  {
     provider: AIProviderName.CUSTOM,
     name: 'Other (OpenAI Compatible)',
     logoUrl: 'https://cdn.activepieces.com/pieces/new-core/text-ai.svg',

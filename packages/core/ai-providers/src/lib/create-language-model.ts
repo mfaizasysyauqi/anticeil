@@ -84,12 +84,27 @@ export function createLanguageModel({ credentials, modelId, options = {} }: Crea
         case AIProviderName.ZAI:
         case AIProviderName.QWEN:
         case AIProviderName.MINIMAX:
-        case AIProviderName.MOONSHOT: {
+        case AIProviderName.MOONSHOT:
+        case AIProviderName.GROQ: {
             const { apiKey } = credentials.auth
             return createOpenAICompatible({
                 name: credentials.provider,
                 baseURL: OPENAI_COMPATIBLE_VENDOR_BASE_URLS[credentials.provider],
                 apiKey: apiKey ?? '',
+                ...observed,
+            }).chatModel(modelId)
+        }
+        case AIProviderName.OLLAMA: {
+            const { apiKey } = credentials.auth
+            const { baseUrl = 'http://localhost:11434/v1', defaultHeaders } = credentials.config
+            const headers = {
+                ...defaultHeaders,
+                ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+            }
+            return createOpenAICompatible({
+                name: 'ollama',
+                baseURL: baseUrl,
+                headers,
                 ...observed,
             }).chatModel(modelId)
         }

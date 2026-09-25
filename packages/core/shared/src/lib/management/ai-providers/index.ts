@@ -106,6 +106,18 @@ const ProviderConfigUnion = z.discriminatedUnion('provider', [
         config: OpenAiCompatibleVendorConfig,
         auth: BaseAIProviderAuthConfig,
     }),
+    z.object({
+        displayName: z.string().min(1),
+        provider: z.literal(AIProviderName.GROQ),
+        config: OpenAiCompatibleVendorConfig,
+        auth: BaseAIProviderAuthConfig,
+    }),
+    z.object({
+        displayName: z.string().min(1),
+        provider: z.literal(AIProviderName.OLLAMA),
+        config: OpenAICompatibleProviderConfig,
+        auth: OpenAICompatibleProviderAuthConfig,
+    }),
 ])
 
 export const AIProvider = z.object({

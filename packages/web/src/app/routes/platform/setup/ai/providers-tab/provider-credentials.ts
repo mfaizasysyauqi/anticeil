@@ -162,12 +162,27 @@ const PROVIDER_CREDENTIAL_FIELDS: Partial<
       optional: true,
     },
   ],
+  [AIProviderName.OLLAMA]: [
+    {
+      key: 'baseUrl',
+      label: t('Ollama Base URL'),
+      placeholder: 'http://localhost:11434/v1',
+    },
+    {
+      key: 'apiKey',
+      label: t('API key (Optional)'),
+      placeholder: 'Leave blank if not configured',
+      secret: true,
+      optional: true,
+    },
+  ],
 };
 
 const MANUAL_MODEL_PROVIDERS: AIProviderName[] = [
   AIProviderName.VERTEX,
   AIProviderName.CUSTOM,
   AIProviderName.CLOUDFLARE_GATEWAY,
+  AIProviderName.OLLAMA,
 ];
 
 export const providerCredentials = {

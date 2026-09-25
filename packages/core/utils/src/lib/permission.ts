@@ -64,4 +64,6 @@ export enum AIProviderName {
     QWEN = 'qwen',
     MINIMAX = 'minimax',
     MOONSHOT = 'moonshot',
+    GROQ = 'groq',
+    OLLAMA = 'ollama',
 }

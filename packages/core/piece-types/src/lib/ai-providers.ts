@@ -346,6 +346,8 @@ const NO_IMAGE_GENERATION_PROVIDERS = new Set<AIProviderName>([
     AIProviderName.QWEN,
     AIProviderName.MINIMAX,
     AIProviderName.MOONSHOT,
+    AIProviderName.GROQ,
+    AIProviderName.OLLAMA,
 ])
 
 export const OPENAI_COMPATIBLE_VENDOR_BASE_URLS: Record<OpenAiCompatibleVendor, string> = {
@@ -355,6 +357,7 @@ export const OPENAI_COMPATIBLE_VENDOR_BASE_URLS: Record<OpenAiCompatibleVendor, 
     [AIProviderName.QWEN]: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
     [AIProviderName.MINIMAX]: 'https://api.minimax.io/v1',
     [AIProviderName.MOONSHOT]: 'https://api.moonshot.ai/v1',
+    [AIProviderName.GROQ]: 'https://api.groq.com/openai/v1',
 }
 
 function buildProviderCapabilities(provider: AIProviderName): AIProviderCapabilities {
@@ -404,6 +407,8 @@ export const AI_PROVIDER_CAPABILITIES: Record<AIProviderName, AIProviderCapabili
     [AIProviderName.QWEN]: buildProviderCapabilities(AIProviderName.QWEN),
     [AIProviderName.MINIMAX]: buildProviderCapabilities(AIProviderName.MINIMAX),
     [AIProviderName.MOONSHOT]: buildProviderCapabilities(AIProviderName.MOONSHOT),
+    [AIProviderName.GROQ]: buildProviderCapabilities(AIProviderName.GROQ),
+    [AIProviderName.OLLAMA]: buildProviderCapabilities(AIProviderName.OLLAMA),
 }
 
 export const aiProviderUtils = {
@@ -429,6 +434,7 @@ export type OpenAiCompatibleVendor =
     | AIProviderName.QWEN
     | AIProviderName.MINIMAX
     | AIProviderName.MOONSHOT
+    | AIProviderName.GROQ
 
 export type AIProviderCapabilities = {
     chatModels?: readonly string[] | undefined
