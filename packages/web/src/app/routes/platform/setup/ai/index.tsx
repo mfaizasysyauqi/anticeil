@@ -1,11 +1,8 @@
-import { ApEdition, ApFlagId, PlatformRole } from '@activepieces/shared';
 import { t } from 'i18next';
 import { Bot, WandSparkles } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { flagsHooks } from '@/hooks/flags-hooks';
-import { userHooks } from '@/hooks/user-hooks';
 import { cn } from '@/lib/utils';
 
 import { LockedFeatureGuard } from '../../../../components/locked-feature-guard';
@@ -30,8 +27,7 @@ export default function AIProvidersPage() {
 
 function AICenter() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: edition } = flagsHooks.useFlag<ApEdition>(ApFlagId.EDITION);
-  const capabilitiesEnabled = edition !== ApEdition.COMMUNITY;
+  const capabilitiesEnabled = true;
 
   const rawTab = searchParams.get('tab');
   const requestedTab = isTabValue(rawTab) ? rawTab : 'providers';
