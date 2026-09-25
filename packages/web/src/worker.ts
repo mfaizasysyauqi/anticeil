@@ -751,9 +751,23 @@ export default {
 
       // 11. GET /v1/flows or /v1/folders
       if (path.startsWith('/v1/flows') && request.method === 'GET') {
-        const flows = await querySupabase('flow?select=*&limit=50', {}, env);
+        const flows = (await querySupabase('flow?select=*&limit=50', {}, env)) || [];
+        const populatedFlows = flows.map((f: any) => ({
+          ...f,
+          status: f.status || 'DISABLED',
+          version: f.version || {
+            id: generateId(),
+            flowId: f.id,
+            displayName: f.displayName || 'Untitled',
+            trigger: { name: 'trigger', type: 'EMPTY', valid: false, settings: {} },
+            valid: false,
+            state: 'DRAFT',
+            created: f.created || new Date().toISOString(),
+            updated: f.updated || new Date().toISOString(),
+          },
+        }));
         return jsonResponse({
-          data: flows || [],
+          data: populatedFlows,
           next: null,
           previous: null,
         });

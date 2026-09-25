@@ -33,7 +33,7 @@ export function mergeAndSortItems({
     items.push({
       id: flow.id,
       type: 'flow',
-      name: flow.version.displayName,
+      name: flow?.version?.displayName || flow?.displayName || 'Untitled Flow',
       data: flow,
       depth: 0,
       folderId: null,
@@ -74,7 +74,7 @@ export function buildFolderChildren({
     children.push({
       id: flow.id,
       type: 'flow',
-      name: flow.version.displayName,
+      name: flow?.version?.displayName || flow?.displayName || 'Untitled Flow',
       data: flow,
       depth: 1,
       folderId,
@@ -250,7 +250,7 @@ export function buildFilteredTreeItems({
     const item: TreeItem = {
       id: flow.id,
       type: 'flow',
-      name: flow.version.displayName,
+      name: flow?.version?.displayName || flow?.displayName || 'Untitled Flow',
       data: flow,
       depth: itemFolderId ? 1 : 0,
       folderId: itemFolderId,
@@ -293,7 +293,7 @@ export function buildFilteredTreeItems({
     folderItems.push({
       id: folder.id,
       type: 'folder',
-      name: folder.displayName,
+      name: folder?.displayName || 'Untitled Folder',
       data: folder,
       depth: 0,
       folderId: null,
@@ -307,7 +307,7 @@ export function buildFilteredTreeItems({
     for (const folder of folders) {
       if (
         !addedFolderIds.has(folder.id) &&
-        folder.displayName.toLowerCase().includes(term)
+        (folder?.displayName || '').toLowerCase().includes(term)
       ) {
         const content = folderContents?.get(folder.id);
         const totalCount = folderCounts?.get(folder.id) ?? 0;
@@ -325,7 +325,7 @@ export function buildFilteredTreeItems({
         folderItems.push({
           id: folder.id,
           type: 'folder',
-          name: folder.displayName,
+          name: folder?.displayName || 'Untitled Folder',
           data: folder,
           depth: 0,
           folderId: null,
