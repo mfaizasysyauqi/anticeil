@@ -26,27 +26,33 @@ export const communityTemplates = {
         return template
     },
     getCategories: async (): Promise<string[]> => {
-        const url = `${TEMPLATES_SOURCE_URL}/categories`
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        })
-        const categories = await response.json()
-        return categories
+        try {
+            const url = `${TEMPLATES_SOURCE_URL}/categories`
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            })
+            if (!response.ok) return []
+            return response.json()
+        }
+        catch {
+            return []
+        }
     },
     list: async (request: ListTemplatesRequestQuery): Promise<SeekPage<Template>> => {
-        const queryString = convertToQueryString(request)
-        const url = `${TEMPLATES_SOURCE_URL}?${queryString}`
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        })
-        const templates = await response.json()
-        return templates
+        try {
+            const queryString = convertToQueryString(request)
+            const url = `${TEMPLATES_SOURCE_URL}?${queryString}`
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            })
+            if (!response.ok) return { data: [], next: null, previous: null }
+            return response.json()
+        }
+        catch {
+            return { data: [], next: null, previous: null }
+        }
     },
 }
 
