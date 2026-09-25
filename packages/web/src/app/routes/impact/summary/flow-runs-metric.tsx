@@ -15,8 +15,8 @@ export const FlowRunsMetric = ({ report }: FlowRunsMetricProps) => {
     return <MetricCardSkeleton />;
   }
 
-  const runsByFlow = impactRunsUtils.sumRunsByFlow(report.runs);
-  const totalFlowRuns = report.flows.reduce(
+  const runsByFlow = impactRunsUtils.sumRunsByFlow(report?.runs ?? []);
+  const totalFlowRuns = (report?.flows ?? []).reduce(
     (acc, flow) => acc + (runsByFlow.get(flow.flowId) ?? 0),
     0,
   );

@@ -10,11 +10,11 @@ type RunsChartProps = {
 
 export function RunsChart({ report }: RunsChartProps) {
   const chartData =
-    report?.runs
+    (report?.runs ?? [])
       .map((data) => ({ date: data.day, runs: data.runs }))
       .sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-      ) ?? [];
+      );
 
   return (
     <AnalyticsAreaChart

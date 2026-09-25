@@ -34,10 +34,11 @@ export function ProjectSelect({
   const [open, setOpen] = useState(false);
 
   const allProjectsItem = { id: 'all', displayName: t('All Projects') };
-  const items = [allProjectsItem, ...projects];
+  const safeProjects = projects ?? [];
+  const items = [allProjectsItem, ...safeProjects];
 
   const selectedProject = selectedProjectId
-    ? projects.find((p) => p.id === selectedProjectId)
+    ? safeProjects.find((p) => p.id === selectedProjectId)
     : null;
 
   const displayValue = selectedProject?.displayName ?? t('All Projects');

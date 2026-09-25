@@ -20,12 +20,12 @@ export function useFlowDetailsData(report?: PlatformAnalyticsReport) {
 
   const runsMap = useMemo(() => {
     if (!report) return new Map<string, number>();
-    return impactRunsUtils.sumRunsByFlow(report.runs);
+    return impactRunsUtils.sumRunsByFlow(report.runs ?? []);
   }, [report]);
 
   const flowDetails = useMemo((): FlowDetailRow[] | undefined => {
     if (!report) return undefined;
-    return report.flows.map((flow) => {
+    return (report.flows ?? []).map((flow) => {
       const override = timeSavedPerRunOverrides[flow.flowId];
       const timeSavedPerRun = override?.value ?? flow.timeSavedPerRun;
       const runs = runsMap.get(flow.flowId) ?? 0;

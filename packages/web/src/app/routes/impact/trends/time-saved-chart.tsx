@@ -12,16 +12,16 @@ type TimeSavedChartProps = {
 
 export function TimeSavedChart({ report }: TimeSavedChartProps) {
   const chartData =
-    report?.runs
+    (report?.runs ?? [])
       .map((data) => ({
         date: data.day,
         minutesSaved:
-          (report?.flows.find((flow) => flow.flowId === data.flowId)
+          ((report?.flows ?? []).find((flow) => flow.flowId === data.flowId)
             ?.timeSavedPerRun ?? 0) * data.runs,
       }))
       .sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-      ) ?? [];
+      );
 
   return (
     <AnalyticsAreaChart
