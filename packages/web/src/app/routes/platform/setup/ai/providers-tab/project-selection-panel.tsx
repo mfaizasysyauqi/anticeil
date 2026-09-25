@@ -28,9 +28,9 @@ export function ProjectSelectionPanel({
   const [page, setPage] = useState(0);
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
 
-  const filtered = projects
+  const filtered = (projects ?? [])
     .filter((project) =>
-      project.displayName.toLowerCase().includes(search.trim().toLowerCase()),
+      (project?.displayName || '').toLowerCase().includes(search.trim().toLowerCase()),
     )
     .filter((project) => !showSelectedOnly || selectedIds.includes(project.id));
   const { rows, page: currentPage } = pageSlice({
@@ -75,7 +75,7 @@ export function ProjectSelectionPanel({
           />
           <ProjectSwatch project={row.original} />
           <span className="text-sm font-medium">
-            {row.original.displayName}
+            {row.original?.displayName || 'Project'}
           </span>
           {row.original.type === ProjectType.PERSONAL && (
             <span className="rounded-full bg-muted px-1.5 py-px text-[10px] text-muted-foreground">
@@ -152,7 +152,7 @@ export function ProjectSwatch({ project }: { project: Project }) {
           : undefined
       }
     >
-      {project.displayName.charAt(0).toUpperCase()}
+      {(project?.displayName || 'P').charAt(0).toUpperCase()}
     </span>
   );
 }

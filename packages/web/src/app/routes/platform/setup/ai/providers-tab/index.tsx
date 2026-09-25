@@ -511,9 +511,13 @@ function ProjectChips({
         {excluded
           ? t('{count} projects have access. Excluded: {names}', {
               count: allowedCount,
-              names: projects.map((project) => project.displayName).join(', '),
+              names: (projects ?? [])
+                .map((project) => project?.displayName || 'Project')
+                .join(', '),
             })
-          : projects.map((project) => project.displayName).join(', ')}
+          : (projects ?? [])
+              .map((project) => project?.displayName || 'Project')
+              .join(', ')}
       </TooltipContent>
     </Tooltip>
   );

@@ -678,10 +678,14 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
     navigate('/sign-in');
   };
 
-  const displayName =
-    user.firstName === user.lastName || !user.lastName
-      ? user.firstName
-      : `${user.firstName} ${user.lastName}`.trim();
+  const rawName =
+    user.firstName || user.lastName
+      ? user.firstName === user.lastName || !user.lastName
+        ? user.firstName
+        : `${user.firstName || ''} ${user.lastName || ''}`.trim()
+      : undefined;
+
+  const displayName = rawName || user.email?.split('@')[0] || 'User';
 
   return (
     <div
