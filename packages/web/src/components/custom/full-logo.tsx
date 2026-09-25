@@ -9,11 +9,11 @@ const FullLogo = ({ className }: { className?: string }) => {
   return (
     <div className={cn('flex items-center gap-2.5 select-none', className)}>
       <img
-        className="h-7 w-auto max-h-[32px] object-contain shrink-0"
+        className="h-8 w-auto max-h-[36px] object-contain shrink-0"
         src={branding?.logos?.fullLogoUrl || '/logo.png'}
         alt={branding?.websiteName || 'Anticeil'}
       />
-      <span className="font-bold text-[17px] tracking-tight text-foreground font-sans">
+      <span className="font-bold text-[18px] tracking-tight text-foreground font-sans">
         {branding?.websiteName || 'Anticeil'}
       </span>
     </div>

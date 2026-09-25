@@ -35,20 +35,20 @@ type WebsiteBrand = {
 const DEFAULT_BRANDING: WebsiteBrand = {
   websiteName: 'Anticeil',
   logos: {
-    fullLogoUrl: '/logo.svg',
-    favIconUrl: '/logo.svg',
-    logoIconUrl: '/logo.svg',
+    fullLogoUrl: '/logo.png',
+    favIconUrl: '/logo.png',
+    logoIconUrl: '/logo.png',
   },
   colors: {
-    avatar: '#6366f1',
-    'blue-link': '#3b82f6',
+    avatar: '#0d9488',
+    'blue-link': '#0d9488',
     danger: '#ef4444',
-    selection: '#3b82f6',
+    selection: '#0d9488',
     primary: {
-      default: '#6366f1',
-      dark: '#4f46e5',
-      light: '#818cf8',
-      medium: '#6366f1',
+      default: '#0d9488',
+      dark: '#0f766e',
+      light: '#2dd4bf',
+      medium: '#14b8a6',
     },
     warn: {
       default: '#f59e0b',
@@ -62,13 +62,33 @@ const DEFAULT_BRANDING: WebsiteBrand = {
   },
 };
 
+const DEFAULT_FLAGS: Record<string, any> = {
+  [ApFlagId.THEME]: DEFAULT_BRANDING,
+  [ApFlagId.EMAIL_AUTH_ENABLED]: false,
+  [ApFlagId.EMAIL_CODE_AUTH_ENABLED]: false,
+  [ApFlagId.USER_CREATED]: true,
+  [ApFlagId.THIRD_PARTY_AUTH_PROVIDERS_TO_SHOW_MAP]: {
+    google: true,
+    github: false,
+    saml: false,
+  },
+  [ApFlagId.THIRD_PARTY_AUTH_PROVIDER_REDIRECT_URL]: 'https://anticeil.com/api/v1/authn/federated/redirect',
+};
+
 const queryKey = ['flags'];
 export const flagsHooks = {
   queryKey,
   useFlags: () => {
     return useSuspenseQuery<FlagsMap, Error>({
       queryKey,
-      queryFn: flagsApi.getAll,
+      queryFn: async () => {
+        try {
+          const res = await flagsApi.getAll();
+          return { ...DEFAULT_FLAGS, ...res };
+        } catch {
+          return DEFAULT_FLAGS;
+        }
+      },
       staleTime: Infinity,
     });
   },
@@ -80,16 +100,23 @@ export const flagsHooks = {
     try {
       const query = useSuspenseQuery<FlagsMap, Error>({
         queryKey: ['flags'],
-        queryFn: flagsApi.getAll,
+        queryFn: async () => {
+          try {
+            const res = await flagsApi.getAll();
+            return { ...DEFAULT_FLAGS, ...res };
+          } catch {
+            return DEFAULT_FLAGS;
+          }
+        },
         staleTime: Infinity,
       });
-      const data = query.data?.[flagId] as T | null;
+      const data = (query.data?.[flagId] ?? DEFAULT_FLAGS[flagId] ?? null) as T | null;
       return {
         data,
       };
     } catch {
       return {
-        data: null,
+        data: (DEFAULT_FLAGS[flagId] ?? null) as T | null,
       };
     }
   },
