@@ -14,10 +14,8 @@ function resolveChatEnabled({ edition, isEmbedded, planChatEnabled, cloudRollout
     if (edition === ApEdition.CLOUD) {
         return planChatEnabled || cloudRolloutOpen || userHasChatted
     }
-    if (edition === ApEdition.ENTERPRISE) {
-        return planChatEnabled
-    }
-    return false
+    // For ENTERPRISE and COMMUNITY (self-hosted), respect the plan flag directly
+    return planChatEnabled
 }
 
 export const chatVisibility = {
