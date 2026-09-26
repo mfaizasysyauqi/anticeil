@@ -1,9 +1,11 @@
 import { isNil } from '@activepieces/core-utils'
-import { PurchasablePlan } from '@activepieces/shared'
+import { apDayjs } from '@activepieces/server-utils'
+import { ConsumableFeatureId, PurchasablePlan, UnconsumableFeatureId } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
+import { distributedStore } from '../../../../database/redis-connections'
 import { system } from '../../../../helper/system/system'
 import { AppSystemProp } from '../../../../helper/system/system-props'
-import { BillingOverview, BillingProvider, emptyBillingOverview } from '../../../../platform/billing-provider'
+import { BillingOverview, BillingProvider, ConsumablesUsage, CreditsAndAppSumoState, emptyBillingOverview, TrackFeatureParams } from '../../../../platform/billing-provider'
 import { platformPlanService } from '../platform-plan.service'
 
 const MIDTRANS_PLANS: PurchasablePlan[] = [
@@ -69,12 +71,59 @@ const MIDTRANS_PLANS: PurchasablePlan[] = [
     },
 ]
 
+function getCreditsUsageKey(platformId: string, monthStr: string): string {
+    return `anticeil:credits_usage:${platformId}:${monthStr}`
+}
+
 export const midtransBillingProvider = (log: FastifyBaseLogger): BillingProvider => ({
     listPlans: async () => {
         return MIDTRANS_PLANS
     },
-    getBillingOverview: async () => {
-        return emptyBillingOverview({})
+    getBillingOverview: async (platformId: string): Promise<BillingOverview> => {
+        try {
+            const platformPlan = await platformPlanService(log).getOrCreateForPlatform(platformId)
+            const planKey = (platformPlan?.plan ?? 'free').toLowerCase()
+            const isTeam = planKey.includes('team')
+            const isPlus = planKey.includes('plus')
+
+            const planName = isTeam ? 'Team' : (isPlus ? 'Plus' : 'Free')
+            const nextBillingAmount = isTeam ? 2999000 : (isPlus ? 299000 : 0)
+            const includedSeats = platformPlan?.includedSeats ?? (isTeam ? 25 : (isPlus ? 5 : 1))
+
+            return {
+                startDate: apDayjs().startOf('month').toISOString(),
+                endDate: apDayjs().endOf('month').toISOString(),
+                nextBillingAmount,
+                cancelAt: null,
+                trialEndsAt: null,
+                planInterval: 'month',
+                planName,
+                scheduledPlanName: null,
+                billingPortalAvailable: false,
+                creditsResetInterval: 'month',
+                creditsFeature: {
+                    featureId: ConsumableFeatureId.AP_CREDITS,
+                    pricePerUnit: 100,
+                    billingUnits: 1000,
+                    interval: 'month',
+                    autoTopUp: null,
+                },
+                appSumoCreditsFeature: null,
+                seatsFeature: {
+                    featureId: UnconsumableFeatureId.USERS_LIMIT,
+                    pricePerUnit: 50000,
+                    billingUnits: 1,
+                    interval: 'month',
+                },
+                includedSeats,
+                additionalSeats: null,
+                unavailable: false,
+            }
+        }
+        catch (error) {
+            log.error({ error, platformId }, 'Failed to fetch Midtrans billing overview, falling back to empty')
+            return emptyBillingOverview({})
+        }
     },
     createCheckoutSession: async ({ platformId, planId, successUrl }) => {
         const targetPlan = MIDTRANS_PLANS.find((p) => p.id === planId)
@@ -144,8 +193,15 @@ export const midtransBillingProvider = (log: FastifyBaseLogger): BillingProvider
     reactivateSubscription: async () => {
         return
     },
-    trackFeature: async () => {
-        return
+    trackFeature: async (params: TrackFeatureParams) => {
+        if (params.featureId === ConsumableFeatureId.AP_CREDITS) {
+            const currentMonth = apDayjs().format('YYYY-MM')
+            const key = getCreditsUsageKey(params.platformId, currentMonth)
+            const current = (await distributedStore.get<number>(key)) ?? 0
+            const added = Math.max(1, Math.round(params.value || 1))
+            await distributedStore.put(key, current + added, 60 * 60 * 24 * 60)
+            log.info({ platformId: params.platformId, value: added, newTotal: current + added }, '[MidtransBilling] Tracked AI/Automation credits')
+        }
     },
     ensureEnrolled: async () => {
         return
@@ -168,19 +224,56 @@ export const midtransBillingProvider = (log: FastifyBaseLogger): BillingProvider
     shouldBlockOnCredits: async () => {
         return false
     },
-    getCreditsAndAppSumoState: async () => {
+    getCreditsAndAppSumoState: async (platformId: string): Promise<CreditsAndAppSumoState> => {
+        const currentMonth = apDayjs().format('YYYY-MM')
+        const key = getCreditsUsageKey(platformId, currentMonth)
+        const usage = (await distributedStore.get<number>(key)) ?? 0
+        const platformPlan = await platformPlanService(log).getOrCreateForPlatform(platformId)
+        const planKey = (platformPlan?.plan ?? 'free').toLowerCase()
+        const isTeam = planKey.includes('team')
+        const isPlus = planKey.includes('plus')
+        const limit = platformPlan?.includedCredits ?? (isTeam ? 50000 : (isPlus ? 10000 : 1000))
+        const remaining = Math.max(0, limit - usage)
+
         return {
-            totalCredits: 100000,
-            consumedCredits: 0,
-            remainingCredits: 100000,
-            resetPeriod: 'month',
-            state: 'ok' as const,
+            credits: {
+                blocked: false,
+                usage,
+                limit,
+                remaining,
+                unlimited: false,
+            },
+            appSumo: {
+                blocked: false,
+                usage: 0,
+                limit: 0,
+                remaining: 0,
+                unlimited: false,
+            },
         }
     },
-    getConsumablesUsage: async () => {
-        return {} as any
+    getConsumablesUsage: async (platformId: string): Promise<ConsumablesUsage> => {
+        const currentMonth = apDayjs().format('YYYY-MM')
+        const key = getCreditsUsageKey(platformId, currentMonth)
+        const usage = (await distributedStore.get<number>(key)) ?? 0
+        const platformPlan = await platformPlanService(log).getOrCreateForPlatform(platformId)
+        const planKey = (platformPlan?.plan ?? 'free').toLowerCase()
+        const isTeam = planKey.includes('team')
+        const isPlus = planKey.includes('plus')
+        const limit = platformPlan?.includedCredits ?? (isTeam ? 50000 : (isPlus ? 10000 : 1000))
+        const remaining = Math.max(0, limit - usage)
+        const nextResetAt = apDayjs().endOf('month').toISOString()
+
+        return {
+            credits: {
+                usage,
+                remaining,
+                nextResetAt,
+            },
+            appSumo: null,
+        }
     },
     getCreditUsage: async () => {
-        return {} as any
+        return { total: 0, byProject: [] }
     },
 })
