@@ -1,6 +1,7 @@
 import { t } from 'i18next';
 import { Check, CreditCard, Loader2, QrCode, Building2, ShieldCheck } from 'lucide-react';
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { platformHooks } from '@/hooks/platform-hooks';
 import { create } from 'zustand';
+import {
+  billingKeys,
+  PLATFORM_BILLING_SUBSCRIPTION_KEY,
+} from '../hooks/billing-hooks';
+import { usePlanSwitchSuccessDialogStore } from '../stores/plan-switch-success-dialog-state';
 
 type MidtransCheckoutState = {
   isOpen: boolean;
@@ -45,6 +51,7 @@ export const useMidtransCheckoutStore = create<MidtransCheckoutState>((set) => (
 export function MidtransCheckoutDialog() {
   const { isOpen, planId, planName, priceAmount, billingCycle, closeCheckout } =
     useMidtransCheckoutStore();
+  const queryClient = useQueryClient();
   const { platform, setCurrentPlatform } = platformHooks.useCurrentPlatform();
   const [paymentMethod, setPaymentMethod] = useState<'qris' | 'va' | 'card'>('qris');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -55,12 +62,14 @@ export function MidtransCheckoutDialog() {
     setIsProcessing(true);
     try {
       // Simulate network request to Midtrans Sandbox
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+
+      const targetPlanKey = isTeam ? 'team' : 'plus';
 
       // Update local platform state
       const updatedPlan = {
         ...platform.plan,
-        plan: isTeam ? 'team' : 'plus',
+        plan: targetPlanKey,
         agentsEnabled: true,
         aiProvidersEnabled: true,
         mcpsEnabled: true,
@@ -73,10 +82,43 @@ export function MidtransCheckoutDialog() {
         globalConnectionsEnabled: isTeam,
       };
 
-      setCurrentPlatform({
+      const updatedPlatform = {
         ...platform,
         plan: updatedPlan as any,
-      });
+      };
+
+      setCurrentPlatform(queryClient, updatedPlatform);
+
+      // Update subscription info in React Query cache
+      queryClient.setQueryData(
+        PLATFORM_BILLING_SUBSCRIPTION_KEY,
+        (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            plan: {
+              ...old.plan,
+              plan: targetPlanKey,
+            },
+          };
+        },
+      );
+
+      if (platform?.id) {
+        queryClient.setQueryData(
+          billingKeys.platformSubscription(platform.id),
+          (old: any) => {
+            if (!old) return old;
+            return {
+              ...old,
+              plan: {
+                ...old.plan,
+                plan: targetPlanKey,
+              },
+            };
+          },
+        );
+      }
 
       toast.success(
         t('Pembayaran Berhasil! Plan {plan} Anda sekarang telah aktif.', {
@@ -85,7 +127,11 @@ export function MidtransCheckoutDialog() {
       );
 
       closeCheckout();
+
+      const successPlanId = planId ?? (isTeam ? 'team' : 'plus');
+      usePlanSwitchSuccessDialogStore.getState().openDialog(successPlanId);
     } catch (error) {
+      console.error('Midtrans payment error:', error);
       toast.error(t('Gagal memproses pembayaran Midtrans'));
     } finally {
       setIsProcessing(false);
