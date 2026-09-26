@@ -252,7 +252,7 @@ export const platformRoutes = [
     element: <Navigate to="/platform/setup/general" replace />,
   },
   {
-    path: '/platform/setup/billing',
+    path: '/platform/billing',
     element: (
       <PlatformLayout>
         <PageTitle title="Billing">
@@ -264,7 +264,7 @@ export const platformRoutes = [
     ),
   },
   {
-    path: '/platform/setup/usage',
+    path: '/platform/usage',
     element: (
       <PlatformLayout>
         <PageTitle title="Usage">
@@ -276,7 +276,7 @@ export const platformRoutes = [
     ),
   },
   {
-    path: '/platform/setup/billing/success',
+    path: '/platform/billing/success',
     element: (
       <PlatformLayout>
         <PageTitle title="Billing">
@@ -286,7 +286,7 @@ export const platformRoutes = [
     ),
   },
   {
-    path: '/platform/setup/billing/error',
+    path: '/platform/billing/error',
     element: (
       <PlatformLayout>
         <PageTitle title="Billing">
@@ -294,6 +294,22 @@ export const platformRoutes = [
         </PageTitle>
       </PlatformLayout>
     ),
+  },
+  {
+    path: '/platform/setup/billing',
+    element: <Navigate to="/platform/billing" replace />,
+  },
+  {
+    path: '/platform/setup/usage',
+    element: <Navigate to="/platform/usage" replace />,
+  },
+  {
+    path: '/platform/setup/billing/success',
+    element: <Navigate to="/platform/billing/success" replace />,
+  },
+  {
+    path: '/platform/setup/billing/error',
+    element: <Navigate to="/platform/billing/error" replace />,
   },
   {
     path: '/platform/security',

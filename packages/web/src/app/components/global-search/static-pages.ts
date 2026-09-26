@@ -109,7 +109,7 @@ export const STATIC_PAGES: StaticPage[] = [
   {
     id: 'page-platform-billing',
     label: 'Platform Admin — Billing',
-    href: '/platform/setup/billing',
+    href: '/platform/billing',
     icon: ReceiptIcon,
     requiresPlatformAdmin: true,
   },
