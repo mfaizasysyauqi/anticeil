@@ -41,37 +41,18 @@ export const SidebarUsageLimits = React.memo(() => {
 
   const { data: info } = billingQueries.usePlatformSubscription(
     platformId,
-    needsSubscription,
+    true,
   );
 
   if (edition === ApEdition.COMMUNITY) {
     return null;
   }
 
-  if (isNil(authenticationSession.getProjectId())) {
-    return null;
-  }
-
-  if (isNil(project) || isNil(usage)) {
-    return (
-      <div className="flex flex-col w-full gap-2 p-2.5 bg-background rounded-md border">
-        <div className="flex items-center justify-between">
-          <Skeleton className="w-24 h-4" />
-          <Skeleton className="w-14 h-4" />
-        </div>
-        <Skeleton className="w-20 h-3" />
-      </div>
-    );
-  }
-
-  if (isNil(creditsRemaining)) {
-    return null;
-  }
-
-  const creditsText = billingUtils.formatCredits(creditsRemaining);
+  const effectiveCreditsRemaining = creditsRemaining ?? 1000;
+  const creditsText = billingUtils.formatCredits(effectiveCreditsRemaining);
   const resetLine = billingUtils.resolveCreditsReset({
-    creditsNextResetAt: usage.creditsNextResetAt,
-    creditsResetInterval: info?.creditsResetInterval,
+    creditsNextResetAt: usage?.creditsNextResetAt,
+    creditsResetInterval: info?.creditsResetInterval ?? 'month',
     nextBillingDate: info?.nextBillingDate,
     dateFormat: BILLING_DATE_FORMAT,
   });

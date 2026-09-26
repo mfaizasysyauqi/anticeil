@@ -1,6 +1,15 @@
 import { ApEdition, ApFlagId } from '@activepieces/shared';
 import { t } from 'i18next';
-import { ChevronRight } from 'lucide-react';
+import {
+  BarChart3,
+  ChevronRight,
+  Code,
+  CreditCard,
+  FileText,
+  Key,
+  Lock,
+  Shield,
+} from 'lucide-react';
 import { ComponentType, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -125,6 +134,36 @@ export function PlatformSidebar() {
       ],
     },
     {
+      label: t('Security'),
+      items: [
+        {
+          to: '/platform/security/sso',
+          label: t('Single Sign On'),
+          icon: Shield,
+        },
+        {
+          to: '/platform/security/secret-managers',
+          label: t('Secret Managers'),
+          icon: Lock,
+        },
+        {
+          to: '/platform/security/audit-logs',
+          label: t('Audit Logs'),
+          icon: FileText,
+        },
+        {
+          to: '/platform/security/api-keys',
+          label: t('API Keys'),
+          icon: Key,
+        },
+        {
+          to: '/platform/security/embed',
+          label: t('Embedding'),
+          icon: Code,
+        },
+      ],
+    },
+    {
       label: t('Infrastructure'),
       items: [
         {
@@ -151,6 +190,21 @@ export function PlatformSidebar() {
                 icon: Settings2Icon,
               },
             ]),
+      ],
+    },
+    {
+      label: t('Account'),
+      items: [
+        {
+          to: '/platform/billing',
+          label: t('Billing & subscription'),
+          icon: CreditCard,
+        },
+        {
+          to: '/platform/usage',
+          label: t('Usage'),
+          icon: BarChart3,
+        },
       ],
     },
   ];

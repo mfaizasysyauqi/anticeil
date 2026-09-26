@@ -78,6 +78,8 @@ import { recordAccess } from '../global-search/access-history';
 import { useGlobalSearch } from '../global-search/global-search-context';
 import { HelpAndFeedback } from '../help-and-feedback';
 
+import { SidebarUsageLimits } from '@/features/billing/components/sidebar-usage-limits';
+
 export function PrimaryRail() {
   const { embedState } = useEmbedding();
   const { platform } = platformHooks.useCurrentPlatform();
@@ -180,8 +182,15 @@ export function PrimaryRail() {
           <RailPinnedProjects collapsed={collapsed} />
         </div>
 
-        <RailPlatformAdminButton collapsed={collapsed} />
-        <RailAccountRow collapsed={collapsed} />
+        <div className="mt-auto flex flex-col gap-1.5 w-full">
+          {!collapsed && (
+            <div className="px-2">
+              <SidebarUsageLimits />
+            </div>
+          )}
+          <RailPlatformAdminButton collapsed={collapsed} />
+          <RailAccountRow collapsed={collapsed} />
+        </div>
       </div>
     </TooltipProvider>
   );
