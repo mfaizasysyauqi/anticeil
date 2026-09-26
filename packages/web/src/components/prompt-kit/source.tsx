@@ -38,11 +38,24 @@ function FaviconOrGlobe({ url, size }: { url: string; size: 'sm' | 'md' }) {
     );
   }
 
+  const isDarkMonochromeFavicon =
+    url.includes('github.com') ||
+    url.includes('vercel.com') ||
+    url.includes('notion.so') ||
+    url.includes('threads.net') ||
+    url.includes('linear.app') ||
+    url.includes('anthropic.com') ||
+    url.includes('x.com');
+
   return (
     <img
       src={favicon}
       alt=""
-      className={cn(imgSize, 'shrink-0 rounded-sm')}
+      className={cn(
+        imgSize,
+        'shrink-0 rounded-sm object-contain',
+        isDarkMonochromeFavicon && 'dark:invert dark:brightness-125 dark:contrast-125',
+      )}
       onError={() => setFailed(true)}
     />
   );
@@ -59,12 +72,12 @@ function Source({ href, title, className }: SourceProps) {
           target="_blank"
           rel="noopener noreferrer"
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-2.5 py-1 text-xs transition-colors hover:bg-muted no-underline',
+            'inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-muted/60 px-2.5 py-1 text-xs transition-colors hover:bg-muted hover:border-foreground/30 no-underline shadow-xs',
             className,
           )}
         >
           <FaviconOrGlobe url={href} size="sm" />
-          <span className="max-w-[200px] truncate text-foreground/80">
+          <span className="max-w-[200px] truncate text-foreground/90 font-medium">
             {domain}
           </span>
         </a>

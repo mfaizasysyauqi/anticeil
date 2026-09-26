@@ -696,7 +696,16 @@
   [role='button']:not([disabled]) {
     cursor: pointer;
   }
+
+  .dark img[src*='github.com/favicon'],
+  .dark img[src*='github.svg'],
+  .dark img[src*='pieces/github.'],
+  .dark img[src*='ollama.svg'],
+  .dark img[src*='ollama'] {
+    filter: invert(1) brightness(1.25) contrast(1.1);
+  }
 }
+
 
 @layer utilities {
   .react-flow__panel.react-flow__attribution.bottom.right {
