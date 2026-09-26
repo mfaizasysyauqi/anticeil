@@ -137,9 +137,19 @@ export function createScrapeTools({ scraping, taintState }: { scraping: Resolved
                     toolName: 'ap_scrape_url',
                     timeoutMs: SCRAPE_TIMEOUT_MS + 5_000,
                     fn: async (signal) => {
-                        const { data: scraped, error } = await tryCatch(() => scraping.provider === 'apify'
-                            ? scrapeWithApify({ url: toolInput.url, apiKey: scraping.apiKey, signal })
-                            : scrapeWithFirecrawl({ url: toolInput.url, apiKey: scraping.apiKey, signal }))
+                        const { data: scraped, error } = await tryCatch(() => {
+                            switch (scraping.provider) {
+                                case 'apify':
+                                    return scrapeWithApify({ url: toolInput.url, apiKey: scraping.apiKey, signal })
+                                case 'browserless':
+                                    return scrapeWithBrowserless({ url: toolInput.url, apiKey: scraping.apiKey, config: scraping.config, signal })
+                                case 'cloudflare_browser':
+                                    return scrapeWithCloudflareBrowser({ url: toolInput.url, apiKey: scraping.apiKey, config: scraping.config, signal })
+                                case 'firecrawl':
+                                default:
+                                    return scrapeWithFirecrawl({ url: toolInput.url, apiKey: scraping.apiKey, signal })
+                            }
+                        })
                         if (error) {
                             return { content: [{ type: 'text', text: `Failed to scrape ${toolInput.url}: ${error instanceof Error ? error.message : String(error)}` }] }
                         }
@@ -239,6 +249,71 @@ async function scrapeWithApify({ url, apiKey, signal }: { url: string, apiKey: s
     return {
         markdown,
         metadata: isObject(first['metadata']) ? first['metadata'] : {},
+    }
+}
+
+async function scrapeWithBrowserless({ url, apiKey, config, signal }: { url: string, apiKey: string, config?: Record<string, unknown>, signal: AbortSignal }): Promise<ScrapedPage> {
+    const rawUrl = typeof config?.['baseUrl'] === 'string' && config['baseUrl'].trim().length > 0
+        ? config['baseUrl']
+        : (apiKey.startsWith('http://') || apiKey.startsWith('https://') ? apiKey : 'https://chrome.browserless.io')
+    const cleanBaseUrl = rawUrl.replace(/\/+$/, '')
+    const token = (!apiKey.startsWith('http://') && !apiKey.startsWith('https://')) ? apiKey : ''
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : ''
+
+    const response = await safeHttp.axios.post(`${cleanBaseUrl}/content${tokenParam}`, {
+        url,
+        gotoOptions: {
+            waitUntil: 'networkidle2',
+            timeout: SCRAPE_TIMEOUT_MS,
+        },
+    }, {
+        signal,
+        timeout: SCRAPE_TIMEOUT_MS,
+        headers: { 'Content-Type': 'application/json' },
+    })
+
+    const html = typeof response.data === 'string' ? response.data : JSON.stringify(response.data)
+    const markdown = stripHtml(html).result
+    return {
+        markdown,
+        metadata: { url },
+    }
+}
+
+async function scrapeWithCloudflareBrowser({ url, apiKey, config, signal }: { url: string, apiKey: string, config?: Record<string, unknown>, signal: AbortSignal }): Promise<ScrapedPage> {
+    let accountId = typeof config?.['accountId'] === 'string' ? config['accountId'] : ''
+    let token = apiKey
+    if (!accountId && apiKey.includes(':')) {
+        const parts = apiKey.split(':')
+        accountId = parts[0].trim()
+        token = parts.slice(1).join(':').trim()
+    }
+    if (!accountId) {
+        throw new Error('Cloudflare Account ID is required. Please format API key as "accountId:apiToken"')
+    }
+
+    const response = await safeHttp.axios.post(`https://api.cloudflare.com/client/v4/accounts/${accountId}/browser-rendering/scrape`, {
+        url,
+    }, {
+        signal,
+        timeout: SCRAPE_TIMEOUT_MS,
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    })
+
+    const body = isObject(response.data) ? response.data : {}
+    const result = isObject(body['result']) ? body['result'] : body
+    const markdown = typeof result['markdown'] === 'string'
+        ? result['markdown']
+        : (typeof result['text'] === 'string'
+            ? result['text']
+            : (typeof result['content'] === 'string' ? stripHtml(result['content']).result : JSON.stringify(result)))
+
+    return {
+        markdown,
+        metadata: { url },
     }
 }
 

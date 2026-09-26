@@ -50,7 +50,7 @@ export default function ProjectsPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const isEnabled = platform.plan.billedTeamProjectsLimit !== 0;
+  const isEnabled = platform.plan.billedTeamProjectsLimit === null || platform.plan.billedTeamProjectsLimit === undefined || platform.plan.billedTeamProjectsLimit > 0;
   const { project: currentProject } =
     projectCollectionUtils.useCurrentProject();
 

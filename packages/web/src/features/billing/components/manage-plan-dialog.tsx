@@ -9,7 +9,8 @@ import {
 
 import { useManagePlanDialogStore } from '../stores/manage-plan-dialog-state';
 
-import { ConfirmPurchaseDialog } from './confirm-purchase-dialog';
+
+import { MidtransCheckoutDialog } from './midtrans-checkout-dialog';
 import { PlanSelector } from './plan-selector';
 import { PlanSwitchSuccessDialog } from './plan-switch-success-dialog';
 
@@ -26,8 +27,9 @@ export function ManagePlanDialog() {
           <PlanSelector enabled={isOpen} onSelected={closeDialog} />
         </DialogContent>
       </Dialog>
-      <ConfirmPurchaseDialog />
+
       <PlanSwitchSuccessDialog />
+      <MidtransCheckoutDialog />
     </>
   );
 }

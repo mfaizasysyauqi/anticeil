@@ -822,7 +822,9 @@
   img[src*='pieces/notion.'],
   img[src*='pieces/linear.'],
   img[src*='pieces/threads.'],
-  img[src*='pieces/vercel.'] {
+  img[src*='pieces/vercel.'],
+  img[src*='ollama.svg'],
+  img[src*='ollama'] {
     filter: invert(1) brightness(1.25) contrast(1.1) !important;
   }
 }

@@ -65,6 +65,9 @@ export const tableService = {
             queryWhere.name = ILike(`%${name}%`)
         }
         if (!isNil(externalIds)) {
+            if (externalIds.length === 0) {
+                return paginationHelper.createPage([], null)
+            }
             queryWhere.externalId = In(externalIds)
         }
 
@@ -73,6 +76,9 @@ export const tableService = {
         }
 
         if (!isNil(folderIds)) {
+            if (folderIds.length === 0) {
+                return paginationHelper.createPage([], null)
+            }
             queryWhere.folderId = In(folderIds)
         }
 

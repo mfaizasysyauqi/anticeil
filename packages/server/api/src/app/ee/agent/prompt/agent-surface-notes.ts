@@ -183,7 +183,7 @@ type ConnectionInventory = {
 }
 
 type RunMemory = {
-    instructions: string | null
+    instructions?: string | null
     memories: string[]
 }
 

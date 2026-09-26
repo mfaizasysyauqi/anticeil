@@ -16,9 +16,26 @@ function buildDiagnosticsText(
     error instanceof Error
       ? error
       : new Error(String(error ?? 'Unknown error'));
+  const axiosErr = error as {
+    config?: { url?: string; method?: string; data?: unknown };
+    response?: { status?: number; data?: unknown };
+  };
+  const requestDetails = axiosErr?.config
+    ? [
+        `Request: ${axiosErr.config.method?.toUpperCase() ?? 'GET'} ${axiosErr.config.url ?? ''}`,
+        `Response Status: ${axiosErr.response?.status ?? 'None'}`,
+        `Response Body: ${
+          axiosErr.response?.data !== undefined
+            ? JSON.stringify(axiosErr.response.data, null, 2)
+            : 'None'
+        }`,
+      ]
+    : [];
+
   return [
     `Message: ${err.message}`,
     `URL: ${window.location.href}`,
+    ...requestDetails,
     `User Agent: ${navigator.userAgent}`,
     `Time: ${new Date().toISOString()}`,
     '',

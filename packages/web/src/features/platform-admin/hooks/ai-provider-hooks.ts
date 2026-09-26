@@ -42,7 +42,13 @@ export const aiProviderQueries = {
     const { data: providers, ...rest } =
       aiProviderQueries.useProjectAiProviders();
     const list = Array.isArray(providers) ? providers : [];
-    return { ...rest, data: list.find((p) => p.enabledForChat) };
+    const chatProvider = list.find((p) => p.enabledForChat) ?? {
+      provider: 'activepieces',
+      name: 'Anticeil AI',
+      enabledForChat: true,
+      keys: [],
+    };
+    return { ...rest, data: chatProvider as any };
   },
 };
 

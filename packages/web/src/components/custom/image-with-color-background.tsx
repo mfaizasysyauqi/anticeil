@@ -34,7 +34,8 @@ const ImageWithColorBackground = ({
       src.includes('pieces/notion.') ||
       src.includes('pieces/linear.') ||
       src.includes('pieces/threads.') ||
-      src.includes('pieces/vercel.'));
+      src.includes('pieces/vercel.') ||
+      src.includes('ollama'));
 
   const [isDarkIcon, setIsDarkIcon] = useState<boolean>(() => isKnownDarkIcon);
   // Drop crossOrigin on error so logos on CORS-less hosts still render (without the tint).

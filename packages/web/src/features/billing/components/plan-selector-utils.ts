@@ -28,6 +28,26 @@ function findPurchasablePlan({
   );
 }
 
+function toIdrPrice(
+  price: number | null | undefined,
+  planKey: PlanKey,
+  interval: string | null | undefined,
+): number {
+  if (!price) return 0;
+  if (price >= 10000) return price;
+  if (planKey === 'plus') {
+    return interval === ANNUAL_INTERVAL ? 2990000 : 299000;
+  }
+  if (planKey === 'team') {
+    return interval === ANNUAL_INTERVAL ? 29990000 : 2999000;
+  }
+  return price * 15000;
+}
+
+function formatIdr(amount: number): string {
+  return `Rp ${amount.toLocaleString('id-ID')}`;
+}
+
 function computePricing({
   entry,
   apiPlan,
@@ -41,32 +61,26 @@ function computePricing({
     return null;
   }
   if (entry.key === 'free') {
-    return { amount: '$0' };
+    return { amount: 'Rp 0' };
   }
   if (isNil(apiPlan)) {
     return null;
   }
+  const idrPrice = toIdrPrice(apiPlan.price, entry.key, apiPlan.interval);
   if (apiPlan.interval !== ANNUAL_INTERVAL) {
-    const amount = isNil(apiPlan.price)
-      ? apiPlan.priceDisplay ?? ''
-      : `$${apiPlan.price}`;
+    const amount = idrPrice > 0 ? formatIdr(idrPrice) : apiPlan.priceDisplay ?? '';
     return { amount, suffix: t('/mo') };
   }
-  if (isNil(apiPlan.price)) {
-    return { amount: apiPlan.priceDisplay ?? '', suffix: t('/year') };
-  }
-  const perMonth = Math.floor(apiPlan.price / 12);
-  const monthlyPrice = monthlySibling?.price;
+  const monthlyIdr = toIdrPrice(monthlySibling?.price, entry.key, 'month');
+  const perMonth = idrPrice > 0 ? Math.floor(idrPrice / 12) : 0;
   const freeMonths =
-    !isNil(monthlyPrice) && monthlyPrice > 0
-      ? Math.round(12 - apiPlan.price / monthlyPrice)
-      : null;
+    monthlyIdr > 0 ? Math.round(12 - idrPrice / monthlyIdr) : null;
   return {
-    amount: `$${perMonth.toLocaleString()}`,
+    amount: formatIdr(perMonth),
     suffix: t('/mo'),
     freeMonths: !isNil(freeMonths) && freeMonths >= 1 ? freeMonths : null,
     annualNote: t('billed annually ({total}/year)', {
-      total: `$${apiPlan.price.toLocaleString()}`,
+      total: formatIdr(idrPrice),
     }),
   };
 }

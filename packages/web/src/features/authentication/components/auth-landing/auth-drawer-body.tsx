@@ -273,61 +273,19 @@ function AuthStep({
     );
   }
 
-  // No email/password auth at all — third-party only.
-  if (!emailAuthEnabled) {
-    return (
-      <DrawerShell>
-        <Heading
-          title={t('Sign in to Anticeil')}
-          subtitle={t('Bring your own API key, full control without subscription.')}
-        />
-        <ThirdPartyLogin
-          isSignUp={mode === 'signup'}
-          onSamlClick={() => setSamlOpen(true)}
-        />
-      </DrawerShell>
-    );
-  }
-
-  // No email delivery configured (e.g. bare self-hosted): passwords stay the
-  // primary path, with the classic sign-in / sign-up forms.
-  if (!passwordlessAvailable) {
-    return (
-      <DrawerShell>
-        <Heading
-          title={
-            effectiveMode === 'signup'
-              ? t('Create your account')
-              : t('Welcome back')
-          }
-        />
-        {showThirdParty && (
-          <ThirdPartyLogin
-            isSignUp={effectiveMode === 'signup'}
-            onSamlClick={() => setSamlOpen(true)}
-          />
-        )}
-        {emailAuthEnabled && (
-          <>
-            {showThirdParty && (
-              <HorizontalSeparatorWithText className="my-5 text-muted-foreground">
-                {t('or')}
-              </HorizontalSeparatorWithText>
-            )}
-            {effectiveMode === 'signup' ? (
-              <SignUpForm
-                showCheckYourEmailNote={checkEmailNote}
-                setShowCheckYourEmailNote={setCheckEmailNote}
-              />
-            ) : (
-              <SignInForm />
-            )}
-            {!firstUser && <ModeSwitch mode={mode} onSwitch={setMode} />}
-          </>
-        )}
-      </DrawerShell>
-    );
-  }
+  // Pure OAuth login for Anticeil
+  return (
+    <DrawerShell>
+      <Heading
+        title={t('Welcome to Anticeil')}
+        subtitle={t('Bring your own API key, full control without subscription.')}
+      />
+      <ThirdPartyLogin
+        isSignUp={effectiveMode === 'signup'}
+        onSamlClick={() => setSamlOpen(true)}
+      />
+    </DrawerShell>
+  );
 
   if (step === 'password') {
     return (

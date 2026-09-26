@@ -3,10 +3,16 @@ import { AgentConversation, AgentHistoryMessage, AgentHistoryToolCall, agentPers
 import { ModelMessage } from 'ai'
 import { FastifyBaseLogger } from 'fastify'
 
-function reconstructAgentHistory(messages: ModelMessage[]): AgentHistoryMessage[] {
+function reconstructAgentHistory(messages?: ModelMessage[] | null): AgentHistoryMessage[] {
     const result: AgentHistoryMessage[] = []
+    if (!Array.isArray(messages)) {
+        return result
+    }
 
     for (const msg of messages) {
+        if (!msg || typeof msg !== 'object') {
+            continue
+        }
         if (msg.role === 'user') {
             const textContent = extractTextFromContent(msg.content)
             if (textContent) {

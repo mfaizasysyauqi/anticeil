@@ -1,77 +1,63 @@
-import { ApEdition, ApFlagId } from '@activepieces/shared';
 import { t } from 'i18next';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useManagePlanDialogStore } from '@/features/billing';
-import { flagsHooks } from '@/hooks/flags-hooks';
 
-import { FeatureKey, RequestTrial } from './request-trial';
-
-type LockedFeatureGuardProps = {
+export type LockedFeatureGuardProps = {
   children: React.ReactNode;
-  locked: boolean;
-  lockTitle: string;
-  lockDescription: string;
+  locked?: boolean;
+  lockTitle?: string;
+  lockDescription?: string;
   lockVideoUrl?: string;
   lockDocumentationUrl?: string;
-  featureKey: FeatureKey;
+  featureKey?: string;
   showContactSales?: boolean;
 };
 
 export const LockedFeatureGuard = ({
   children,
-  locked,
+  locked = false,
   lockTitle,
   lockDescription,
   lockVideoUrl,
   lockDocumentationUrl,
-  featureKey,
-  showContactSales = true,
 }: LockedFeatureGuardProps) => {
   const { openDialog: openManagePlanDialog } = useManagePlanDialogStore();
-  const { data: edition } = flagsHooks.useFlag<ApEdition>(ApFlagId.EDITION);
-  const isCommunity = edition === ApEdition.COMMUNITY;
 
   if (!locked) {
-    return children;
+    return <>{children}</>;
   }
 
   return (
-    <div className="flex w-full flex-col items-center justify-center gap-2">
-      <div className="pt-8 text-center flex flex-col gap-2 justify-center items-center">
-        <h1 className="text-3xl font-bold">{lockTitle}</h1>
-        <div className="text-center w-[485px] my-4 flex flex-col gap-2 justify-center items-center">
-          <p className="text-md leading-relaxed text-muted-foreground">
-            {lockDescription}
-            {lockDocumentationUrl && (
-              <>
-                {' '}
-                <a
-                  href={lockDocumentationUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline"
-                >
-                  Learn more
-                </a>
-              </>
-            )}
-          </p>
-
-          {isCommunity ? (
-            showContactSales && (
-              <div className="my-4">
-                <RequestTrial featureKey={featureKey} />
-              </div>
-            )
-          ) : (
-            <div className="my-4">
-              <Button onClick={() => openManagePlanDialog()}>
-                {t('Upgrade plan')}
-              </Button>
-            </div>
+    <div className="flex min-h-[calc(100vh-100px)] w-full flex-1 flex-col items-center justify-center p-6 text-center">
+      <div className="flex flex-col gap-2 justify-center items-center max-w-xl text-center">
+        {lockTitle && <h1 className="text-3xl font-bold">{lockTitle}</h1>}
+        <div className="text-center w-full max-w-[485px] my-4 flex flex-col gap-2 justify-center items-center">
+          {lockDescription && (
+            <p className="text-md leading-relaxed text-muted-foreground">
+              {lockDescription}
+              {lockDocumentationUrl && (
+                <>
+                  {' '}
+                  <a
+                    href={lockDocumentationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline"
+                  >
+                    {t('Learn more')}
+                  </a>
+                </>
+              )}
+            </p>
           )}
+
+          <div className="my-4">
+            <Button onClick={() => openManagePlanDialog()}>
+              {t('Upgrade plan')}
+            </Button>
+          </div>
         </div>
 
         {lockVideoUrl && (
@@ -80,7 +66,7 @@ export const LockedFeatureGuard = ({
             loop
             muted
             playsInline
-            className="max-w-[70vh] rounded-lg"
+            className="max-w-[70vh] rounded-lg shadow-md"
             controls={false}
             src={lockVideoUrl}
           />

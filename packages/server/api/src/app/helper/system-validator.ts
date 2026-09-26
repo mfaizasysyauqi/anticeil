@@ -180,7 +180,11 @@ const systemPropValidators: {
     [AppSystemProp.EDITION]: enumValidator(Object.values(ApEdition)),
     [AppSystemProp.FEATUREBASE_API_KEY]: stringValidator,
     [AppSystemProp.OPENROUTER_PROVISION_KEY]: stringValidator,
+    [AppSystemProp.OPENROUTER_API_KEY]: stringValidator,
     [AppSystemProp.OPENAI_API_KEY]: stringValidator,
+    [AppSystemProp.MIDTRANS_SERVER_KEY]: stringValidator,
+    [AppSystemProp.MIDTRANS_CLIENT_KEY]: stringValidator,
+    [AppSystemProp.MIDTRANS_IS_PRODUCTION]: booleanValidator,
     [AppSystemProp.SCIM_DEFAULT_PROJECT_ROLE]: enumValidator(Object.values(DefaultProjectRole)),
 
     // AppSystemProp

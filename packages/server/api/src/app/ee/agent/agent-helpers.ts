@@ -223,11 +223,11 @@ async function getUserMemory({ platformId, userId }: { platformId: string, userI
     return { instructions: row?.instructions ?? null, memories: row?.memories ?? [] }
 }
 
-function capMemories({ instructions, memories }: { instructions: string | null, memories: string[] }): GetAgentMemoryResponse {
+function capMemories({ instructions, memories }: { instructions?: string | null, memories?: string[] }): GetAgentMemoryResponse {
     const trimmedInstructions = instructions?.trim()
     return {
         instructions: trimmedInstructions ? trimmedInstructions.slice(0, MAX_INSTRUCTIONS_LENGTH) : null,
-        memories: unique(memories
+        memories: unique((memories ?? [])
             .map((memory) => memory.trim().slice(0, MAX_MEMORY_LENGTH))
             .filter((memory) => memory.length > 0))
             .slice(0, MAX_MEMORIES),

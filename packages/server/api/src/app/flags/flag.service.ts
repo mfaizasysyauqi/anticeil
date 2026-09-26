@@ -325,7 +325,7 @@ export const flagService = (log: FastifyBaseLogger) => ({
     },
 
     aiCreditsEnabled(): boolean {
-        return !isNil(system.get(AppSystemProp.OPENROUTER_PROVISION_KEY))
+        return !isNil(system.get(AppSystemProp.OPENROUTER_PROVISION_KEY)) || !isNil(system.get(AppSystemProp.OPENROUTER_API_KEY))
     },
 })
 

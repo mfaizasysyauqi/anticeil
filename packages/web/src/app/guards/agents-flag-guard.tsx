@@ -7,9 +7,5 @@ type AgentsFlagGuardProps = {
 };
 
 export const AgentsFlagGuard = ({ children }: AgentsFlagGuardProps) => {
-  const agentsAvailable = useAgentsAvailable();
-  if (!agentsAvailable) {
-    return <Navigate to="/flows" replace />;
-  }
-  return children;
+  return <>{children}</>;
 };

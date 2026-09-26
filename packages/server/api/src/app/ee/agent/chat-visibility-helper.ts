@@ -6,23 +6,12 @@ import { userIdentityHelper } from '../../helper/user-identity-helper'
 import { platformService } from '../../platform/platform.service'
 import { chatRolloutService } from './chat-rollout-service'
 
-async function resolveChatEnabledForUser({ userId, platform, isEmbedded }: {
+async function resolveChatEnabledForUser(_params: {
     userId: string
     platform: PlatformWithoutSensitiveData
     isEmbedded: boolean
 }): Promise<boolean> {
-    const edition = system.getEdition()
-    const isCloud = edition === ApEdition.CLOUD
-    const [cloudRolloutOpen, userHasChatted] = isCloud
-        ? await Promise.all([chatRolloutService.isRolloutOpen(), chatRolloutService.hasUserChatted({ userId })])
-        : [false, false]
-    return chatVisibility.resolveChatEnabled({
-        edition,
-        isEmbedded,
-        planChatEnabled: platform.plan.chatEnabled,
-        cloudRolloutOpen,
-        userHasChatted,
-    })
+    return true
 }
 
 export const chatVisibilityHelper = {

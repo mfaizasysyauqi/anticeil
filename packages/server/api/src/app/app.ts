@@ -57,7 +57,7 @@ import { pieceSetModule } from './ee/pieces/piece-set/piece-set.module'
 import { platformPieceModule } from './ee/pieces/platform-piece-module'
 import { adminPlatformModule } from './ee/platform/admin/admin-platform.controller'
 import { adminPlatformTemplatesCloudModule } from './ee/platform/admin/templates/admin-platform-templates-cloud.module'
-import { autumnBillingProvider } from './ee/platform/platform-plan/billing-providers/autumn-billing'
+import { midtransBillingProvider } from './ee/platform/platform-plan/billing-providers/midtrans-billing'
 import { platformPlanModule } from './ee/platform/platform-plan/platform-plan.module'
 import { platformTeardownJobs } from './ee/platform/platform-teardown-jobs'
 import { platformWebhooksModule } from './ee/platform-webhooks/platform-webhooks.module'
@@ -360,7 +360,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             projectHooks.set(projectEnterpriseHooks)
             flagHooks.set(enterpriseFlagsHooks)
             publishHooksFactory.set(eeFlowPublishHook)
-            billingProvider.set(autumnBillingProvider)
+            billingProvider.set(midtransBillingProvider)
             resumePageHooks.set((log) => ({ getTheme: (params) => appearanceHelper.getTheme({ ...params, log }) }))
             flowPublishHooks.set(() => ({ assertReferencesResolve: assertAgentsResolveInProject }))
             aiUsageHooks.set(agentConversationCreditsHooks)
@@ -400,7 +400,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             projectHooks.set(projectEnterpriseHooks)
             flagHooks.set(enterpriseFlagsHooks)
             publishHooksFactory.set(eeFlowPublishHook)
-            billingProvider.set(autumnBillingProvider)
+            billingProvider.set(midtransBillingProvider)
             resumePageHooks.set((log) => ({ getTheme: (params) => appearanceHelper.getTheme({ ...params, log }) }))
             flowPublishHooks.set(() => ({ assertReferencesResolve: assertAgentsResolveInProject }))
             aiUsageHooks.set(agentConversationCreditsHooks)

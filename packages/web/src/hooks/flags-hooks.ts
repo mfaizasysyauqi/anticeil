@@ -93,8 +93,7 @@ export const flagsHooks = {
     });
   },
   useWebsiteBranding: (): WebsiteBrand => {
-    const { data: theme } = flagsHooks.useFlag<WebsiteBrand>(ApFlagId.THEME);
-    return theme || DEFAULT_BRANDING;
+    return DEFAULT_BRANDING;
   },
   useFlag: <T>(flagId: ApFlagId) => {
     try {

@@ -30,13 +30,11 @@ const AGENTS_KEY = 'agents';
 
 export const useAgentsAvailable = (): boolean => {
   const { platform } = platformHooks.useCurrentPlatform();
-  return platform?.plan?.agentsEnabled ?? true;
+  return platform?.plan?.agentsEnabled === true;
 };
 
 export const useAgentsNavVisible = (): boolean => {
-  const available = useAgentsAvailable();
-  const { checkAccess } = useAuthorization();
-  return available && (checkAccess(Permission.READ_AGENT) ?? true);
+  return true;
 };
 
 const AGENTS_PAGE_SIZE = 100;

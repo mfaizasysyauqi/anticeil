@@ -9,6 +9,8 @@ import { distributedStore } from '../database/redis-connections'
 import { openRouterApi } from '../ee/platform/platform-plan/openrouter/openrouter-api'
 import { flagService } from '../flags/flag.service'
 import { encryptUtils } from '../helper/encryption'
+import { system } from '../helper/system/system'
+import { AppSystemProp } from '../helper/system/system-props'
 import { platformService } from '../platform/platform.service'
 import { AIProviderEntity, AIProviderSchema } from './ai-provider-entity'
 import { aiProviderHealth } from './ai-provider-health'
@@ -311,33 +313,39 @@ function toConfigResponse({ row, enabledForChat }: { row: AIProviderSchema, enab
 }
 
 async function ensureManagedProviderRow({ platformId }: { platformId: PlatformId }): Promise<void> {
-    const exists = await aiProviderRepo().existsBy({ platformId, provider: AIProviderName.ACTIVEPIECES })
-    if (exists) {
+    const staticKey = system.get(AppSystemProp.OPENROUTER_API_KEY) ?? ''
+    const existing = await aiProviderRepo().findOneBy({ platformId, provider: AIProviderName.ACTIVEPIECES })
+    if (existing) {
+        if (staticKey) {
+            await aiProviderRepo().update(existing.id, {
+                auth: await encryptUtils.encryptObject({ apiKey: staticKey, apiKeyHash: '' }),
+                enabledForChat: true,
+                displayName: 'Anticeil AI',
+            })
+        }
         return
     }
-    // Two concurrent readers both miss the existsBy above, so the row is inserted with
-    // ON CONFLICT DO NOTHING and idx_ai_provider_platform_id_managed - a partial unique
-    // index on (platformId) WHERE provider = 'activepieces' - decides which one lands.
     await aiProviderRepo().createQueryBuilder()
         .insert()
         .values({
             id: apId(),
-            auth: await encryptUtils.encryptObject({}),
+            auth: await encryptUtils.encryptObject({ apiKey: staticKey, apiKeyHash: '' }),
             config: {},
             provider: AIProviderName.ACTIVEPIECES,
-            displayName: 'Activepieces',
+            displayName: 'Anticeil AI',
             platformId,
             modelScope: 'all',
             modelIds: [],
             projectScope: 'all',
             projectIds: [],
+            enabledForChat: true,
         })
         .orIgnore()
         .execute()
 }
 
 async function listVisibleRows({ platformId, log }: { platformId: PlatformId, log: FastifyBaseLogger }): Promise<AIProviderSchema[]> {
-    if (flagService(log).aiCreditsEnabled()) {
+    if (flagService(log).aiCreditsEnabled() || !isNil(system.get(AppSystemProp.OPENROUTER_API_KEY))) {
         await ensureManagedProviderRow({ platformId })
     }
     const rows = await aiProviderRepo().findBy({ platformId })
@@ -359,6 +367,9 @@ async function findRunKeyCandidates({ platformId, provider, configId, scope, log
 }
 
 async function findEligibleRow({ platformId, provider, scope }: { platformId: PlatformId, provider: AIProviderName, scope: ProviderScope }): Promise<AIProviderSchema | null> {
+    if (provider === AIProviderName.ACTIVEPIECES && !isNil(system.get(AppSystemProp.OPENROUTER_API_KEY))) {
+        await ensureManagedProviderRow({ platformId })
+    }
     const rows = await aiProviderRepo().findBy({ platformId, provider })
     const eligible = rows.filter((row) => rowAllowsScope({ row, scope }))
     return rankRows(eligible)[0] ?? null
@@ -454,6 +465,13 @@ async function decryptRowAuth({ aiProvider, platformId }: { aiProvider: AIProvid
     if (aiProvider.provider === AIProviderName.ACTIVEPIECES) {
         const doesHaveKeys = !isNil(auth) && 'apiKey' in auth && !isNil(auth.apiKey) && auth.apiKey !== ''
         if (!doesHaveKeys) {
+            const staticKey = system.get(AppSystemProp.OPENROUTER_API_KEY)
+            if (!isNil(staticKey) && staticKey !== '') {
+                return { apiKey: staticKey, apiKeyHash: '' }
+            }
+            if (!flagService(system.globalLogger()).aiCreditsEnabled()) {
+                return { apiKey: '', apiKeyHash: '' }
+            }
             return enrichWithKeysIfNeeded(aiProvider, platformId)
         }
     }
@@ -461,6 +479,9 @@ async function decryptRowAuth({ aiProvider, platformId }: { aiProvider: AIProvid
 }
 
 async function findAvailableChatProviderRow({ platformId, scope, log }: { platformId: PlatformId, scope: ProviderScope, log: FastifyBaseLogger }): Promise<AIProviderSchema | null> {
+    if (flagService(log).aiCreditsEnabled() || !isNil(system.get(AppSystemProp.OPENROUTER_API_KEY))) {
+        await ensureManagedProviderRow({ platformId })
+    }
     const candidates = await aiProviderRepo().findBy([
         { platformId, enabledForChat: true },
         { platformId, provider: AIProviderName.ACTIVEPIECES },
@@ -475,14 +496,18 @@ async function findAvailableChatProviderRow({ platformId, scope, log }: { platfo
 }
 
 function pickChatRow(rows: AIProviderSchema[]): AIProviderSchema | null {
-    return rows.find((row) => row.enabledForChat)
+    return rows.find((row) => row.enabledForChat && row.provider !== AIProviderName.ACTIVEPIECES)
+        ?? rows.find((row) => row.provider === AIProviderName.ACTIVEPIECES && row.enabledForChat)
         ?? rows.find((row) => row.provider === AIProviderName.ACTIVEPIECES)
         ?? null
 }
 
 async function isActivepiecesAiProviderHidden({ platformId, log }: { platformId: PlatformId, log: FastifyBaseLogger }): Promise<boolean> {
-    if (!flagService(log).aiCreditsEnabled()) {
+    if (!flagService(log).aiCreditsEnabled() && isNil(system.get(AppSystemProp.OPENROUTER_API_KEY))) {
         return true
+    }
+    if (!isNil(system.get(AppSystemProp.OPENROUTER_API_KEY))) {
+        return false
     }
     return shouldHideActivepiecesAiProvider({ platformId, log })
 }

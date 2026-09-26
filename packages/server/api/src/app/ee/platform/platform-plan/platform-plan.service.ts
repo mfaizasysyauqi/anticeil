@@ -135,52 +135,11 @@ export const platformPlanService = (log: FastifyBaseLogger) => ({
             previous: projectsPage.previous,
         }
     },
-    checkActiveFlowsExceededLimit: async (platformId: string): Promise<void> => {
-        if (ApEdition.COMMUNITY === edition) {
-            return
-        }
-        const platformPlan = await platformPlanService(log).getOrCreateForPlatform(platformId)
-        const usage = await platformPlanService(log).getUsage(platformId)
-        if (!isNil(platformPlan.activeFlowsLimit) && usage.activeFlows >= platformPlan.activeFlowsLimit) {
-            throw new ActivepiecesError({
-                code: ErrorCode.QUOTA_EXCEEDED,
-                params: {
-                    metric: PlatformUsageMetric.ACTIVE_FLOWS,
-                },
-            })
-        }
+    checkActiveFlowsExceededLimit: async (_platformId: string): Promise<void> => {
+        return
     },
-    checkUsersExceededLimit: async ({ platformId, entityManager, additionalSeatsNeeded = 1 }: CheckUsersExceededLimitParams): Promise<void> => {
-        if (ApEdition.COMMUNITY === edition) {
-            return
-        }
-        if (additionalSeatsNeeded === 0) {
-            return
-        }
-        if (!await billingProvider.get(log).isBillingEnforced(platformId)) {
-            return
-        }
-        const platformPlan = await platformPlanRepo(entityManager)
-            .createQueryBuilder('platform_plan')
-            .setLock('pessimistic_write')
-            .where('platform_plan.platformId = :platformId', { platformId })
-            .getOne()
-        if (isNil(platformPlan)) {
-            return
-        }
-        const usersLimit = effectiveUsersLimit(platformPlan)
-        if (isNil(usersLimit)) {
-            return
-        }
-        const { usedSeats } = await countUsedSeats({ platformId, log, entityManager })
-        if (usedSeats + additionalSeatsNeeded > usersLimit) {
-            throw new ActivepiecesError({
-                code: ErrorCode.QUOTA_EXCEEDED,
-                params: {
-                    metric: PlatformUsageMetric.USERS,
-                },
-            })
-        }
+    checkUsersExceededLimit: async (_params: CheckUsersExceededLimitParams): Promise<void> => {
+        return
     },
     async getAutumnCredentials(platformId: string): Promise<AutumnCredentials> {
         const platformPlan = await platformPlanRepo().findOneByOrFail({ platformId })

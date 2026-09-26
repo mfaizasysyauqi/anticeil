@@ -10,7 +10,7 @@ import { distributedStore } from '../../../database/redis-connections'
 import { billingProvider } from '../../../platform/billing-provider'
 import { platformService } from '../../../platform/platform.service'
 import { userService } from '../../../user/user-service'
-import { platformPlanService } from './platform-plan.service'
+import { platformPlanRepo, platformPlanService } from './platform-plan.service'
 
 const FORCE_REFRESH_DEDUP_SECONDS = 60
 const DEFAULT_USAGE_PAGE_SIZE = 10
@@ -119,6 +119,46 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
             redirectUrl: request.body.redirectUrl,
             platformId: request.principal.platform.id,
         })
+    })
+
+    app.post('/midtrans-webhook', { config: { allowedPrincipals: [PrincipalType.UNKNOWN, PrincipalType.SERVICE] } }, async (request, reply) => {
+        const body = request.body as Record<string, unknown>
+        const orderId = body?.order_id as string | undefined
+        const transactionStatus = body?.transaction_status as string | undefined
+        const fraudStatus = body?.fraud_status as string | undefined
+
+        request.log.info({ orderId, transactionStatus, fraudStatus }, 'Midtrans webhook received')
+
+        if (transactionStatus === 'capture' || transactionStatus === 'settlement') {
+            if (fraudStatus === 'accept' || !fraudStatus) {
+                const grossAmount = Number(body?.gross_amount)
+                const isTeam = grossAmount >= 2000000
+                const isPlus = grossAmount >= 200000 && !isTeam
+
+                const platforms = await platformService(request.log).getAll()
+                const platform = platforms[0]
+                if (platform) {
+                    const planName = isTeam ? 'team' : (isPlus ? 'plus' : 'free')
+                    await platformPlanRepo().update({ platformId: platform.id }, {
+                        plan: planName,
+                        agentsEnabled: true,
+                        aiProvidersEnabled: true,
+                        mcpsEnabled: true,
+                        billedTeamProjectsLimit: isTeam ? null : 1,
+                        includedCredits: isTeam ? 50000 : 10000,
+                        includedSeats: isTeam ? 25 : 5,
+                        analyticsEnabled: true,
+                        customRolesEnabled: isTeam,
+                        projectRolesEnabled: isTeam,
+                        ssoEnabled: isTeam,
+                        globalConnectionsEnabled: isTeam,
+                        auditLogEnabled: isTeam,
+                    })
+                    request.log.info({ platformId: platform.id, planName }, 'Midtrans plan upgraded successfully')
+                }
+            }
+        }
+        return reply.status(200).send({ status: 'OK' })
     })
 }
 

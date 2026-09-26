@@ -61,7 +61,7 @@ export function createLanguageModel({ credentials, modelId, options = {} }: Crea
                     ...observed,
                     ...spreadIfDefined('fetch', stripDefaultAuthorization({
                         headers,
-                        delegate: observedProviderFetch(options.onOutcome),
+                        delegate: sanitizeOpenAiCompatibleFetch(observedProviderFetch(options.onOutcome)),
                     })),
                 }).responses(modelId)
             }
@@ -69,7 +69,7 @@ export function createLanguageModel({ credentials, modelId, options = {} }: Crea
                 name: 'openai-compatible',
                 baseURL: baseUrl ?? '',
                 headers,
-                ...observed,
+                fetch: sanitizeOpenAiCompatibleFetch(observedProviderFetch(options.onOutcome)),
             }).chatModel(modelId)
         }
         case AIProviderName.MISTRAL: {
@@ -77,7 +77,12 @@ export function createLanguageModel({ credentials, modelId, options = {} }: Crea
             if (options.mistralViaOpenRouter) {
                 return createOpenRouterChatModel({ apiKey, modelId, options })
             }
-            return createOpenAICompatible({ name: 'mistral', baseURL: MISTRAL_BASE_URL, apiKey: apiKey ?? '', ...observed }).chatModel(modelId)
+            return createOpenAICompatible({
+                name: 'mistral',
+                baseURL: MISTRAL_BASE_URL,
+                apiKey: apiKey ?? '',
+                fetch: sanitizeOpenAiCompatibleFetch(observedProviderFetch(options.onOutcome)),
+            }).chatModel(modelId)
         }
         case AIProviderName.XAI:
         case AIProviderName.DEEPSEEK:
@@ -91,7 +96,7 @@ export function createLanguageModel({ credentials, modelId, options = {} }: Crea
                 name: credentials.provider,
                 baseURL: OPENAI_COMPATIBLE_VENDOR_BASE_URLS[credentials.provider],
                 apiKey: apiKey ?? '',
-                ...observed,
+                fetch: sanitizeOpenAiCompatibleFetch(observedProviderFetch(options.onOutcome)),
             }).chatModel(modelId)
         }
         case AIProviderName.OLLAMA: {
@@ -105,7 +110,7 @@ export function createLanguageModel({ credentials, modelId, options = {} }: Crea
                 name: 'ollama',
                 baseURL: baseUrl,
                 headers,
-                ...observed,
+                fetch: sanitizeOpenAiCompatibleFetch(observedProviderFetch(options.onOutcome)),
             }).chatModel(modelId)
         }
         case AIProviderName.OPENROUTER:
@@ -192,6 +197,35 @@ function stripDefaultAuthorization({ headers, delegate }: {
         const sent = new Headers(init?.headers)
         sent.delete(AUTHORIZATION_HEADER)
         return (delegate ?? globalThis.fetch)(input, { ...init, headers: sent })
+    }
+}
+
+function sanitizeOpenAiCompatibleFetch(customFetch?: typeof globalThis.fetch): typeof globalThis.fetch {
+    return async (input, init) => {
+        const delegate = customFetch ?? globalThis.fetch
+        if (init?.body && typeof init.body === 'string') {
+            try {
+                const parsed = JSON.parse(init.body)
+                if (Array.isArray(parsed.messages)) {
+                    let changed = false
+                    for (const msg of parsed.messages) {
+                        if (msg && typeof msg === 'object' && 'reasoning_content' in msg) {
+                            delete msg.reasoning_content
+                            changed = true
+                        }
+                    }
+                    if (changed) {
+                        init = {
+                            ...init,
+                            body: JSON.stringify(parsed),
+                        }
+                    }
+                }
+            } catch {
+                // Ignore JSON parse errors
+            }
+        }
+        return delegate(input, init)
     }
 }
 

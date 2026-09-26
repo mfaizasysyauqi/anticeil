@@ -1,7 +1,8 @@
 import { ApEdition, ApFlagId } from '@activepieces/shared';
 import { t } from 'i18next';
+import { ChevronRight } from 'lucide-react';
 import { ComponentType, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import { McpSvg } from '@/assets/img/custom/mcp';
 import {
@@ -20,6 +21,11 @@ import { UnplugIcon } from '@/components/icons/unplug';
 import { UsersIcon } from '@/components/icons/users';
 import { buttonVariants } from '@/components/ui/button';
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -28,6 +34,11 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
 } from '@/components/ui/sidebar-shadcn';
 import { useAuthorization } from '@/hooks/authorization-hooks';
@@ -43,39 +54,12 @@ export function PlatformSidebar() {
   const { platform } = platformHooks.useCurrentPlatform();
   const { data: edition } = flagsHooks.useFlag<ApEdition>(ApFlagId.EDITION);
   const { checkAccess } = useAuthorization();
+  const location = useLocation();
   const defaultRoute = determineDefaultRoute({
     checkAccess,
     chatEnabled: platform.plan.chatEnabled,
   });
   const chevronRef = useRef<ChevronLeftIconHandle>(null);
-
-  const setupItems = [
-    {
-      to: '/platform/setup/general',
-      label: t('General'),
-      icon: SettingsIcon,
-    },
-    {
-      to: '/platform/setup/ai',
-      label: t('AI Center'),
-      icon: SparklesIcon,
-    },
-    {
-      to: '/platform/setup/mcp',
-      label: t('MCP Server'),
-      icon: McpSvg,
-    },
-    {
-      to: '/platform/setup/pieces',
-      label: t('Pieces'),
-      icon: PuzzleIcon,
-    },
-    {
-      to: '/platform/setup/templates',
-      label: t('Templates'),
-      icon: LayoutGridIcon,
-    },
-  ];
 
   const groups: {
     label: string;
@@ -83,6 +67,7 @@ export function PlatformSidebar() {
       to: string;
       label: string;
       icon?: ComponentType<{ className?: string }>;
+      subItems?: { to: string; label: string }[];
     }[];
   }[] = [
     {
@@ -107,7 +92,37 @@ export function PlatformSidebar() {
     },
     {
       label: t('Setup'),
-      items: setupItems,
+      items: [
+        {
+          to: '/platform/setup/general',
+          label: t('General'),
+          icon: SettingsIcon,
+        },
+        {
+          to: '/platform/setup/ai',
+          label: t('AI Center'),
+          icon: SparklesIcon,
+          subItems: [
+            { to: '/platform/setup/ai/providers', label: t('Providers') },
+            { to: '/platform/setup/ai/capabilities', label: t('Capabilities') },
+          ],
+        },
+        {
+          to: '/platform/setup/mcp',
+          label: t('MCP Server'),
+          icon: McpSvg,
+        },
+        {
+          to: '/platform/setup/pieces',
+          label: t('Pieces'),
+          icon: PuzzleIcon,
+        },
+        {
+          to: '/platform/setup/templates',
+          label: t('Templates'),
+          icon: LayoutGridIcon,
+        },
+      ],
     },
     {
       label: t('Infrastructure'),
@@ -164,15 +179,63 @@ export function PlatformSidebar() {
               <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {group.items.map((item) => (
-                    <ApSidebarItem
-                      type="link"
-                      key={item.label}
-                      to={item.to}
-                      label={item.label}
-                      icon={item.icon}
-                    />
-                  ))}
+                  {group.items.map((item) => {
+                    if (item.subItems) {
+                      return (
+                        <Collapsible
+                          key={item.label}
+                          defaultOpen={true}
+                          className="group/collapsible"
+                        >
+                          <SidebarMenuItem>
+                            <CollapsibleTrigger asChild>
+                              <SidebarMenuButton
+                                className={cn('w-full justify-between cursor-pointer')}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {item.icon && (
+                                    <item.icon className="size-4 pointer-events-none" />
+                                  )}
+                                  <span className="text-sm font-normal">
+                                    {item.label}
+                                  </span>
+                                </div>
+                                <ChevronRight className="size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                              </SidebarMenuButton>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <SidebarMenuSub className="mr-0 pr-0">
+                                {item.subItems.map((sub) => {
+                                  const isSubActive =
+                                    location.pathname === sub.to ||
+                                    (sub.to === '/platform/setup/ai/providers' &&
+                                      location.pathname === '/platform/setup/ai');
+                                  return (
+                                    <SidebarMenuSubItem key={sub.to}>
+                                      <SidebarMenuSubButton asChild isActive={isSubActive}>
+                                        <Link to={sub.to}>
+                                          <span>{sub.label}</span>
+                                        </Link>
+                                      </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                  );
+                                })}
+                              </SidebarMenuSub>
+                            </CollapsibleContent>
+                          </SidebarMenuItem>
+                        </Collapsible>
+                      );
+                    }
+                    return (
+                      <ApSidebarItem
+                        type="link"
+                        key={item.label}
+                        to={item.to}
+                        label={item.label}
+                        icon={item.icon}
+                      />
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -186,3 +249,5 @@ export function PlatformSidebar() {
     </Sidebar>
   );
 }
+
+

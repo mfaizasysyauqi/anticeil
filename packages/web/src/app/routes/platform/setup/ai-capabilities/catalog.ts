@@ -50,6 +50,18 @@ export const AI_TOOL_CATALOG: AiToolCapabilityInfo[] = [
         description: t('Heavy-duty crawling and content extraction.'),
         signupUrl: 'https://console.apify.com',
       },
+      {
+        id: AiToolProvider.BROWSERLESS,
+        name: 'Browserless',
+        description: t('Headless Chrome browser for dynamic JS rendering and scraping.'),
+        signupUrl: 'https://browserless.io',
+      },
+      {
+        id: AiToolProvider.CLOUDFLARE_BROWSER,
+        name: 'Cloudflare Browser',
+        description: t('Cloudflare Browser Rendering API (includes 10 min/day free tier).'),
+        signupUrl: 'https://dash.cloudflare.com',
+      },
     ],
   },
   {

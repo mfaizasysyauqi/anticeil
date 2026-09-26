@@ -235,8 +235,55 @@ const CF_GATEWAY_SUBMODEL_TO_PROVIDER: Record<string, AIProviderName> = {
 const OPENAI_CHAT_MODELS = ['gpt-5.5', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-4.1', 'gpt-4.1-mini'] as const
 const ANTHROPIC_CHAT_MODELS = ['claude-sonnet-4-6', 'claude-opus-4-7', 'claude-haiku-4-5'] as const
 const ANTHROPIC_OPENROUTER_CHAT_MODELS = ['claude-sonnet-4.6', 'claude-opus-4.7', 'claude-opus-4.8', 'claude-haiku-4.5'] as const
-const GOOGLE_CHAT_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-3.7-flash', 'gemini-3.1-pro-preview', 'gemini-3-flash-preview'] as const
+const GOOGLE_CHAT_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-3.7-flash', 'gemini-3.1-pro-preview', 'gemini-3-flash-preview'] as const
 const X_AI_OPENROUTER_CHAT_MODELS = ['grok-4.20'] as const
+const GROQ_CHAT_MODELS = [
+    'llama-3.1-8b-instant',
+    'llama-3.3-70b-versatile',
+    'deepseek-r1-distill-llama-70b',
+    'qwen-2.5-32b',
+    'mixtral-8x7b-32768',
+    'gemma2-9b-it',
+] as const
+const DEEPSEEK_CHAT_MODELS = [
+    'deepseek-chat',
+    'deepseek-reasoner',
+] as const
+const QWEN_CHAT_MODELS = [
+    'qwen-max',
+    'qwen-plus',
+    'qwen-turbo',
+    'qwen-2.5-72b-instruct',
+] as const
+const XAI_CHAT_MODELS = [
+    'grok-2-1212',
+    'grok-2-vision-1212',
+    'grok-beta',
+] as const
+const MISTRAL_CHAT_MODELS = [
+    'mistral-large-latest',
+    'mistral-medium-latest',
+    'mistral-small-latest',
+    'codestral-latest',
+    'open-mistral-nemo',
+] as const
+const MINIMAX_CHAT_MODELS = [
+    'MiniMax-Text-01',
+    'abab6.5s-chat',
+] as const
+const MOONSHOT_CHAT_MODELS = [
+    'moonshot-v1-8k',
+    'moonshot-v1-32k',
+    'moonshot-v1-128k',
+] as const
+const OLLAMA_CHAT_MODELS = [
+    'llama3.2',
+    'llama3.1',
+    'deepseek-r1',
+    'qwen2.5',
+    'mistral',
+    'gemma2',
+] as const
 
 const REASONING_OPTIONAL_CHAT_MODELS: readonly string[] = ANTHROPIC_OPENROUTER_CHAT_MODELS.map((model) => `${AIProviderName.ANTHROPIC}/${model}`)
 
@@ -245,6 +292,7 @@ export const ALLOWED_CHAT_MODELS_BY_PROVIDER: Partial<Record<AIProviderName, rea
     [AIProviderName.ANTHROPIC]: ANTHROPIC_CHAT_MODELS,
     [AIProviderName.GOOGLE]: GOOGLE_CHAT_MODELS,
     [AIProviderName.VERTEX]: GOOGLE_CHAT_MODELS,
+    [AIProviderName.GROQ]: GROQ_CHAT_MODELS,
     [AIProviderName.ACTIVEPIECES]: [
         ...ANTHROPIC_OPENROUTER_CHAT_MODELS.map((m) => `${AIProviderName.ANTHROPIC}/${m}`),
         ...OPENAI_CHAT_MODELS.map((m) => `${AIProviderName.OPENAI}/${m}`),
@@ -264,9 +312,47 @@ const CHAT_MODEL_LABELS: Record<string, string> = {
     'claude-haiku-4-5': 'Claude Haiku 4.5',
     'gemini-2.5-pro': 'Gemini 2.5 Pro',
     'gemini-2.5-flash': 'Gemini 2.5 Flash',
+    'gemini-2.0-flash': 'Gemini 2.0 Flash',
+    'gemini-1.5-flash': 'Gemini 1.5 Flash',
+    'gemini-1.5-pro': 'Gemini 1.5 Pro',
     'gemini-3.7-flash': 'Gemini 3.7 Flash',
     'gemini-3.1-pro-preview': 'Gemini 3.1 Pro Preview',
     'gemini-3-flash-preview': 'Gemini 3 Flash Preview',
+    'llama-3.3-70b-versatile': 'Llama 3.3 70B',
+    'llama-3.1-8b-instant': 'Llama 3.1 8B',
+    'deepseek-r1-distill-llama-70b': 'DeepSeek R1 Distill Llama 70B',
+    'qwen-2.5-32b': 'Qwen 2.5 32B',
+    'openai/gpt-oss-120b': 'GPT OSS 120B',
+    'openai/gpt-oss-20b': 'GPT OSS 20B',
+    'qwen/qwen3.8-27b': 'Qwen 3.8 27B',
+    'allam-2-7b': 'Allam 2 7B',
+    'mixtral-8x7b-32768': 'Mixtral 8x7B',
+    'gemma2-9b-it': 'Gemma 2 9B',
+    'deepseek-chat': 'DeepSeek Chat',
+    'deepseek-reasoner': 'DeepSeek Reasoner (R1)',
+    'grok-2-1212': 'Grok 2',
+    'grok-2-vision-1212': 'Grok 2 Vision',
+    'grok-beta': 'Grok Beta',
+    'mistral-large-latest': 'Mistral Large',
+    'mistral-medium-latest': 'Mistral Medium',
+    'mistral-small-latest': 'Mistral Small',
+    'codestral-latest': 'Codestral',
+    'open-mistral-nemo': 'Mistral NeMo',
+    'qwen-max': 'Qwen Max',
+    'qwen-plus': 'Qwen Plus',
+    'qwen-turbo': 'Qwen Turbo',
+    'qwen-2.5-72b-instruct': 'Qwen 2.5 72B',
+    'MiniMax-Text-01': 'MiniMax Text 01',
+    'abab6.5s-chat': 'ABAB 6.5s Chat',
+    'moonshot-v1-8k': 'Moonshot v1 8K',
+    'moonshot-v1-32k': 'Moonshot v1 32K',
+    'moonshot-v1-128k': 'Moonshot v1 128K',
+    'llama3.2': 'Llama 3.2',
+    'llama3.1': 'Llama 3.1',
+    'mistral': 'Mistral',
+    'qwen2.5': 'Qwen 2.5',
+    'deepseek-r1': 'DeepSeek R1',
+    'gemma2': 'Gemma 2',
 }
 
 function getCuratedChatModels({ provider }: { provider: AIProviderName }): { id: string, label: string }[] | undefined {

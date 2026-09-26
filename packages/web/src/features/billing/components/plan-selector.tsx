@@ -16,13 +16,13 @@ import {
 import { platformHooks } from '@/hooks/platform-hooks';
 import { cn } from '@/lib/utils';
 
-import { billingMutations, billingQueries } from '../hooks/billing-hooks';
+import { billingQueries } from '../hooks/billing-hooks';
 import { useCancelSubscriptionGuard } from '../hooks/use-cancel-subscription-guard';
 import { usePlanSeatFloorGuard } from '../hooks/use-plan-seat-floor-guard';
-import { useConfirmPurchaseDialogStore } from '../stores/confirm-purchase-dialog-state';
 
 import { CancelSubscriptionDialog } from './cancel-subscription-dialog';
 import { KeepPlanDialog } from './keep-plan-dialog';
+import { useMidtransCheckoutStore } from './midtrans-checkout-dialog';
 import {
   planSelectorUtils,
   type BillingCycle,
@@ -39,20 +39,6 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
   );
   const { ensureSeatFloor, openSeatFloor, seatFloorDialog } =
     usePlanSeatFloorGuard();
-  const {
-    mutate: checkout,
-    isPending,
-    variables: checkoutVariables,
-  } = billingMutations.useCheckout({
-    onDone: onSelected,
-    onSeatLimitExceeded: ({ params, targetSeats, planName }) => {
-      openSeatFloor({
-        targetSeats,
-        planName,
-        proceed: () => checkout(params),
-      });
-    },
-  });
   const { cancelWithSeatCheck, deactivateUsersDialog } =
     useCancelSubscriptionGuard({ onCanceled: onSelected });
   const [isKeepPlanOpen, setIsKeepPlanOpen] = useState(false);
@@ -61,7 +47,6 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
     platform.id,
     enabled,
   );
-  const { openDialog: openConfirmDialog } = useConfirmPurchaseDialogStore();
 
   const currentPlanId = subscription?.plan.plan ?? platform.plan.plan;
   const hasScheduledChange = !isNil(subscription?.cancelAt);
@@ -80,21 +65,16 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
       ? 'year'
       : 'month');
 
+  const { openCheckout: openMidtransCheckout } = useMidtransCheckoutStore();
+
   const proceedCheckout = (intent: CheckoutIntent) => {
-    const successUrl = planSelectorUtils.buildSuccessUrl(intent.action);
-    if (subscription?.billingPortalAvailable) {
-      openConfirmDialog({
-        planId: intent.planId,
-        planName: intent.planName,
-        priceAmount: intent.priceAmount,
-        billingCycle,
-        features: intent.features,
-        successUrl,
-      });
-      onSelected?.();
-      return;
-    }
-    checkout({ planId: intent.planId, successUrl });
+    openMidtransCheckout({
+      planId: intent.planId,
+      planName: intent.planName,
+      priceAmount: intent.priceAmount,
+      billingCycle,
+    });
+    onSelected?.();
   };
 
   const handleCheckout = (intent: CheckoutIntent) => {
@@ -124,9 +104,19 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
           onValueChange={(value) => setCycleOverride(value as BillingCycle)}
           className="self-center"
         >
-          <TabsList>
-            <TabsTrigger value="month">{t('Monthly')}</TabsTrigger>
-            <TabsTrigger value="year">{t('Annually')}</TabsTrigger>
+          <TabsList className="bg-muted/80 p-1 border border-border/60 rounded-lg">
+            <TabsTrigger
+              value="month"
+              className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm font-medium px-4"
+            >
+              {t('Monthly')}
+            </TabsTrigger>
+            <TabsTrigger
+              value="year"
+              className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm font-medium px-4"
+            >
+              {t('Annually')}
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       )}
@@ -160,8 +150,8 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
               })}
               currentPlanId={currentPlanId}
               hasScheduledChange={hasScheduledChange}
-              isPending={isPending}
-              checkoutPlanId={isPending ? checkoutVariables?.planId : undefined}
+              isPending={false}
+              checkoutPlanId={undefined}
               onCheckout={handleCheckout}
               onKeepPlan={() => setIsKeepPlanOpen(true)}
               onDowngrade={() => setIsCancelOpen(true)}
@@ -229,9 +219,7 @@ function PlanColumn({
   const isOnPaidPlan =
     !isNil(currentPlanId) && currentPlanId !== planSelectorUtils.FREE_PLAN_ID;
 
-  const chargeAmount = isNil(apiPlan?.price)
-    ? apiPlan?.priceDisplay ?? ''
-    : `$${apiPlan.price.toLocaleString()}`;
+  const chargeAmount = pricing?.amount ?? (isNil(apiPlan?.price) ? '' : `Rp ${apiPlan.price.toLocaleString('id-ID')}`);
   const features = planSelectorUtils.resolveFeatures({ entry, apiPlan });
   const handleCtaCheckout = (planId: string, action: CheckoutAction) =>
     onCheckout({
@@ -352,7 +340,11 @@ function PlanCta({
 }: PlanCtaProps) {
   if (isEnterprise) {
     return (
-      <Button variant="default" className="w-full bg-foreground" asChild>
+      <Button
+        variant="default"
+        className="w-full bg-foreground text-background hover:bg-foreground/90 font-medium shadow-xs"
+        asChild
+      >
         <a
           href={planSelectorUtils.SALES_URL}
           target="_blank"
@@ -367,13 +359,17 @@ function PlanCta({
   if (isCurrent) {
     if (hasScheduledChange) {
       return (
-        <Button variant="default" className="w-full" onClick={onKeepPlan}>
+        <Button variant="default" className="w-full font-medium" onClick={onKeepPlan}>
           {t('Keep current plan')}
         </Button>
       );
     }
     return (
-      <Button variant="outline" className="w-full" disabled>
+      <Button
+        variant="outline"
+        className="w-full border-border/80 bg-muted/40 text-muted-foreground font-medium disabled:opacity-75 disabled:cursor-not-allowed"
+        disabled
+      >
         {t('Current plan')}
       </Button>
     );
@@ -382,13 +378,21 @@ function PlanCta({
   if (isFree) {
     if (!isOnPaidPlan) {
       return (
-        <Button variant="outline" className="w-full" disabled>
+        <Button
+          variant="outline"
+          className="w-full border-border/80 bg-muted/40 text-muted-foreground font-medium disabled:opacity-75 disabled:cursor-not-allowed"
+          disabled
+        >
           {t('Current plan')}
         </Button>
       );
     }
     return (
-      <Button variant="outline" className="w-full" onClick={onDowngrade}>
+      <Button
+        variant="outline"
+        className="w-full border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 font-medium transition-colors"
+        onClick={onDowngrade}
+      >
         {t('Downgrade')}
       </Button>
     );
@@ -400,8 +404,13 @@ function PlanCta({
   const action = planSelectorUtils.actionFor({ currentPlanId });
   return (
     <Button
-      variant={highlighted ? 'default' : 'outline'}
-      className="w-full"
+      variant={highlighted ? 'default' : 'secondary'}
+      className={cn(
+        'w-full font-medium transition-all',
+        highlighted
+          ? 'font-semibold shadow-xs'
+          : 'border border-border/80 text-foreground bg-secondary/90 hover:bg-secondary hover:border-foreground/30 shadow-2xs',
+      )}
       disabled={isPending}
       loading={apiPlan.id === checkoutPlanId}
       onClick={() => onCheckout(apiPlan.id, action)}

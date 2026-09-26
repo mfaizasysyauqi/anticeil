@@ -398,9 +398,7 @@ function RailPinnedProjects({ collapsed }: { collapsed: boolean }) {
   const { data: currentUser } = userHooks.useCurrentUser();
   const location = useLocation();
   const navigate = useNavigate();
-  const showCreateProject =
-    platform.plan.billedTeamProjectsLimit !== 0 &&
-    currentUser?.platformRole === PlatformRole.ADMIN;
+  const showCreateProject = currentUser?.platformRole === PlatformRole.ADMIN;
   const [sort, setSort] = useState<PinnedSort>(() =>
     readStoredSort(localStorage.getItem(PINNED_SORT_KEY)),
   );
@@ -668,7 +666,8 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  if (!user) {
+  const isLoggedIn = authenticationSession.isLoggedIn();
+  if (!user && !isLoggedIn) {
     return null;
   }
 
@@ -679,13 +678,14 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
   };
 
   const rawName =
-    user.firstName || user.lastName
+    user?.firstName || user?.lastName
       ? user.firstName === user.lastName || !user.lastName
         ? user.firstName
         : `${user.firstName || ''} ${user.lastName || ''}`.trim()
       : undefined;
 
-  const displayName = rawName || user.email?.split('@')[0] || 'User';
+  const displayName = rawName || user?.email?.split('@')[0] || t('Account');
+  const userEmail = user?.email ?? '';
 
   return (
     <div
@@ -712,11 +712,11 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
                 <div className="size-[22px] shrink-0 overflow-hidden rounded-full">
                   <UserAvatar
                     className={cn('size-full object-cover', {
-                      'scale-150': isNil(user.imageUrl),
+                      'scale-150': isNil(user?.imageUrl),
                     })}
                     name={displayName}
-                    email={user.email}
-                    imageUrl={user.imageUrl}
+                    email={userEmail}
+                    imageUrl={user?.imageUrl}
                     size={22}
                     disableTooltip={true}
                   />
@@ -745,8 +745,8 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
                 <UserAvatar
                   className="size-full object-cover"
                   name={displayName}
-                  email={user.email}
-                  imageUrl={user.imageUrl}
+                  email={userEmail}
+                  imageUrl={user?.imageUrl}
                   size={32}
                   disableTooltip={true}
                 />
@@ -755,7 +755,9 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
                 <span className="truncate font-medium">
                   {displayName}
                 </span>
-                <span className="truncate text-xs">{user.email}</span>
+                {user?.email && (
+                  <span className="truncate text-xs">{user.email}</span>
+                )}
               </div>
             </div>
           </DropdownMenuLabel>
