@@ -299,10 +299,10 @@ function ExampleCards({
   const handleToggle = () => setExpanded((value) => !value);
 
   return (
-    <div className={cn('mt-16', expanded && 'pb-16')}>
+    <div className={cn('mt-8 sm:mt-16', expanded && 'pb-16')}>
       {expanded ? (
         <motion.div
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3"
           initial={reducedMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
@@ -318,17 +318,35 @@ function ExampleCards({
           ))}
         </motion.div>
       ) : (
-        <CardCarousel>
-          {cards.slice(0, COLLAPSED_CARD_COUNT).map((card, i) => (
-            <UseCaseCard
-              key={card.key}
-              card={card}
-              delay={0.15 + i * 0.08}
-              onSelect={onSuggestionClick}
-              className="min-w-[150px] flex-1 basis-0"
-            />
-          ))}
-        </CardCarousel>
+        <>
+          {/* Mobile: 2 rows (2x2 grid) */}
+          <div className="grid grid-cols-2 gap-3 sm:hidden">
+            {cards.slice(0, COLLAPSED_CARD_COUNT).map((card, i) => (
+              <UseCaseCard
+                key={card.key}
+                card={card}
+                delay={0.1 + i * 0.05}
+                onSelect={onSuggestionClick}
+                className="w-full"
+              />
+            ))}
+          </div>
+
+          {/* Desktop/Tablet: Carousel */}
+          <div className="hidden sm:block">
+            <CardCarousel>
+              {cards.slice(0, COLLAPSED_CARD_COUNT).map((card, i) => (
+                <UseCaseCard
+                  key={card.key}
+                  card={card}
+                  delay={0.15 + i * 0.08}
+                  onSelect={onSuggestionClick}
+                  className="min-w-[150px] flex-1 basis-0"
+                />
+              ))}
+            </CardCarousel>
+          </div>
+        </>
       )}
 
       <div className="mt-6 flex justify-center">

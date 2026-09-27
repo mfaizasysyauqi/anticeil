@@ -26,7 +26,7 @@ export function UseCaseCard({
       aria-hidden={!interactive}
       tabIndex={interactive ? undefined : -1}
       className={cn(
-        'group relative flex min-h-[148px] flex-col justify-between rounded-2xl p-4 text-left ring-1 transition-shadow duration-300',
+        'group relative flex min-h-[128px] sm:min-h-[148px] flex-col justify-between rounded-2xl p-3 sm:p-4 text-left ring-1 transition-shadow duration-300',
         interactive ? 'cursor-pointer' : 'cursor-default',
         useCaseCardArt.CARD_SURFACE,
         theme.ring,
@@ -42,7 +42,7 @@ export function UseCaseCard({
         <UseCaseDoodle
           id={card.imageId}
           delayMs={Math.round(delay * 1000) + 150}
-          className={cn('size-12', theme.ink)}
+          className={cn('size-9 sm:size-12', theme.ink)}
         />
         {card.kind === 'routine' && (
           <Repeat
@@ -51,13 +51,13 @@ export function UseCaseCard({
           />
         )}
       </div>
-      <h3 className="mt-3 pr-7 font-sentient text-[17px] font-medium leading-snug text-foreground">
+      <h3 className="mt-2.5 sm:mt-3 pr-2 sm:pr-7 font-sentient text-[14px] sm:text-[17px] font-medium leading-snug text-foreground break-words">
         {card.title}
       </h3>
       {interactive && (
         <DoodleArrow
           className={cn(
-            'absolute bottom-4 right-4 size-4 opacity-0 transition-all duration-300 ease-out group-hover:translate-x-0 group-hover:opacity-100 motion-safe:translate-x-1.5',
+            'absolute bottom-3 right-3 sm:bottom-4 sm:right-4 size-4 opacity-0 transition-all duration-300 ease-out group-hover:translate-x-0 group-hover:opacity-100 motion-safe:translate-x-1.5',
             theme.ink,
           )}
         />
