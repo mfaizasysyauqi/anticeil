@@ -20,9 +20,9 @@ export function ManagePlanDialog() {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="max-w-[1100px]">
-          <DialogHeader>
-            <DialogTitle>{t('Explore plans')}</DialogTitle>
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-[95vw] max-w-[1100px] max-h-[92svh] overflow-y-auto p-3 sm:p-5 rounded-2xl">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="text-xl sm:text-2xl font-semibold">{t('Explore plans')}</DialogTitle>
           </DialogHeader>
           <PlanSelector enabled={isOpen} onSelected={closeDialog} />
         </DialogContent>

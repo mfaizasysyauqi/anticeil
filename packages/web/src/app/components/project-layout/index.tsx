@@ -1,18 +1,21 @@
 import { isNil } from '@activepieces/core-utils';
 import { ApEdition, ApFlagId } from '@activepieces/shared';
-import { Unplug } from 'lucide-react';
-import React, { ComponentType } from 'react';
+import { Menu, Search, Unplug } from 'lucide-react';
+import React, { ComponentType, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
+import { UserAvatar } from '@/components/custom/user-avatar';
 import { BotIcon } from '@/components/icons/bot';
 import { ChartLineIcon } from '@/components/icons/chart-line';
 import { CompassIcon } from '@/components/icons/compass';
 import { useEmbedding } from '@/components/providers/embed-provider';
+import { Button } from '@/components/ui/button';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar-shadcn';
 import { ManagePlanDialog } from '@/features/billing';
 import { projectHooks } from '@/features/projects';
 import { flagsHooks } from '@/hooks/flags-hooks';
+import { userHooks } from '@/hooks/user-hooks';
 import { cn } from '@/lib/utils';
 
 import { authenticationSession } from '../../../lib/authentication-session';
@@ -20,7 +23,7 @@ import {
   GlobalSearchProvider,
   useGlobalSearch,
 } from '../global-search/global-search-context';
-import { PrimaryRail } from '../primary-rail';
+import { MobilePrimaryRailSheet, PrimaryRail } from '../primary-rail';
 
 import { ProjectDashboardLayoutHeader } from './project-dashboard-layout-header';
 
@@ -136,11 +139,72 @@ function ProjectDashboardLayoutInner({
   currentProjectId: string;
   children: React.ReactNode;
 }) {
-  const { open: searchOpen } = useGlobalSearch();
+  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const branding = flagsHooks.useWebsiteBranding();
+  const { data: currentUser } = userHooks.useCurrentUser();
 
   return (
-    <div className="flex h-full w-full overflow-hidden">
-      {!isEmbedded && <PrimaryRail />}
+    <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden">
+      {!isEmbedded && (
+        <>
+          <PrimaryRail />
+          <MobilePrimaryRailSheet
+            open={mobileNavOpen}
+            onOpenChange={setMobileNavOpen}
+          />
+        </>
+      )}
+
+      {/* Mobile / Tablet Top Navigation Bar (screens < 1024px) */}
+      {!isEmbedded && (
+        <header className="flex lg:hidden items-center justify-between h-13 px-3 bg-sidebar border-b border-sidebar-border shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Toggle navigation menu"
+              className="size-9 shrink-0 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent cursor-pointer"
+            >
+              <Menu className="size-5" />
+            </Button>
+            <div className="flex items-center gap-2 min-w-0">
+              <img
+                src={branding.logos.logoIconUrl}
+                alt={branding.websiteName}
+                className="size-5 shrink-0"
+                draggable={false}
+              />
+              <span className="font-semibold text-sm truncate max-w-[150px] sm:max-w-[220px]">
+                {branding.websiteName}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search"
+              className="size-8 rounded-full text-sidebar-foreground/80 hover:bg-sidebar-accent"
+            >
+              <Search className="size-4" />
+            </Button>
+            <div className="cursor-pointer" onClick={() => setMobileNavOpen(true)}>
+              <UserAvatar
+                name={currentUser?.firstName ?? ''}
+                email={currentUser?.email ?? ''}
+                imageUrl={currentUser?.imageUrl}
+                size={28}
+                disableTooltip={true}
+              />
+            </div>
+          </div>
+        </header>
+      )}
+
       <SidebarProvider
         defaultOpen={false}
         hoverMode={!searchOpen}
@@ -150,7 +214,7 @@ function ProjectDashboardLayoutInner({
           <div
             className={cn(
               'flex-1 flex flex-col overflow-hidden',
-              !isEmbedded && 'pr-2 pt-3 pb-3',
+              !isEmbedded && 'p-0 sm:pr-2 sm:pt-2 sm:pb-2 lg:pr-2 lg:pt-3 lg:pb-3',
             )}
           >
             <div
@@ -158,7 +222,7 @@ function ProjectDashboardLayoutInner({
               className={cn(
                 'relative flex flex-col h-full bg-background overflow-clip',
                 !isEmbedded &&
-                  'rounded-xl shadow-[2px_0px_4px_-2px_rgba(0,0,0,0.05),0px_2px_4px_-2px_rgba(0,0,0,0.05)] border',
+                  'rounded-none sm:rounded-xl shadow-[2px_0px_4px_-2px_rgba(0,0,0,0.05),0px_2px_4px_-2px_rgba(0,0,0,0.05)] border-0 sm:border',
               )}
             >
               {!hideHeader && (
@@ -172,3 +236,4 @@ function ProjectDashboardLayoutInner({
     </div>
   );
 }
+

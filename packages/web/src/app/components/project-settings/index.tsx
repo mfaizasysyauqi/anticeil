@@ -222,40 +222,44 @@ export function ProjectSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl w-full max-h-[95vh] rounded-sm flex flex-col p-0">
-        <div className="flex h-[700px]">
-          <div className="w-[238px]">
-            <nav className="bg-sidebar space-y-1 bg-muted rounded-sm rounded-r-none h-full flex flex-col rounded-l-md">
-              <ApProjectDisplay
-                title={form.watch('projectName') ?? project.displayName}
-                icon={form.watch('icon') ?? project.icon}
-                containerClassName="px-3 my-4"
-                titleClassName="text-sm font-medium"
-                maxLengthToNotShowTooltip={18}
-                projectType={project.type}
-              />
-              <div className="flex flex-col px-2 gap-1">
+      <DialogContent className="max-w-5xl w-[calc(100vw-1.5rem)] sm:w-full max-h-[90vh] rounded-xl flex flex-col p-0 overflow-hidden">
+        <div className="flex flex-col md:flex-row h-full max-h-[85vh] md:h-[650px]">
+          <div className="w-full md:w-[220px] bg-sidebar border-b md:border-b-0 md:border-r border-border shrink-0">
+            <nav className="space-y-1 p-2 md:p-3 h-full flex flex-col">
+              <div className="hidden md:block">
+                <ApProjectDisplay
+                  title={form.watch('projectName') ?? project.displayName}
+                  icon={form.watch('icon') ?? project.icon}
+                  containerClassName="px-2 my-2"
+                  titleClassName="text-sm font-medium"
+                  maxLengthToNotShowTooltip={18}
+                  projectType={project.type}
+                />
+              </div>
+              <div className="flex flex-row md:flex-col overflow-x-auto no-scrollbar gap-1">
                 {tabs.map((tab) => (
                   <div
                     key={tab.id}
                     className={cn(
-                      'flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm font-medium transition-all cursor-pointer hover:bg-sidebar-accent',
+                      'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all cursor-pointer whitespace-nowrap hover:bg-sidebar-accent',
                       {
-                        'bg-sidebar-accent': activeTab === tab.id,
+                        'bg-sidebar-accent text-sidebar-foreground shadow-xs font-semibold':
+                          activeTab === tab.id,
+                        'text-sidebar-foreground/70': activeTab !== tab.id,
                       },
                     )}
                     onClick={() => setActiveTab(tab.id)}
                   >
                     {tab.icon}
-                    {tab.label}
+                    <span>{tab.label}</span>
                   </div>
                 ))}
               </div>
             </nav>
           </div>
-          <div className="flex-1 min-w-0 flex flex-col">
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <ScrollArea className="h-full">
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="p-4 sm:p-6 md:p-8 space-y-4">
                 {activeTab === 'general' && (
                   <ProjectAvatar
                     displayName={project.displayName}
@@ -265,11 +269,11 @@ export function ProjectSettingsDialog({
                     showBackground={true}
                   />
                 )}
-                <div className="flex flex-col gap-3 px-10 pt-4">
+                <div className="flex flex-col gap-3">
                   {renderTabHeader()}
                   {renderTabContent()}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
             {renderDialogFooter()}
           </div>

@@ -140,7 +140,7 @@ export function MidtransCheckoutDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && closeCheckout()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md w-[95vw] max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">

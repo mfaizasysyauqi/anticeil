@@ -88,7 +88,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
 
   if (isLoading || isNil(plans)) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <PlanColumnSkeleton key={index} />
         ))}
@@ -120,7 +120,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
           </TabsList>
         </Tabs>
       )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {planSelectorUtils.PLAN_CATALOG.map((entry) => {
           const apiPlan =
             entry.key === 'enterprise'
@@ -233,7 +233,7 @@ function PlanColumn({
   return (
     <div
       className={cn(
-        'flex flex-col gap-4 rounded-xl border p-5',
+        'flex flex-col gap-4 rounded-xl border p-4 min-w-0 overflow-hidden',
         entry.highlighted && 'border-primary shadow-sm',
       )}
     >

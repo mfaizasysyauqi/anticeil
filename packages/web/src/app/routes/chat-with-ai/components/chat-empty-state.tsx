@@ -152,7 +152,7 @@ function Greeting({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <h1 className="text-4xl sm:text-5xl font-bold leading-[1.1] text-balance font-sentient">
+      <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold leading-[1.15] text-balance font-sentient">
         {incognito
           ? t('Private Chat')
           : firstName
@@ -160,7 +160,7 @@ function Greeting({
           : t(headline.plain)}
       </h1>
       {!incognito && (
-        <p className="text-base text-muted-foreground max-w-xl">
+        <p className="text-sm sm:text-base text-muted-foreground max-w-xl">
           {t(
             "I don't just answer questions — I do the work, end to end, across every app you use. Whatever you're picturing, I can probably go further.",
           )}

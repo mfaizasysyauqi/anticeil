@@ -122,8 +122,8 @@ export default function ImpactPage() {
             </div>
           }
           rightContent={
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 border border-dashed rounded-md text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 border border-dashed rounded-md text-xs sm:text-sm text-muted-foreground">
                 <span>
                   {t('Updated')}{' '}
                   {dayjs(data?.updated).format('MMM DD, hh:mm A')} —{' '}

@@ -78,6 +78,7 @@ import { recordAccess } from '../global-search/access-history';
 import { useGlobalSearch } from '../global-search/global-search-context';
 import { HelpAndFeedback } from '../help-and-feedback';
 
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { SidebarUsageLimits } from '@/features/billing/components/sidebar-usage-limits';
 
 export function PrimaryRail() {
@@ -106,11 +107,11 @@ export function PrimaryRail() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div
+      <aside
         onClick={collapsed ? openSidebar : undefined}
         title={collapsed ? t('Open sidebar') : undefined}
         className={cn(
-          'flex h-svh shrink-0 flex-col overflow-hidden whitespace-nowrap bg-sidebar py-3 transition-[width] duration-200 ease-out motion-reduce:transition-none',
+          'hidden lg:flex h-svh shrink-0 flex-col overflow-hidden whitespace-nowrap bg-sidebar py-3 transition-[width] duration-200 ease-out motion-reduce:transition-none',
           collapsed ? 'w-14 cursor-ew-resize items-center' : 'w-62',
         )}
       >
@@ -191,10 +192,115 @@ export function PrimaryRail() {
           <RailPlatformAdminButton collapsed={collapsed} />
           <RailAccountRow collapsed={collapsed} />
         </div>
-      </div>
+      </aside>
     </TooltipProvider>
   );
 }
+
+export function MobilePrimaryRailSheet({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { embedState } = useEmbedding();
+  const { platform } = platformHooks.useCurrentPlatform();
+  const { data: currentUser } = userHooks.useCurrentUser();
+  const showAgents = useAgentsNavVisible();
+  const { checkAccess } = useAuthorization();
+
+  if (embedState.isEmbedded || embedState.hideSideNav) {
+    return null;
+  }
+
+  const handleNavigate = () => {
+    onOpenChange(false);
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="left"
+        className="w-72 max-w-[85vw] p-0 bg-sidebar border-r border-sidebar-border flex flex-col h-full overflow-hidden"
+      >
+        <div className="flex h-full w-full flex-col overflow-y-auto py-3">
+          <RailHeader collapsed={false} onToggle={() => onOpenChange(false)} />
+
+          <div className="mt-2 flex min-h-0 flex-1 flex-col px-2">
+            <div className="flex shrink-0 flex-col gap-1">
+              {(platform?.plan?.chatEnabled ?? true) && (
+                <RailNavButton
+                  collapsed={false}
+                  to="/chat"
+                  icon={SquarePen}
+                  label={t('Chat')}
+                  isActive={({ pathname }) => pathname.startsWith('/chat')}
+                  onClick={() => {
+                    handleNavigate();
+                    window.dispatchEvent(new Event(chatUtils.newChatEvent));
+                  }}
+                />
+              )}
+              {checkAccess(Permission.READ_MCP) && (
+                <RailNavButton
+                  collapsed={false}
+                  to="/mcp-server"
+                  icon={Unplug}
+                  label={t('MCP')}
+                  isActive={({ pathname }) => pathname.startsWith('/mcp-server')}
+                  onClick={handleNavigate}
+                />
+              )}
+              {showAgents && (
+                <RailNavButton
+                  collapsed={false}
+                  to="/agents"
+                  icon={Bot}
+                  label={t('Agents')}
+                  isActive={({ pathname }) => pathname.startsWith('/agents')}
+                  onClick={handleNavigate}
+                />
+              )}
+              <RailNavButton
+                collapsed={false}
+                to="/templates"
+                icon={Compass}
+                label={t('Explore')}
+                isActive={({ pathname }) => pathname.startsWith('/templates')}
+                onClick={() => {
+                  handleNavigate();
+                  templatesTelemetryApi.sendEvent({
+                    eventType: TemplateTelemetryEventType.EXPLORE_VIEW,
+                    userId: currentUser?.id,
+                  });
+                }}
+              />
+              <RailNavButton
+                collapsed={false}
+                to="/impact"
+                icon={ChartLine}
+                label={t('Impact')}
+                isActive={({ pathname }) => pathname.startsWith('/impact')}
+                onClick={handleNavigate}
+              />
+            </div>
+            <RailPinnedProjects collapsed={false} />
+          </div>
+
+          <div className="mt-auto flex flex-col gap-1.5 w-full">
+            <div className="px-2">
+              <SidebarUsageLimits />
+            </div>
+            <RailPlatformAdminButton collapsed={false} />
+            <RailAccountRow collapsed={false} />
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 
 function RailHeader({
   collapsed,
