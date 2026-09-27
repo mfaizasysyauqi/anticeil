@@ -330,7 +330,7 @@ function ChatBoxContent({
           <div
             key="empty-state"
             className={cn(
-              'flex-1 overflow-y-auto min-h-0',
+              'flex-1 overflow-y-auto overflow-x-hidden min-h-0',
               showPersonalizationDonut && 'pb-14',
             )}
           >

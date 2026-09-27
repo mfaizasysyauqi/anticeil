@@ -54,7 +54,7 @@ export function EmptyState({
   }
 
   return (
-    <div className="flex min-h-full flex-col px-3 pt-12 pb-6 sm:px-6 sm:pt-16">
+    <div className="flex min-h-full flex-col px-3 pt-12 pb-6 sm:px-6 sm:pt-16 overflow-x-hidden">
       <div className="max-w-3xl mx-auto w-full">
         <div className="flex flex-col sm:flex-row sm:items-center gap-8 sm:gap-10">
           <div className="min-w-0 sm:flex-1 sm:max-w-md">
@@ -410,7 +410,7 @@ function CardCarousel({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative overflow-hidden">
       <div
         aria-hidden
         className={cn(
