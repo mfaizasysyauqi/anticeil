@@ -4,6 +4,12 @@ import {
   BarChart3,
   ChevronRight,
   CreditCard,
+  Crown,
+  Hash,
+  Key,
+  KeyRound,
+  LogIn,
+  ShieldCheck,
 } from 'lucide-react';
 import { ComponentType, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -65,17 +71,20 @@ export function PlatformSidebar() {
   });
   const chevronRef = useRef<ChevronLeftIconHandle>(null);
 
+  type SidebarItemDef = {
+    to: string;
+    label: string;
+    icon?: ComponentType<{ className?: string }>;
+    isCrown?: boolean;
+    subItems?: { to: string; label: string; isCrown?: boolean }[];
+  };
+
   const groups: {
     label: string;
-    items: {
-      to: string;
-      label: string;
-      icon?: ComponentType<{ className?: string }>;
-      subItems?: { to: string; label: string }[];
-    }[];
+    items: SidebarItemDef[];
   }[] = [
     {
-      label: t('General'),
+      label: t('Platform'),
       items: [
         {
           to: '/platform/projects',
@@ -86,21 +95,51 @@ export function PlatformSidebar() {
           to: '/platform/users',
           label: t('Users'),
           icon: UsersIcon,
+          subItems: [
+            { to: '/platform/users', label: t('Members') },
+            {
+              to: '/platform/security/project-roles',
+              label: t('Project Roles'),
+              isCrown: true,
+            },
+          ],
         },
         {
           to: '/platform/connections',
           label: t('Connections'),
           icon: UnplugIcon,
+          subItems: [
+            { to: '/platform/connections', label: t('All') },
+            {
+              to: '/platform/setup/connections',
+              label: t('Global Connections'),
+              isCrown: true,
+            },
+          ],
         },
       ],
     },
     {
-      label: t('Setup'),
+      label: t('Catalogue'),
       items: [
         {
-          to: '/platform/setup/general',
-          label: t('General'),
-          icon: SettingsIcon,
+          to: '/platform/setup/pieces',
+          label: t('Pieces'),
+          icon: PuzzleIcon,
+          subItems: [
+            { to: '/platform/setup/pieces', label: t('Pieces') },
+            {
+              to: '/platform/setup/pieces',
+              label: t('Piece Sets'),
+              isCrown: true,
+            },
+          ],
+        },
+        {
+          to: '/platform/setup/templates',
+          label: t('Templates'),
+          icon: LayoutGridIcon,
+          isCrown: true,
         },
         {
           to: '/platform/setup/ai',
@@ -111,36 +150,98 @@ export function PlatformSidebar() {
             { to: '/platform/setup/ai/capabilities', label: t('Capabilities') },
           ],
         },
+      ],
+    },
+    {
+      label: t('Security'),
+      items: [
+        {
+          to: '/platform/security/sso',
+          label: t('Single Sign On'),
+          icon: LogIn,
+          isCrown: true,
+        },
+        {
+          to: '/platform/security/secret-managers',
+          label: t('Secret Managers'),
+          icon: Key,
+          isCrown: true,
+        },
+        {
+          to: '/platform/security/audit-logs',
+          label: t('Audit Logs'),
+          icon: ShieldCheck,
+          isCrown: true,
+          subItems: [
+            { to: '/platform/security/audit-logs', label: t('Events') },
+            {
+              to: '/platform/infrastructure/event-destinations',
+              label: t('Event Streaming'),
+            },
+          ],
+        },
+      ],
+    },
+    {
+      label: t('Developers'),
+      items: [
+        {
+          to: '/platform/security/api-keys',
+          label: t('API Keys'),
+          icon: KeyRound,
+        },
+        {
+          to: '/platform/security/embed',
+          label: t('Embedding'),
+          icon: Hash,
+          isCrown: true,
+        },
         {
           to: '/platform/setup/mcp',
           label: t('MCP Server'),
           icon: McpSvg,
-        },
-        {
-          to: '/platform/setup/pieces',
-          label: t('Pieces'),
-          icon: PuzzleIcon,
-        },
-        {
-          to: '/platform/setup/templates',
-          label: t('Templates'),
-          icon: LayoutGridIcon,
+          subItems: [
+            { to: '/platform/setup/mcp', label: t('Connection') },
+            { to: '/platform/setup/mcp', label: t('Tools') },
+            { to: '/platform/setup/mcp', label: t('Activity') },
+          ],
         },
       ],
     },
-
     {
-      label: t('Infrastructure'),
+      label: t('Operations'),
       items: [
         {
           to: '/platform/infrastructure/workers',
           label: t('Workers'),
           icon: ServerIcon,
+          subItems: [
+            { to: '/platform/infrastructure/workers', label: t('Health') },
+            {
+              to: '/platform/infrastructure/workers',
+              label: t('Worker groups'),
+              isCrown: true,
+            },
+          ],
         },
         {
           to: '/platform/infrastructure/health',
           label: t('Health'),
           icon: FileHeartIcon,
+          subItems: [
+            {
+              to: '/platform/infrastructure/health',
+              label: t('System Health'),
+            },
+            {
+              to: '/platform/infrastructure/health',
+              label: t('Runs Health'),
+            },
+            {
+              to: '/platform/infrastructure/health',
+              label: t('Queue Health'),
+            },
+          ],
         },
         {
           to: '/platform/infrastructure/triggers',
@@ -161,6 +262,11 @@ export function PlatformSidebar() {
     {
       label: t('Account'),
       items: [
+        {
+          to: '/platform/setup/general',
+          label: t('General'),
+          icon: SettingsIcon,
+        },
         {
           to: '/platform/billing',
           label: t('Billing & subscription'),
@@ -201,6 +307,11 @@ export function PlatformSidebar() {
                 <SidebarMenu>
                   {group.items.map((item) => {
                     if (item.subItems) {
+                      const isAnySubActive = item.subItems.some(
+                        (sub) =>
+                          location.pathname === sub.to ||
+                          location.pathname.startsWith(sub.to + '/'),
+                      );
                       return (
                         <Collapsible
                           key={item.label}
@@ -210,31 +321,48 @@ export function PlatformSidebar() {
                           <SidebarMenuItem>
                             <CollapsibleTrigger asChild>
                               <SidebarMenuButton
-                                className={cn('w-full justify-between cursor-pointer')}
+                                className={cn(
+                                  'w-full justify-between cursor-pointer',
+                                  isAnySubActive && 'font-medium',
+                                )}
                               >
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
                                   {item.icon && (
-                                    <item.icon className="size-4 pointer-events-none" />
+                                    <item.icon className="size-4 pointer-events-none shrink-0" />
                                   )}
-                                  <span className="text-sm font-normal">
+                                  <span className="text-sm font-normal truncate">
                                     {item.label}
                                   </span>
+                                  {item.isCrown && (
+                                    <Crown className="size-3.5 shrink-0 text-foreground opacity-80 ml-0.5" />
+                                  )}
                                 </div>
-                                <ChevronRight className="size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                <ChevronRight className="size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 shrink-0" />
                               </SidebarMenuButton>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
                               <SidebarMenuSub className="mr-0 pr-0">
-                                {item.subItems.map((sub) => {
+                                {item.subItems.map((sub, sIdx) => {
                                   const isSubActive =
                                     location.pathname === sub.to ||
                                     (sub.to === '/platform/setup/ai/providers' &&
                                       location.pathname === '/platform/setup/ai');
                                   return (
-                                    <SidebarMenuSubItem key={sub.to}>
-                                      <SidebarMenuSubButton asChild isActive={isSubActive}>
-                                        <Link to={sub.to}>
-                                          <span>{sub.label}</span>
+                                    <SidebarMenuSubItem key={`${sub.to}-${sIdx}`}>
+                                      <SidebarMenuSubButton
+                                        asChild
+                                        isActive={isSubActive}
+                                      >
+                                        <Link
+                                          to={sub.to}
+                                          className="flex items-center justify-between w-full"
+                                        >
+                                          <span className="truncate">
+                                            {sub.label}
+                                          </span>
+                                          {sub.isCrown && (
+                                            <Crown className="size-3.5 shrink-0 text-foreground opacity-80 ml-1.5" />
+                                          )}
                                         </Link>
                                       </SidebarMenuSubButton>
                                     </SidebarMenuSubItem>
@@ -253,6 +381,7 @@ export function PlatformSidebar() {
                         to={item.to}
                         label={item.label}
                         icon={item.icon}
+                        isCrown={item.isCrown}
                       />
                     );
                   })}

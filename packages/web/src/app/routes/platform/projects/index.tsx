@@ -1,3 +1,4 @@
+import { isNil } from '@activepieces/core-utils';
 import { ProjectType, ProjectWithLimits } from '@activepieces/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ColumnDef } from '@tanstack/react-table';
@@ -41,6 +42,7 @@ import {
 import { PlatformAdminProjectAlertSubscriptionBulkActions } from '@/features/projects/components/platform-admin-project-alert-subscription-bulk-actions';
 import { platformHooks } from '@/hooks/platform-hooks';
 import { formatUtils } from '@/lib/format-utils';
+import { cn } from '@/lib/utils';
 import { validationUtils } from '@/lib/validation-utils';
 
 import { projectsTableColumns } from './columns';
@@ -361,6 +363,15 @@ export default function ProjectsPage() {
     },
   ];
 
+  const limit = platform.plan.billedTeamProjectsLimit;
+  const teamProjectsUsed = allProjects.filter(
+    (p) => p.type === ProjectType.TEAM,
+  ).length;
+  const hasLimit = !isNil(limit) && limit > 0;
+  const usedPercent = hasLimit ? Math.min(100, Math.round((teamProjectsUsed / limit!) * 100)) : 0;
+  const isNearLimit = hasLimit && usedPercent >= 80;
+  const isAtLimit = hasLimit && teamProjectsUsed >= limit!;
+
   return (
     <LockedFeatureGuard
       featureKey="PROJECTS"
@@ -376,6 +387,56 @@ export default function ProjectsPage() {
           title={t('Projects')}
           description={t('Manage your automation projects')}
         />
+        {hasLimit && (
+          <div className="px-6 pb-2">
+            <div
+              className={cn(
+                'flex flex-col gap-2 rounded-lg border p-4',
+                isAtLimit
+                  ? 'border-destructive/40 bg-destructive/5'
+                  : isNearLimit
+                  ? 'border-warning/40 bg-warning/5'
+                  : 'border-border bg-muted/30',
+              )}
+            >
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">{t('Team Projects')}</span>
+                <span
+                  className={cn(
+                    'font-semibold tabular-nums',
+                    isAtLimit
+                      ? 'text-destructive'
+                      : isNearLimit
+                      ? 'text-warning'
+                      : 'text-foreground',
+                  )}
+                >
+                  {teamProjectsUsed} / {limit}
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all duration-500',
+                    isAtLimit
+                      ? 'bg-destructive'
+                      : isNearLimit
+                      ? 'bg-warning'
+                      : 'bg-primary',
+                  )}
+                  style={{ width: `${usedPercent}%` }}
+                />
+              </div>
+              {isAtLimit && (
+                <p className="text-xs text-destructive">
+                  {t(
+                    'You have reached your team project limit. Upgrade your plan to create more.',
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
         <div className="px-6 pt-4">
           <Item variant="outline">
             <ItemMedia variant="icon">

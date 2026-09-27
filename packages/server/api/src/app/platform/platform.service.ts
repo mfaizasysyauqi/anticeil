@@ -378,13 +378,14 @@ async function getBillingEnforced(log: FastifyBaseLogger, platformId: PlatformId
 }
 
 async function getPlan(log: FastifyBaseLogger, platform: PlatformWithoutFederatedAuth): Promise<PlatformPlanLimits> {
-    const edition = system.getEdition()
-    if (edition === ApEdition.COMMUNITY) {
+    try {
+        return await platformPlanService(log).getOrCreateForPlatform(platform.id)
+    } catch (e) {
+        log.warn({ error: e, platformId: platform.id }, 'Fallback to default plan')
         return {
             ...OPEN_SOURCE_PLAN,
         }
     }
-    return platformPlanService(log).getOrCreateForPlatform(platform.id)
 }
 
 function stripFederatedAuth(platform: Platform): PlatformWithoutFederatedAuth {
