@@ -222,6 +222,7 @@ export function MobilePrimaryRailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="left"
+        hideCloseButton
         className="w-72 max-w-[85vw] p-0 bg-sidebar border-r border-sidebar-border flex flex-col h-full overflow-hidden"
       >
         <div className="flex h-full w-full flex-col overflow-y-auto py-3">

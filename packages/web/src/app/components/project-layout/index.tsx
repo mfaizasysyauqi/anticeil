@@ -145,7 +145,7 @@ function ProjectDashboardLayoutInner({
   const { data: currentUser } = userHooks.useCurrentUser();
 
   return (
-    <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-svh w-full overflow-hidden">
       {!isEmbedded && (
         <>
           <PrimaryRail />
@@ -158,7 +158,7 @@ function ProjectDashboardLayoutInner({
 
       {/* Mobile / Tablet Top Navigation Bar (screens < 1024px) */}
       {!isEmbedded && (
-        <header className="flex lg:hidden items-center justify-between h-13 px-3 bg-sidebar border-b border-sidebar-border shrink-0">
+        <header className="sticky top-0 z-30 flex lg:hidden items-center justify-between h-13 px-3 bg-sidebar border-b border-sidebar-border shrink-0 w-full">
           <div className="flex items-center gap-2 min-w-0">
             <Button
               variant="ghost"
@@ -188,19 +188,10 @@ function ProjectDashboardLayoutInner({
               size="icon"
               onClick={() => setSearchOpen(true)}
               aria-label="Search"
-              className="size-8 rounded-full text-sidebar-foreground/80 hover:bg-sidebar-accent"
+              className="size-8 rounded-full text-sidebar-foreground/80 hover:bg-sidebar-accent cursor-pointer"
             >
               <Search className="size-4" />
             </Button>
-            <div className="cursor-pointer" onClick={() => setMobileNavOpen(true)}>
-              <UserAvatar
-                name={currentUser?.firstName ?? ''}
-                email={currentUser?.email ?? ''}
-                imageUrl={currentUser?.imageUrl}
-                size={28}
-                disableTooltip={true}
-              />
-            </div>
           </div>
         </header>
       )}
@@ -208,19 +199,19 @@ function ProjectDashboardLayoutInner({
       <SidebarProvider
         defaultOpen={false}
         hoverMode={!searchOpen}
-        className="flex-1 min-w-0 w-auto will-change-transform"
+        className="flex-1 min-w-0 w-full h-full min-h-0 will-change-transform"
       >
-        <SidebarInset className="flex flex-col h-full overflow-hidden bg-sidebar">
+        <SidebarInset className="flex flex-col h-full flex-1 min-h-0 overflow-hidden bg-sidebar">
           <div
             className={cn(
-              'flex-1 flex flex-col overflow-hidden',
+              'flex-1 flex flex-col min-h-0 overflow-hidden',
               !isEmbedded && 'p-0 sm:pr-2 sm:pt-2 sm:pb-2 lg:pr-2 lg:pt-3 lg:pb-3',
             )}
           >
             <div
               id="dashboard-content-container"
               className={cn(
-                'relative flex flex-col h-full bg-background overflow-clip',
+                'relative flex flex-col h-full flex-1 min-h-0 bg-background overflow-clip',
                 !isEmbedded &&
                   'rounded-none sm:rounded-xl shadow-[2px_0px_4px_-2px_rgba(0,0,0,0.05),0px_2px_4px_-2px_rgba(0,0,0,0.05)] border-0 sm:border',
               )}
@@ -228,7 +219,7 @@ function ProjectDashboardLayoutInner({
               {!hideHeader && (
                 <ProjectDashboardLayoutHeader key={currentProjectId} />
               )}
-              <div className="flex-1 overflow-auto">{children}</div>
+              <div className="flex-1 min-h-0 overflow-auto">{children}</div>
             </div>
           </div>
         </SidebarInset>
