@@ -199,8 +199,17 @@ export const midtransBillingProvider = (log: FastifyBaseLogger): BillingProvider
             const key = getCreditsUsageKey(params.platformId, currentMonth)
             const current = (await distributedStore.get<number>(key)) ?? 0
             const added = Math.max(1, Math.round(params.value || 1))
-            await distributedStore.put(key, current + added, 60 * 60 * 24 * 60)
-            log.info({ platformId: params.platformId, value: added, newTotal: current + added }, '[MidtransBilling] Tracked AI/Automation credits')
+            const newTotal = current + added
+            await distributedStore.put(key, newTotal, 60 * 60 * 24 * 60)
+
+            const platformPlan = await platformPlanService(log).getOrCreateForPlatform(params.platformId)
+            const planKey = (platformPlan?.plan ?? 'free').toLowerCase()
+            const isTeam = planKey.includes('team')
+            const isPlus = planKey.includes('plus')
+            const limit = platformPlan?.includedCredits ?? (isTeam ? 50000 : (isPlus ? 10000 : 1000))
+            const remaining = Math.max(0, limit - newTotal)
+
+            log.info({ platformId: params.platformId, value: added, newTotal, remaining }, '[MidtransBilling] Tracked AI/Automation credits')
         }
     },
     ensureEnrolled: async () => {
@@ -273,7 +282,10 @@ export const midtransBillingProvider = (log: FastifyBaseLogger): BillingProvider
             appSumo: null,
         }
     },
-    getCreditUsage: async () => {
-        return { total: 0, byProject: [] }
+    getCreditUsage: async ({ platformId }: { platformId: string }) => {
+        const currentMonth = apDayjs().format('YYYY-MM')
+        const key = getCreditsUsageKey(platformId, currentMonth)
+        const usage = (await distributedStore.get<number>(key)) ?? 0
+        return { total: usage, byProject: [] }
     },
 })
