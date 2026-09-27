@@ -249,18 +249,18 @@ function PlanColumn({
         <p className="text-sm text-muted-foreground">{t(entry.blurb)}</p>
       </div>
 
-      <div className="flex min-h-[3.25rem] flex-col gap-1">
+      <div className="flex min-h-[3.25rem] flex-col gap-1 min-w-0">
         {!isNil(pricing) && (
           <>
-            <div className="flex items-center gap-2">
-              <span className="text-3xl font-bold">{pricing.amount}</span>
+            <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+              <span className="text-2xl font-bold leading-tight break-all">{pricing.amount}</span>
               {!isNil(pricing.suffix) && (
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-muted-foreground shrink-0">
                   {pricing.suffix}
                 </span>
               )}
               {!isNil(pricing.freeMonths) && (
-                <Badge variant="accent" className="rounded-sm">
+                <Badge variant="accent" className="rounded-sm shrink-0">
                   {t(
                     '{count, plural, =1 {1 free month} other {# free months}}',
                     {
@@ -271,7 +271,7 @@ function PlanColumn({
               )}
             </div>
             {!isNil(pricing.annualNote) && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground break-words">
                 {pricing.annualNote}
               </span>
             )}
