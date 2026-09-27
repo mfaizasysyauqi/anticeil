@@ -216,6 +216,8 @@ function PlanColumn({
   const isFree = entry.key === 'free';
   const isEnterprise = entry.key === 'enterprise';
   const isCurrent = !isNil(apiPlan) && apiPlan.id === currentPlanId;
+  const isOnPaidPlan =
+    !isNil(currentPlanId) && currentPlanId !== planSelectorUtils.FREE_PLAN_ID;
   const chargeAmount =
     pricing?.amount ??
     (!isNil(apiPlan?.price)
