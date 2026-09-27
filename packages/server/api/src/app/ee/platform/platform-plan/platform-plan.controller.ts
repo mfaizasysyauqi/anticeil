@@ -146,7 +146,7 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
                         mcpsEnabled: true,
                         billedTeamProjectsLimit: isTeam ? null : 1,
                         includedCredits: isTeam ? 50000 : 10000,
-                        includedSeats: isTeam ? 25 : 5,
+                        usersLimit: isTeam ? 25 : 5,
                         analyticsEnabled: true,
                         customRolesEnabled: isTeam,
                         projectRolesEnabled: isTeam,

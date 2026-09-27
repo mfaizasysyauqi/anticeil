@@ -87,8 +87,8 @@ export const midtransBillingProvider = (log: FastifyBaseLogger): BillingProvider
             const isPlus = planKey.includes('plus')
 
             const planName = isTeam ? 'Team' : (isPlus ? 'Plus' : 'Free')
-            const nextBillingAmount = isTeam ? 2999000 : (isPlus ? 299000 : 0)
-            const includedSeats = platformPlan?.includedSeats ?? (isTeam ? 25 : (isPlus ? 5 : 1))
+            const nextBillingAmount = isTeam ? 2990000 : (isPlus ? 299000 : 0)
+            const includedSeats = platformPlan?.usersLimit ?? (isTeam ? 25 : (isPlus ? 5 : 1))
 
             return {
                 startDate: apDayjs().startOf('month').toISOString(),
