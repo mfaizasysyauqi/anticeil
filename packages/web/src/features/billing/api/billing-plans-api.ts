@@ -61,6 +61,12 @@ export const platformBillingApi = {
       params,
     );
   },
+  switchPlan(params: { plan: string }) {
+    return api.post<{ success: boolean; plan: string }>(
+      '/v1/platform-billing/switch-plan',
+      params,
+    );
+  },
   getProjectsUsage(params: {
     startDate?: string;
     endDate?: string;

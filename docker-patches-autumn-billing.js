@@ -191,6 +191,10 @@ const autumnBillingProvider = (log) => ({
         await autumn_utils_1.autumnUtils.ensureFreeLegacyComped(log, platformId);
     },
     refreshEntitlements: async (platformId) => {
+        const platformPlan = await (0, platform_plan_service_1.platformPlanService)(log).getOrCreateForPlatform(platformId);
+        if (platformPlan && platformPlan.plan && platformPlan.plan !== 'free') {
+            return;
+        }
         await autumn_utils_1.autumnUtils.refreshEntitlements(log, platformId);
     },
     applyAppSumoPlan: async ({ platformId, action }) => {
@@ -541,11 +545,12 @@ async function fetchBillingOverview(log, platformId) {
     if ((0, core_utils_1.isNil)(client)) {
         const platformPlan = await (0, platform_plan_service_1.platformPlanService)(log).getOrCreateForPlatform(platformId);
         const planKey = (platformPlan?.plan ?? 'free').toLowerCase();
-        const isTeam = planKey.includes('team');
-        const isPlus = planKey.includes('plus');
-        const planName = isTeam ? 'Team' : (isPlus ? 'Plus' : 'Free');
-        const nextBillingAmount = isTeam ? 2999000 : (isPlus ? 299000 : 0);
-        const includedSeats = platformPlan?.includedSeats ?? (isTeam ? 25 : (isPlus ? 5 : 1));
+        const isEnterprise = planKey.includes('enterprise');
+        const isTeam = planKey.includes('team') || isEnterprise;
+        const isPlus = planKey.includes('plus') || isTeam;
+        const planName = isEnterprise ? 'Enterprise' : (isTeam ? 'Team' : (isPlus ? 'Plus' : 'Free'));
+        const nextBillingAmount = isEnterprise ? 0 : (isTeam ? 2990000 : (isPlus ? 299000 : 0));
+        const includedSeats = platformPlan?.usersLimit ?? (isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)));
 
         return {
             startDate: monthStart,

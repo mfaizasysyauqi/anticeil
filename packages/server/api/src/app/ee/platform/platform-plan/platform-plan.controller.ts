@@ -121,6 +121,39 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         })
     })
 
+    app.post('/switch-plan', { config: { allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE] } }, async (request) => {
+        const platformId = request.principal.platform.id
+        const body = request.body as { plan?: string }
+        const planName = (body?.plan || 'enterprise').toLowerCase()
+        const isEnterprise = planName === 'enterprise'
+        const isTeam = planName === 'team' || isEnterprise
+        const isPlus = planName === 'plus' || isTeam
+
+        await platformPlanRepo().update({ platformId }, {
+            plan: planName,
+            agentsEnabled: true,
+            aiProvidersEnabled: true,
+            mcpsEnabled: true,
+            billedTeamProjectsLimit: isTeam ? null : 1,
+            includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
+            usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
+            analyticsEnabled: true,
+            customRolesEnabled: isTeam,
+            projectRolesEnabled: true,
+            ssoEnabled: isTeam,
+            globalConnectionsEnabled: isTeam,
+            auditLogEnabled: isTeam,
+            secretManagersEnabled: true,
+            customAppearanceEnabled: true,
+            managePiecesEnabled: true,
+            manageTemplatesEnabled: true,
+            embeddingEnabled: isTeam,
+        })
+        await distributedStore.delete(getBillingOverviewKey(platformId))
+        request.log.info({ platformId, planName }, 'Plan switched successfully')
+        return { success: true, plan: planName }
+    })
+
     app.post('/midtrans-webhook', { config: { allowedPrincipals: [PrincipalType.UNKNOWN, PrincipalType.SERVICE] } }, async (request, reply) => {
         const body = request.body as Record<string, unknown>
         const orderId = body?.order_id as string | undefined
@@ -149,11 +182,17 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
                         usersLimit: isTeam ? 25 : 5,
                         analyticsEnabled: true,
                         customRolesEnabled: isTeam,
-                        projectRolesEnabled: isTeam,
+                        projectRolesEnabled: true,
                         ssoEnabled: isTeam,
                         globalConnectionsEnabled: isTeam,
                         auditLogEnabled: isTeam,
+                        secretManagersEnabled: true,
+                        customAppearanceEnabled: true,
+                        managePiecesEnabled: true,
+                        manageTemplatesEnabled: true,
+                        embeddingEnabled: isTeam,
                     })
+                    await distributedStore.delete(getBillingOverviewKey(platform.id))
                     request.log.info({ platformId: platform.id, planName }, 'Midtrans plan upgraded successfully')
                 }
             }

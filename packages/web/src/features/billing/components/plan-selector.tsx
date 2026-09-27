@@ -1,8 +1,10 @@
 import { isNil } from '@activepieces/core-utils';
 import { PurchasablePlan } from '@activepieces/shared';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { t } from 'i18next';
 import { Check, Info } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,6 +18,7 @@ import {
 import { platformHooks } from '@/hooks/platform-hooks';
 import { cn } from '@/lib/utils';
 
+import { platformBillingApi } from '../api/billing-plans-api';
 import { billingQueries } from '../hooks/billing-hooks';
 import { useCancelSubscriptionGuard } from '../hooks/use-cancel-subscription-guard';
 import { usePlanSeatFloorGuard } from '../hooks/use-plan-seat-floor-guard';
@@ -32,6 +35,7 @@ import {
 } from './plan-selector-utils';
 
 export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
+  const queryClient = useQueryClient();
   const { platform } = platformHooks.useCurrentPlatform();
   const { data: plans, isLoading } = billingQueries.useListPlans(
     platform.id,
@@ -47,6 +51,25 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
     platform.id,
     enabled,
   );
+
+  const { mutate: switchPlan, isPending: isSwitching } = useMutation({
+    mutationFn: (plan: string) => platformBillingApi.switchPlan({ plan }),
+    onSuccess: async (res) => {
+      toast.success(
+        t('Plan {plan} activated successfully! All features unlocked.', {
+          plan: res.plan,
+        }),
+      );
+      await queryClient.invalidateQueries();
+      onSelected?.();
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    },
+    onError: () => {
+      toast.error(t('Failed to switch plan. Please try again.'));
+    },
+  });
 
   const currentPlanId = subscription?.plan.plan ?? platform.plan.plan;
   const hasScheduledChange = !isNil(subscription?.cancelAt);
@@ -150,9 +173,11 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
               })}
               currentPlanId={currentPlanId}
               hasScheduledChange={hasScheduledChange}
-              isPending={false}
+              isPending={isSwitching}
               checkoutPlanId={undefined}
               onCheckout={handleCheckout}
+              onSwitchPlan={switchPlan}
+              isSwitching={isSwitching}
               onKeepPlan={() => setIsKeepPlanOpen(true)}
               onDowngrade={() => setIsCancelOpen(true)}
             />
@@ -210,12 +235,17 @@ function PlanColumn({
   isPending,
   checkoutPlanId,
   onCheckout,
+  onSwitchPlan,
+  isSwitching,
   onKeepPlan,
   onDowngrade,
 }: PlanColumnProps) {
   const isFree = entry.key === 'free';
   const isEnterprise = entry.key === 'enterprise';
-  const isCurrent = !isNil(apiPlan) && apiPlan.id === currentPlanId;
+  const isCurrent =
+    (!isNil(apiPlan) && apiPlan.id === currentPlanId) ||
+    (isEnterprise && currentPlanId === 'enterprise') ||
+    (isFree && (currentPlanId === 'free' || isNil(currentPlanId)));
   const isOnPaidPlan =
     !isNil(currentPlanId) && currentPlanId !== planSelectorUtils.FREE_PLAN_ID;
   const chargeAmount =
@@ -294,6 +324,8 @@ function PlanColumn({
         isPending={isPending}
         checkoutPlanId={checkoutPlanId}
         onCheckout={handleCtaCheckout}
+        onSwitchPlan={onSwitchPlan}
+        isSwitching={isSwitching}
         onKeepPlan={onKeepPlan}
         onDowngrade={onDowngrade}
       />
@@ -338,23 +370,31 @@ function PlanCta({
   isPending,
   checkoutPlanId,
   onCheckout,
+  onSwitchPlan,
+  isSwitching,
   onKeepPlan,
   onDowngrade,
 }: PlanCtaProps) {
   if (isEnterprise) {
+    if (isCurrent) {
+      return (
+        <Button
+          variant="outline"
+          className="w-full border-border/80 bg-muted/40 text-muted-foreground font-medium disabled:opacity-75 disabled:cursor-not-allowed"
+          disabled
+        >
+          {t('Current plan')}
+        </Button>
+      );
+    }
     return (
       <Button
         variant="default"
         className="w-full bg-foreground text-background hover:bg-foreground/90 font-medium shadow-xs"
-        asChild
+        onClick={() => onSwitchPlan('enterprise')}
+        disabled={isSwitching}
       >
-        <a
-          href={planSelectorUtils.SALES_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {t('Talk to sales')}
-        </a>
+        {isSwitching ? t('Activating...') : t('Switch to Enterprise (Unlock All)')}
       </Button>
     );
   }
@@ -394,9 +434,10 @@ function PlanCta({
       <Button
         variant="outline"
         className="w-full border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 font-medium transition-colors"
-        onClick={onDowngrade}
+        onClick={() => onSwitchPlan('free')}
+        disabled={isSwitching}
       >
-        {t('Downgrade')}
+        {isSwitching ? t('Switching...') : t('Downgrade to Free')}
       </Button>
     );
   }
@@ -414,7 +455,7 @@ function PlanCta({
           ? 'font-semibold shadow-xs'
           : 'border border-border/80 text-foreground bg-secondary/90 hover:bg-secondary hover:border-foreground/30 shadow-2xs',
       )}
-      disabled={isPending}
+      disabled={isPending || isSwitching}
       loading={apiPlan.id === checkoutPlanId}
       onClick={() => onCheckout(apiPlan.id, action)}
     >
@@ -437,6 +478,8 @@ type PlanColumnProps = {
   isPending: boolean;
   checkoutPlanId: string | undefined;
   onCheckout: (intent: CheckoutIntent) => void;
+  onSwitchPlan: (plan: string) => void;
+  isSwitching: boolean;
   onKeepPlan: () => void;
   onDowngrade: () => void;
 };
@@ -453,6 +496,8 @@ type PlanCtaProps = {
   isPending: boolean;
   checkoutPlanId: string | undefined;
   onCheckout: (planId: string, action: CheckoutAction) => void;
+  onSwitchPlan: (plan: string) => void;
+  isSwitching: boolean;
   onKeepPlan: () => void;
   onDowngrade: () => void;
 };
