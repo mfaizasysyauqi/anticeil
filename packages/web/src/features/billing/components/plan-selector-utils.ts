@@ -39,7 +39,7 @@ function toIdrPrice(
     return interval === ANNUAL_INTERVAL ? 2990000 : 299000;
   }
   if (planKey === 'team') {
-    return interval === ANNUAL_INTERVAL ? 29990000 : 2999000;
+    return interval === ANNUAL_INTERVAL ? 29900000 : 2990000;
   }
   return price * 15000;
 }
@@ -48,7 +48,7 @@ export function formatIdr(amount: number): string {
   if (amount === 0) return 'Rp 0';
   if (amount >= 1_000_000) {
     const m = amount / 1_000_000;
-    return `Rp ${m % 1 === 0 ? m : m.toFixed(1).replace(/\.?0+$/, '')}M`;
+    return `Rp ${m % 1 === 0 ? m : m.toFixed(2).replace(/\.?0+$/, '')}M`;
   }
   if (amount >= 1_000) {
     const k = amount / 1_000;
