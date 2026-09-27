@@ -216,10 +216,11 @@ function PlanColumn({
   const isFree = entry.key === 'free';
   const isEnterprise = entry.key === 'enterprise';
   const isCurrent = !isNil(apiPlan) && apiPlan.id === currentPlanId;
-  const isOnPaidPlan =
-    !isNil(currentPlanId) && currentPlanId !== planSelectorUtils.FREE_PLAN_ID;
-
-  const chargeAmount = pricing?.amount ?? (isNil(apiPlan?.price) ? '' : `Rp ${apiPlan.price.toLocaleString('id-ID')}`);
+  const chargeAmount =
+    pricing?.amount ??
+    (!isNil(apiPlan?.price)
+      ? planSelectorUtils.formatIdr(apiPlan.price)
+      : '');
   const features = planSelectorUtils.resolveFeatures({ entry, apiPlan });
   const handleCtaCheckout = (planId: string, action: CheckoutAction) =>
     onCheckout({
@@ -233,7 +234,7 @@ function PlanColumn({
   return (
     <div
       className={cn(
-        'flex flex-col gap-4 rounded-xl border p-4 min-w-0 overflow-hidden',
+        'flex flex-col gap-4 rounded-xl border p-4 min-w-0 w-full overflow-hidden',
         entry.highlighted && 'border-primary shadow-sm',
       )}
     >
@@ -252,7 +253,7 @@ function PlanColumn({
       <div className="flex min-h-[3.25rem] flex-col gap-1 min-w-0">
         {!isNil(pricing) && (
           <>
-            <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+            <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 min-w-0">
               <span className="text-2xl font-bold leading-tight break-all">{pricing.amount}</span>
               {!isNil(pricing.suffix) && (
                 <span className="text-sm text-muted-foreground shrink-0">
@@ -260,7 +261,7 @@ function PlanColumn({
                 </span>
               )}
               {!isNil(pricing.freeMonths) && (
-                <Badge variant="accent" className="rounded-sm shrink-0">
+                <Badge variant="accent" className="rounded-sm shrink-0 whitespace-nowrap text-xs">
                   {t(
                     '{count, plural, =1 {1 free month} other {# free months}}',
                     {
@@ -295,16 +296,16 @@ function PlanColumn({
         onDowngrade={onDowngrade}
       />
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 min-w-0">
         <span className="text-sm font-medium">{t(entry.featuresHeader)}</span>
-        <ul className="flex flex-col gap-2.5">
+        <ul className="flex flex-col gap-2.5 min-w-0">
           {features.map((feature) => (
             <li
               key={feature.label}
-              className="flex items-center gap-2 text-sm text-foreground"
+              className="flex items-center gap-2 text-sm text-foreground min-w-0"
             >
               <Check className="size-4 shrink-0 text-primary" />
-              <span className="flex-1">{t(feature.label)}</span>
+              <span className="flex-1 min-w-0 break-words">{t(feature.label)}</span>
               {!isNil(feature.tooltip) && (
                 <Tooltip>
                   <TooltipTrigger asChild>

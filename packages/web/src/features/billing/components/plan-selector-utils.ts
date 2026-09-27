@@ -44,8 +44,17 @@ function toIdrPrice(
   return price * 15000;
 }
 
-function formatIdr(amount: number): string {
-  return `Rp ${amount.toLocaleString('id-ID')}`;
+export function formatIdr(amount: number): string {
+  if (amount === 0) return 'Rp 0';
+  if (amount >= 1_000_000) {
+    const m = amount / 1_000_000;
+    return `Rp ${m % 1 === 0 ? m : m.toFixed(1).replace(/\.?0+$/, '')}M`;
+  }
+  if (amount >= 1_000) {
+    const k = amount / 1_000;
+    return `Rp ${k % 1 === 0 ? k : k.toFixed(1).replace(/\.?0+$/, '')}k`;
+  }
+  return `Rp ${amount}`;
 }
 
 function computePricing({
@@ -286,6 +295,7 @@ export const planSelectorUtils = {
   FREE_PLAN_ID,
   ANNUAL_INTERVAL,
   SALES_URL,
+  formatIdr,
 };
 
 export const DROP_TO_FREE_WARNING =
