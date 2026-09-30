@@ -197,13 +197,195 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
         </Tabs>
       )}
 
-      {/* Comparison table */}
-      <div className="overflow-x-auto rounded-xl border border-border/70">
-        <table className="w-full min-w-[620px] border-collapse">
+      {/* Mobile & Tablet View (< 1024px): Responsive Cards */}
+      <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {catalogEntries.map((entry, colIdx) => {
+          const apiPlan =
+            entry.key === 'enterprise'
+              ? undefined
+              : planSelectorUtils.findPurchasablePlan({
+                  plans: allPlans,
+                  key: entry.key,
+                  cycle: entry.key === 'free' ? 'month' : billingCycle,
+                });
+          const monthlySibling =
+            entry.key === 'enterprise' || entry.key === 'free'
+              ? undefined
+              : planSelectorUtils.findPurchasablePlan({
+                  plans: allPlans,
+                  key: entry.key,
+                  cycle: 'month',
+                });
+          const pricing = planSelectorUtils.computePricing({
+            entry,
+            apiPlan,
+            monthlySibling,
+          });
+          const isCurrent =
+            (!isNil(apiPlan) && apiPlan.id === currentPlanId) ||
+            (entry.key === 'enterprise' && currentPlanId === 'enterprise') ||
+            (entry.key === 'free' &&
+              (currentPlanId === 'free' || isNil(currentPlanId)));
+
+          // Get features for this plan from comparison rows
+          const planFeatures = COMPARISON_ROWS.map((row) => {
+            // Find value corresponding to this catalog entry
+            const val = row.values[colIdx + (catalogEntries.length === 3 ? 1 : 0)] ?? false;
+            return {
+              label: row.label,
+              tooltip: row.tooltip,
+              value: val,
+            };
+          }).filter((f) => f.value !== false);
+
+          return (
+            <div
+              key={entry.key}
+              className={cn(
+                'flex flex-col justify-between rounded-xl border bg-card p-5 transition-all shadow-xs',
+                entry.highlighted
+                  ? 'border-primary/50 shadow-md ring-1 ring-primary/20 bg-primary/[0.01]'
+                  : 'border-border/80',
+              )}
+            >
+              <div className="flex flex-col gap-4">
+                {/* Card Header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3
+                      className={cn(
+                        'text-lg font-bold',
+                        entry.highlighted && 'text-primary',
+                      )}
+                    >
+                      {t(entry.name)}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                      {t(entry.blurb)}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    {entry.highlighted && (
+                      <Badge
+                        variant="default"
+                        className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                      >
+                        {t('Popular')}
+                      </Badge>
+                    )}
+                    {isCurrent && (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] px-2 py-0.5 rounded-full text-muted-foreground bg-muted/50"
+                      >
+                        {t('Current')}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* Pricing Display */}
+                <div className="flex flex-col gap-1 py-1">
+                  {!isNil(pricing) ? (
+                    <>
+                      <div className="flex flex-wrap items-baseline gap-1.5">
+                        <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                          {pricing.amount}
+                        </span>
+                        {!isNil(pricing.suffix) && (
+                          <span className="text-sm font-medium text-muted-foreground">
+                            {pricing.suffix}
+                          </span>
+                        )}
+                        {!isNil(pricing.freeMonths) && (
+                          <Badge
+                            variant="accent"
+                            className="rounded-full text-[10px] px-2 py-0.5 ml-1"
+                          >
+                            {t(
+                              '{count, plural, =1 {1 free month} other {# free months}}',
+                              { count: pricing.freeMonths },
+                            )}
+                          </Badge>
+                        )}
+                      </div>
+                      {!isNil(pricing.annualNote) && (
+                        <span className="text-xs text-muted-foreground">
+                          {pricing.annualNote}
+                        </span>
+                      )}
+                    </>
+                  ) : entry.key === 'enterprise' ? (
+                    <span className="text-lg font-bold text-muted-foreground">
+                      {t('Custom pricing')}
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* CTA Button */}
+                <PlanCta
+                  isFree={entry.key === 'free'}
+                  isEnterprise={entry.key === 'enterprise'}
+                  isCurrent={isCurrent}
+                  isOnPaidPlan={
+                    !isNil(currentPlanId) &&
+                    currentPlanId !== planSelectorUtils.FREE_PLAN_ID
+                  }
+                  hasScheduledChange={hasScheduledChange}
+                  highlighted={entry.highlighted}
+                  apiPlan={apiPlan}
+                  currentPlanId={currentPlanId}
+                  isPending={isSwitching}
+                  checkoutPlanId={undefined}
+                  onCheckout={(planId, action) =>
+                    handleCheckout({
+                      planId,
+                      action,
+                      planName: t(entry.name),
+                      priceAmount: pricing?.amount ?? '',
+                      features: [],
+                    })
+                  }
+                  onSwitchPlan={switchPlan}
+                  isSwitching={isSwitching}
+                  onKeepPlan={() => setIsKeepPlanOpen(true)}
+                  onDowngrade={() => setIsCancelOpen(true)}
+                />
+
+                {/* Features List */}
+                <div className="pt-3 border-t border-border/60">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2.5">
+                    {t(entry.featuresHeader ?? "What's included:")}
+                  </span>
+                  <ul className="space-y-2">
+                    {planFeatures.map((feat) => (
+                      <li
+                        key={feat.label}
+                        className="flex items-center gap-2 text-xs sm:text-sm text-foreground/90"
+                      >
+                        <Check className="size-4 text-primary shrink-0" />
+                        <span className="truncate">
+                          {typeof feat.value === 'string'
+                            ? `${feat.value} ${t(feat.label).toLowerCase()}`
+                            : t(feat.label)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop View (>= 1024px): Full Comparison Table */}
+      <div className="hidden lg:block overflow-x-auto rounded-xl border border-border/70">
+        <table className="w-full border-collapse">
           {/* Plan headers */}
           <thead>
             <tr>
-              <th className="w-[30%] p-0" />
+              <th className="w-[28%] p-0" />
               {catalogEntries.map((entry) => {
                 const apiPlan =
                   entry.key === 'enterprise'
@@ -370,8 +552,8 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
                 </td>
 
                 {/* Value cells */}
-                {row.values.map((val, colIdx) => {
-                  const entry = catalogEntries[colIdx];
+                {catalogEntries.map((entry, colIdx) => {
+                  const val = row.values[colIdx + (catalogEntries.length === 3 ? 1 : 0)];
                   return (
                     <td
                       key={colIdx}
