@@ -17,9 +17,11 @@ export function PlatformLayout({ children }: { children: React.ReactNode }) {
   return (
     <AllowOnlyLoggedInUserOnlyGuard>
       <GlobalSearchProvider>
-        <PlatformLayoutInner edition={edition}>
-          {children}
-        </PlatformLayoutInner>
+        <SidebarProvider open={true} className="h-svh w-full overflow-hidden flex flex-col lg:flex-row">
+          <PlatformLayoutInner edition={edition}>
+            {children}
+          </PlatformLayoutInner>
+        </SidebarProvider>
         {edition !== ApEdition.COMMUNITY && <ManagePlanDialog />}
       </GlobalSearchProvider>
     </AllowOnlyLoggedInUserOnlyGuard>
@@ -40,10 +42,8 @@ function PlatformLayoutInner({
   return (
     <div className="flex flex-col lg:flex-row h-svh w-full overflow-hidden">
       {/* Desktop sidebar — hidden on mobile/tablet */}
-      <div className="hidden lg:flex">
-        <SidebarProvider open={true}>
-          <PlatformSidebar />
-        </SidebarProvider>
+      <div className="hidden lg:flex shrink-0">
+        <PlatformSidebar />
       </div>
 
       {/* Mobile/tablet drawer */}
