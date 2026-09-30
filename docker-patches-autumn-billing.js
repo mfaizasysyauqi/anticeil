@@ -421,9 +421,10 @@ async function sendTrackEvent(params) {
 
                 const platformPlan = await (0, platform_plan_service_1.platformPlanService)(log).getOrCreateForPlatform(platformId);
                 const planKey = (platformPlan?.plan ?? 'free').toLowerCase();
+                const isEnterprise = planKey.includes('enterprise');
                 const isTeam = planKey.includes('team');
                 const isPlus = planKey.includes('plus');
-                const limit = platformPlan?.includedCredits ?? (isTeam ? 50000 : (isPlus ? 10000 : 1000));
+                const limit = platformPlan?.includedCredits ?? (isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)));
 
                 const updatedBalance = {
                     featureId: shared_1.ConsumableFeatureId.AP_CREDITS,
@@ -468,16 +469,17 @@ async function readCachedCredits(platformId) {
         autumn_utils_1.autumnUtils.readBalance({ platformId, featureId: shared_1.ConsumableFeatureId.AP_CREDITS }),
         autumn_utils_1.autumnUtils.readBalance({ platformId, featureId: shared_1.ConsumableFeatureId.APP_SUMO_AI_CREDITS }),
     ]);
-    if ((0, core_utils_1.isNil)(credits)) {
-        const system = require('../../../../helper/system/system').system;
-        const platformPlan = await (0, platform_plan_service_1.platformPlanService)(system.globalLogger()).getOrCreateForPlatform(platformId);
-        const planKey = (platformPlan?.plan ?? 'free').toLowerCase();
-        const isTeam = planKey.includes('team');
-        const isPlus = planKey.includes('plus');
-        const limit = platformPlan?.includedCredits ?? (isTeam ? 50000 : (isPlus ? 10000 : 1000));
-        const currentMonth = (0, server_utils_1.apDayjs)().format('YYYY-MM');
-        const usageKey = `anticeil:credits_usage:${platformId}:${currentMonth}`;
-        const currentUsage = (await redis_connections_1.distributedStore.get(usageKey)) ?? 0;
+    const system = require('../../../../helper/system/system').system;
+    const platformPlan = await (0, platform_plan_service_1.platformPlanService)(system.globalLogger()).getOrCreateForPlatform(platformId);
+    const planKey = (platformPlan?.plan ?? 'free').toLowerCase();
+    const isEnterprise = planKey.includes('enterprise');
+    const isTeam = planKey.includes('team');
+    const isPlus = planKey.includes('plus');
+    const limit = platformPlan?.includedCredits ?? (isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)));
+    const currentMonth = (0, server_utils_1.apDayjs)().format('YYYY-MM');
+    const usageKey = `anticeil:credits_usage:${platformId}:${currentMonth}`;
+    const currentUsage = (await redis_connections_1.distributedStore.get(usageKey)) ?? 0;
+    if ((0, core_utils_1.isNil)(credits) || credits.granted !== limit) {
         credits = {
             featureId: shared_1.ConsumableFeatureId.AP_CREDITS,
             granted: limit,

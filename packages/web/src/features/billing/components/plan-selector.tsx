@@ -143,33 +143,38 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
         plan: updatedPlan as any,
       });
 
-      queryClient.setQueryData(
-        PLATFORM_BILLING_SUBSCRIPTION_KEY,
-        (old: any) => {
-          if (!old) return old;
-          return {
-            ...old,
-            plan: {
-              ...old.plan,
-              plan: targetPlanKey,
-            },
-          };
-        },
-      );
+      const planCreditsMap: Record<string, number> = {
+        free: 1000,
+        plus: 10000,
+        team: 50000,
+        enterprise: 1000000,
+      };
+      const newLimit = planCreditsMap[targetPlanKey] ?? 1000;
+
+      const updateData = (old: any) => {
+        if (!old) return old;
+        const used = old.usage?.creditsUsed ?? 0;
+        return {
+          ...old,
+          plan: {
+            ...old.plan,
+            plan: targetPlanKey,
+            includedCredits: newLimit,
+          },
+          usage: {
+            ...old.usage,
+            creditsUsed: used,
+            creditsRemaining: Math.max(0, newLimit - used),
+          },
+        };
+      };
+
+      queryClient.setQueryData(PLATFORM_BILLING_SUBSCRIPTION_KEY, updateData);
 
       if (platform?.id) {
         queryClient.setQueryData(
           billingKeys.platformSubscription(platform.id),
-          (old: any) => {
-            if (!old) return old;
-            return {
-              ...old,
-              plan: {
-                ...old.plan,
-                plan: targetPlanKey,
-              },
-            };
-          },
+          updateData,
         );
       }
 

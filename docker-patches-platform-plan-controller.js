@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.platformPlanController = void 0;
 const core_utils_1 = require("@activepieces/core-utils");
+const server_utils_1 = require("@activepieces/server-utils");
 const shared_1 = require("@activepieces/shared");
 const http_status_codes_1 = require("http-status-codes");
 const zod_1 = require("zod");
@@ -204,7 +205,24 @@ const platformPlanController = async (app) => {
             }
             await redis_connections_1.distributedStore.delete((0, keys_1.getBillingOverviewKey)(platformId));
             await redis_connections_1.distributedStore.delete((0, keys_1.getPlatformPlanNameKey)(platformId));
-            request.log.info({ platformId, planName: planData.plan }, 'Plan switched successfully');
+            await redis_connections_1.distributedStore.delete((0, keys_1.getCreditsBalanceKey)(platformId));
+            await redis_connections_1.distributedStore.delete((0, keys_1.getCustomerStateMissKey)(platformId));
+
+            const currentMonth = (0, server_utils_1.apDayjs)().format('YYYY-MM');
+            const usageKey = `anticeil:credits_usage:${platformId}:${currentMonth}`;
+            const currentUsage = (await redis_connections_1.distributedStore.get(usageKey)) ?? 0;
+            const newBalance = {
+                featureId: shared_1.ConsumableFeatureId.AP_CREDITS,
+                granted: planData.includedCredits,
+                usage: currentUsage,
+                remaining: Math.max(0, planData.includedCredits - currentUsage),
+                unlimited: false,
+                syncedAt: Date.now(),
+                nextResetAt: (0, server_utils_1.apDayjs)().endOf('month').valueOf(),
+            };
+            await redis_connections_1.distributedStore.put((0, keys_1.getCreditsBalanceKey)(platformId), newBalance, 60 * 60);
+
+            request.log.info({ platformId, planName: planData.plan, creditsRemaining: newBalance.remaining }, 'Plan switched successfully');
             return reply.status(200).send({ success: true, plan: planData.plan });
         } catch (err) {
             request.log.error({ err }, 'Failed to switch plan');
@@ -233,7 +251,23 @@ const platformPlanController = async (app) => {
                     await (0, platform_plan_service_1.platformPlanRepo)().update({ platformId: platform.id }, planData);
                     await redis_connections_1.distributedStore.delete((0, keys_1.getBillingOverviewKey)(platform.id));
                     await redis_connections_1.distributedStore.delete((0, keys_1.getPlatformPlanNameKey)(platform.id));
-                    request.log.info({ platformId: platform.id, planName: planData.plan }, 'Midtrans plan upgraded successfully');
+                    await redis_connections_1.distributedStore.delete((0, keys_1.getCreditsBalanceKey)(platform.id));
+                    await redis_connections_1.distributedStore.delete((0, keys_1.getCustomerStateMissKey)(platform.id));
+
+                    const currentMonth = (0, server_utils_1.apDayjs)().format('YYYY-MM');
+                    const usageKey = `anticeil:credits_usage:${platform.id}:${currentMonth}`;
+                    const currentUsage = (await redis_connections_1.distributedStore.get(usageKey)) ?? 0;
+                    const newBalance = {
+                        featureId: shared_1.ConsumableFeatureId.AP_CREDITS,
+                        granted: planData.includedCredits,
+                        usage: currentUsage,
+                        remaining: Math.max(0, planData.includedCredits - currentUsage),
+                        unlimited: false,
+                        syncedAt: Date.now(),
+                        nextResetAt: (0, server_utils_1.apDayjs)().endOf('month').valueOf(),
+                    };
+                    await redis_connections_1.distributedStore.put((0, keys_1.getCreditsBalanceKey)(platform.id), newBalance, 60 * 60);
+                    request.log.info({ platformId: platform.id, planName: planData.plan, creditsRemaining: newBalance.remaining }, 'Midtrans plan upgraded successfully');
                 }
             }
         }
@@ -309,9 +343,21 @@ async function getBillingInformation(log, platformId) {
     const fallbackPlanName = isEnterprise ? 'Enterprise' : (isTeam ? 'Team' : (isPlus ? 'Plus' : 'Free'));
     const displayPlanName = hasPaidLocalPlan ? fallbackPlanName : (autumnPlanName || 'Free');
 
+    const currentCreditsUsed = usageWithCredits.creditsUsed ?? 0;
+    const planCredits = effectivePlan.includedCredits;
+    const consistentCreditsRemaining = (planCredits !== null && planCredits !== undefined)
+        ? Math.max(0, planCredits - currentCreditsUsed)
+        : usageWithCredits.creditsRemaining;
+
+    const coherentUsage = {
+        ...usageWithCredits,
+        creditsUsed: currentCreditsUsed,
+        creditsRemaining: consistentCreditsRemaining,
+    };
+
     return {
         plan: effectivePlan,
-        usage: usageWithCredits,
+        usage: coherentUsage,
         creditsResetInterval: creditsResetInterval || 'month',
         planInterval: planInterval || 'month',
         autumnPlanName: displayPlanName,

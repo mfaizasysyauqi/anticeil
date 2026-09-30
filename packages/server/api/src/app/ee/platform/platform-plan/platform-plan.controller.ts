@@ -1,11 +1,12 @@
 import { SeekPage, tryCatch } from '@activepieces/core-utils'
-import { AdjustUnconsumableFeatureQuantityParams, CancelSubscriptionRequest, CheckoutPlanParamsSchema, CheckoutSessionResponse, ConsumableProductAutoTopupParams, isNil, PlatformBillingInformation, PrincipalType, ProjectCreditUsage, PurchasablePlan, SetupPaymentParams } from '@activepieces/shared'
+import { apDayjs } from '@activepieces/server-utils'
+import { AdjustUnconsumableFeatureQuantityParams, CancelSubscriptionRequest, CheckoutPlanParamsSchema, CheckoutSessionResponse, ConsumableFeatureId, ConsumableProductAutoTopupParams, isNil, PlatformBillingInformation, PrincipalType, ProjectCreditUsage, PurchasablePlan, SetupPaymentParams } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { securityAccess } from '../../../core/security/authorization/fastify-security'
-import { getBillingOverviewKey, getEntitlementsForceRefreshKey, getPlatformPlanNameKey } from '../../../database/redis/keys'
+import { getBillingOverviewKey, getCreditsBalanceKey, getCustomerStateMissKey, getEntitlementsForceRefreshKey, getPlatformPlanNameKey } from '../../../database/redis/keys'
 import { distributedStore } from '../../../database/redis-connections'
 import { billingProvider } from '../../../platform/billing-provider'
 import { platformService } from '../../../platform/platform.service'
@@ -180,7 +181,24 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         })
         await distributedStore.delete(getBillingOverviewKey(platformId))
         await distributedStore.delete(getPlatformPlanNameKey(platformId))
-        request.log.info({ platformId, planName }, 'Plan switched successfully (development mode)')
+        await distributedStore.delete(getCreditsBalanceKey(platformId))
+        await distributedStore.delete(getCustomerStateMissKey(platformId))
+
+        const currentMonth = apDayjs().format('YYYY-MM')
+        const usageKey = `anticeil:credits_usage:${platformId}:${currentMonth}`
+        const currentUsage = (await distributedStore.get<number>(usageKey)) ?? 0
+        const newBalance = {
+            featureId: ConsumableFeatureId.AP_CREDITS,
+            granted: includedCredits,
+            usage: currentUsage,
+            remaining: Math.max(0, includedCredits - currentUsage),
+            unlimited: false,
+            syncedAt: Date.now(),
+            nextResetAt: apDayjs().endOf('month').valueOf(),
+        }
+        await distributedStore.put(getCreditsBalanceKey(platformId), newBalance, 60 * 60)
+
+        request.log.info({ platformId, planName, creditsRemaining: newBalance.remaining }, 'Plan switched successfully (development mode)')
         return { success: true, plan: planName }
     })
 }
@@ -200,9 +218,21 @@ async function getBillingInformation(log: FastifyBaseLogger, platformId: string)
         ? { ...usage, creditsUsed: await fetchUnlimitedCreditsUsed({ log, platformId: platform.id, startDate: billingPeriodStart, endDate: nextBillingDate, fallback: usage.creditsUsed }) }
         : usage
 
+    const currentCreditsUsed = usageWithCredits.creditsUsed ?? 0
+    const planCredits = platformPlan.includedCredits
+    const consistentCreditsRemaining = (planCredits !== null && planCredits !== undefined)
+        ? Math.max(0, planCredits - currentCreditsUsed)
+        : usageWithCredits.creditsRemaining
+
+    const coherentUsage = {
+        ...usageWithCredits,
+        creditsUsed: currentCreditsUsed,
+        creditsRemaining: consistentCreditsRemaining,
+    }
+
     return {
         plan: platformPlan,
-        usage: usageWithCredits,
+        usage: coherentUsage,
         creditsResetInterval,
         planInterval,
         autumnPlanName,
