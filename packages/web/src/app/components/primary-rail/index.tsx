@@ -20,7 +20,6 @@ import {
   LogOut,
   PanelLeftClose,
   Search,
-  Shield,
   SlidersHorizontal,
   SquarePen,
   Unplug,
@@ -188,7 +187,6 @@ export function PrimaryRail() {
               <SidebarUsageLimits />
             </div>
           )}
-          <RailPlatformAdminButton collapsed={collapsed} />
           <RailAccountRow collapsed={collapsed} />
         </div>
       </aside>
@@ -292,7 +290,6 @@ export function MobilePrimaryRailSheet({
             <div className="px-2">
               <SidebarUsageLimits />
             </div>
-            <RailPlatformAdminButton collapsed={false} />
             <RailAccountRow collapsed={false} />
           </div>
         </div>
@@ -432,31 +429,6 @@ function RailHeader({
   );
 }
 
-function RailPlatformAdminButton({ collapsed }: { collapsed: boolean }) {
-  const { embedState } = useEmbedding();
-
-  if (embedState.isEmbedded) {
-    return null;
-  }
-
-  return (
-    <div className={cn('flex flex-col px-2 pb-1', collapsed && 'items-center')}>
-      <div
-        className={cn(
-          'mb-1 h-px shrink-0 bg-sidebar-border',
-          collapsed ? 'w-6' : 'mx-3',
-        )}
-      />
-      <RailNavButton
-        collapsed={collapsed}
-        to="/platform/setup/ai"
-        icon={Shield}
-        label={t('Platform Admin')}
-        isActive={({ pathname }) => pathname.startsWith('/platform')}
-      />
-    </div>
-  );
-}
 
 function RailNavButton({
   collapsed,

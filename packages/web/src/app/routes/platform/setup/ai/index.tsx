@@ -20,7 +20,7 @@ export default function AIProvidersPage() {
         'Set your AI providers so your users enjoy a seamless building experience with our universal AI pieces',
       )}
     >
-      <div className="flex min-h-full w-full max-w-6xl flex-col px-8 py-6">
+      <div className="flex min-h-full w-full flex-col px-8 py-6">
         <ProvidersTab />
       </div>
     </LockedFeatureGuard>
@@ -39,7 +39,7 @@ export function AICapabilitiesPage() {
         'Set your AI providers so your users enjoy a seamless building experience with our universal AI pieces',
       )}
     >
-      <div className="flex min-h-full w-full max-w-6xl flex-col px-8 py-6">
+      <div className="flex min-h-full w-full flex-col px-8 py-6">
         <CapabilitiesTab />
       </div>
     </LockedFeatureGuard>
