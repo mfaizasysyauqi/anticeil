@@ -10,4 +10,7 @@ COPY docker-patches-platform-plan-controller.js /usr/src/app/packages/server/api
 # Layer custom Anticeil frontend build onto official stable Activepieces image
 COPY dist/packages/web/ /usr/src/app/dist/packages/web/
 
+# Layer custom Anticeil prompts onto official image
+COPY packages/server/api/src/assets/prompts/ /usr/src/app/packages/server/api/src/assets/prompts/
+
 
