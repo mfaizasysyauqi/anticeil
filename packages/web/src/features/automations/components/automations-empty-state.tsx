@@ -214,12 +214,10 @@ export const AutomationsEmptyState = ({
   const userHasPermissionToWriteFlow = checkAccess(Permission.WRITE_FLOW);
   const userHasPermissionToWriteTable = checkAccess(Permission.WRITE_TABLE);
 
-  const { platform } = platformHooks.useCurrentPlatform();
-  const isShowingOfficialTemplates = !platform.plan.manageTemplatesEnabled;
-
+  const isShowingOfficialTemplates = true;
   const { templates, isLoading: isLoadingTemplates } =
     templatesHooks.useTemplates(
-      isShowingOfficialTemplates ? TemplateType.OFFICIAL : TemplateType.CUSTOM,
+      TemplateType.OFFICIAL,
     );
 
   const { mutate: createFlow, isPending: isCreateFlowPending } =

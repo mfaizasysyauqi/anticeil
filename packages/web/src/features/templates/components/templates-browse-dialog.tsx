@@ -66,11 +66,8 @@ export const TemplatesBrowseDialog = ({
 
   const [debouncedSearch] = useDebounce(search, 300);
 
-  const { platform } = platformHooks.useCurrentPlatform();
-  const isShowingOfficialTemplates = !platform.plan.manageTemplatesEnabled;
-  const templateType = isShowingOfficialTemplates
-    ? TemplateType.OFFICIAL
-    : TemplateType.CUSTOM;
+  const isShowingOfficialTemplates = true;
+  const templateType = TemplateType.OFFICIAL;
 
   const { data: categories } = useQuery<string[]>({
     queryKey: ['template', 'categories'],

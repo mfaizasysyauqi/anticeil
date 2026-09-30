@@ -25,11 +25,10 @@ import { SelectedCategoryView } from './selected-category-view';
 const TemplatesPage = () => {
   const navigate = useNavigate();
   const { data: templateCategories } = templatesHooks.useTemplateCategories();
-  const { platform } = platformHooks.useCurrentPlatform();
-  const isShowingOfficialTemplates = !platform.plan.manageTemplatesEnabled;
+  const isShowingOfficialTemplates = true;
   const { templates, isLoading, search, setSearch, category, setCategory } =
     templatesHooks.useTemplates(
-      isShowingOfficialTemplates ? TemplateType.OFFICIAL : TemplateType.CUSTOM,
+      TemplateType.OFFICIAL,
     );
   const selectedCategory = category as string;
   const { data: allOfficialTemplates, isLoading: isAllTemplatesLoading } =
