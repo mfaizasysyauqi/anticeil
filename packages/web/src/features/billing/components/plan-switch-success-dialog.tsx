@@ -3,7 +3,12 @@ import { t } from 'i18next';
 import { Check } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { platformHooks } from '@/hooks/platform-hooks';
 
 import { billingQueries } from '../hooks/billing-hooks';
@@ -48,10 +53,10 @@ export function PlanSwitchSuccessDialog() {
               <Check className="size-7 text-white" strokeWidth={3} />
             </span>
             <div className="flex flex-col gap-2">
-              <h2 className="text-xl font-semibold">
+              <DialogTitle className="text-xl font-semibold">
                 {t("You're on the {plan} plan", { plan: t(entry.name) })}
-              </h2>
-              <p className="text-sm text-muted-foreground">
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
                 {t('You now have access to {benefits}.', {
                   benefits: new Intl.ListFormat(undefined, {
                     style: 'long',
@@ -62,9 +67,15 @@ export function PlanSwitchSuccessDialog() {
                       .map((feature) => t(feature.label)),
                   ),
                 })}
-              </p>
+              </DialogDescription>
             </div>
-            <Button className="w-full" onClick={closeDialog}>
+            <Button
+              className="w-full"
+              onClick={() => {
+                closeDialog();
+                window.location.reload();
+              }}
+            >
               {t('Got it')}
             </Button>
           </div>

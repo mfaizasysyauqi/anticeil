@@ -139,7 +139,7 @@ export function PrimaryRail() {
                 }
               />
             )}
-            {checkAccess(Permission.READ_MCP) && (
+            {checkAccess(Permission.READ_MCP) && (platform?.plan?.aiProvidersEnabled ?? false) && (
               <RailNavButton
                 collapsed={collapsed}
                 to="/mcp-server"
@@ -170,13 +170,15 @@ export function PrimaryRail() {
                 })
               }
             />
-            <RailNavButton
-              collapsed={collapsed}
-              to="/impact"
-              icon={ChartLine}
-              label={t('Impact')}
-              isActive={({ pathname }) => pathname.startsWith('/impact')}
-            />
+            {(platform?.plan?.analyticsEnabled ?? false) && (
+              <RailNavButton
+                collapsed={collapsed}
+                to="/impact"
+                icon={ChartLine}
+                label={t('Impact')}
+                isActive={({ pathname }) => pathname.startsWith('/impact')}
+              />
+            )}
           </div>
           <RailPinnedProjects collapsed={collapsed} />
         </div>

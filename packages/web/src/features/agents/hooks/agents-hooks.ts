@@ -34,7 +34,8 @@ export const useAgentsAvailable = (): boolean => {
 };
 
 export const useAgentsNavVisible = (): boolean => {
-  return true;
+  const { platform } = platformHooks.useCurrentPlatform();
+  return platform?.plan?.agentsEnabled === true;
 };
 
 const AGENTS_PAGE_SIZE = 100;

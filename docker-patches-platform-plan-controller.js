@@ -16,17 +16,75 @@ const platform_plan_telemetry_1 = require("./platform-plan-telemetry");
 const platform_plan_service_1 = require("./platform-plan.service");
 const FORCE_REFRESH_DEDUP_SECONDS = 60;
 const DEFAULT_USAGE_PAGE_SIZE = 10;
+
+function resolvePlanLimitsAndFeatures(planName) {
+    const raw = (planName || 'free').toLowerCase();
+    const isEnterprise = raw === 'enterprise';
+    const isTeam = raw === 'team' || isEnterprise;
+    const isPlus = raw === 'plus' || isTeam;
+
+    return {
+        plan: isEnterprise ? 'enterprise' : (isTeam ? 'team' : (isPlus ? 'plus' : 'free')),
+        includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
+        usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
+        activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
+        projectsLimit: isEnterprise ? null : (isTeam ? null : 1),
+        billedTeamProjectsLimit: isTeam ? null : (isPlus ? 1 : 0),
+
+        agentsEnabled: isPlus,
+        aiProvidersEnabled: isPlus,
+        chatEnabled: true,
+        tablesEnabled: true,
+        analyticsEnabled: isPlus,
+
+        customAppearanceEnabled: isPlus,
+        showPoweredBy: !isPlus,
+
+        globalConnectionsEnabled: isTeam,
+        ssoEnabled: isTeam,
+        customRolesEnabled: isTeam,
+        projectRolesEnabled: isTeam,
+        auditLogEnabled: isTeam,
+        environmentsEnabled: isTeam,
+        embeddingEnabled: isTeam,
+        apiKeysEnabled: isTeam,
+        secretManagersEnabled: isTeam,
+        managePiecesEnabled: isTeam,
+        manageTemplatesEnabled: isTeam,
+
+        scimEnabled: isEnterprise,
+        eventStreamingEnabled: isEnterprise,
+        workerGroupsEnabled: isEnterprise,
+        customDomainsEnabled: isEnterprise,
+        dedicatedWorkers: null,
+        canary: false,
+    };
+}
+
 const platformPlanController = async (app) => {
     app.get('/info', { config: { allowedPrincipals: [shared_1.PrincipalType.USER, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
         try {
-            const platformId = request.principal?.platform?.id;
+            let platformId = request.principal?.platform?.id || request.principal?.platformId;
+            if (!platformId) {
+                const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
+                platformId = platforms[0]?.id;
+            }
             if (!platformId) {
                 return reply.status(200).send(getUnlimitedBillingInfo());
             }
             const info = await getBillingInformation(request.log, platformId);
             return reply.status(200).send(info);
         } catch (e) {
-            request.log.warn({ err: e }, '[anticeil] billing info fallback to unlimited');
+            request.log.warn({ err: e }, '[anticeil] billing info error, attempting recovery with platform');
+            try {
+                const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
+                if (platforms[0]?.id) {
+                    const fallbackInfo = await getBillingInformation(request.log, platforms[0].id);
+                    return reply.status(200).send(fallbackInfo);
+                }
+            } catch (err2) {
+                request.log.error({ err: err2 }, '[anticeil] secondary fallback failed');
+            }
             return reply.status(200).send(getUnlimitedBillingInfo());
         }
     });
@@ -127,45 +185,13 @@ const platformPlanController = async (app) => {
             if (!platformId) {
                 return reply.status(200).send({ success: true, plan: 'enterprise' });
             }
+
             const body = request.body;
             const planName = (body?.plan || 'enterprise').toLowerCase();
-            const isEnterprise = planName === 'enterprise';
-            const isTeam = planName === 'team' || isEnterprise;
-            const isPlus = planName === 'plus' || isTeam;
+            const planData = resolvePlanLimitsAndFeatures(planName);
 
             const planRepo = (0, platform_plan_service_1.platformPlanRepo)();
             const existing = await planRepo.findOneBy({ platformId });
-
-            const planData = {
-                plan: planName,
-                agentsEnabled: true,
-                aiProvidersEnabled: true,
-                chatEnabled: true,
-                tablesEnabled: true,
-                apiKeysEnabled: true,
-                billedTeamProjectsLimit: isTeam ? null : 1,
-                includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
-                usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
-                projectsLimit: isEnterprise ? null : (isTeam ? 50 : (isPlus ? 10 : 5)),
-                activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
-                analyticsEnabled: true,
-                customRolesEnabled: isTeam,
-                projectRolesEnabled: true,
-                ssoEnabled: isTeam,
-                scimEnabled: isEnterprise,
-                globalConnectionsEnabled: isTeam,
-                auditLogEnabled: isTeam,
-                environmentsEnabled: isTeam,
-                eventStreamingEnabled: isEnterprise,
-                workerGroupsEnabled: isEnterprise,
-                customDomainsEnabled: isEnterprise,
-                showPoweredBy: !isPlus,
-                secretManagersEnabled: true,
-                customAppearanceEnabled: isPlus,
-                managePiecesEnabled: true,
-                manageTemplatesEnabled: true,
-                embeddingEnabled: isTeam,
-            };
 
             if (existing) {
                 await planRepo.update({ platformId }, planData);
@@ -178,8 +204,8 @@ const platformPlanController = async (app) => {
             }
             await redis_connections_1.distributedStore.delete((0, keys_1.getBillingOverviewKey)(platformId));
             await redis_connections_1.distributedStore.delete((0, keys_1.getPlatformPlanNameKey)(platformId));
-            request.log.info({ platformId, planName }, 'Plan switched successfully');
-            return reply.status(200).send({ success: true, plan: planName });
+            request.log.info({ platformId, planName: planData.plan }, 'Plan switched successfully');
+            return reply.status(200).send({ success: true, plan: planData.plan });
         } catch (err) {
             request.log.error({ err }, 'Failed to switch plan');
             return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: err?.message || 'Failed to switch plan' });
@@ -203,39 +229,11 @@ const platformPlanController = async (app) => {
                 const platform = platforms[0];
                 if (platform) {
                     const planName = isTeam ? 'team' : (isPlus ? 'plus' : 'free');
-                    await (0, platform_plan_service_1.platformPlanRepo)().update({ platformId: platform.id }, {
-                        plan: planName,
-                        agentsEnabled: true,
-                        aiProvidersEnabled: true,
-                        chatEnabled: true,
-                        tablesEnabled: true,
-                        apiKeysEnabled: true,
-                        billedTeamProjectsLimit: isTeam ? null : 1,
-                        includedCredits: isTeam ? 50000 : 10000,
-                        usersLimit: isTeam ? 25 : 5,
-                        projectsLimit: isTeam ? 50 : 10,
-                        activeFlowsLimit: isTeam ? null : 100,
-                        analyticsEnabled: true,
-                        customRolesEnabled: isTeam,
-                        projectRolesEnabled: true,
-                        ssoEnabled: isTeam,
-                        scimEnabled: false,
-                        globalConnectionsEnabled: isTeam,
-                        auditLogEnabled: isTeam,
-                        environmentsEnabled: isTeam,
-                        eventStreamingEnabled: false,
-                        workerGroupsEnabled: false,
-                        customDomainsEnabled: false,
-                        showPoweredBy: false,
-                        secretManagersEnabled: true,
-                        customAppearanceEnabled: true,
-                        managePiecesEnabled: true,
-                        manageTemplatesEnabled: true,
-                        embeddingEnabled: isTeam,
-                    });
+                    const planData = resolvePlanLimitsAndFeatures(planName);
+                    await (0, platform_plan_service_1.platformPlanRepo)().update({ platformId: platform.id }, planData);
                     await redis_connections_1.distributedStore.delete((0, keys_1.getBillingOverviewKey)(platform.id));
                     await redis_connections_1.distributedStore.delete((0, keys_1.getPlatformPlanNameKey)(platform.id));
-                    request.log.info({ platformId: platform.id, planName }, 'Midtrans plan upgraded successfully');
+                    request.log.info({ platformId: platform.id, planName: planData.plan }, 'Midtrans plan upgraded successfully');
                 }
             }
         }
@@ -243,48 +241,21 @@ const platformPlanController = async (app) => {
     });
 };
 exports.platformPlanController = platformPlanController;
-function getUnlimitedBillingInfo() {
+function getUnlimitedBillingInfo(requestedPlan = 'free') {
+    const limits = resolvePlanLimitsAndFeatures(requestedPlan);
     return {
         plan: {
             id: 'self-hosted',
             platformId: 'self-hosted',
             stripeSubscriptionId: null,
             stripeCustomerId: null,
-            plan: 'free',
-            agentsEnabled: true,
-            aiProvidersEnabled: true,
-            mcpsEnabled: true,
-            chatEnabled: true,
-            tablesEnabled: true,
-            apiKeysEnabled: true,
-            analyticsEnabled: true,
-            customRolesEnabled: true,
-            projectRolesEnabled: true,
-            ssoEnabled: true,
-            scimEnabled: true,
-            globalConnectionsEnabled: true,
-            auditLogEnabled: true,
-            environmentsEnabled: true,
-            eventStreamingEnabled: true,
-            workerGroupsEnabled: true,
-            customDomainsEnabled: true,
-            showPoweredBy: false,
-            secretManagersEnabled: true,
-            customAppearanceEnabled: true,
-            managePiecesEnabled: true,
-            manageTemplatesEnabled: true,
-            embeddingEnabled: true,
-            usersLimit: null,
-            billedTeamProjectsLimit: null,
-            includedCredits: null,
-            projectsLimit: null,
-            activeFlowsLimit: null,
+            ...limits,
             created: new Date().toISOString(),
             updated: new Date().toISOString(),
         },
         usage: {
             creditsUsed: 0,
-            creditsRemaining: null,
+            creditsRemaining: limits.includedCredits,
             creditsNextResetAt: null,
             appSumoAiCreditsUsed: null,
             appSumoAiCreditsRemaining: null,
@@ -294,11 +265,11 @@ function getUnlimitedBillingInfo() {
             activeUsers: 1,
             invitedSeats: 0,
         },
-        creditsResetInterval: null,
-        planInterval: null,
-        autumnPlanName: null,
+        creditsResetInterval: 'month',
+        planInterval: 'month',
+        autumnPlanName: limits.plan === 'enterprise' ? 'Enterprise' : (limits.plan === 'team' ? 'Team' : (limits.plan === 'plus' ? 'Plus' : 'Free')),
         scheduledPlanName: null,
-        nextBillingAmount: null,
+        nextBillingAmount: limits.plan === 'team' ? 2990000 : (limits.plan === 'plus' ? 299000 : 0),
         nextBillingDate: null,
         cancelAt: null,
         trialEndsAt: null,
@@ -308,7 +279,7 @@ function getUnlimitedBillingInfo() {
         billingPortalAvailable: false,
         billingEnforced: false,
         billingUnavailable: false,
-        includedSeats: null,
+        includedSeats: limits.usersLimit,
         additionalSeats: null,
     };
 }
@@ -324,14 +295,28 @@ async function getBillingInformation(log, platformId) {
     const usageWithCredits = usage.creditsRemaining === null
         ? { ...usage, creditsUsed: await fetchUnlimitedCreditsUsed({ log, platformId: platform.id, startDate: billingPeriodStart, endDate: nextBillingDate, fallback: usage.creditsUsed }) }
         : usage;
+
+    const currentPlanKey = (platformPlan?.plan || 'free').toLowerCase();
+    const planLimits = resolvePlanLimitsAndFeatures(currentPlanKey);
+    const effectivePlan = {
+        ...platformPlan,
+        ...planLimits,
+    };
+    const isEnterprise = planLimits.plan === 'enterprise';
+    const isTeam = planLimits.plan === 'team' || isEnterprise;
+    const isPlus = planLimits.plan === 'plus' || isTeam;
+    const hasPaidLocalPlan = isPlus || isTeam || isEnterprise;
+    const fallbackPlanName = isEnterprise ? 'Enterprise' : (isTeam ? 'Team' : (isPlus ? 'Plus' : 'Free'));
+    const displayPlanName = hasPaidLocalPlan ? fallbackPlanName : (autumnPlanName || 'Free');
+
     return {
-        plan: platformPlan,
+        plan: effectivePlan,
         usage: usageWithCredits,
-        creditsResetInterval,
-        planInterval,
-        autumnPlanName,
+        creditsResetInterval: creditsResetInterval || 'month',
+        planInterval: planInterval || 'month',
+        autumnPlanName: displayPlanName,
         scheduledPlanName,
-        nextBillingAmount,
+        nextBillingAmount: nextBillingAmount ?? (currentPlanKey === 'team' ? 2990000 : (currentPlanKey === 'plus' ? 299000 : 0)),
         nextBillingDate,
         cancelAt,
         trialEndsAt,
@@ -340,8 +325,8 @@ async function getBillingInformation(log, platformId) {
         seatsFeature,
         billingPortalAvailable,
         billingEnforced,
-        billingUnavailable,
-        includedSeats,
+        billingUnavailable: false,
+        includedSeats: includedSeats ?? effectivePlan.usersLimit,
         additionalSeats,
     };
 }

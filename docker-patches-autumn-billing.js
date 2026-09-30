@@ -587,10 +587,21 @@ async function fetchBillingOverview(log, platformId) {
         log.warn({ error, platform: { id: platformId } }, 'Failed to fetch billing overview; serving an empty overview without caching it');
         return (0, billing_provider_1.emptyBillingOverview)({ startDate: monthStart, endDate: monthEnd, unavailable: true });
     }
+    const baseOverview = toBillingInfo(customer, monthStart, monthEnd);
+    const platformPlan = await (0, platform_plan_service_1.platformPlanService)(log).getOrCreateForPlatform(platformId);
+    const planKey = (platformPlan?.plan ?? 'free').toLowerCase();
+    const isEnterprise = planKey.includes('enterprise');
+    const isTeam = planKey.includes('team') || isEnterprise;
+    const isPlus = planKey.includes('plus') || isTeam;
+    const fallbackPlanName = isEnterprise ? 'Enterprise' : (isTeam ? 'Team' : (isPlus ? 'Plus' : 'Free'));
+    const hasPaidLocalPlan = isPlus || isTeam || isEnterprise;
+
     const overview = {
-        ...toBillingInfo(customer, monthStart, monthEnd),
+        ...baseOverview,
+        planName: hasPaidLocalPlan ? fallbackPlanName : (baseOverview.planName || 'Free'),
         ...toSeatBreakdown(customer),
         ...toBillableFeatures(customer),
+        includedSeats: baseOverview.includedSeats ?? platformPlan?.usersLimit,
         unavailable: false,
     };
     await redis_connections_1.distributedStore.put((0, keys_1.getBillingOverviewKey)(platformId), overview, BILLING_OVERVIEW_TTL_SECONDS);

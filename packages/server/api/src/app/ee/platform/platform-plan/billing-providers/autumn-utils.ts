@@ -168,7 +168,21 @@ export const autumnUtils = {
         }
         const customer = await client.getCustomer({ expand: ['subscriptions.plan', 'purchases.plan'] })
         const entitlements = toAutumnEntitlements(customer)
-        await platformPlanService(log).update({ platformId, ...autumnUtils.mapAutumnFeaturesToPlatformPlan(entitlements) })
+        const mappedPlan = autumnUtils.mapAutumnFeaturesToPlatformPlan(entitlements)
+        // [anticeil] Don't overwrite a manually-set paid plan with Autumn's free plan.
+        // When the user has switched to plus/team/enterprise locally but has no real
+        // Autumn subscription, Autumn returns planId='free' and would reset the DB.
+        const PAID_PLANS = ['plus', 'team', 'enterprise']
+        const autumnPlanIsBaseline = isNil(mappedPlan.plan) || !PAID_PLANS.includes(mappedPlan.plan as string)
+        if (autumnPlanIsBaseline) {
+            const existingPlan = await platformPlanService(log).getOrCreateForPlatform(platformId)
+            if (PAID_PLANS.includes(existingPlan.plan as string)) {
+                await autumnUtils.writeCustomerStateCaches({ platformId, customer, grantedFeatureIds: entitlements.grantedFeatureIds })
+                await autumnUtils.invalidateBillingOverview(platformId)
+                return
+            }
+        }
+        await platformPlanService(log).update({ platformId, ...mappedPlan })
         await autumnUtils.writeCustomerStateCaches({ platformId, customer, grantedFeatureIds: entitlements.grantedFeatureIds })
         await autumnUtils.invalidateBillingOverview(platformId)
         await autumnUtils.provisionLicenseKeyIfPaid(log, platformId, entitlements.planId)

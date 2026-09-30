@@ -53,11 +53,11 @@ const COMPARISON_ROWS: {
     values: ['1 seat', '5 seats', '25 seats', 'Unlimited'],
   },
   { label: 'Automation flows', values: ['5 flows', '100 flows', 'Unlimited', 'Unlimited'] },
-  { label: 'Agents', values: [true, true, true, true] },
-  { label: 'MCPs', values: [true, true, true, true] },
-  { label: 'BYOK (Bring Your Own Key)', values: [true, true, true, true] },
-  { label: 'Team analytics', values: [true, true, true, true] },
-  { label: 'Team projects', values: ['1 project', '1 project', 'Unlimited', 'Unlimited'] },
+  { label: 'Agents', values: [false, true, true, true] },
+  { label: 'MCPs', values: [false, true, true, true] },
+  { label: 'BYOK (Bring Your Own Key)', values: [false, true, true, true] },
+  { label: 'Team analytics', values: [false, true, true, true] },
+  { label: 'Team projects', values: [false, '1 project', 'Unlimited', 'Unlimited'] },
   { label: 'Custom appearance', values: [false, true, true, true] },
   { label: 'Global connections', values: [false, false, true, true] },
   { label: 'SSO / SAML', values: [false, false, true, true] },
@@ -103,29 +103,39 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
       const updatedPlan = {
         ...platform.plan,
         plan: targetPlanKey,
-        agentsEnabled: true,
-        aiProvidersEnabled: true,
-        chatEnabled: true,
-        tablesEnabled: true,
-        apiKeysEnabled: true,
-        billedTeamProjectsLimit: isTeam ? null : 1,
         includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
         usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
-        projectsLimit: isEnterprise ? null : (isTeam ? 50 : (isPlus ? 10 : 5)),
         activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
-        analyticsEnabled: true,
+        projectsLimit: isEnterprise ? null : (isTeam ? null : 1),
+        billedTeamProjectsLimit: isTeam ? null : (isPlus ? 1 : 0),
+
+        agentsEnabled: isPlus,
+        aiProvidersEnabled: isPlus,
+        chatEnabled: true,
+        tablesEnabled: true,
+        analyticsEnabled: isPlus,
+
+        customAppearanceEnabled: isPlus,
+        showPoweredBy: !isPlus,
+
+        globalConnectionsEnabled: isTeam,
         ssoEnabled: isTeam,
         customRolesEnabled: isTeam,
-        projectRolesEnabled: true,
-        globalConnectionsEnabled: isTeam,
+        projectRolesEnabled: isTeam,
         auditLogEnabled: isTeam,
         environmentsEnabled: isTeam,
         embeddingEnabled: isTeam,
-        customAppearanceEnabled: isPlus,
-        showPoweredBy: !isPlus,
-        secretManagersEnabled: true,
-        managePiecesEnabled: true,
-        manageTemplatesEnabled: true,
+        apiKeysEnabled: isTeam,
+        secretManagersEnabled: isTeam,
+        managePiecesEnabled: isTeam,
+        manageTemplatesEnabled: isTeam,
+
+        scimEnabled: isEnterprise,
+        eventStreamingEnabled: isEnterprise,
+        workerGroupsEnabled: isEnterprise,
+        customDomainsEnabled: isEnterprise,
+        dedicatedWorkers: null,
+        canary: false,
       };
 
       setCurrentPlatform(queryClient, {
@@ -164,6 +174,9 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
       }
 
       await queryClient.invalidateQueries();
+      await queryClient.refetchQueries({
+        queryKey: billingKeys.platformSubscription(platform.id),
+      });
 
       toast.success(
         t('Plan {plan} berhasil diaktifkan langsung (Mode Development).', {
@@ -180,7 +193,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
     },
   });
 
-  const currentPlanId = subscription?.plan.plan ?? platform.plan.plan;
+  const currentPlanId = (subscription?.plan?.plan ?? platform.plan?.plan ?? 'free').toLowerCase();
   const hasScheduledChange = !isNil(subscription?.cancelAt);
   const downgradeWarning = planSelectorUtils.dropToFreeWarning(
     subscription?.additionalSeats,
@@ -296,7 +309,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
             monthlySibling,
           });
           const isCurrent =
-            (!isNil(apiPlan) && apiPlan.id === currentPlanId) ||
+            (!isNil(apiPlan) && apiPlan.id.toLowerCase() === currentPlanId) ||
             entry.key === currentPlanId ||
             (entry.key === 'enterprise' && currentPlanId === 'enterprise') ||
             (entry.key === 'free' &&
@@ -484,7 +497,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
                   monthlySibling,
                 });
                 const isCurrent =
-                  (!isNil(apiPlan) && apiPlan.id === currentPlanId) ||
+                  (!isNil(apiPlan) && apiPlan.id.toLowerCase() === currentPlanId) ||
                   entry.key === currentPlanId ||
                   (entry.key === 'enterprise' && currentPlanId === 'enterprise') ||
                   (entry.key === 'free' &&
