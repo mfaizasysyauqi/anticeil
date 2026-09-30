@@ -20,7 +20,6 @@ import {
   LogOut,
   PanelLeftClose,
   Search,
-  Settings,
   Shield,
   SlidersHorizontal,
   SquarePen,
@@ -807,7 +806,7 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
     <div
       className={cn(
         'mt-2 flex items-center',
-        collapsed ? 'flex-col-reverse gap-1' : 'justify-between px-2',
+        collapsed ? 'flex-col-reverse gap-1 px-2' : 'px-2',
       )}
     >
       <DropdownMenu modal>
@@ -822,7 +821,7 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
                   'flex items-center gap-2 rounded-full hover:bg-sidebar-accent',
                   collapsed
                     ? 'size-9 cursor-pointer justify-center'
-                    : 'h-10 min-w-0 flex-1 px-2',
+                    : 'h-10 min-w-0 flex-1 px-2 w-full',
                 )}
               >
                 <div className="size-[22px] shrink-0 overflow-hidden rounded-full">
@@ -896,24 +895,6 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 shrink-0 cursor-pointer rounded-full text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            onClick={(e) => {
-              e.stopPropagation();
-              setAccountSettingsOpen(true);
-            }}
-            aria-label={t('Settings')}
-          >
-            <Settings className="size-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="right">{t('Settings')}</TooltipContent>
-      </Tooltip>
 
       <AccountSettingsDialog
         open={accountSettingsOpen}

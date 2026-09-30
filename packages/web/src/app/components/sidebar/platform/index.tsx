@@ -348,7 +348,7 @@ export function PlatformSidebar() {
                               </SidebarMenuButton>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
-                              <SidebarMenuSub className="mr-0 pr-0 ml-3 pl-2.5 border-l border-sidebar-border/40 gap-0.5 my-0.5">
+                              <SidebarMenuSub className="mr-0 pr-0 ml-[15px] pl-3.5 border-l-2 border-border gap-1 my-1">
                                 {item.subItems.map((sub, sIdx) => {
                                   const currentFull =
                                     location.pathname + location.search;
@@ -374,7 +374,7 @@ export function PlatformSidebar() {
                                         asChild
                                         isActive={isSubActive}
                                         className={cn(
-                                          'cursor-pointer transition-colors text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-sidebar-accent',
+                                          'cursor-pointer transition-colors text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md px-2.5 py-1.5 h-8 w-full',
                                           isSubActive &&
                                             'bg-sidebar-accent! text-sidebar-accent-foreground! font-medium',
                                         )}
@@ -387,7 +387,7 @@ export function PlatformSidebar() {
                                             {sub.label}
                                           </span>
                                           {sub.isCrown && (
-                                            <Crown className="size-3.5 shrink-0 text-foreground opacity-80 ml-1.5" />
+                                            <Crown className="size-3.5 shrink-0 text-foreground opacity-80 ml-auto" />
                                           )}
                                         </Link>
                                       </SidebarMenuSubButton>
