@@ -508,7 +508,6 @@ async function readCachedCredits(platformId: string): Promise<BalanceCacheSnapsh
     const currentUsage = (await distributedStore.get<number>(usageKey)) ?? 0
     if (isNil(credits) || credits.granted !== limit) {
         credits = {
-            featureId: ConsumableFeatureId.AP_CREDITS,
             granted: limit,
             usage: currentUsage,
             remaining: Math.max(0, limit - currentUsage),
@@ -633,12 +632,13 @@ async function fetchBillingOverview(log: FastifyBaseLogger, platformId: string):
     const fallbackPlanName = isEnterprise ? 'Enterprise' : (isTeam ? 'Team' : (isPlus ? 'Plus' : 'Free'))
     const hasPaidLocalPlan = isPlus || isTeam || isEnterprise
 
+    const seatBreakdown = toSeatBreakdown(customer)
     const overview: BillingOverview = {
         ...baseOverview,
         planName: hasPaidLocalPlan ? fallbackPlanName : (baseOverview.planName || 'Free'),
-        ...toSeatBreakdown(customer),
+        ...seatBreakdown,
         ...toBillableFeatures(customer),
-        includedSeats: baseOverview.includedSeats ?? platformPlan?.usersLimit,
+        includedSeats: seatBreakdown.includedSeats ?? platformPlan?.usersLimit ?? null,
         unavailable: false,
     }
     await distributedStore.put(getBillingOverviewKey(platformId), overview, BILLING_OVERVIEW_TTL_SECONDS)
