@@ -178,7 +178,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
         <Tabs
           value={billingCycle}
           onValueChange={(value) => setCycleOverride(value as BillingCycle)}
-          className="self-center"
+          className="self-start"
         >
           <TabsList className="bg-muted/80 p-1 border border-border/60 rounded-lg">
             <TabsTrigger
