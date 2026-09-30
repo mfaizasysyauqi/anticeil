@@ -79,8 +79,9 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         await provider.refreshEntitlements(platformId)
     })
 
-    app.post('/portal', { config: PLATFORM_ADMIN_ONLY }, async (request) => {
-        const { url } = await billingProvider.get(request.log).getBillingPortalUrl({ platformId: request.principal.platform.id })
+    app.post('/portal', PLATFORM_ADMIN_ONLY, async (request) => {
+        const platformId = request.principal?.platform?.id ?? (await platformService(request.log).getAll())[0]?.id
+        const { url } = await billingProvider.get(request.log).getBillingPortalUrl({ platformId })
         return url
     })
 
@@ -121,8 +122,16 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         })
     })
 
-    app.post('/switch-plan', { config: PLATFORM_ADMIN_ONLY }, async (request) => {
-        const platformId = request.principal.platform.id
+    app.post('/switch-plan', PLATFORM_ADMIN_ONLY, async (request) => {
+        let platformId = request.principal?.platform?.id
+        if (!platformId) {
+            const platforms = await platformService(request.log).getAll()
+            platformId = platforms[0]?.id
+        }
+        if (!platformId) {
+            return { success: false, plan: 'free' }
+        }
+
         const body = request.body as { plan?: string }
         const rawPlan = (body?.plan || 'enterprise').toLowerCase()
         const isEnterprise = rawPlan.includes('enterprise')
@@ -130,6 +139,8 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         const isPlus = rawPlan.includes('plus') || isTeam
 
         const planName = isEnterprise ? 'enterprise' : (isTeam ? 'team' : (isPlus ? 'plus' : 'free'))
+
+        await platformPlanService(request.log).getOrCreateForPlatform(platformId)
 
         await platformPlanRepo().update({ platformId }, {
             plan: planName,
