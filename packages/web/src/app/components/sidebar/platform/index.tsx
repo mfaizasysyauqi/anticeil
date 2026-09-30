@@ -287,7 +287,7 @@ export function PlatformSidebar() {
   ];
 
   return (
-    <Sidebar className="border-r-0!">
+    <Sidebar collapsible="none" className="border-r-0! w-full h-full bg-sidebar flex flex-col">
       <SidebarHeader className="pb-0">
         <Link
           to={defaultRoute}
@@ -426,11 +426,17 @@ export function MobilePlatformSidebarSheet({
         hideCloseButton
         className="w-72 max-w-[85vw] p-0 bg-sidebar border-r border-sidebar-border flex flex-col h-full overflow-hidden"
       >
-        <SidebarProvider open={true} className="h-full w-full">
-          <div className="flex h-full w-full flex-col overflow-y-auto">
-            <PlatformSidebar />
-          </div>
-        </SidebarProvider>
+        <div 
+          className="flex h-full w-full flex-col overflow-y-auto"
+          onClick={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest('a') || target.closest('button')) {
+              onOpenChange(false);
+            }
+          }}
+        >
+          <PlatformSidebar />
+        </div>
       </SheetContent>
     </Sheet>
   );
