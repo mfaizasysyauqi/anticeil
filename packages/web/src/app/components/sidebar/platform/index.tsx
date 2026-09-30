@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/collapsible';
 import {
   Sidebar,
+  SidebarProvider,
   SidebarContent,
   SidebarFooter,
   SidebarMenu,
