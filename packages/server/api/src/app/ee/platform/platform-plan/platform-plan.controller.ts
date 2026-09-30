@@ -79,7 +79,7 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         await provider.refreshEntitlements(platformId)
     })
 
-    app.post('/portal', PLATFORM_ADMIN_ONLY, async (request) => {
+    app.post('/portal', PortalRequest, async (request) => {
         const platformId = request.principal?.platform?.id ?? (await platformService(request.log).getAll())[0]?.id
         const { url } = await billingProvider.get(request.log).getBillingPortalUrl({ platformId })
         return url
@@ -122,7 +122,7 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         })
     })
 
-    app.post('/switch-plan', PLATFORM_ADMIN_ONLY, async (request) => {
+    app.post('/switch-plan', SwitchPlanRequest, async (request) => {
         let platformId = request.principal?.platform?.id
         if (!platformId) {
             const platforms = await platformService(request.log).getAll()
@@ -305,6 +305,14 @@ const CancelRequest = {
 }
 
 const ReactivateRequest = {
+    config: PLATFORM_ADMIN_ONLY,
+}
+
+const PortalRequest = {
+    config: PLATFORM_ADMIN_ONLY,
+}
+
+const SwitchPlanRequest = {
     config: PLATFORM_ADMIN_ONLY,
 }
 
