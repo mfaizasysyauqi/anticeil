@@ -140,6 +140,7 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         const isPlus = rawPlan.includes('plus') || isTeam
 
         const planName = isEnterprise ? 'enterprise' : (isTeam ? 'team' : (isPlus ? 'plus' : 'free'))
+        const includedCredits = isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000))
 
         await platformPlanService(request.log).getOrCreateForPlatform(platformId)
 

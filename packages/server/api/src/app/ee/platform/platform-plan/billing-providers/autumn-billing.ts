@@ -1,9 +1,9 @@
 import { isNil, tryCatch } from '@activepieces/core-utils'
 import { apDayjs } from '@activepieces/server-utils'
-import { AiCreditsAutoTopUpState, AppSumoCreditsBillableFeature, AutoTopUpConfig, ConsumableFeatureId, CreditsBillableFeature, FeatureId, isConsumableFeatureId, PlanName, SeatsBillableFeature, UnconsumableFeatureId } from '@activepieces/shared'
+import { AiCreditsAutoTopUpState, AppSumoCreditsBillableFeature, AutoTopUpConfig, ConsumableFeatureId, CreditsBillableFeature, FeatureId, isConsumableFeatureId, PlanName, PurchasablePlan, SeatsBillableFeature, UnconsumableFeatureId } from '@activepieces/shared'
 import { AutumnError, type GetCustomerResponse } from 'autumn-js'
 import { FastifyBaseLogger } from 'fastify'
-import { AUTUMN_ENROLL_LOCK_TIMEOUT_SECONDS, getAutumnEnrollLockKey, getBillingEnforcedKey, getBillingOverviewFetchLockKey, getBillingOverviewKey, getCustomerStateFetchLockKey, getCustomerStateMissKey, getCustomerStateRefreshKey } from '../../../../database/redis/keys'
+import { AUTUMN_ENROLL_LOCK_TIMEOUT_SECONDS, getAutumnEnrollLockKey, getBillingEnforcedKey, getBillingOverviewFetchLockKey, getBillingOverviewKey, getCreditsBalanceKey, getCustomerStateFetchLockKey, getCustomerStateMissKey, getCustomerStateRefreshKey } from '../../../../database/redis/keys'
 import { distributedLock, distributedStore } from '../../../../database/redis-connections'
 import { rejectedPromiseHandler } from '../../../../helper/promise-handler'
 import { ActivateLicenseParams, ApplyAppSumoPlanParams, AppSumoAiCreditsUsage, BillingInfo, BillingOverview, BillingProvider, CreditsAndAppSumoState, CreditsGateState, CreditsUsage, emptyBillingOverview, TrackFeatureParams } from '../../../../platform/billing-provider'
@@ -18,9 +18,73 @@ const CREDITS_CACHE_READ_TIMEOUT_MS = 25
 const BILLING_OVERVIEW_TTL_SECONDS = 5 * 60
 const TRIAL_DURATION_UNITS: Partial<Record<string, 'day' | 'month' | 'year'>> = { day: 'day', month: 'month', year: 'year' }
 
+const MIDTRANS_PLANS: PurchasablePlan[] = [
+    {
+        id: 'free',
+        name: 'Free',
+        description: 'Perfect for individuals exploring automation',
+        price: 0,
+        interval: 'month',
+        priceDisplay: 'Rp 0',
+        baseVariantId: null,
+        includedSeats: 1,
+        includedCredits: 1000,
+        creditsResetInterval: 'month',
+    },
+    {
+        id: 'plus_monthly',
+        name: 'Plus',
+        description: 'Built for solo builders who need advanced AI agents and tools',
+        price: 299000,
+        interval: 'month',
+        priceDisplay: 'Rp 299.000',
+        baseVariantId: null,
+        includedSeats: 5,
+        includedCredits: 10000,
+        creditsResetInterval: 'month',
+    },
+    {
+        id: 'plus_annual',
+        name: 'Plus (annual)',
+        description: 'Built for solo builders (Annual Discount)',
+        price: 2990000,
+        interval: 'year',
+        priceDisplay: 'Rp 2.990.000',
+        baseVariantId: null,
+        includedSeats: 5,
+        includedCredits: 10000,
+        creditsResetInterval: 'month',
+    },
+    {
+        id: 'team_monthly',
+        name: 'Team',
+        description: 'Designed for teams collaborating on automations',
+        price: 2990000,
+        interval: 'month',
+        priceDisplay: 'Rp 2.990.000',
+        baseVariantId: null,
+        includedSeats: 25,
+        includedCredits: 50000,
+        creditsResetInterval: 'month',
+    },
+    {
+        id: 'team_annual',
+        name: 'Team (annual)',
+        description: 'Designed for teams collaborating on automations (Annual Discount)',
+        price: 29900000,
+        interval: 'year',
+        priceDisplay: 'Rp 29.900.000',
+        baseVariantId: null,
+        includedSeats: 25,
+        includedCredits: 50000,
+        creditsResetInterval: 'month',
+    },
+]
+
 export const autumnBillingProvider = (log: FastifyBaseLogger): BillingProvider => ({
     listPlans: async (platformId: string) => {
-        return autumnConsole.listPlans({ platformId })
+        const plans = await autumnConsole.listPlans({ platformId })
+        return (plans && plans.length > 0) ? plans : MIDTRANS_PLANS
     },
     getBillingOverview: async (platformId: string) => {
         const cached = await distributedStore.get<BillingOverview>(getBillingOverviewKey(platformId))
@@ -128,6 +192,10 @@ export const autumnBillingProvider = (log: FastifyBaseLogger): BillingProvider =
         await autumnUtils.ensureFreeLegacyComped(log, platformId)
     },
     refreshEntitlements: async (platformId: string) => {
+        const platformPlan = await platformPlanService(log).getOrCreateForPlatform(platformId)
+        if (platformPlan && platformPlan.plan && platformPlan.plan !== 'free') {
+            return
+        }
         await autumnUtils.refreshEntitlements(log, platformId)
     },
     applyAppSumoPlan: async ({ platformId, action }: ApplyAppSumoPlanParams) => {
@@ -351,13 +419,14 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
     })
 }
 
-export function computeCreditState({ balance }: ComputeCreditStateParams): CreditsGateState {
+export function computeCreditState({ balance, enforced }: ComputeCreditStateParams): CreditsGateState {
+    const exhausted = !isNil(balance) && isCreditsExhausted(balance)
     return {
-        blocked: false,
+        blocked: enforced && exhausted,
         usage: balance?.usage ?? 0,
-        limit: balance?.granted ?? 999999,
-        remaining: balance?.remaining ?? 999999,
-        unlimited: true,
+        limit: balance?.granted ?? 0,
+        remaining: balance?.remaining ?? 0,
+        unlimited: balance?.unlimited ?? false,
     }
 }
 
@@ -366,6 +435,33 @@ async function sendTrackEvent(params: SendTrackEventParams): Promise<void> {
     const { error } = await tryCatch(async () => {
         const client = await autumnUtils.resolveClientForPlatform(log, platformId)
         if (isNil(client)) {
+            if (featureId === ConsumableFeatureId.AP_CREDITS) {
+                const currentMonth = apDayjs().format('YYYY-MM')
+                const usageKey = `anticeil:credits_usage:${platformId}:${currentMonth}`
+                const currentUsage = (await distributedStore.get<number>(usageKey)) ?? 0
+                const added = Math.max(1, Math.round(value || 1))
+                const newUsage = currentUsage + added
+                await distributedStore.put(usageKey, newUsage, 60 * 60 * 24 * 60)
+
+                const platformPlan = await platformPlanService(log).getOrCreateForPlatform(platformId)
+                const planKey = (platformPlan?.plan ?? 'free').toLowerCase()
+                const isEnterprise = planKey.includes('enterprise')
+                const isTeam = planKey.includes('team')
+                const isPlus = planKey.includes('plus')
+                const limit = platformPlan?.includedCredits ?? (isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)))
+
+                const updatedBalance = {
+                    featureId: ConsumableFeatureId.AP_CREDITS,
+                    granted: limit,
+                    usage: newUsage,
+                    remaining: Math.max(0, limit - newUsage),
+                    unlimited: false,
+                    syncedAt: Date.now(),
+                    nextResetAt: apDayjs().endOf('month').valueOf(),
+                }
+                await distributedStore.put(getCreditsBalanceKey(platformId), updatedBalance, 60 * 60)
+                log.info({ platformId, value: added, newUsage, remaining: updatedBalance.remaining }, '[Anticeil] Local AI/Automation credits deducted')
+            }
             return
         }
         const properties = { source: params.source, ...params.properties }
@@ -395,10 +491,33 @@ async function resolveCreditsCache(log: FastifyBaseLogger, platformId: string): 
 }
 
 async function readCachedCredits(platformId: string): Promise<BalanceCacheSnapshot> {
-    const [credits, appSumo] = await Promise.all([
+    let [credits, appSumo] = await Promise.all([
         autumnUtils.readBalance({ platformId, featureId: ConsumableFeatureId.AP_CREDITS }),
         autumnUtils.readBalance({ platformId, featureId: ConsumableFeatureId.APP_SUMO_AI_CREDITS }),
     ])
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { system } = require('../../../../helper/system/system')
+    const platformPlan = await platformPlanService(system.globalLogger()).getOrCreateForPlatform(platformId)
+    const planKey = (platformPlan?.plan ?? 'free').toLowerCase()
+    const isEnterprise = planKey.includes('enterprise')
+    const isTeam = planKey.includes('team')
+    const isPlus = planKey.includes('plus')
+    const limit = platformPlan?.includedCredits ?? (isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)))
+    const currentMonth = apDayjs().format('YYYY-MM')
+    const usageKey = `anticeil:credits_usage:${platformId}:${currentMonth}`
+    const currentUsage = (await distributedStore.get<number>(usageKey)) ?? 0
+    if (isNil(credits) || credits.granted !== limit) {
+        credits = {
+            featureId: ConsumableFeatureId.AP_CREDITS,
+            granted: limit,
+            usage: currentUsage,
+            remaining: Math.max(0, limit - currentUsage),
+            unlimited: false,
+            syncedAt: Date.now(),
+            nextResetAt: apDayjs().endOf('month').valueOf(),
+        }
+        await distributedStore.put(getCreditsBalanceKey(platformId), credits, 60 * 60)
+    }
     return { credits, appSumo }
 }
 
@@ -461,17 +580,65 @@ async function fetchBillingOverview(log: FastifyBaseLogger, platformId: string):
     const monthEnd = apDayjs().endOf('month').toISOString()
     const client = await autumnUtils.resolveClientForPlatform(log, platformId)
     if (isNil(client)) {
-        return emptyBillingOverview({ startDate: monthStart, endDate: monthEnd })
+        const platformPlan = await platformPlanService(log).getOrCreateForPlatform(platformId)
+        const planKey = (platformPlan?.plan ?? 'free').toLowerCase()
+        const isEnterprise = planKey.includes('enterprise')
+        const isTeam = planKey.includes('team') || isEnterprise
+        const isPlus = planKey.includes('plus') || isTeam
+        const planName = isEnterprise ? 'Enterprise' : (isTeam ? 'Team' : (isPlus ? 'Plus' : 'Free'))
+        const nextBillingAmount = isEnterprise ? 0 : (isTeam ? 2990000 : (isPlus ? 299000 : 0))
+        const includedSeats = platformPlan?.usersLimit ?? (isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)))
+
+        return {
+            startDate: monthStart,
+            endDate: monthEnd,
+            nextBillingAmount,
+            cancelAt: null,
+            trialEndsAt: null,
+            planInterval: 'month',
+            planName,
+            scheduledPlanName: null,
+            billingPortalAvailable: false,
+            creditsResetInterval: 'month',
+            creditsFeature: {
+                featureId: ConsumableFeatureId.AP_CREDITS,
+                pricePerUnit: 100,
+                billingUnits: 1000,
+                interval: 'month',
+                autoTopUp: null,
+            },
+            appSumoCreditsFeature: null,
+            seatsFeature: {
+                featureId: UnconsumableFeatureId.USERS_LIMIT,
+                pricePerUnit: 50000,
+                billingUnits: 1,
+                interval: 'month',
+            },
+            includedSeats,
+            additionalSeats: null,
+            unavailable: false,
+        }
     }
     const { data: customer, error } = await tryCatch(() => client.getCustomer({ expand: ['subscriptions.plan', 'purchases.plan', 'payment_method', 'billing_controls.auto_topups.purchase_limit'] }))
     if (!isNil(error) || isNil(customer)) {
         log.warn({ error, platform: { id: platformId } }, 'Failed to fetch billing overview; serving an empty overview without caching it')
         return emptyBillingOverview({ startDate: monthStart, endDate: monthEnd, unavailable: true })
     }
+    const baseOverview = toBillingInfo(customer, monthStart, monthEnd)
+    const platformPlan = await platformPlanService(log).getOrCreateForPlatform(platformId)
+    const planKey = (platformPlan?.plan ?? 'free').toLowerCase()
+    const isEnterprise = planKey.includes('enterprise')
+    const isTeam = planKey.includes('team') || isEnterprise
+    const isPlus = planKey.includes('plus') || isTeam
+    const fallbackPlanName = isEnterprise ? 'Enterprise' : (isTeam ? 'Team' : (isPlus ? 'Plus' : 'Free'))
+    const hasPaidLocalPlan = isPlus || isTeam || isEnterprise
+
     const overview: BillingOverview = {
-        ...toBillingInfo(customer, monthStart, monthEnd),
+        ...baseOverview,
+        planName: hasPaidLocalPlan ? fallbackPlanName : (baseOverview.planName || 'Free'),
         ...toSeatBreakdown(customer),
         ...toBillableFeatures(customer),
+        includedSeats: baseOverview.includedSeats ?? platformPlan?.usersLimit,
         unavailable: false,
     }
     await distributedStore.put(getBillingOverviewKey(platformId), overview, BILLING_OVERVIEW_TTL_SECONDS)
@@ -493,6 +660,7 @@ type ComputeCreditStateParams = {
     balance: CreditsBalanceCache | null
     enforced: boolean
 }
+
 
 type WithEnrolledCredsParams<T> = {
     log: FastifyBaseLogger
