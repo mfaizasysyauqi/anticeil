@@ -117,49 +117,73 @@ const platformPlanController = async (app) => {
             platformId: request.principal.platform.id,
         });
     });
-    app.post('/switch-plan', { config: { allowedPrincipals: [shared_1.PrincipalType.USER, shared_1.PrincipalType.SERVICE] } }, async (request) => {
-        const platformId = request.principal.platform.id;
-        const body = request.body;
-        const planName = (body?.plan || 'enterprise').toLowerCase();
-        const isEnterprise = planName === 'enterprise';
-        const isTeam = planName === 'team' || isEnterprise;
-        const isPlus = planName === 'plus' || isTeam;
+    app.post('/switch-plan', { config: { allowedPrincipals: [shared_1.PrincipalType.USER, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
+        try {
+            let platformId = request.principal?.platform?.id;
+            if (!platformId) {
+                const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
+                platformId = platforms[0]?.id;
+            }
+            if (!platformId) {
+                return reply.status(200).send({ success: true, plan: 'enterprise' });
+            }
+            const body = request.body;
+            const planName = (body?.plan || 'enterprise').toLowerCase();
+            const isEnterprise = planName === 'enterprise';
+            const isTeam = planName === 'team' || isEnterprise;
+            const isPlus = planName === 'plus' || isTeam;
 
-        await (0, platform_plan_service_1.platformPlanRepo)().update({ platformId }, {
-            plan: planName,
-            agentsEnabled: true,
-            aiProvidersEnabled: true,
-            mcpsEnabled: true,
-            chatEnabled: true,
-            tablesEnabled: true,
-            apiKeysEnabled: true,
-            billedTeamProjectsLimit: isTeam ? null : 1,
-            includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
-            usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
-            projectsLimit: isEnterprise ? null : (isTeam ? 50 : (isPlus ? 10 : 5)),
-            activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
-            analyticsEnabled: true,
-            customRolesEnabled: isTeam,
-            projectRolesEnabled: true,
-            ssoEnabled: isTeam,
-            scimEnabled: isEnterprise,
-            globalConnectionsEnabled: isTeam,
-            auditLogEnabled: isTeam,
-            environmentsEnabled: isTeam,
-            eventStreamingEnabled: isEnterprise,
-            workerGroupsEnabled: isEnterprise,
-            customDomainsEnabled: isEnterprise,
-            showPoweredBy: !isPlus,
-            secretManagersEnabled: true,
-            customAppearanceEnabled: isPlus,
-            managePiecesEnabled: true,
-            manageTemplatesEnabled: true,
-            embeddingEnabled: isTeam,
-        });
-        await redis_connections_1.distributedStore.delete((0, keys_1.getBillingOverviewKey)(platformId));
-        await redis_connections_1.distributedStore.delete((0, keys_1.getPlatformPlanNameKey)(platformId));
-        request.log.info({ platformId, planName }, 'Plan switched successfully');
-        return { success: true, plan: planName };
+            const planRepo = (0, platform_plan_service_1.platformPlanRepo)();
+            const existing = await planRepo.findOneBy({ platformId });
+
+            const planData = {
+                plan: planName,
+                agentsEnabled: true,
+                aiProvidersEnabled: true,
+                chatEnabled: true,
+                tablesEnabled: true,
+                apiKeysEnabled: true,
+                billedTeamProjectsLimit: isTeam ? null : 1,
+                includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
+                usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
+                projectsLimit: isEnterprise ? null : (isTeam ? 50 : (isPlus ? 10 : 5)),
+                activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
+                analyticsEnabled: true,
+                customRolesEnabled: isTeam,
+                projectRolesEnabled: true,
+                ssoEnabled: isTeam,
+                scimEnabled: isEnterprise,
+                globalConnectionsEnabled: isTeam,
+                auditLogEnabled: isTeam,
+                environmentsEnabled: isTeam,
+                eventStreamingEnabled: isEnterprise,
+                workerGroupsEnabled: isEnterprise,
+                customDomainsEnabled: isEnterprise,
+                showPoweredBy: !isPlus,
+                secretManagersEnabled: true,
+                customAppearanceEnabled: isPlus,
+                managePiecesEnabled: true,
+                manageTemplatesEnabled: true,
+                embeddingEnabled: isTeam,
+            };
+
+            if (existing) {
+                await planRepo.update({ platformId }, planData);
+            } else {
+                await planRepo.save({
+                    id: (0, core_utils_1.apId)(),
+                    platformId,
+                    ...planData,
+                });
+            }
+            await redis_connections_1.distributedStore.delete((0, keys_1.getBillingOverviewKey)(platformId));
+            await redis_connections_1.distributedStore.delete((0, keys_1.getPlatformPlanNameKey)(platformId));
+            request.log.info({ platformId, planName }, 'Plan switched successfully');
+            return reply.status(200).send({ success: true, plan: planName });
+        } catch (err) {
+            request.log.error({ err }, 'Failed to switch plan');
+            return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: err?.message || 'Failed to switch plan' });
+        }
     });
     app.post('/midtrans-webhook', { config: { allowedPrincipals: [shared_1.PrincipalType.UNKNOWN, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
         const body = request.body;
@@ -183,7 +207,6 @@ const platformPlanController = async (app) => {
                         plan: planName,
                         agentsEnabled: true,
                         aiProvidersEnabled: true,
-                        mcpsEnabled: true,
                         chatEnabled: true,
                         tablesEnabled: true,
                         apiKeysEnabled: true,

@@ -214,6 +214,7 @@ export const AutomationsEmptyState = ({
   const userHasPermissionToWriteFlow = checkAccess(Permission.WRITE_FLOW);
   const userHasPermissionToWriteTable = checkAccess(Permission.WRITE_TABLE);
 
+  const { platform } = platformHooks.useCurrentPlatform();
   const isShowingOfficialTemplates = true;
   const { templates, isLoading: isLoadingTemplates } =
     templatesHooks.useTemplates(
