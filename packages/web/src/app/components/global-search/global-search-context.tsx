@@ -132,17 +132,17 @@ function GlobalSearchDialogContent({
       onCommandValueChange={setCommandValue}
       className="sm:max-w-[620px] h-[70vh] flex flex-col"
     >
-      <div className="relative">
+      <div className="relative border-b border-border/40">
         <CommandInput
           placeholder={t('Search pages, flows, tables...')}
           value={search}
           onValueChange={setSearch}
-          containerClassName="border-b-0"
+          containerClassName="border-b-0 px-4"
         />
         {search && (
           <button
             type="button"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
             onClick={() => setSearch('')}
           >
             <X className="size-3.5" />
