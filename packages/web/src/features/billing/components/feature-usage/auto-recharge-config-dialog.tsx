@@ -172,7 +172,7 @@ export function AutoRechargeConfigDialog({
                         {MONTHLY_TOPUP_OPTIONS.map((count) => (
                           <SelectItem key={count} value={String(count)}>
                             {t(
-                              '${cost} ({count, plural, =1 {1 auto recharge} other {# auto recharges}})',
+                              'Rp{cost} ({count, plural, =1 {1 auto recharge} other {# auto recharges}})',
                               {
                                 cost: (count * costPerTopUp).toFixed(2),
                                 count,
@@ -192,8 +192,8 @@ export function AutoRechargeConfigDialog({
 
             <PriceSummary
               label={t('Payment per auto recharge')}
-              amount={t('${amount}', { amount: costPerTopUp.toFixed(2) })}
-              note={t('${cost} per {units} credits', {
+              amount={t('Rp{amount}', { amount: costPerTopUp.toFixed(2) })}
+              note={t('Rp{cost} per {units} credits', {
                 cost: feature.pricePerUnit,
                 units: feature.billingUnits.toLocaleString(),
               })}

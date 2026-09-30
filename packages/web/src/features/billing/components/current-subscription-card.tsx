@@ -35,9 +35,8 @@ export const CurrentSubscriptionCard = ({
           </Badge>
         </div>
         <Button
-          className="w-full  text-neutral-900 shadow-sm hover:bg-white/90"
+          className="w-full bg-white text-neutral-900 hover:bg-white/90 dark:bg-neutral-950 dark:text-white dark:hover:bg-neutral-900 border-0 shadow-sm font-semibold transition-all"
           onClick={onExplorePlans}
-          variant={'outline'}
         >
           {t('Upgrade')}
         </Button>

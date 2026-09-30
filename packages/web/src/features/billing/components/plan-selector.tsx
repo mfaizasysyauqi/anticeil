@@ -297,6 +297,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
           });
           const isCurrent =
             (!isNil(apiPlan) && apiPlan.id === currentPlanId) ||
+            entry.key === currentPlanId ||
             (entry.key === 'enterprise' && currentPlanId === 'enterprise') ||
             (entry.key === 'free' &&
               (currentPlanId === 'free' || isNil(currentPlanId)));
@@ -484,6 +485,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
                 });
                 const isCurrent =
                   (!isNil(apiPlan) && apiPlan.id === currentPlanId) ||
+                  entry.key === currentPlanId ||
                   (entry.key === 'enterprise' && currentPlanId === 'enterprise') ||
                   (entry.key === 'free' &&
                     (currentPlanId === 'free' || isNil(currentPlanId)));
@@ -769,7 +771,7 @@ function PlanCta({
       className={cn(
         'w-full font-medium transition-all',
         highlighted
-          ? 'font-semibold shadow-xs'
+          ? 'font-semibold shadow-xs bg-foreground text-background hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-white/90'
           : 'border border-border/80 text-foreground bg-secondary/90 hover:bg-secondary hover:border-foreground/30',
       )}
       disabled={isPending || isSwitching}

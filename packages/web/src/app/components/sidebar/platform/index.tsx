@@ -9,9 +9,11 @@ import {
   Key,
   KeyRound,
   LogIn,
+  Menu,
   ShieldCheck,
+  X,
 } from 'lucide-react';
-import { ComponentType, useRef } from 'react';
+import { ComponentType, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { McpSvg } from '@/assets/img/custom/mcp';
@@ -56,6 +58,8 @@ import { flagsHooks } from '@/hooks/flags-hooks';
 import { platformHooks } from '@/hooks/platform-hooks';
 import { determineDefaultRoute } from '@/lib/route-utils';
 import { cn } from '@/lib/utils';
+
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 import { ApSidebarItem } from '../ap-sidebar-item';
 import { SidebarUser } from '../sidebar-user';
@@ -407,4 +411,25 @@ export function PlatformSidebar() {
   );
 }
 
+export function MobilePlatformSidebarSheet({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="left"
+        hideCloseButton
+        className="w-72 max-w-[85vw] p-0 bg-sidebar border-r border-sidebar-border flex flex-col h-full overflow-hidden"
+      >
+        <div className="flex h-full w-full flex-col overflow-y-auto">
+          <PlatformSidebar />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
 

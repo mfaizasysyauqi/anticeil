@@ -147,11 +147,11 @@ function ManageSeatsForm({
 
         <PriceSummary
           label={isYearly ? t('Total yearly cost') : t('Total monthly cost')}
-          amount={t('${amount}', { amount: totalCost.toFixed(2) })}
+          amount={t('Rp{amount}', { amount: totalCost.toFixed(2) })}
           note={
             isYearly
-              ? t('${price}/year per seat', { price: perSeat.toFixed(2) })
-              : t('${price}/month per seat', { price: perSeat.toFixed(2) })
+              ? t('Rp{price}/year per seat', { price: perSeat.toFixed(2) })
+              : t('Rp{price}/month per seat', { price: perSeat.toFixed(2) })
           }
         />
 
