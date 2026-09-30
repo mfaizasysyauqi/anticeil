@@ -348,7 +348,7 @@ export function PlatformSidebar() {
                               </SidebarMenuButton>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
-                              <SidebarMenuSub className="mr-0 pr-0">
+                              <SidebarMenuSub className="mr-0 pr-0 ml-3 pl-2.5 border-l border-sidebar-border/40 gap-0.5 my-0.5">
                                 {item.subItems.map((sub, sIdx) => {
                                   const currentFull =
                                     location.pathname + location.search;
@@ -358,13 +358,26 @@ export function PlatformSidebar() {
                                         !location.search) ||
                                       (sub.to ===
                                         '/platform/setup/ai/providers' &&
-                                        location.pathname ===
-                                          '/platform/setup/ai');
+                                        (location.pathname ===
+                                          '/platform/setup/ai' ||
+                                          location.pathname ===
+                                            '/platform/setup/ai/providers')) ||
+                                      (sub.to ===
+                                        '/platform/setup/ai/capabilities' &&
+                                        (location.pathname ===
+                                          '/platform/setup/ai-capabilities' ||
+                                          location.pathname ===
+                                            '/platform/setup/ai/capabilities'));
                                   return (
                                     <SidebarMenuSubItem key={`${sub.to}-${sIdx}`}>
                                       <SidebarMenuSubButton
                                         asChild
                                         isActive={isSubActive}
+                                        className={cn(
+                                          'cursor-pointer transition-colors text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-sidebar-accent',
+                                          isSubActive &&
+                                            'bg-sidebar-accent! text-sidebar-accent-foreground! font-medium',
+                                        )}
                                       >
                                         <Link
                                           to={sub.to}
