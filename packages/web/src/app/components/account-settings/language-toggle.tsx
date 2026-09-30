@@ -88,10 +88,10 @@ export const LanguageToggle = () => {
                 <CommandGroup>
                   {Object.entries(localesMap).map(([value, label]) => (
                     <CommandItem
-                      value={value}
+                      value={`${label} ${value} ${value === 'id' ? 'indonesia indonesian' : ''}`}
                       key={value}
-                      onSelect={(value) => mutate(value)}
-                      className="flex items-center justify-between py-2 text-sm"
+                      onSelect={() => mutate(value)}
+                      className="flex items-center justify-between py-2 text-sm cursor-pointer"
                     >
                       <div className="flex items-center gap-2">{label}</div>
                       <Check
