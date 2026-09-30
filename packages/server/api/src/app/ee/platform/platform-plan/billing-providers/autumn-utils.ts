@@ -217,7 +217,7 @@ export const autumnUtils = {
         const activeFlows = entitlements.balances[UnconsumableFeatureId.ACTIVE_FLOWS_LIMIT]
         const credits = entitlements.balances[ConsumableFeatureId.AP_CREDITS]
         return {
-            ...toPlatformPlanFlags(entitlements.grantedFeatureIds),
+            ...toPlatformPlanFlags(entitlements.grantedFeatureIds, entitlements.planId),
             plan: entitlements.planId,
             billedTeamProjectsLimit: toPlatformPlanLimit(teamProjects, 1),
             usersLimit: toPlatformPlanLimit(users, null),
@@ -500,29 +500,36 @@ function toEntitlementPlan(attachment: AutumnPlanAttachment): EntitlementPlan {
     }
 }
 
-function toPlatformPlanFlags(_grantedFeatureIds: ReadonlySet<string>): PlatformPlanFlags {
+function toPlatformPlanFlags(grantedFeatureIds: ReadonlySet<string>, planId?: string | null): PlatformPlanFlags {
+    const plan = (planId || 'free').toLowerCase()
+    const isEnterprise = plan.includes('enterprise')
+    const isTeam = plan.includes('team') || isEnterprise
+    const isPlus = plan.includes('plus') || isTeam
+
+    const has = (feature: FeatureFlagId) => grantedFeatureIds.has(feature)
+
     return {
         tablesEnabled: true,
-        eventStreamingEnabled: true,
-        environmentsEnabled: true,
-        analyticsEnabled: true,
-        showPoweredBy: false,
-        auditLogEnabled: true,
-        embeddingEnabled: true,
-        aiProvidersEnabled: true,
         chatEnabled: true,
-        agentsEnabled: true,
-        workerGroupsEnabled: true,
-        managePiecesEnabled: true,
-        manageTemplatesEnabled: true,
-        customAppearanceEnabled: true,
-        projectRolesEnabled: true,
-        globalConnectionsEnabled: true,
-        customRolesEnabled: true,
-        apiKeysEnabled: true,
-        ssoEnabled: true,
-        secretManagersEnabled: true,
-        scimEnabled: true,
+        analyticsEnabled: true,
+        showPoweredBy: !isPlus,
+        customAppearanceEnabled: has(FeatureFlagId.CUSTOM_APPEARANCE) || isPlus,
+        aiProvidersEnabled: has(FeatureFlagId.AI_PROVIDERS) || isTeam,
+        agentsEnabled: has(FeatureFlagId.AGENTS) || isTeam,
+        globalConnectionsEnabled: has(FeatureFlagId.GLOBAL_CONNECTIONS) || isTeam,
+        ssoEnabled: has(FeatureFlagId.SSO) || isTeam,
+        customRolesEnabled: has(FeatureFlagId.CUSTOM_ROLES) || isTeam,
+        projectRolesEnabled: has(FeatureFlagId.PROJECT_ROLES) || isTeam,
+        auditLogEnabled: has(FeatureFlagId.AUDIT_LOGS) || isTeam,
+        environmentsEnabled: has(FeatureFlagId.ENVIRONMENTS) || isTeam,
+        embeddingEnabled: has(FeatureFlagId.EMBEDDED) || isTeam,
+        apiKeysEnabled: has(FeatureFlagId.API_KEYS) || isTeam,
+        secretManagersEnabled: has(FeatureFlagId.SECRET_MANAGERS) || isTeam,
+        managePiecesEnabled: has(FeatureFlagId.MANAGE_PIECES) || isTeam,
+        manageTemplatesEnabled: has(FeatureFlagId.MANAGE_TEMPLATES) || isTeam,
+        scimEnabled: has(FeatureFlagId.SCIM) || isEnterprise,
+        eventStreamingEnabled: has(FeatureFlagId.EVENT_STREAMING) || isEnterprise,
+        workerGroupsEnabled: has(FeatureFlagId.WORKER_GROUPS) || isEnterprise,
     }
 }
 

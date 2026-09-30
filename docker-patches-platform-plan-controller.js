@@ -275,6 +275,51 @@ const platformPlanController = async (app) => {
     });
 };
 exports.platformPlanController = platformPlanController;
+function resolvePlanLimitsAndFeatures(planName = 'free') {
+    const raw = (planName || 'free').toLowerCase();
+    const isEnterprise = raw.includes('enterprise');
+    const isTeam = raw.includes('team') || isEnterprise;
+    const isPlus = raw.includes('plus') || isTeam;
+    const finalPlanName = isEnterprise ? 'enterprise' : (isTeam ? 'team' : (isPlus ? 'plus' : 'free'));
+
+    return {
+        plan: finalPlanName,
+        includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
+        usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
+        activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
+        projectsLimit: isEnterprise ? null : (isTeam ? null : 1),
+        billedTeamProjectsLimit: isTeam ? null : 1,
+
+        agentsEnabled: isTeam,
+        aiProvidersEnabled: isTeam,
+        chatEnabled: true,
+        tablesEnabled: true,
+        analyticsEnabled: true,
+
+        customAppearanceEnabled: isPlus,
+        showPoweredBy: !isPlus,
+
+        globalConnectionsEnabled: isTeam,
+        ssoEnabled: isTeam,
+        customRolesEnabled: isTeam,
+        projectRolesEnabled: isTeam,
+        auditLogEnabled: isTeam,
+        environmentsEnabled: isTeam,
+        embeddingEnabled: isTeam,
+        apiKeysEnabled: isTeam,
+        secretManagersEnabled: isTeam,
+        managePiecesEnabled: isTeam,
+        manageTemplatesEnabled: isTeam,
+
+        scimEnabled: isEnterprise,
+        eventStreamingEnabled: isEnterprise,
+        workerGroupsEnabled: isEnterprise,
+        customDomainsEnabled: isEnterprise,
+        dedicatedWorkers: null,
+        canary: false,
+    };
+}
+
 function getUnlimitedBillingInfo(requestedPlan = 'free') {
     const limits = resolvePlanLimitsAndFeatures(requestedPlan);
     return {
