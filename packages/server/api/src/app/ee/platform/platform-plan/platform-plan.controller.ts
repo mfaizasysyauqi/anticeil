@@ -5,7 +5,7 @@ import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { securityAccess } from '../../../core/security/authorization/fastify-security'
-import { getEntitlementsForceRefreshKey } from '../../../database/redis/keys'
+import { getBillingOverviewKey, getEntitlementsForceRefreshKey, getPlatformPlanNameKey } from '../../../database/redis/keys'
 import { distributedStore } from '../../../database/redis-connections'
 import { billingProvider } from '../../../platform/billing-provider'
 import { platformService } from '../../../platform/platform.service'
@@ -121,7 +121,7 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         })
     })
 
-    app.post('/switch-plan', { config: { allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE] } }, async (request) => {
+    app.post('/switch-plan', { config: { security: securityAccess.platformAdminOnly([PrincipalType.USER, PrincipalType.SERVICE]) } }, async (request) => {
         const platformId = request.principal.platform.id
         const body = request.body as { plan?: string }
         const planName = (body?.plan || 'enterprise').toLowerCase()
@@ -133,28 +133,39 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
             plan: planName,
             agentsEnabled: true,
             aiProvidersEnabled: true,
-            mcpsEnabled: true,
+            chatEnabled: true,
+            tablesEnabled: true,
+            apiKeysEnabled: true,
             billedTeamProjectsLimit: isTeam ? null : 1,
             includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
             usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
+            projectsLimit: isEnterprise ? null : (isTeam ? 50 : (isPlus ? 10 : 5)),
+            activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
             analyticsEnabled: true,
             customRolesEnabled: isTeam,
             projectRolesEnabled: true,
             ssoEnabled: isTeam,
+            scimEnabled: isEnterprise,
             globalConnectionsEnabled: isTeam,
             auditLogEnabled: isTeam,
+            environmentsEnabled: isTeam,
+            eventStreamingEnabled: isEnterprise,
+            workerGroupsEnabled: isEnterprise,
+            customDomainsEnabled: isEnterprise,
+            showPoweredBy: !isPlus,
             secretManagersEnabled: true,
-            customAppearanceEnabled: true,
+            customAppearanceEnabled: isPlus,
             managePiecesEnabled: true,
             manageTemplatesEnabled: true,
             embeddingEnabled: isTeam,
         })
         await distributedStore.delete(getBillingOverviewKey(platformId))
+        await distributedStore.delete(getPlatformPlanNameKey(platformId))
         request.log.info({ platformId, planName }, 'Plan switched successfully')
         return { success: true, plan: planName }
     })
 
-    app.post('/midtrans-webhook', { config: { allowedPrincipals: [PrincipalType.UNKNOWN, PrincipalType.SERVICE] } }, async (request, reply) => {
+    app.post('/midtrans-webhook', { config: { security: securityAccess.public() } }, async (request, reply) => {
         const body = request.body as Record<string, unknown>
         const orderId = body?.order_id as string | undefined
         const transactionStatus = body?.transaction_status as string | undefined
@@ -165,34 +176,46 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         if (transactionStatus === 'capture' || transactionStatus === 'settlement') {
             if (fraudStatus === 'accept' || !fraudStatus) {
                 const grossAmount = Number(body?.gross_amount)
-                const isTeam = grossAmount >= 2000000
-                const isPlus = grossAmount >= 200000 && !isTeam
+                const isEnterprise = grossAmount >= 10000000
+                const isTeam = grossAmount >= 2000000 || isEnterprise
+                const isPlus = (grossAmount >= 200000 && !isTeam) || isTeam
 
                 const platforms = await platformService(request.log).getAll()
                 const platform = platforms[0]
                 if (platform) {
-                    const planName = isTeam ? 'team' : (isPlus ? 'plus' : 'free')
+                    const planName = isEnterprise ? 'enterprise' : (isTeam ? 'team' : (isPlus ? 'plus' : 'free'))
                     await platformPlanRepo().update({ platformId: platform.id }, {
                         plan: planName,
                         agentsEnabled: true,
                         aiProvidersEnabled: true,
-                        mcpsEnabled: true,
+                        chatEnabled: true,
+                        tablesEnabled: true,
+                        apiKeysEnabled: true,
                         billedTeamProjectsLimit: isTeam ? null : 1,
-                        includedCredits: isTeam ? 50000 : 10000,
-                        usersLimit: isTeam ? 25 : 5,
+                        includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : 10000),
+                        usersLimit: isEnterprise ? null : (isTeam ? 25 : 5),
+                        projectsLimit: isEnterprise ? null : (isTeam ? 50 : 10),
+                        activeFlowsLimit: isEnterprise ? null : (isTeam ? null : 100),
                         analyticsEnabled: true,
                         customRolesEnabled: isTeam,
                         projectRolesEnabled: true,
                         ssoEnabled: isTeam,
+                        scimEnabled: isEnterprise,
                         globalConnectionsEnabled: isTeam,
                         auditLogEnabled: isTeam,
+                        environmentsEnabled: isTeam,
+                        eventStreamingEnabled: isEnterprise,
+                        workerGroupsEnabled: isEnterprise,
+                        customDomainsEnabled: isEnterprise,
+                        showPoweredBy: !isPlus,
                         secretManagersEnabled: true,
-                        customAppearanceEnabled: true,
+                        customAppearanceEnabled: isPlus,
                         managePiecesEnabled: true,
                         manageTemplatesEnabled: true,
                         embeddingEnabled: isTeam,
                     })
                     await distributedStore.delete(getBillingOverviewKey(platform.id))
+                    await distributedStore.delete(getPlatformPlanNameKey(platform.id))
                     request.log.info({ platformId: platform.id, planName }, 'Midtrans plan upgraded successfully')
                 }
             }

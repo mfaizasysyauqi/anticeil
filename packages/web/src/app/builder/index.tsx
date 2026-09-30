@@ -154,7 +154,7 @@ const BuilderPage = () => {
       <div className="z-40">
         <BuilderHeader />
       </div>
-      <ResizablePanelGroup orientation="horizontal">
+      <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
         <ResizablePanel defaultSize="100%" id="flow-canvas">
           <div ref={middlePanelRef} className="relative h-full w-full">
             <CursorPositionProvider>

@@ -57,10 +57,10 @@ export const OutOfSeatsDialog = ({
                 : t(
                     'All {total} seats on your plan are in use ({active} active, {invited} invited). {invitedCount, plural, =0 {Add seats to invite more.} other {Add seats or revoke a pending invitation to invite more.}}',
                     {
-                      total: total.toLocaleString(),
-                      active: info.usage.activeUsers.toLocaleString(),
-                      invited: info.usage.invitedSeats.toLocaleString(),
-                      invitedCount: info.usage.invitedSeats,
+                      total: (total ?? 0).toLocaleString(),
+                      active: (info.usage?.activeUsers ?? 0).toLocaleString(),
+                      invited: (info.usage?.invitedSeats ?? 0).toLocaleString(),
+                      invitedCount: info.usage?.invitedSeats ?? 0,
                     },
                   )}
             </DialogDescription>
@@ -73,7 +73,7 @@ export const OutOfSeatsDialog = ({
             >
               {t('Cancel')}
             </Button>
-            {info.usage.invitedSeats > 0 && (
+            {(info.usage?.invitedSeats ?? 0) > 0 && (
               <Button type="button" variant="outline" asChild>
                 <Link to="/platform/users" onClick={() => onOpenChange(false)}>
                   {t('Manage invitations')}
@@ -106,7 +106,7 @@ export const OutOfSeatsDialog = ({
         open={isManageSeatsOpen}
         onOpenChange={setIsManageSeatsOpen}
         feature={feature}
-        currentUsers={info.usage.users}
+        currentUsers={info.usage?.users ?? 0}
         includedSeats={info.includedSeats}
         additionalSeats={info.additionalSeats}
       />

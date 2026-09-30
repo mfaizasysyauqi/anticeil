@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { t } from 'i18next';
-import { Activity, Calendar, HeartPulse, LineChart } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { QueueTab } from './components/queue-tab';
 import { RunsTab } from './components/runs-tab';
@@ -96,43 +95,20 @@ export default function SettingsHealthPage() {
         )}
       </DashboardPageHeader>
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setTab(value as TabValue)}
-        className="w-full"
-      >
-        <TabsList variant="outline" className="border-b w-full">
-          <TabsTrigger variant="outline" value="system">
-            <HeartPulse className="w-4 h-4 mr-2" />
-            {t('System Health')}
-          </TabsTrigger>
-          <TabsTrigger variant="outline" value="runs">
-            <LineChart className="w-4 h-4 mr-2" />
-            {t('Runs Health')}
-          </TabsTrigger>
-          <TabsTrigger variant="outline" value="queue">
-            <Activity className="w-4 h-4 mr-2" />
-            {t('Queue Health')}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="system">
-          <SystemHealthTab onSeeRuns={() => setTab('runs')} />
-        </TabsContent>
-
-        <TabsContent value="runs">
-          <RunsTab
-            report={report}
-            isLoading={isReportLoading}
-            isError={isReportError}
-            onRetry={refetchReport}
-          />
-        </TabsContent>
-
-        <TabsContent value="queue">
-          <QueueTab live={live} isLoading={isLiveLoading} />
-        </TabsContent>
-      </Tabs>
+      {activeTab === 'system' && (
+        <SystemHealthTab onSeeRuns={() => setTab('runs')} />
+      )}
+      {activeTab === 'runs' && (
+        <RunsTab
+          report={report}
+          isLoading={isReportLoading}
+          isError={isReportError}
+          onRetry={refetchReport}
+        />
+      )}
+      {activeTab === 'queue' && (
+        <QueueTab live={live} isLoading={isLiveLoading} />
+      )}
     </div>
   );
 }

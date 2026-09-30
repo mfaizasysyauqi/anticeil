@@ -31,7 +31,6 @@ import { DataTableColumnHeader } from '@/components/custom/data-table/data-table
 import { ConfirmationDeleteDialog } from '@/components/custom/delete-dialog';
 import { LockedAlert } from '@/components/custom/locked-alert';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { oauthAppsQueries } from '@/features/connections';
 import {
   InstallPieceDialog,
@@ -257,37 +256,15 @@ const PlatformPiecesPage = () => {
             />
           </div>
         )}
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setTab(v as TabValue)}
-          className="flex flex-col flex-1 min-h-0 min-w-0"
-        >
-          <TabsList
-            variant="outline"
-            className="border-b w-full rounded-none justify-start shrink-0"
-          >
-            <TabsTrigger variant="outline" value="pieces">
-              <Puzzle className="size-4 mr-2" />
-              {t('Pieces')}
-            </TabsTrigger>
-            <TabsTrigger variant="outline" value="piece-sets">
-              <Layers className="size-4 mr-2" />
-              {t('Piece Sets')}
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent
-            value="pieces"
-            className="flex-1 min-h-0 flex flex-col mt-0 min-w-0"
-          >
-            <PiecesListTab />
-          </TabsContent>
-          <TabsContent
-            value="piece-sets"
-            className="flex-1 min-h-0 flex flex-col mt-0 min-w-0"
-          >
+        {activeTab === 'piece-sets' ? (
+          <div className="flex-1 min-h-0 flex flex-col min-w-0">
             <PieceSetsTab />
-          </TabsContent>
-        </Tabs>
+          </div>
+        ) : (
+          <div className="flex-1 min-h-0 flex flex-col min-w-0">
+            <PiecesListTab />
+          </div>
+        )}
       </div>
     </>
   );

@@ -35,8 +35,10 @@ export function FeatureUsageCards({
 function UsageMetricCard({ metric }: { metric: UsageMetric }) {
   const Icon = metric.icon;
   const isUnlimited = isNil(metric.included);
+  const used = metric.used ?? 0;
+  const limit = metric.included ?? 0;
   const percent = billingUtils.percentUsed({
-    used: metric.used,
+    used,
     total: metric.included,
   });
 
@@ -60,14 +62,14 @@ function UsageMetricCard({ metric }: { metric: UsageMetric }) {
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">{t('Used')}</span>
           <span className="text-2xl font-semibold text-foreground">
-            {metric.used.toLocaleString()}
+            {used.toLocaleString()}
           </span>
         </div>
         {!isUnlimited && (
           <div className="flex flex-col items-end gap-1">
             <span className="text-xs text-muted-foreground">{t('Limit')}</span>
             <span className="text-2xl font-semibold text-foreground">
-              {metric.included!.toLocaleString()}
+              {limit.toLocaleString()}
             </span>
           </div>
         )}
@@ -102,14 +104,14 @@ function resolveUsageMetrics(info: PlatformBillingInformation): UsageMetric[] {
       key: 'credits',
       label: 'Credits',
       icon: Coins,
-      used: usage.creditsUsed,
-      included: plan.includedCredits > 0 ? plan.includedCredits : null,
+      used: usage?.creditsUsed ?? 0,
+      included: plan.includedCredits && plan.includedCredits > 0 ? plan.includedCredits : null,
     },
     {
       key: 'users',
       label: 'Users',
       icon: Users,
-      used: usage.users,
+      used: usage?.users ?? usage?.activeUsers ?? 1,
       included: usersLimit,
       note: usersCapBinds ? billingUtils.scheduledCapNotice(info) : undefined,
     },
@@ -117,26 +119,26 @@ function resolveUsageMetrics(info: PlatformBillingInformation): UsageMetric[] {
       key: 'active-flows',
       label: 'Active Flows',
       icon: Zap,
-      used: usage.activeFlows,
+      used: usage?.activeFlows ?? 0,
       included: plan.activeFlowsLimit ?? null,
     },
     {
       key: 'team-projects',
       label: 'Team Projects',
       icon: Folder,
-      used: usage.teamProjects,
+      used: usage?.teamProjects ?? 0,
       included: plan.billedTeamProjectsLimit ?? null,
     },
   ];
-  if (!isNil(usage.appSumoAiCreditsUsed)) {
+  if (!isNil(usage?.appSumoAiCreditsUsed)) {
     metrics.push({
       key: 'appsumo-ai-credits',
       label:
         plan.plan === PlanName.APPSUMO ? 'AppSumo AI Credits' : 'AI Credits',
       icon: Sparkles,
-      used: usage.appSumoAiCreditsUsed,
+      used: usage.appSumoAiCreditsUsed ?? 0,
       included:
-        usage.appSumoAiCreditsUsed + (usage.appSumoAiCreditsRemaining ?? 0),
+        (usage.appSumoAiCreditsUsed ?? 0) + (usage.appSumoAiCreditsRemaining ?? 0),
     });
   }
   return metrics.filter(

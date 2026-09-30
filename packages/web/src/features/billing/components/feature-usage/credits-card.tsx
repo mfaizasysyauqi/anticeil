@@ -12,10 +12,10 @@ const CARD_DATE_FORMAT = 'D MMM YYYY, h:mm A';
 
 export const CreditsCard = ({ info }: CreditsCardProps) => {
   const { plan, usage } = info;
-  const remaining = usage.creditsRemaining;
+  const remaining = usage?.creditsRemaining;
   const isUnlimited = isNil(remaining);
-  const total = plan.includedCredits;
-  const used = isUnlimited ? usage.creditsUsed : Math.max(0, total - remaining);
+  const total = plan.includedCredits ?? 0;
+  const used = isUnlimited ? (usage?.creditsUsed ?? 0) : Math.max(0, total - (remaining ?? 0));
   const percentUsed = billingUtils.percentUsed({
     used,
     total: isUnlimited ? null : total,
@@ -34,7 +34,7 @@ export const CreditsCard = ({ info }: CreditsCardProps) => {
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-baseline gap-1.5">
             <span className="text-3xl font-bold text-foreground">
-              {(isUnlimited ? used : total).toLocaleString()}
+              {(isUnlimited ? (used ?? 0) : (total ?? 0)).toLocaleString()}
             </span>
             <span className="text-muted-foreground">{t('credits')}</span>
           </div>
@@ -44,7 +44,7 @@ export const CreditsCard = ({ info }: CreditsCardProps) => {
             <Progress value={percentUsed} usage />
             <span className="text-sm text-muted-foreground">
               {t('{amount} remaining', {
-                amount: Math.round(remaining).toLocaleString(),
+                amount: Math.round(remaining ?? 0).toLocaleString(),
               })}
             </span>
           </>

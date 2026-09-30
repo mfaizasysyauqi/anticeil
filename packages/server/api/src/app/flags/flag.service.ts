@@ -151,7 +151,7 @@ export const flagService = (log: FastifyBaseLogger) => ({
             },
             {
                 id: ApFlagId.EMAIL_AUTH_ENABLED,
-                value: system.getBoolean('EMAIL_AUTH_ENABLED') ?? false,
+                value: process.env.EMAIL_AUTH_ENABLED === 'true',
                 created,
                 updated,
             },

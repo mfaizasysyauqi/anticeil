@@ -1,5 +1,6 @@
 import { ApFlagId } from '@activepieces/shared';
 import { t } from 'i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import { CenteredPage } from '@/app/components/centered-page';
 import { McpTools } from '@/app/components/project-settings/mcp-server/mcp-tools';
@@ -8,12 +9,13 @@ import { CopyToClipboardInput } from '@/components/custom/clipboard/copy-to-clip
 import { CollapsibleJson } from '@/components/custom/collapsible-json';
 import { DataFetchErrorState } from '@/components/custom/data-fetch-error-state';
 import { LoadingSpinner } from '@/components/custom/spinner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { flagsHooks } from '@/hooks/flags-hooks';
 
 import { platformMcpHooks } from './platform-mcp-hooks';
 
 export default function PlatformMcpPage() {
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'connection';
   const {
     data: mcpServer,
     isLoading,
@@ -72,14 +74,8 @@ export default function PlatformMcpPage() {
     >
       <div className="space-y-6">
         {mcpServer && (
-          <Tabs defaultValue="connection">
-            <TabsList>
-              <TabsTrigger value="connection">{t('Connection')}</TabsTrigger>
-              <TabsTrigger value="tools">{t('Tools')}</TabsTrigger>
-              <TabsTrigger value="activity">{t('Activity')}</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="connection" className="mt-4 pb-6" tabIndex={-1}>
+          <div>
+            {activeTab === 'connection' && (
               <div className="space-y-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">
@@ -105,40 +101,36 @@ export default function PlatformMcpPage() {
                   defaultOpen={false}
                 />
               </div>
-            </TabsContent>
+            )}
 
-            <TabsContent
-              value="tools"
-              className="mt-4 space-y-6 pb-6"
-              tabIndex={-1}
-            >
-              <div>
-                <h3 className="font-semibold text-base mb-1">
-                  {t('Internal Tools')}
-                </h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  {t(
-                    'Control which built-in tools are available to the AI Chat and external agents via the platform MCP server.',
-                  )}
-                </p>
-                <McpTools
-                  disabledTools={mcpServer.disabledTools}
-                  isPending={isToolsUpdating}
-                  onUpdateDisabledTools={(tools) =>
-                    updateTools({ disabledTools: tools })
-                  }
-                />
+            {activeTab === 'tools' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="font-semibold text-base mb-1">
+                    {t('Internal Tools')}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {t(
+                      'Control which built-in tools are available to the AI Chat and external agents via the platform MCP server.',
+                    )}
+                  </p>
+                  <McpTools
+                    disabledTools={mcpServer.disabledTools}
+                    isPending={isToolsUpdating}
+                    onUpdateDisabledTools={(tools) =>
+                      updateTools({ disabledTools: tools })
+                    }
+                  />
+                </div>
               </div>
-            </TabsContent>
+            )}
 
-            <TabsContent
-              value="activity"
-              className="mt-4 flex flex-col gap-2 pb-6"
-              tabIndex={-1}
-            >
-              <ActivityFeed />
-            </TabsContent>
-          </Tabs>
+            {activeTab === 'activity' && (
+              <div className="flex flex-col gap-2">
+                <ActivityFeed />
+              </div>
+            )}
+          </div>
         )}
       </div>
     </CenteredPage>

@@ -26,7 +26,7 @@ function BuilderLayoutInner({ children }: { children: React.ReactNode }) {
   const { open: searchOpen } = useGlobalSearch();
 
   return (
-    <div className="flex h-full w-full overflow-hidden">
+    <div className="flex h-svh w-full overflow-hidden">
       {!embedState.isEmbedded && <PrimaryRail />}
       <SidebarProvider
         hoverMode={!searchOpen}

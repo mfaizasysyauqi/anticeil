@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ReactFlowProvider } from '@xyflow/react';
 import { t } from 'i18next';
 import { FileX } from 'lucide-react';
+import { ErrorBoundary } from 'react-error-boundary';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { BuilderPage } from '@/app/builder';
@@ -13,6 +14,28 @@ import { buttonVariants } from '@/components/ui/button';
 import { flowsApi, sampleDataHooks } from '@/features/flows';
 import { authenticationSession } from '@/lib/authentication-session';
 import { cn } from '@/lib/utils';
+
+function BuilderErrorFallback({ error }: { error: Error }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center space-y-4 p-8">
+      <div className="rounded-full bg-destructive/10 p-4">
+        <FileX className="size-9 text-destructive" />
+      </div>
+      <div>
+        <h2 className="text-lg font-semibold">{t('Builder crashed')}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
+        {import.meta.env.DEV && (
+          <pre className="mt-4 text-left text-xs bg-muted rounded p-3 max-w-2xl overflow-auto max-h-48">
+            {error.stack}
+          </pre>
+        )}
+      </div>
+      <Link className={cn(buttonVariants({ variant: 'outline' }))} to="/dashboard">
+        {t('Go to Dashboard')}
+      </Link>
+    </div>
+  );
+}
 
 const FlowBuilderPage = () => {
   const { flowId } = useParams();
@@ -69,19 +92,21 @@ const FlowBuilderPage = () => {
   }
 
   return (
-    <ReactFlowProvider>
-      <BuilderStateProvider
-        flow={flow}
-        flowVersion={flow!.version}
-        readonly={flow!.version.state === FlowVersionState.LOCKED}
-        hideTestWidget={false}
-        run={null}
-        outputSampleData={sampleData ?? {}}
-        inputSampleData={sampleDataInput ?? {}}
-      >
-        <BuilderPage />
-      </BuilderStateProvider>
-    </ReactFlowProvider>
+    <ErrorBoundary FallbackComponent={BuilderErrorFallback}>
+      <ReactFlowProvider>
+        <BuilderStateProvider
+          flow={flow}
+          flowVersion={flow!.version}
+          readonly={flow!.version.state === FlowVersionState.LOCKED}
+          hideTestWidget={false}
+          run={null}
+          outputSampleData={sampleData ?? {}}
+          inputSampleData={sampleDataInput ?? {}}
+        >
+          <BuilderPage />
+        </BuilderStateProvider>
+      </ReactFlowProvider>
+    </ErrorBoundary>
   );
 };
 

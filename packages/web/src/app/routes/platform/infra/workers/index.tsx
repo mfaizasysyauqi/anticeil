@@ -15,7 +15,6 @@ import {
   HardDrive,
   Zap,
   Layers,
-  Activity,
 } from 'lucide-react';
 import prettyBytes from 'pretty-bytes';
 import React from 'react';
@@ -37,7 +36,6 @@ import {
   CardFooter,
   CardHeader,
 } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Tooltip,
   TooltipContent,
@@ -83,115 +81,96 @@ export default function WorkersPage() {
         title={t('Workers')}
       ></DashboardPageHeader>
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setTab(value as TabValue)}
-        className="w-full"
-      >
-        <TabsList variant="outline" className="border-b w-full">
-          <TabsTrigger variant="outline" value="health">
-            <Activity className="w-4 h-4 mr-2" />
-            {t('Health')}
-          </TabsTrigger>
-          <TabsTrigger variant="outline" value="worker-groups">
-            <Layers className="w-4 h-4 mr-2" />
-            {t('Worker groups')}
-          </TabsTrigger>
-        </TabsList>
+      {activeTab === 'worker-groups' ? (
+        <LockedFeatureGuard
+          featureKey="DEDICATED_WORKERS"
+          locked={!platform.plan.workerGroupsEnabled}
+          lockTitle={t('Unlock Worker Groups')}
+          lockDescription={t(
+            'Reserve dedicated worker capacity for specific projects so a busy project never slows down the rest',
+          )}
+          lockDocumentationUrl="https://www.activepieces.com/docs/install/configure-operate/worker-groups"
+        >
+          <WorkerAssignmentsTab />
+        </LockedFeatureGuard>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {isCloud && fleetType === WorkerMachineType.SHARED && (
+            <Alert variant="primary">
+              <Zap size={16} />
+              <AlertTitle>{t('Upgrade to Dedicated Workers')}</AlertTitle>
+              <AlertDescription className="text-xs">
+                {t(
+                  'Your automations run on shared workers where strict sandboxing adds overhead to every execution. Dedicated workers give you your own execution pool that stays warm and ready, so your automations start much faster.',
+                )}
+              </AlertDescription>
+              <AlertAction>
+                <RequestTrial
+                  featureKey="DEDICATED_WORKERS"
+                  buttonVariant="default"
+                  buttonSize="xs"
+                />
+              </AlertAction>
+            </Alert>
+          )}
+          {isCloud && fleetType === WorkerMachineType.DEDICATED && (
+            <Alert variant="success">
+              <Zap size={16} />
+              <AlertTitle>{t('Dedicated Workers Active')}</AlertTitle>
+              <AlertDescription className="text-xs">
+                {t(
+                  'Your workers run exclusively for your platform. The execution pool stays warm with no sandboxing overhead, so your automations start instantly.',
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
 
-        <TabsContent value="health">
-          <div className="flex flex-col gap-4 pt-4">
-            {isCloud && fleetType === WorkerMachineType.SHARED && (
-              <Alert variant="primary">
-                <Zap size={16} />
-                <AlertTitle>{t('Upgrade to Dedicated Workers')}</AlertTitle>
-                <AlertDescription className="text-xs">
-                  {t(
-                    'Your automations run on shared workers where strict sandboxing adds overhead to every execution. Dedicated workers give you your own execution pool that stays warm and ready, so your automations start much faster.',
-                  )}
-                </AlertDescription>
-                <AlertAction>
-                  <RequestTrial
-                    featureKey="DEDICATED_WORKERS"
-                    buttonVariant="default"
-                    buttonSize="xs"
-                  />
-                </AlertAction>
-              </Alert>
-            )}
-            {isCloud && fleetType === WorkerMachineType.DEDICATED && (
-              <Alert variant="success">
-                <Zap size={16} />
-                <AlertTitle>{t('Dedicated Workers Active')}</AlertTitle>
-                <AlertDescription className="text-xs">
-                  {t(
-                    'Your workers run exclusively for your platform. The execution pool stays warm with no sandboxing overhead, so your automations start instantly.',
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
+          {isLoading && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              {[0, 1, 2].map((i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="h-4 w-28 bg-muted rounded" />
+                      <div className="h-5 w-16 bg-muted rounded-full" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="h-3 w-full bg-muted rounded" />
+                    <div className="h-3 w-full bg-muted rounded" />
+                    <div className="h-3 w-full bg-muted rounded" />
+                  </CardContent>
+                  <CardFooter>
+                    <div className="h-4 w-full bg-muted rounded" />
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
 
-            {isLoading && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {[0, 1, 2].map((i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="h-4 w-28 bg-muted rounded" />
-                        <div className="h-5 w-16 bg-muted rounded-full" />
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="h-3 w-full bg-muted rounded" />
-                      <div className="h-3 w-full bg-muted rounded" />
-                      <div className="h-3 w-full bg-muted rounded" />
-                    </CardContent>
-                    <CardFooter>
-                      <div className="h-4 w-full bg-muted rounded" />
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            )}
+          {!isLoading && (workersData ?? []).length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+              <Server className="size-14" />
+              <p className="font-medium text-foreground">
+                {t('No workers found')}
+              </p>
+              <p className="text-sm text-center max-w-sm">
+                {t(
+                  "You don't have any workers yet. Spin up new workers to execute your automations",
+                )}
+              </p>
+            </div>
+          )}
 
-            {!isLoading && (workersData ?? []).length === 0 && (
-              <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
-                <Server className="size-14" />
-                <p className="font-medium text-foreground">
-                  {t('No workers found')}
-                </p>
-                <p className="text-sm text-center max-w-sm">
-                  {t(
-                    "You don't have any workers yet. Spin up new workers to execute your automations",
-                  )}
-                </p>
-              </div>
-            )}
-
-            {!isLoading && (workersData ?? []).length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {(workersData ?? []).map((worker, index) => (
-                  <WorkerCard key={worker.id} worker={worker} index={index} />
-                ))}
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="worker-groups">
-          <LockedFeatureGuard
-            featureKey="DEDICATED_WORKERS"
-            locked={!platform.plan.workerGroupsEnabled}
-            lockTitle={t('Unlock Worker Groups')}
-            lockDescription={t(
-              'Reserve dedicated worker capacity for specific projects so a busy project never slows down the rest',
-            )}
-            lockDocumentationUrl="https://www.activepieces.com/docs/install/configure-operate/worker-groups"
-          >
-            <WorkerAssignmentsTab />
-          </LockedFeatureGuard>
-        </TabsContent>
-      </Tabs>
+          {!isLoading && (workersData ?? []).length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              {(workersData ?? []).map((worker, index) => (
+                <WorkerCard key={worker.id} worker={worker} index={index} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

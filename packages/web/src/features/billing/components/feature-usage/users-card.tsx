@@ -30,10 +30,10 @@ export const UsersCard = ({ info, feature }: UsersCardProps) => {
     <div className="flex flex-col gap-4 rounded-xl border p-5">
       <span className="text-lg font-semibold text-foreground">
         {isNil(effectiveTotal)
-          ? t('{used} seats', { used: used.toLocaleString() })
+          ? t('{used} seats', { used: (used ?? 0).toLocaleString() })
           : t('{used}/{total} seats', {
-              used: used.toLocaleString(),
-              total: effectiveTotal.toLocaleString(),
+              used: (used ?? 0).toLocaleString(),
+              total: (effectiveTotal ?? 0).toLocaleString(),
             })}
       </span>
 
@@ -41,11 +41,11 @@ export const UsersCard = ({ info, feature }: UsersCardProps) => {
         <div className="flex flex-col gap-1.5 text-sm">
           <DetailRow
             label={t('Active')}
-            value={usage.activeUsers.toLocaleString()}
+            value={(usage?.activeUsers ?? 0).toLocaleString()}
           />
           <DetailRow
             label={t('Invited')}
-            value={usage.invitedSeats.toLocaleString()}
+            value={(usage?.invitedSeats ?? 0).toLocaleString()}
           />
         </div>
       )}
@@ -54,11 +54,11 @@ export const UsersCard = ({ info, feature }: UsersCardProps) => {
         <div className="flex flex-col gap-1.5 text-sm">
           <DetailRow
             label={t('Plan seats')}
-            value={included.toLocaleString()}
+            value={(included ?? 0).toLocaleString()}
           />
           <DetailRow
             label={t('Additional seats')}
-            value={additionalSeats.toLocaleString()}
+            value={(additionalSeats ?? 0).toLocaleString()}
           />
         </div>
       )}

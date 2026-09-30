@@ -120,7 +120,7 @@ const COLUMNS: ColumnDef<RowDataWithActions<ProjectUsageRow>, unknown>[] = [
     header: () => <span className="text-sm">{t('AI Usage')}</span>,
     cell: ({ row }) => (
       <span className="text-sm">
-        {Math.round(row.original.aiCreditsUsed).toLocaleString()}
+        {Math.round(row.original.aiCreditsUsed ?? 0).toLocaleString()}
       </span>
     ),
   },
@@ -130,7 +130,10 @@ const COLUMNS: ColumnDef<RowDataWithActions<ProjectUsageRow>, unknown>[] = [
     cell: ({ row }) => (
       <span className="text-sm">
         {Math.round(
-          Math.max(0, row.original.creditsUsed - row.original.aiCreditsUsed),
+          Math.max(
+            0,
+            (row.original.creditsUsed ?? 0) - (row.original.aiCreditsUsed ?? 0),
+          ),
         ).toLocaleString()}
       </span>
     ),
@@ -140,7 +143,7 @@ const COLUMNS: ColumnDef<RowDataWithActions<ProjectUsageRow>, unknown>[] = [
     header: () => <span className="text-sm">{t('Total')}</span>,
     cell: ({ row }) => (
       <span className="text-sm">
-        {Math.round(row.original.creditsUsed).toLocaleString()}
+        {Math.round(row.original.creditsUsed ?? 0).toLocaleString()}
       </span>
     ),
   },

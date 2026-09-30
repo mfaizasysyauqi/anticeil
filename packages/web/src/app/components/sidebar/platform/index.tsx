@@ -129,7 +129,7 @@ export function PlatformSidebar() {
           subItems: [
             { to: '/platform/setup/pieces', label: t('Pieces') },
             {
-              to: '/platform/setup/pieces',
+              to: '/platform/setup/pieces?tab=piece-sets',
               label: t('Piece Sets'),
               isCrown: true,
             },
@@ -202,8 +202,8 @@ export function PlatformSidebar() {
           icon: McpSvg,
           subItems: [
             { to: '/platform/setup/mcp', label: t('Connection') },
-            { to: '/platform/setup/mcp', label: t('Tools') },
-            { to: '/platform/setup/mcp', label: t('Activity') },
+            { to: '/platform/setup/mcp?tab=tools', label: t('Tools') },
+            { to: '/platform/setup/mcp?tab=activity', label: t('Activity') },
           ],
         },
       ],
@@ -218,7 +218,7 @@ export function PlatformSidebar() {
           subItems: [
             { to: '/platform/infrastructure/workers', label: t('Health') },
             {
-              to: '/platform/infrastructure/workers',
+              to: '/platform/infrastructure/workers?tab=worker-groups',
               label: t('Worker groups'),
               isCrown: true,
             },
@@ -234,11 +234,11 @@ export function PlatformSidebar() {
               label: t('System Health'),
             },
             {
-              to: '/platform/infrastructure/health',
+              to: '/platform/infrastructure/health?tab=runs',
               label: t('Runs Health'),
             },
             {
-              to: '/platform/infrastructure/health',
+              to: '/platform/infrastructure/health?tab=queue',
               label: t('Queue Health'),
             },
           ],
@@ -307,11 +307,13 @@ export function PlatformSidebar() {
                 <SidebarMenu>
                   {group.items.map((item) => {
                     if (item.subItems) {
-                      const isAnySubActive = item.subItems.some(
-                        (sub) =>
-                          location.pathname === sub.to ||
-                          location.pathname.startsWith(sub.to + '/'),
-                      );
+                      const isAnySubActive = item.subItems.some((sub) => {
+                        const basePath = sub.to.split('?')[0];
+                        return (
+                          location.pathname === basePath ||
+                          location.pathname.startsWith(basePath + '/')
+                        );
+                      });
                       return (
                         <Collapsible
                           key={item.label}
@@ -322,8 +324,8 @@ export function PlatformSidebar() {
                             <CollapsibleTrigger asChild>
                               <SidebarMenuButton
                                 className={cn(
-                                  'w-full justify-between cursor-pointer',
-                                  isAnySubActive && 'font-medium',
+                                   'w-full justify-between cursor-pointer',
+                                   isAnySubActive && 'font-medium',
                                 )}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
@@ -343,10 +345,16 @@ export function PlatformSidebar() {
                             <CollapsibleContent>
                               <SidebarMenuSub className="mr-0 pr-0">
                                 {item.subItems.map((sub, sIdx) => {
-                                  const isSubActive =
-                                    location.pathname === sub.to ||
-                                    (sub.to === '/platform/setup/ai/providers' &&
-                                      location.pathname === '/platform/setup/ai');
+                                  const currentFull =
+                                    location.pathname + location.search;
+                                  const isSubActive = sub.to.includes('?')
+                                    ? currentFull === sub.to
+                                    : (location.pathname === sub.to &&
+                                        !location.search) ||
+                                      (sub.to ===
+                                        '/platform/setup/ai/providers' &&
+                                        location.pathname ===
+                                          '/platform/setup/ai');
                                   return (
                                     <SidebarMenuSubItem key={`${sub.to}-${sIdx}`}>
                                       <SidebarMenuSubButton

@@ -17,8 +17,18 @@ const platform_plan_service_1 = require("./platform-plan.service");
 const FORCE_REFRESH_DEDUP_SECONDS = 60;
 const DEFAULT_USAGE_PAGE_SIZE = 10;
 const platformPlanController = async (app) => {
-    app.get('/info', InfoRequest, async (request) => {
-        return getBillingInformation(request.log, request.principal.platform.id);
+    app.get('/info', { config: { allowedPrincipals: [shared_1.PrincipalType.USER, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
+        try {
+            const platformId = request.principal?.platform?.id;
+            if (!platformId) {
+                return reply.status(200).send(getUnlimitedBillingInfo());
+            }
+            const info = await getBillingInformation(request.log, platformId);
+            return reply.status(200).send(info);
+        } catch (e) {
+            request.log.warn({ err: e }, '[anticeil] billing info fallback to unlimited');
+            return reply.status(200).send(getUnlimitedBillingInfo());
+        }
     });
     app.post('/refresh', RefreshRequest, async (request) => {
         const platformId = request.principal.platform.id;
@@ -120,17 +130,28 @@ const platformPlanController = async (app) => {
             agentsEnabled: true,
             aiProvidersEnabled: true,
             mcpsEnabled: true,
+            chatEnabled: true,
+            tablesEnabled: true,
+            apiKeysEnabled: true,
             billedTeamProjectsLimit: isTeam ? null : 1,
             includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
             usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
+            projectsLimit: isEnterprise ? null : (isTeam ? 50 : (isPlus ? 10 : 5)),
+            activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
             analyticsEnabled: true,
             customRolesEnabled: isTeam,
             projectRolesEnabled: true,
             ssoEnabled: isTeam,
+            scimEnabled: isEnterprise,
             globalConnectionsEnabled: isTeam,
             auditLogEnabled: isTeam,
+            environmentsEnabled: isTeam,
+            eventStreamingEnabled: isEnterprise,
+            workerGroupsEnabled: isEnterprise,
+            customDomainsEnabled: isEnterprise,
+            showPoweredBy: !isPlus,
             secretManagersEnabled: true,
-            customAppearanceEnabled: true,
+            customAppearanceEnabled: isPlus,
             managePiecesEnabled: true,
             manageTemplatesEnabled: true,
             embeddingEnabled: isTeam,
@@ -163,15 +184,26 @@ const platformPlanController = async (app) => {
                         agentsEnabled: true,
                         aiProvidersEnabled: true,
                         mcpsEnabled: true,
+                        chatEnabled: true,
+                        tablesEnabled: true,
+                        apiKeysEnabled: true,
                         billedTeamProjectsLimit: isTeam ? null : 1,
                         includedCredits: isTeam ? 50000 : 10000,
                         usersLimit: isTeam ? 25 : 5,
+                        projectsLimit: isTeam ? 50 : 10,
+                        activeFlowsLimit: isTeam ? null : 100,
                         analyticsEnabled: true,
                         customRolesEnabled: isTeam,
                         projectRolesEnabled: true,
                         ssoEnabled: isTeam,
+                        scimEnabled: false,
                         globalConnectionsEnabled: isTeam,
                         auditLogEnabled: isTeam,
+                        environmentsEnabled: isTeam,
+                        eventStreamingEnabled: false,
+                        workerGroupsEnabled: false,
+                        customDomainsEnabled: false,
+                        showPoweredBy: false,
                         secretManagersEnabled: true,
                         customAppearanceEnabled: true,
                         managePiecesEnabled: true,
@@ -188,6 +220,75 @@ const platformPlanController = async (app) => {
     });
 };
 exports.platformPlanController = platformPlanController;
+function getUnlimitedBillingInfo() {
+    return {
+        plan: {
+            id: 'self-hosted',
+            platformId: 'self-hosted',
+            stripeSubscriptionId: null,
+            stripeCustomerId: null,
+            plan: 'free',
+            agentsEnabled: true,
+            aiProvidersEnabled: true,
+            mcpsEnabled: true,
+            chatEnabled: true,
+            tablesEnabled: true,
+            apiKeysEnabled: true,
+            analyticsEnabled: true,
+            customRolesEnabled: true,
+            projectRolesEnabled: true,
+            ssoEnabled: true,
+            scimEnabled: true,
+            globalConnectionsEnabled: true,
+            auditLogEnabled: true,
+            environmentsEnabled: true,
+            eventStreamingEnabled: true,
+            workerGroupsEnabled: true,
+            customDomainsEnabled: true,
+            showPoweredBy: false,
+            secretManagersEnabled: true,
+            customAppearanceEnabled: true,
+            managePiecesEnabled: true,
+            manageTemplatesEnabled: true,
+            embeddingEnabled: true,
+            usersLimit: null,
+            billedTeamProjectsLimit: null,
+            includedCredits: null,
+            projectsLimit: null,
+            activeFlowsLimit: null,
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+        },
+        usage: {
+            creditsUsed: 0,
+            creditsRemaining: null,
+            creditsNextResetAt: null,
+            appSumoAiCreditsUsed: null,
+            appSumoAiCreditsRemaining: null,
+            activeFlows: 0,
+            teamProjects: 0,
+            users: 1,
+            activeUsers: 1,
+            invitedSeats: 0,
+        },
+        creditsResetInterval: null,
+        planInterval: null,
+        autumnPlanName: null,
+        scheduledPlanName: null,
+        nextBillingAmount: null,
+        nextBillingDate: null,
+        cancelAt: null,
+        trialEndsAt: null,
+        creditsFeature: null,
+        appSumoCreditsFeature: null,
+        seatsFeature: null,
+        billingPortalAvailable: false,
+        billingEnforced: false,
+        billingUnavailable: false,
+        includedSeats: null,
+        additionalSeats: null,
+    };
+}
 async function getBillingInformation(log, platformId) {
     const platform = await (0, platform_service_1.platformService)(log).getOneOrThrow(platformId);
     const [platformPlan, usage, overview, billingEnforced] = await Promise.all([
@@ -247,7 +348,7 @@ const PLATFORM_ADMIN_ONLY = {
     security: fastify_security_1.securityAccess.platformAdminOnly([shared_1.PrincipalType.USER]),
 };
 const InfoRequest = {
-    config: PLATFORM_ADMIN_ONLY,
+    config: { allowedPrincipals: [shared_1.PrincipalType.USER, shared_1.PrincipalType.SERVICE] },
     schema: {
         response: {
             [http_status_codes_1.StatusCodes.OK]: shared_1.PlatformBillingInformation,

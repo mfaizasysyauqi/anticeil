@@ -17,6 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { platformHooks } from '@/hooks/platform-hooks';
 import { create } from 'zustand';
+import { platformBillingApi } from '../api/billing-plans-api';
 import {
   billingKeys,
   PLATFORM_BILLING_SUBSCRIPTION_KEY,
@@ -66,20 +67,33 @@ export function MidtransCheckoutDialog() {
 
       const targetPlanKey = isTeam ? 'team' : 'plus';
 
+      // Persist plan change to backend database permanently
+      await platformBillingApi.switchPlan({ plan: targetPlanKey });
+
       // Update local platform state
       const updatedPlan = {
         ...platform.plan,
         plan: targetPlanKey,
         agentsEnabled: true,
         aiProvidersEnabled: true,
-        mcpsEnabled: true,
+        chatEnabled: true,
+        tablesEnabled: true,
+        apiKeysEnabled: true,
         billedTeamProjectsLimit: isTeam ? null : 1,
         includedCredits: isTeam ? 50000 : 10000,
         analyticsEnabled: true,
         ssoEnabled: isTeam,
         customRolesEnabled: isTeam,
-        projectRolesEnabled: isTeam,
+        projectRolesEnabled: true,
         globalConnectionsEnabled: isTeam,
+        auditLogEnabled: isTeam,
+        environmentsEnabled: isTeam,
+        embeddingEnabled: isTeam,
+        customAppearanceEnabled: true,
+        showPoweredBy: false,
+        secretManagersEnabled: true,
+        managePiecesEnabled: true,
+        manageTemplatesEnabled: true,
       };
 
       const updatedPlatform = {
