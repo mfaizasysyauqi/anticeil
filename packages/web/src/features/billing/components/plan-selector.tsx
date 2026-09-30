@@ -25,7 +25,11 @@ import { usePlanSeatFloorGuard } from '../hooks/use-plan-seat-floor-guard';
 
 import { CancelSubscriptionDialog } from './cancel-subscription-dialog';
 import { KeepPlanDialog } from './keep-plan-dialog';
-import { useMidtransCheckoutStore } from './midtrans-checkout-dialog';
+import { usePlanSwitchSuccessDialogStore } from '../stores/plan-switch-success-dialog-state';
+import {
+  billingKeys,
+  PLATFORM_BILLING_SUBSCRIPTION_KEY,
+} from '../hooks/billing-hooks';
 import {
   planSelectorUtils,
   type BillingCycle,
@@ -72,7 +76,7 @@ const COMPARISON_ROWS: {
 
 export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
   const queryClient = useQueryClient();
-  const { platform } = platformHooks.useCurrentPlatform();
+  const { platform, setCurrentPlatform } = platformHooks.useCurrentPlatform();
   const { data: plans, isLoading } = billingQueries.useListPlans(
     platform.id,
     enabled,
@@ -91,18 +95,87 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
   const { mutate: switchPlan, isPending: isSwitching } = useMutation({
     mutationFn: (plan: string) => platformBillingApi.switchPlan({ plan }),
     onSuccess: async (res) => {
+      const targetPlanKey = res.plan;
+      const isEnterprise = targetPlanKey === 'enterprise';
+      const isTeam = targetPlanKey === 'team' || isEnterprise;
+      const isPlus = targetPlanKey === 'plus' || isTeam;
+
+      const updatedPlan = {
+        ...platform.plan,
+        plan: targetPlanKey,
+        agentsEnabled: true,
+        aiProvidersEnabled: true,
+        chatEnabled: true,
+        tablesEnabled: true,
+        apiKeysEnabled: true,
+        billedTeamProjectsLimit: isTeam ? null : 1,
+        includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
+        usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
+        projectsLimit: isEnterprise ? null : (isTeam ? 50 : (isPlus ? 10 : 5)),
+        activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
+        analyticsEnabled: true,
+        ssoEnabled: isTeam,
+        customRolesEnabled: isTeam,
+        projectRolesEnabled: true,
+        globalConnectionsEnabled: isTeam,
+        auditLogEnabled: isTeam,
+        environmentsEnabled: isTeam,
+        embeddingEnabled: isTeam,
+        customAppearanceEnabled: isPlus,
+        showPoweredBy: !isPlus,
+        secretManagersEnabled: true,
+        managePiecesEnabled: true,
+        manageTemplatesEnabled: true,
+      };
+
+      setCurrentPlatform(queryClient, {
+        ...platform,
+        plan: updatedPlan as any,
+      });
+
+      queryClient.setQueryData(
+        PLATFORM_BILLING_SUBSCRIPTION_KEY,
+        (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            plan: {
+              ...old.plan,
+              plan: targetPlanKey,
+            },
+          };
+        },
+      );
+
+      if (platform?.id) {
+        queryClient.setQueryData(
+          billingKeys.platformSubscription(platform.id),
+          (old: any) => {
+            if (!old) return old;
+            return {
+              ...old,
+              plan: {
+                ...old.plan,
+                plan: targetPlanKey,
+              },
+            };
+          },
+        );
+      }
+
+      await queryClient.invalidateQueries();
+
       toast.success(
-        t('Plan {plan} activated successfully! All features unlocked.', {
-          plan: res.plan,
+        t('Plan {plan} berhasil diaktifkan langsung (Mode Development).', {
+          plan: res.plan.toUpperCase(),
         }),
       );
-      await queryClient.invalidateQueries();
+
       onSelected?.();
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      usePlanSwitchSuccessDialogStore.getState().openDialog(res.plan);
     },
-    onError: () => {
+    onError: (err) => {
+      console.error('Plan switch error:', err);
       toast.error(t('Failed to switch plan. Please try again.'));
     },
   });
@@ -124,16 +197,17 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
       ? 'year'
       : 'month');
 
-  const { openCheckout: openMidtransCheckout } = useMidtransCheckoutStore();
-
   const proceedCheckout = (intent: CheckoutIntent) => {
-    openMidtransCheckout({
-      planId: intent.planId,
-      planName: intent.planName,
-      priceAmount: intent.priceAmount,
-      billingCycle,
-    });
-    onSelected?.();
+    const rawPlan = (intent.planId || intent.planName || '').toLowerCase();
+    const targetPlanKey = rawPlan.includes('enterprise')
+      ? 'enterprise'
+      : rawPlan.includes('team')
+        ? 'team'
+        : rawPlan.includes('plus')
+          ? 'plus'
+          : 'free';
+
+    switchPlan(targetPlanKey);
   };
 
   const handleCheckout = (intent: CheckoutIntent) => {

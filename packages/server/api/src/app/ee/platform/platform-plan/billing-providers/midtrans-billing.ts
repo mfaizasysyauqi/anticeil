@@ -2,11 +2,12 @@ import { isNil } from '@activepieces/core-utils'
 import { apDayjs } from '@activepieces/server-utils'
 import { ConsumableFeatureId, PurchasablePlan, UnconsumableFeatureId } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
+import { getBillingOverviewKey, getPlatformPlanNameKey } from '../../../../database/redis/keys'
 import { distributedStore } from '../../../../database/redis-connections'
 import { system } from '../../../../helper/system/system'
 import { AppSystemProp } from '../../../../helper/system/system-props'
 import { BillingOverview, BillingProvider, ConsumablesUsage, CreditsAndAppSumoState, emptyBillingOverview, TrackFeatureParams } from '../../../../platform/billing-provider'
-import { platformPlanService } from '../platform-plan.service'
+import { platformPlanRepo, platformPlanService } from '../platform-plan.service'
 
 const MIDTRANS_PLANS: PurchasablePlan[] = [
     {
@@ -127,54 +128,48 @@ export const midtransBillingProvider = (log: FastifyBaseLogger): BillingProvider
         }
     },
     createCheckoutSession: async ({ platformId, planId, successUrl }) => {
-        const targetPlan = MIDTRANS_PLANS.find((p) => p.id === planId)
-        if (!targetPlan || targetPlan.price === 0 || !targetPlan.price) {
-            return { checkoutUrl: successUrl ?? null }
-        }
+        const rawPlan = (planId || '').toLowerCase()
+        const isEnterprise = rawPlan.includes('enterprise')
+        const isTeam = rawPlan.includes('team') || isEnterprise
+        const isPlus = rawPlan.includes('plus') || isTeam
 
-        const serverKey = system.get(AppSystemProp.MIDTRANS_SERVER_KEY) || 'SB-Mid-server-anticeil-demo'
-        const isProduction = system.getBoolean(AppSystemProp.MIDTRANS_IS_PRODUCTION) ?? false
-        const snapEndpoint = isProduction
-            ? 'https://app.midtrans.com/snap/v1/transactions'
-            : 'https://app.sandbox.midtrans.com/snap/v1/transactions'
+        const planName = isEnterprise ? 'enterprise' : (isTeam ? 'team' : (isPlus ? 'plus' : 'free'))
 
-        const orderId = `ANTICEIL-${platformId.substring(0, 8)}-${Date.now()}`
-        const authHeader = `Basic ${Buffer.from(`${serverKey}:`).toString('base64')}`
+        await platformPlanRepo().update({ platformId }, {
+            plan: planName,
+            agentsEnabled: true,
+            aiProvidersEnabled: true,
+            chatEnabled: true,
+            tablesEnabled: true,
+            apiKeysEnabled: true,
+            billedTeamProjectsLimit: isTeam ? null : 1,
+            includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
+            usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
+            projectsLimit: isEnterprise ? null : (isTeam ? 50 : (isPlus ? 10 : 5)),
+            activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
+            analyticsEnabled: true,
+            customRolesEnabled: isTeam,
+            projectRolesEnabled: true,
+            ssoEnabled: isTeam,
+            scimEnabled: isEnterprise,
+            globalConnectionsEnabled: isTeam,
+            auditLogEnabled: isTeam,
+            environmentsEnabled: isTeam,
+            eventStreamingEnabled: isEnterprise,
+            workerGroupsEnabled: isEnterprise,
+            customDomainsEnabled: isEnterprise,
+            showPoweredBy: !isPlus,
+            secretManagersEnabled: true,
+            customAppearanceEnabled: isPlus,
+            managePiecesEnabled: true,
+            manageTemplatesEnabled: true,
+            embeddingEnabled: isTeam,
+        })
+        await distributedStore.delete(getBillingOverviewKey(platformId))
+        await distributedStore.delete(getPlatformPlanNameKey(platformId))
+        log.info({ platformId, planName }, 'Plan instantly upgraded in development mode')
 
-        try {
-            const response = await fetch(snapEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                    Authorization: authHeader,
-                },
-                body: JSON.stringify({
-                    transaction_details: {
-                        order_id: orderId,
-                        gross_amount: targetPlan.price,
-                    },
-                    item_details: [
-                        {
-                            id: targetPlan.id,
-                            price: targetPlan.price,
-                            quantity: 1,
-                            name: `Anticeil ${targetPlan.name} Plan`,
-                        },
-                    ],
-                    callbacks: {
-                        finish: successUrl ?? 'http://localhost:8080/platform/setup/billing/success',
-                    },
-                }),
-            })
-
-            const data = await response.json() as { redirect_url?: string; token?: string }
-            return { checkoutUrl: data.redirect_url ?? null }
-        }
-        catch (error) {
-            log.error({ error, orderId }, 'Failed to create Midtrans Snap transaction')
-            return { checkoutUrl: null }
-        }
+        return { checkoutUrl: null }
     },
     getBillingPortalUrl: async () => {
         return { url: '' }

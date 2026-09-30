@@ -121,13 +121,15 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         })
     })
 
-    app.post('/switch-plan', { config: { security: securityAccess.platformAdminOnly([PrincipalType.USER, PrincipalType.SERVICE]) } }, async (request) => {
+    app.post('/switch-plan', { config: PLATFORM_ADMIN_ONLY }, async (request) => {
         const platformId = request.principal.platform.id
         const body = request.body as { plan?: string }
-        const planName = (body?.plan || 'enterprise').toLowerCase()
-        const isEnterprise = planName === 'enterprise'
-        const isTeam = planName === 'team' || isEnterprise
-        const isPlus = planName === 'plus' || isTeam
+        const rawPlan = (body?.plan || 'enterprise').toLowerCase()
+        const isEnterprise = rawPlan.includes('enterprise')
+        const isTeam = rawPlan.includes('team') || isEnterprise
+        const isPlus = rawPlan.includes('plus') || isTeam
+
+        const planName = isEnterprise ? 'enterprise' : (isTeam ? 'team' : (isPlus ? 'plus' : 'free'))
 
         await platformPlanRepo().update({ platformId }, {
             plan: planName,
@@ -161,66 +163,8 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         })
         await distributedStore.delete(getBillingOverviewKey(platformId))
         await distributedStore.delete(getPlatformPlanNameKey(platformId))
-        request.log.info({ platformId, planName }, 'Plan switched successfully')
+        request.log.info({ platformId, planName }, 'Plan switched successfully (development mode)')
         return { success: true, plan: planName }
-    })
-
-    app.post('/midtrans-webhook', { config: { security: securityAccess.public() } }, async (request, reply) => {
-        const body = request.body as Record<string, unknown>
-        const orderId = body?.order_id as string | undefined
-        const transactionStatus = body?.transaction_status as string | undefined
-        const fraudStatus = body?.fraud_status as string | undefined
-
-        request.log.info({ orderId, transactionStatus, fraudStatus }, 'Midtrans webhook received')
-
-        if (transactionStatus === 'capture' || transactionStatus === 'settlement') {
-            if (fraudStatus === 'accept' || !fraudStatus) {
-                const grossAmount = Number(body?.gross_amount)
-                const isEnterprise = grossAmount >= 10000000
-                const isTeam = grossAmount >= 2000000 || isEnterprise
-                const isPlus = (grossAmount >= 200000 && !isTeam) || isTeam
-
-                const platforms = await platformService(request.log).getAll()
-                const platform = platforms[0]
-                if (platform) {
-                    const planName = isEnterprise ? 'enterprise' : (isTeam ? 'team' : (isPlus ? 'plus' : 'free'))
-                    await platformPlanRepo().update({ platformId: platform.id }, {
-                        plan: planName,
-                        agentsEnabled: true,
-                        aiProvidersEnabled: true,
-                        chatEnabled: true,
-                        tablesEnabled: true,
-                        apiKeysEnabled: true,
-                        billedTeamProjectsLimit: isTeam ? null : 1,
-                        includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : 10000),
-                        usersLimit: isEnterprise ? null : (isTeam ? 25 : 5),
-                        projectsLimit: isEnterprise ? null : (isTeam ? 50 : 10),
-                        activeFlowsLimit: isEnterprise ? null : (isTeam ? null : 100),
-                        analyticsEnabled: true,
-                        customRolesEnabled: isTeam,
-                        projectRolesEnabled: true,
-                        ssoEnabled: isTeam,
-                        scimEnabled: isEnterprise,
-                        globalConnectionsEnabled: isTeam,
-                        auditLogEnabled: isTeam,
-                        environmentsEnabled: isTeam,
-                        eventStreamingEnabled: isEnterprise,
-                        workerGroupsEnabled: isEnterprise,
-                        customDomainsEnabled: isEnterprise,
-                        showPoweredBy: !isPlus,
-                        secretManagersEnabled: true,
-                        customAppearanceEnabled: isPlus,
-                        managePiecesEnabled: true,
-                        manageTemplatesEnabled: true,
-                        embeddingEnabled: isTeam,
-                    })
-                    await distributedStore.delete(getBillingOverviewKey(platform.id))
-                    await distributedStore.delete(getPlatformPlanNameKey(platform.id))
-                    request.log.info({ platformId: platform.id, planName }, 'Midtrans plan upgraded successfully')
-                }
-            }
-        }
-        return reply.status(200).send({ status: 'OK' })
     })
 }
 
