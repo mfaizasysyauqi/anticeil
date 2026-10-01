@@ -24,6 +24,7 @@ import {
 import { piecesHooks } from '@/features/pieces';
 import { platformHooks } from '@/hooks/platform-hooks';
 import { useElementSize } from '@/hooks/use-element-size';
+import { useResponsive } from '@/hooks/use-responsive';
 import { cn } from '@/lib/utils';
 
 import { BuilderHeader } from './builder-header/builder-header';
@@ -45,6 +46,7 @@ const SPLIT_MODE_COLLAPSE_THRESHOLD_PX = 700;
 
 const BuilderPage = () => {
   const { platform } = platformHooks.useCurrentPlatform();
+  const { isMobile, isTablet } = useResponsive();
   const [
     flowVersion,
     rightSidebar,
@@ -103,15 +105,22 @@ const BuilderPage = () => {
       return;
     }
     const isInitialOpen = previousRightSidebar === RightSideBarType.NONE;
-    const targetSize = prefersSplitLayout
-      ? isInitialOpen
-        ? SPLIT_MODE_INITIAL_OPEN_SIZE_PX
-        : SPLIT_MODE_SIDEBAR_SIZE_PX
-      : DEFAULT_SIDEBAR_SIZE;
+    let targetSize: string | number = DEFAULT_SIDEBAR_SIZE;
+    if (isMobile) {
+      targetSize = '100%';
+    } else if (isTablet) {
+      targetSize = prefersSplitLayout ? '65%' : '45%';
+    } else {
+      targetSize = prefersSplitLayout
+        ? isInitialOpen
+          ? SPLIT_MODE_INITIAL_OPEN_SIZE_PX
+          : SPLIT_MODE_SIDEBAR_SIZE_PX
+        : DEFAULT_SIDEBAR_SIZE;
+    }
     handle.resize(targetSize);
     const rafId = window.requestAnimationFrame(() => handle.resize(targetSize));
     return () => window.cancelAnimationFrame(rafId);
-  }, [prefersSplitLayout, previousRightSidebar, rightSidebar]);
+  }, [prefersSplitLayout, previousRightSidebar, rightSidebar, isMobile, isTablet]);
 
   useEffect(() => {
     if (!isSplitForPiece || !isDraggingHandle) return;
@@ -186,13 +195,15 @@ const BuilderPage = () => {
         </ResizablePanel>
 
         <ResizableHandle
-          disabled={rightSidebar === RightSideBarType.NONE}
-          withHandle={rightSidebar !== RightSideBarType.NONE}
+          disabled={rightSidebar === RightSideBarType.NONE || isMobile}
+          withHandle={rightSidebar !== RightSideBarType.NONE && !isMobile}
           onPointerDown={() => setIsDraggingHandle(true)}
           onPointerUp={() => setIsDraggingHandle(false)}
           onPointerCancel={() => setIsDraggingHandle(false)}
           className={
-            rightSidebar === RightSideBarType.NONE ? 'bg-transparent' : ''
+            rightSidebar === RightSideBarType.NONE || isMobile
+              ? 'hidden pointer-events-none'
+              : ''
           }
         />
 
@@ -202,11 +213,23 @@ const BuilderPage = () => {
           collapsedSize="0%"
           defaultSize="0%"
           minSize={
-            rightSidebar === RightSideBarType.NONE ? '0%' : DEFAULT_MIN_SIZE
+            rightSidebar === RightSideBarType.NONE
+              ? '0%'
+              : isMobile
+              ? '100%'
+              : isTablet
+              ? '35%'
+              : DEFAULT_MIN_SIZE
           }
           maxSize={
             rightSidebar === RightSideBarType.NONE
               ? '0%'
+              : isMobile
+              ? '100%'
+              : isTablet
+              ? prefersSplitLayout
+                ? '95%'
+                : '75%'
               : prefersSplitLayout
               ? '95%'
               : '60%'
