@@ -29,7 +29,7 @@ export const LockedFeatureGuard = ({
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-120px)] h-full w-full flex-1 flex-col items-center justify-center p-6 text-center">
+    <div className="flex flex-1 h-full w-full flex-col items-center justify-center p-6 text-center my-auto">
       <div className="flex flex-col gap-3 justify-center items-center max-w-xl text-center">
         {lockTitle && (
           <h1 className="text-3xl font-bold tracking-tight text-center">

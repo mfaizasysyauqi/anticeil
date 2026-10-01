@@ -307,7 +307,7 @@ const GlobalConnectionsTable = () => {
   );
 
   return (
-    <div className="flex-col w-full">
+    <div className="flex flex-col flex-1 h-full w-full">
       <LockedFeatureGuard
         featureKey="GLOBAL_CONNECTIONS"
         locked={!platform.plan.globalConnectionsEnabled}
@@ -315,7 +315,6 @@ const GlobalConnectionsTable = () => {
         lockDescription={t(
           'Manage platform-wide connections to external systems.',
         )}
-        lockVideoUrl="https://cdn.activepieces.com/videos/showcase/global-connections.mp4"
       >
         <DashboardPageHeader
           description={t(

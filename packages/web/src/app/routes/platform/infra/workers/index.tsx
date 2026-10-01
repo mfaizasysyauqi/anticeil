@@ -74,27 +74,36 @@ export default function WorkersPage() {
 
   const fleetType = workersData?.[0]?.type;
 
+  if (activeTab === 'worker-groups') {
+    return (
+      <LockedFeatureGuard
+        featureKey="DEDICATED_WORKERS"
+        locked={!platform.plan.workerGroupsEnabled}
+        lockTitle={t('Unlock Worker Groups')}
+        lockDescription={t(
+          'Reserve dedicated worker capacity for specific projects so a busy project never slows down the rest',
+        )}
+        lockDocumentationUrl="https://www.activepieces.com/docs/install/configure-operate/worker-groups"
+      >
+        <div className="flex flex-col flex-1 h-full w-full gap-4 px-4">
+          <DashboardPageHeader
+            description={t('Check the health of your workers')}
+            title={t('Workers')}
+          />
+          <WorkerAssignmentsTab />
+        </div>
+      </LockedFeatureGuard>
+    );
+  }
+
   return (
-    <div className="flex flex-col w-full gap-4 px-4">
+    <div className="flex flex-col flex-1 h-full w-full gap-4 px-4">
       <DashboardPageHeader
         description={t('Check the health of your workers')}
         title={t('Workers')}
-      ></DashboardPageHeader>
+      />
 
-      {activeTab === 'worker-groups' ? (
-        <LockedFeatureGuard
-          featureKey="DEDICATED_WORKERS"
-          locked={!platform.plan.workerGroupsEnabled}
-          lockTitle={t('Unlock Worker Groups')}
-          lockDescription={t(
-            'Reserve dedicated worker capacity for specific projects so a busy project never slows down the rest',
-          )}
-          lockDocumentationUrl="https://www.activepieces.com/docs/install/configure-operate/worker-groups"
-        >
-          <WorkerAssignmentsTab />
-        </LockedFeatureGuard>
-      ) : (
-        <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4">
           {isCloud && fleetType === WorkerMachineType.SHARED && (
             <Alert variant="primary">
               <Zap size={16} />
@@ -170,7 +179,6 @@ export default function WorkersPage() {
             </div>
           )}
         </div>
-      )}
     </div>
   );
 }
