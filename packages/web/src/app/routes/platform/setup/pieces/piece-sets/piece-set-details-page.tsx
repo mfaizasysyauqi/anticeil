@@ -4,6 +4,7 @@ import { ArrowLeft, Layers, Loader2 } from 'lucide-react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
 import { DashboardPageHeader } from '@/app/components/dashboard-page-header';
+import { LockedFeatureGuard } from '@/app/components/locked-feature-guard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -73,7 +74,14 @@ const PieceSetDetailsPage = () => {
   }
 
   return (
-    <>
+    <LockedFeatureGuard
+      featureKey="PIECE_SETS"
+      locked={!platform.plan.managePiecesEnabled}
+      lockTitle={t('Unlock Piece Sets')}
+      lockDescription={t(
+        'Create piece sets to control which pieces and actions are available to specific projects.',
+      )}
+    >
       <DashboardPageHeader
         title={
           <div className="flex items-center gap-2">
@@ -135,7 +143,7 @@ const PieceSetDetailsPage = () => {
           <PieceSetPiecesTab pieceSet={pieceSet} />
         </div>
       </div>
-    </>
+    </LockedFeatureGuard>
   );
 };
 

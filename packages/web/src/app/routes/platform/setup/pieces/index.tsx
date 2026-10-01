@@ -20,6 +20,7 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { DashboardPageHeader } from '@/app/components/dashboard-page-header';
+import { LockedFeatureGuard } from '@/app/components/locked-feature-guard';
 import { RequestTrial } from '@/app/components/request-trial';
 import { CustomizeSelectorDialog } from '@/app/routes/platform/setup/pieces/customize-selector-dialog';
 import { DownloadPiecesReportButton } from '@/app/routes/platform/setup/pieces/download-pieces-report';
@@ -258,7 +259,17 @@ const PlatformPiecesPage = () => {
         )}
         {activeTab === 'piece-sets' ? (
           <div className="flex-1 min-h-0 flex flex-col min-w-0">
-            <PieceSetsTab />
+            <LockedFeatureGuard
+              featureKey="PIECE_SETS"
+              locked={!platform.plan.managePiecesEnabled}
+              lockTitle={t('Unlock Piece Sets')}
+              lockDescription={t(
+                'Create piece sets to control which pieces and actions are available to specific projects.',
+              )}
+              lockVideoUrl="https://cdn.activepieces.com/videos/showcase/piece-sets.mp4"
+            >
+              <PieceSetsTab />
+            </LockedFeatureGuard>
           </div>
         ) : (
           <div className="flex-1 min-h-0 flex flex-col min-w-0">
