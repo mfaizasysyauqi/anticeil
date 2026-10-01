@@ -176,7 +176,7 @@ export const BuilderHeader = () => {
   );
 
   const rightContent = (
-    <div className="flex items-center justify-center gap-4">
+    <div className="flex items-center justify-center gap-1 sm:gap-2 flex-shrink-0">
       {showSupport && (
         <Button
           variant="ghost"
@@ -184,7 +184,7 @@ export const BuilderHeader = () => {
           onClick={() => openNewWindow(supportUrl)}
         >
           <CircleHelp className="w-4 h-4"></CircleHelp>
-          {t('Support')}
+          <span className="hidden md:inline">{t('Support')}</span>
         </Button>
       )}
       {!embedState.hideActiveUsers && (
@@ -197,7 +197,7 @@ export const BuilderHeader = () => {
           className="gap-2 px-2"
         >
           <HistoryIcon className="w-4 h-4" />
-          {t('Runs')}
+          <span className="hidden md:inline">{t('Runs')}</span>
         </Button>
       )}
 

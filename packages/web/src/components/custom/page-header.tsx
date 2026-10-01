@@ -19,7 +19,7 @@ export const PageHeader = ({
   return (
     <div
       className={cn(
-        'sticky top-0 z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 px-4 w-full bg-background border-b border-border/40',
+        'sticky top-0 z-30 flex flex-row items-center justify-between gap-2 py-2 px-4 w-full bg-background border-b border-border/40 overflow-hidden',
         className,
       )}
     >
