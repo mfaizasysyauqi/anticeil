@@ -8,8 +8,8 @@ import { evalPrompts } from './prompts'
 import { replayExecutor, ReplayExecutor } from './replay-executor'
 import { EvalReportEntry } from './report'
 import { transcriptAssertions } from './transcript-assertions'
-import { agentWorkerTools } from '../../../../src/lib/execute/jobs/ee/agent/agent-worker-tools'
-import { AgentTurnResult, runAgentTurn } from '../../../../src/lib/execute/jobs/ee/agent/run-agent-turn'
+import { agentWorkerTools } from '../../../../src/lib/execute/jobs/agent/agent-worker-tools'
+import { AgentTurnResult, runAgentTurn } from '../../../../src/lib/execute/jobs/agent/run-agent-turn'
 
 const EVAL_PROJECTS = [{ id: 'eval-project', displayName: 'Eval Project', type: 'TEAM' }]
 

@@ -30,7 +30,7 @@ vi.mock('../../../../../src/app/workers/machine/machine-cache', () => ({
 
 const mockGetWorkerGroupId = vi.fn()
 
-vi.mock('../../../../../src/app/ee/platform/platform-plan/worker-group.service', () => ({
+vi.mock('../../../../../src/app/billing/worker-group.service', () => ({
     workerGroupService: () => ({
         getWorkerGroupId: (...args: unknown[]) => mockGetWorkerGroupId(...args),
     }),

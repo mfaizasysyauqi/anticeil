@@ -2,7 +2,7 @@ import { agentToolPhases } from '@activepieces/shared'
 import { tool, ToolExecutionOptions } from 'ai'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { agentWorkerTools } from '../../../src/lib/execute/jobs/ee/agent/agent-worker-tools'
+import { agentWorkerTools } from '../../../src/lib/execute/jobs/agent/agent-worker-tools'
 
 const { taintsTurn } = agentToolPhases
 const options: ToolExecutionOptions<undefined> = { toolCallId: 'call-1', messages: [] }

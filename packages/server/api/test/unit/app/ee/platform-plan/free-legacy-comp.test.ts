@@ -22,7 +22,7 @@ vi.mock('../../../../../src/app/helper/system/system', () => ({
     },
 }))
 
-vi.mock('../../../../../src/app/ee/platform/platform-plan/platform-plan.service', () => ({
+vi.mock('../../../../../src/app/billing/platform-plan.service', () => ({
     platformPlanService: () => ({
         getAutumnCredentials: mockGetAutumnCredentials,
         setAutumnCredentials: mockSetAutumnCredentials,
@@ -74,7 +74,7 @@ describe('free legacy comp', () => {
         mockGetEdition.mockReturnValue('cloud')
         mockEnrollFree.mockResolvedValue({ autumnCustomerId: CUSTOMER_ID, autumnApiKey: 'am_sk_test' })
         mockRefreshEntitlements.mockResolvedValue(undefined)
-        const { autumnConsole, autumnUtils } = await import('../../../../../src/app/ee/platform/platform-plan/billing-providers/autumn-utils')
+        const { autumnConsole, autumnUtils } = await import('../../../../../src/app/billing/billing-providers/autumn-utils')
         vi.spyOn(autumnConsole, 'compFreeLegacy').mockImplementation(mockCompFreeLegacy)
         vi.spyOn(autumnConsole, 'enrollFree').mockImplementation(mockEnrollFree)
         vi.spyOn(autumnConsole, 'activate').mockImplementation(mockActivate)
@@ -82,7 +82,7 @@ describe('free legacy comp', () => {
     })
 
     const ensureEnrolled = async () => {
-        const { autumnUtils } = await import('../../../../../src/app/ee/platform/platform-plan/billing-providers/autumn-utils')
+        const { autumnUtils } = await import('../../../../../src/app/billing/billing-providers/autumn-utils')
         const log = { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
         await autumnUtils.ensureEnrolled(log as never, PLATFORM_ID)
     }
@@ -146,7 +146,7 @@ describe('free legacy comp', () => {
         vi.resetModules()
         mockGetAutumnCredentials.mockResolvedValue(credentials({ plan: 'free', created: BEFORE_CUTOFF }))
 
-        const { autumnConsole, autumnUtils } = await import('../../../../../src/app/ee/platform/platform-plan/billing-providers/autumn-utils')
+        const { autumnConsole, autumnUtils } = await import('../../../../../src/app/billing/billing-providers/autumn-utils')
         vi.spyOn(autumnConsole, 'compFreeLegacy').mockImplementation(mockCompFreeLegacy)
         vi.spyOn(autumnUtils, 'refreshEntitlements').mockImplementation(mockRefreshEntitlements)
         const log = { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
@@ -158,7 +158,7 @@ describe('free legacy comp', () => {
     it('comps from a credit track alone, with no plan read and nobody logged in', async () => {
         mockGetAutumnCredentials.mockResolvedValue(credentials({ plan: 'free', created: BEFORE_CUTOFF }))
 
-        const { autumnUtils } = await import('../../../../../src/app/ee/platform/platform-plan/billing-providers/autumn-utils')
+        const { autumnUtils } = await import('../../../../../src/app/billing/billing-providers/autumn-utils')
         const log = { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
         await autumnUtils.loadAutumnCreds(log as never, PLATFORM_ID)
         await new Promise((resolve) => setImmediate(resolve))
@@ -169,7 +169,7 @@ describe('free legacy comp', () => {
     it('does not comp from a credit track when the platform is ineligible', async () => {
         mockGetAutumnCredentials.mockResolvedValue(credentials({ plan: 'plus', created: BEFORE_CUTOFF }))
 
-        const { autumnUtils } = await import('../../../../../src/app/ee/platform/platform-plan/billing-providers/autumn-utils')
+        const { autumnUtils } = await import('../../../../../src/app/billing/billing-providers/autumn-utils')
         const log = { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
         await autumnUtils.loadAutumnCreds(log as never, PLATFORM_ID)
         await new Promise((resolve) => setImmediate(resolve))

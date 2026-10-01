@@ -1,5 +1,5 @@
 import { PieceSelectionMode, PieceSetConfig } from '@activepieces/shared'
-import { pieceSetConfig } from '../../../../../src/app/ee/pieces/piece-set/piece-set-config'
+import { pieceSetConfig } from '../../../../../src/app/pieces/piece-set/piece-set-config'
 
 const base: PieceSetConfig = {
     pieces: { mode: PieceSelectionMode.INCLUDE_ALL, exceptions: [] },

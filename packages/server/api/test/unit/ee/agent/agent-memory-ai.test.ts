@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { agentHelpers } from '../../../../src/app/ee/agent/agent-helpers'
-import { agentMemoryAi } from '../../../../src/app/ee/agent/agent-memory-ai'
+import { agentHelpers } from '../../../../src/app/agent/agent-helpers'
+import { agentMemoryAi } from '../../../../src/app/agent/agent-memory-ai'
 
 describe('agentHelpers.capMemories', () => {
     it('caps memories at 50, trims each to 280 chars, drops blanks, and nulls empty instructions', () => {

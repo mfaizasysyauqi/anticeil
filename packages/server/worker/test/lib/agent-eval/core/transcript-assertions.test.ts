@@ -1,7 +1,7 @@
 import { PersistedAgentPart, PersistedAgentPartType } from '@activepieces/shared'
 import { describe, expect, it } from 'vitest'
 import { transcriptAssertions } from './transcript-assertions'
-import { AgentTurnResult, AgentTurnToolCall } from '../../../../src/lib/execute/jobs/ee/agent/run-agent-turn'
+import { AgentTurnResult, AgentTurnToolCall } from '../../../../src/lib/execute/jobs/agent/run-agent-turn'
 
 function textPart(text: string): PersistedAgentPart {
     return { type: PersistedAgentPartType.TEXT, text }

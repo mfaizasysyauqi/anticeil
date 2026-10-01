@@ -1,7 +1,7 @@
 import { AgentRunSource, ErrorCode } from '@activepieces/shared'
 import { FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { agentRpcHandlers } from '../../../../src/app/ee/agent/agent-rpc-handlers'
+import { agentRpcHandlers } from '../../../../src/app/agent/agent-rpc-handlers'
 import { createTestContext } from '../../../helpers/test-context'
 import { setupTestEnvironment, teardownTestEnvironment } from '../../../helpers/test-setup'
 

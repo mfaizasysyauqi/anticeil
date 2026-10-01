@@ -1,5 +1,5 @@
 import { FastifyBaseLogger, FastifyInstance } from 'fastify'
-import { platformPlanRepo, platformPlanService } from '../../../../src/app/ee/platform/platform-plan/platform-plan.service'
+import { platformPlanRepo, platformPlanService } from '../../../../src/app/billing/platform-plan.service'
 import { mockAndSaveBasicSetup } from '../../../helpers/mocks'
 import { setupTestEnvironment, teardownTestEnvironment } from '../../../helpers/test-setup'
 

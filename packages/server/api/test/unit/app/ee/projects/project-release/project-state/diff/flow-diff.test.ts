@@ -1,7 +1,7 @@
 import { FlowVersion } from '@activepieces/shared'
 import { nanoid } from 'nanoid'
-import { projectDiffService } from '../../../../../../../../src/app/ee/projects/project-release/project-state/project-diff.service'
-import { projectStateService } from '../../../../../../../../src/app/ee/projects/project-release/project-state/project-state.service'
+import { projectDiffService } from '../../../../../../../../src/app/project/project-release/project-state/project-diff.service'
+import { projectStateService } from '../../../../../../../../src/app/project/project-release/project-state/project-state.service'
 import { system } from '../../../../../../../../src/app/helper/system/system'
 import { flowGenerator } from '../../../../../../../helpers/flow-generator'
 

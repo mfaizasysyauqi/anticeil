@@ -1,5 +1,5 @@
 import { ActivepiecesError, ErrorCode } from '@activepieces/core-utils'
-import { resolveSamlAttributes } from '../../../../../../src/app/ee/authentication/saml-authn/saml-attributes'
+import { resolveSamlAttributes } from '../../../../../../src/app/authentication/saml-authn/saml-attributes'
 
 describe('resolveSamlAttributes', () => {
     describe('default mappings', () => {

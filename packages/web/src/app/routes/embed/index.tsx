@@ -8,7 +8,7 @@ import {
   ActivepiecesVendorEventName,
   ActivepiecesVendorInit,
   ActivepiecesVendorRouteChanged,
-} from 'ee-embed-sdk';
+} from '@anticeil/embed-sdk';
 import React from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';

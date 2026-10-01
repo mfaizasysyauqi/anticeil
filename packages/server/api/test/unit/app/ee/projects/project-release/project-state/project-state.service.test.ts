@@ -1,5 +1,5 @@
 import { FlowOperationStatus, FlowVersion, PopulatedFlow } from '@activepieces/shared'
-import { projectStateService } from '../../../../../../../src/app/ee/projects/project-release/project-state/project-state.service'
+import { projectStateService } from '../../../../../../../src/app/project/project-release/project-state/project-state.service'
 import { system } from '../../../../../../../src/app/helper/system/system'
 import { flowGenerator } from '../../../../../../helpers/flow-generator'
 import { tableGenerator } from '../../../../../../helpers/table-generator'

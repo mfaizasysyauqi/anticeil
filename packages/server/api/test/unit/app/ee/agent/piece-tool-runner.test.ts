@@ -21,8 +21,8 @@ vi.mock('../../../../../src/app/mcp/tools/mcp-utils', () => ({
     mcpUtils: { executePropertyResolution: mockResolveProperty },
 }))
 
-vi.mock('../../../../../src/app/ee/agent/tools/piece-input-filler', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('../../../../../src/app/ee/agent/tools/piece-input-filler')>()
+vi.mock('../../../../../src/app/agent/tools/piece-input-filler', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../../../../src/app/agent/tools/piece-input-filler')>()
     return { ...actual, pieceInputFiller: { ...actual.pieceInputFiller, modelCompleter: () => mockCompleter } }
 })
 
@@ -33,7 +33,7 @@ function metadataWith(props: Record<string, unknown>) {
 }
 
 async function prepareAndRun(params: Record<string, unknown>) {
-    const { pieceToolRunner } = await import('../../../../../src/app/ee/agent/tools/piece-tool-runner')
+    const { pieceToolRunner } = await import('../../../../../src/app/agent/tools/piece-tool-runner')
     const { resolvedInput } = await pieceToolRunner.resolveInput(params as never)
     return pieceToolRunner.runResolved({ piece: params.piece as never, resolvedInput, projectId: params.projectId as string, log: log as never })
 }
@@ -176,7 +176,7 @@ describe('pieceToolRunner.resolveInput: which account fills the input and lists 
     })
 
     async function resolve(overrides: Record<string, unknown>) {
-        const { pieceToolRunner } = await import('../../../../../src/app/ee/agent/tools/piece-tool-runner')
+        const { pieceToolRunner } = await import('../../../../../src/app/agent/tools/piece-tool-runner')
         const { resolvedInput } = await pieceToolRunner.resolveInput({
             piece: { pieceName: '@activepieces/piece-slack', actionName: 'send_message' },
             instruction: 'say hello in general',

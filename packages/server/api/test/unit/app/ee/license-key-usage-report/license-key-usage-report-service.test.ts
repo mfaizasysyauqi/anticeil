@@ -119,7 +119,7 @@ vi.mock('../../../../../src/app/project/project-repo', () => ({
     projectRepo: vi.fn(() => createRepoMock()),
 }))
 
-vi.mock('../../../../../src/app/ee/platform/platform-plan/platform-plan.service', () => ({
+vi.mock('../../../../../src/app/billing/platform-plan.service', () => ({
     platformPlanRepo: vi.fn(() => createRepoMock()),
 }))
 
@@ -176,7 +176,7 @@ vi.mock('../../../../../src/app/health/health.service', () => ({
     })),
 }))
 
-import { licenseKeyUsageReportService } from '../../../../../src/app/ee/license-key-usage-report/license-key-usage-report-service'
+import { licenseKeyUsageReportService } from '../../../../../src/app/license-key-usage-report/license-key-usage-report-service'
 
 const mockLog = {
     info: vi.fn(),

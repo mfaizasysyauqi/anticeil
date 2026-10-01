@@ -1,6 +1,6 @@
 import { agentToolPhases, PersistedAgentPart, PersistedAgentPartType } from '@activepieces/shared'
 import { ChatEvalAssertion } from './fixture'
-import { AgentTurnResult } from '../../../../src/lib/execute/jobs/ee/agent/run-agent-turn'
+import { AgentTurnResult } from '../../../../src/lib/execute/jobs/agent/run-agent-turn'
 
 const ASKED_HOW_PATTERNS = [
     /\bhow (do|would|should|will|might) (you|we|i)\b/i,

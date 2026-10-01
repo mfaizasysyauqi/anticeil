@@ -2,7 +2,7 @@ import { FieldControlMode } from '@activepieces/core-piece-types'
 import { ActivepiecesError } from '@activepieces/core-utils'
 import { PiecePropertyMap, PropertyType } from '@activepieces/pieces-framework'
 import { describe, expect, it, vi } from 'vitest'
-import { CompleteObject, FillInputPorts, pieceInputFiller, ResolveProperty } from '../../../../../src/app/ee/agent/tools/piece-input-filler'
+import { CompleteObject, FillInputPorts, pieceInputFiller, ResolveProperty } from '../../../../../src/app/agent/tools/piece-input-filler'
 import { PropertyResolutionResult } from '../../../../../src/app/mcp/tools/mcp-utils'
 
 function prop(overrides: Record<string, unknown>): Record<string, unknown> {

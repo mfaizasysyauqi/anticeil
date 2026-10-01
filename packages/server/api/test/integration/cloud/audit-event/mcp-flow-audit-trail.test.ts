@@ -1,6 +1,6 @@
 import { ApplicationEvent, ApplicationEventName, FlowStatus } from '@activepieces/shared'
 import { FastifyBaseLogger, FastifyInstance } from 'fastify'
-import { auditLogRepo } from '../../../../src/app/ee/audit-logs/audit-event-service'
+import { auditLogRepo } from '../../../../src/app/audit-logs/audit-event-service'
 import { apChangeFlowStatusTool } from '../../../../src/app/mcp/tools/ap-change-flow-status'
 import { apLockAndPublishTool } from '../../../../src/app/mcp/tools/ap-lock-and-publish'
 import { apRenameFlowTool } from '../../../../src/app/mcp/tools/ap-rename-flow'

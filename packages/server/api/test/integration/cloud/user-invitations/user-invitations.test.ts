@@ -3,7 +3,7 @@ import { ApiKeyResponseWithValue, DefaultProjectRole, InvitationStatus, Invitati
 import { faker } from '@faker-js/faker'
 import { FastifyBaseLogger, FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
-import { emailService } from '../../../../src/app/ee/helper/email/email-service'
+import { emailService } from '../../../../src/app/helper/email/email-service'
 import { generateMockToken } from '../../../helpers/auth'
 import { db } from '../../../helpers/db'
 import {

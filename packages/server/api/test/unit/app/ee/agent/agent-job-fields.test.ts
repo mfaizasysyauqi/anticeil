@@ -1,7 +1,7 @@
 import { AIProviderName } from '@activepieces/core-utils'
 import { AgentConfig, AgentOutputFieldType, AgentToolType } from '@activepieces/shared'
 import { describe, expect, it } from 'vitest'
-import { agentHelpers } from '../../../../../src/app/ee/agent/agent-helpers'
+import { agentHelpers } from '../../../../../src/app/agent/agent-helpers'
 
 const config: AgentConfig = {
     instructions: 'Sort the inbox and never reply to spam.',

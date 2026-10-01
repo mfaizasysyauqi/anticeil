@@ -18,7 +18,7 @@
       "@activepieces/pieces-framework": [
         "../../packages/pieces/framework/src"
       ],
-      "ee-embed-sdk": [
+      "@anticeil/embed-sdk": [
         "../../packages/embed-sdk/src"
       ],
       "@activepieces/piece-ai": [

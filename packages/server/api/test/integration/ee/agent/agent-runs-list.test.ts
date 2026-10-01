@@ -3,7 +3,7 @@ import { AgentIcon, AgentRunSource, AgentVisibility, ColorName, DefaultProjectRo
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { agentRpcHandlers } from '../../../../src/app/ee/agent/agent-rpc-handlers'
+import { agentRpcHandlers } from '../../../../src/app/agent/agent-rpc-handlers'
 import { db } from '../../../helpers/db'
 import { mockAndSaveAIProvider } from '../../../helpers/mocks'
 import { createMemberContext, createTestContext, TestContext } from '../../../helpers/test-context'

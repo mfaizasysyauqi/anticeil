@@ -7,7 +7,7 @@ import {
   ActivepiecesClientShowConnectionIframe,
   ActivepiecesNewConnectionDialogClosed,
   NEW_CONNECTION_QUERY_PARAMS,
-} from 'ee-embed-sdk';
+} from '@anticeil/embed-sdk';
 import { useEffect, useRef, useState } from 'react';
 
 import { memoryRouter } from '@/app/guards';

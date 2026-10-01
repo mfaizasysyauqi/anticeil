@@ -9,7 +9,7 @@ vi.mock('../../../../src/app/helper/system/system', () => ({
     system: { getDecimalOrThrow: () => 0.0005 },
 }))
 
-vi.mock('../../../../src/app/ee/platform/platform-plan/platform-plan.service', () => ({
+vi.mock('../../../../src/app/billing/platform-plan.service', () => ({
     platformPlanService: () => ({
         getOrCreateForPlatform: async () => ({ plan: 'free', licenseKey: null }),
     }),

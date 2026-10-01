@@ -4,7 +4,7 @@ import {
   ActivepiecesClientMcpOAuthApproved,
   ActivepiecesClientMcpOAuthDenied,
   ActivepiecesClientShowMcpIframe,
-} from 'ee-embed-sdk';
+} from '@anticeil/embed-sdk';
 import { t } from 'i18next';
 import { jwtDecode } from 'jwt-decode';
 import { Lock, Plug, Workflow } from 'lucide-react';

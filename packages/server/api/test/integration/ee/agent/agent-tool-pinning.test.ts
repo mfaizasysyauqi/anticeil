@@ -1,6 +1,6 @@
 import { AgentToolType } from '@activepieces/core-piece-types'
 import { describe, expect, it } from 'vitest'
-import { agentToolPinning } from '../../../../src/app/ee/agent/agent-tool-pinning'
+import { agentToolPinning } from '../../../../src/app/agent/agent-tool-pinning'
 
 const pieceTool = ({ pieceName, actionName, auth }: { pieceName: string, actionName: string, auth?: string }) => ({
     type: AgentToolType.PIECE as const,

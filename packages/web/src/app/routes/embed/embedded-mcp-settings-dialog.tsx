@@ -2,7 +2,7 @@ import {
   ActivepiecesClientEventName,
   ActivepiecesClientMcpSettingsDialogClosed,
   ActivepiecesClientShowMcpIframe,
-} from 'ee-embed-sdk';
+} from '@anticeil/embed-sdk';
 import { useEffect, useState } from 'react';
 
 import { Dialog, DialogContent } from '@/components/ui/dialog';

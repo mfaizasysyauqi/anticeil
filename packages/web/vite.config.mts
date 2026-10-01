@@ -119,7 +119,7 @@ export default defineConfig(({ command, mode }) => {
           __dirname,
           '../../packages/core/shared/src',
         ),
-        'ee-embed-sdk': path.resolve(
+        '@anticeil/embed-sdk': path.resolve(
           __dirname,
           '../../packages/embed-sdk/src',
         ),

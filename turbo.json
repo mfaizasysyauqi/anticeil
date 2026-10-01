@@ -78,7 +78,7 @@
         "!src/**/*.test.ts"
       ]
     },
-    "ee-embed-sdk#bundle": {
+    "@anticeil/embed-sdk#bundle": {
       "dependsOn": [],
       "inputs": [
         "src/**",

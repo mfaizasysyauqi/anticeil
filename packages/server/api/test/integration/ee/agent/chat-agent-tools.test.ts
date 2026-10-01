@@ -4,7 +4,7 @@ import { AgentToolType, mcpToolNameUtils, PackageType, PieceType } from '@active
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { executeCrossProjectTool } from '../../../../src/app/ee/agent/tools/agent-tools'
+import { executeCrossProjectTool } from '../../../../src/app/agent/tools/agent-tools'
 import { db } from '../../../helpers/db'
 import { createMockConnection, createMockPieceMetadata } from '../../../helpers/mocks'
 import { createTestContext, TestContext } from '../../../helpers/test-context'

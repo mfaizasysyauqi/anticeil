@@ -5,7 +5,7 @@ const { mockGetUserProjects, mockListFlows } = vi.hoisted(() => ({
     mockListFlows: vi.fn().mockResolvedValue({ data: [] }),
 }))
 
-vi.mock('../../../../../src/app/ee/agent/agent-helpers', () => ({
+vi.mock('../../../../../src/app/agent/agent-helpers', () => ({
     agentHelpers: { getUserProjects: mockGetUserProjects },
 }))
 
@@ -21,7 +21,7 @@ const ownerProjects = [
 ]
 
 async function listAcrossProjects(confinedToProjectId?: string | null) {
-    const { executeCrossProjectTool } = await import('../../../../../src/app/ee/agent/tools/agent-tools')
+    const { executeCrossProjectTool } = await import('../../../../../src/app/agent/tools/agent-tools')
     mockGetUserProjects.mockResolvedValue(ownerProjects)
     return executeCrossProjectTool({
         toolName: 'ap_list_across_projects',

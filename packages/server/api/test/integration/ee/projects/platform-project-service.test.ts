@@ -1,6 +1,6 @@
 import { apId } from '@activepieces/core-utils'
 import { FastifyInstance } from 'fastify'
-import { platformProjectService } from '../../../../src/app/ee/projects/platform-project-service'
+import { platformProjectService } from '../../../../src/app/project/platform-project-service'
 import { mockAndSaveBasicSetup } from '../../../helpers/mocks'
 import { setupTestEnvironment, teardownTestEnvironment } from '../../../helpers/test-setup'
 

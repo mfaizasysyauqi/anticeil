@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { UNATTENDED_WEB_TOOLS } from '../../../../../../src/lib/execute/jobs/ee/agent/agent-tool-policy'
-import { stepResultFrom } from '../../../../../../src/lib/execute/jobs/ee/agent/agent-step-result'
-import { decideLoopAction, shouldRetryStream } from '../../../../../../src/lib/execute/jobs/ee/agent/run-agent-turn'
+import { UNATTENDED_WEB_TOOLS } from '../../../../../../src/lib/execute/jobs/agent/agent-tool-policy'
+import { stepResultFrom } from '../../../../../../src/lib/execute/jobs/agent/agent-step-result'
+import { decideLoopAction, shouldRetryStream } from '../../../../../../src/lib/execute/jobs/agent/run-agent-turn'
 
 describe('decideLoopAction', () => {
     it('finishes when a normal step produced visible output', () => {

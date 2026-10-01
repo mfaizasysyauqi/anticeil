@@ -11,8 +11,8 @@ import {
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { flowApprovalRequestService } from '../../../../src/app/ee/flows/flow-approval/flow-approval-request.service'
-import { eeFlowPublishHook } from '../../../../src/app/ee/flows/flow-approval/flow-publish-hook'
+import { flowApprovalRequestService } from '../../../../src/app/flows/flow-approval/flow-approval-request.service'
+import { eeFlowPublishHook } from '../../../../src/app/flows/flow-approval/flow-publish-hook'
 import { db } from '../../../helpers/db'
 import {
     createMockFlow,

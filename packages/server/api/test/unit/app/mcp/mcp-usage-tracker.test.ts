@@ -20,7 +20,7 @@ vi.mock('../../../../src/app/platform/billing-and-telemetry', () => ({
     trackBillingAndSendTelemetry: mockTrackBillingAndSendTelemetry,
 }))
 
-vi.mock('../../../../src/app/ee/platform/platform-plan/platform-plan.service', () => ({
+vi.mock('../../../../src/app/billing/platform-plan.service', () => ({
     platformPlanService: () => ({ getOrCreateForPlatform: mockGetOrCreateForPlatform }),
 }))
 

@@ -3,7 +3,7 @@ import { PiecePropertyMap, PropertyType } from '@activepieces/pieces-framework'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { ActivepiecesError } from '@activepieces/core-utils'
-import { pieceInputPlan } from '../../../../../src/app/ee/agent/tools/piece-input-plan'
+import { pieceInputPlan } from '../../../../../src/app/agent/tools/piece-input-plan'
 
 function prop(overrides: Record<string, unknown>): Record<string, unknown> {
     return { displayName: 'x', required: false, ...overrides }

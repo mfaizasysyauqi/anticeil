@@ -2,7 +2,7 @@ import { AIProviderName } from '@activepieces/core-utils'
 import { SharedV3ProviderOptions } from '@ai-sdk/provider'
 import { convertArrayToReadableStream, MockLanguageModelV3 } from 'ai/test'
 import { describe, expect, it } from 'vitest'
-import { runAgentTurn } from '../../../src/lib/execute/jobs/ee/agent/run-agent-turn'
+import { runAgentTurn } from '../../../src/lib/execute/jobs/agent/run-agent-turn'
 
 const silentLog = { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined } as never
 

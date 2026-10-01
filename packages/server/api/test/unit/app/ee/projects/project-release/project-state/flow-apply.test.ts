@@ -1,13 +1,13 @@
 import { DiffState, FlowProjectOperationType, FlowStatus, FlowSyncError } from '@activepieces/shared'
 import { nanoid } from 'nanoid'
 import { Mock, MockedFunction } from 'vitest'
-import { projectStateHelper } from '../../../../../../../src/app/ee/projects/project-release/project-state/project-state-helper'
-import { projectStateService } from '../../../../../../../src/app/ee/projects/project-release/project-state/project-state.service'
+import { projectStateHelper } from '../../../../../../../src/app/project/project-release/project-state/project-state-helper'
+import { projectStateService } from '../../../../../../../src/app/project/project-release/project-state/project-state.service'
 import { system } from '../../../../../../../src/app/helper/system/system'
 import { flowGenerator } from '../../../../../../helpers/flow-generator'
 
 // Mock the project state helper
-vi.mock('../../../../../../../src/app/ee/projects/project-release/project-state/project-state-helper')
+vi.mock('../../../../../../../src/app/project/project-release/project-state/project-state-helper')
 
 const mockProjectStateHelper = projectStateHelper as MockedFunction<typeof projectStateHelper>
 const logger = system.globalLogger()

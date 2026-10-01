@@ -1,6 +1,6 @@
 import { FastifyBaseLogger } from 'fastify'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CreditsBalanceCache } from '../../../../../src/app/ee/platform/platform-plan/billing-providers/autumn-utils'
+import { CreditsBalanceCache } from '../../../../../src/app/billing/billing-providers/autumn-utils'
 
 let storedCredits: CreditsBalanceCache | null = null
 let autumnCredits: CreditsBalanceCache | null = null
@@ -10,7 +10,7 @@ let lockChain: Promise<unknown> = Promise.resolve()
 const mockBillingEnforced = vi.fn()
 const mockResolveClientForPlatform = vi.fn()
 
-vi.mock('../../../../../src/app/ee/platform/platform-plan/billing-providers/autumn-utils', () => ({
+vi.mock('../../../../../src/app/billing/billing-providers/autumn-utils', () => ({
     autumnUtils: {
         readBalance: async ({ featureId }: { featureId: string }) =>
             featureId === 'apCredits' ? storedCredits : null,
@@ -51,12 +51,12 @@ vi.mock('../../../../../src/app/database/redis-connections', () => ({
     }),
 }))
 
-vi.mock('../../../../../src/app/ee/platform/platform-plan/platform-plan.service', () => ({
+vi.mock('../../../../../src/app/billing/platform-plan.service', () => ({
     platformPlanService: () => ({}),
     assertSeatsNotBelowActiveUsers: vi.fn(),
 }))
 
-import { autumnBillingProvider, computeCreditState } from '../../../../../src/app/ee/platform/platform-plan/billing-providers/autumn-billing'
+import { autumnBillingProvider, computeCreditState } from '../../../../../src/app/billing/billing-providers/autumn-billing'
 
 function balance(overrides: Partial<CreditsBalanceCache>): CreditsBalanceCache {
     return { granted: 1000, usage: 0, remaining: 1000, unlimited: false, nextResetAt: null, syncedAt: 0, ...overrides }

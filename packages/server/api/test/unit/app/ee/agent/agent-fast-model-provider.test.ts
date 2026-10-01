@@ -18,7 +18,7 @@ vi.mock('@activepieces/server-utils', async (importOriginal) => ({
     aiUtils: { createModel: (args: unknown) => args },
 }))
 
-const { agentHelpers } = await import('../../../../../src/app/ee/agent/agent-helpers')
+const { agentHelpers } = await import('../../../../../src/app/agent/agent-helpers')
 
 const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() } as never
 const platformId = 'platform-1'

@@ -1,6 +1,6 @@
 import { PersistedAgentMessage, PersistedAgentPart, PersistedAgentPartType, PersistedAgentRole, PersistedToolCallStatus } from '@activepieces/shared'
 import { describe, expect, it } from 'vitest'
-import { chatToolBilling } from '../../../../../src/app/ee/agent/chat-tool-billing'
+import { chatToolBilling } from '../../../../../src/app/agent/chat-tool-billing'
 import { ALL_CONTROLLABLE_TOOL_NAMES, LOCKED_TOOL_NAMES, PLATFORM_LEVEL_TOOL_NAMES } from '../../../../../src/app/mcp/tools'
 
 const AP_NATIVE_TOOL_NAMES = [

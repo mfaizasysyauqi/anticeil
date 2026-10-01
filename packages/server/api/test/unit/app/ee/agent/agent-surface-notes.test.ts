@@ -1,6 +1,6 @@
 import { AgentRunSource } from '@activepieces/shared'
 import { describe, expect, it } from 'vitest'
-import { agentSurfaceNotes } from '../../../../../src/app/ee/agent/prompt/agent-surface-notes'
+import { agentSurfaceNotes } from '../../../../../src/app/agent/prompt/agent-surface-notes'
 
 // agentToolPolicy grants these to a chat run only, so a note naming one anywhere else points the
 // model at a tool it does not have.

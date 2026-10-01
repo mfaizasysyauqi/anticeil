@@ -1,7 +1,7 @@
 import { AgentRunSource, mcpToolNameUtils } from '@activepieces/shared'
 import { Tool, ToolSet } from 'ai'
 import { describe, expect, it } from 'vitest'
-import { agentToolPolicy, AgentToolGroups } from '../../../../../../src/lib/execute/jobs/ee/agent/agent-tool-policy'
+import { agentToolPolicy, AgentToolGroups } from '../../../../../../src/lib/execute/jobs/agent/agent-tool-policy'
 
 function toolSet(...names: string[]): ToolSet {
     return Object.fromEntries(names.map((name) => [name, {} as Tool]))

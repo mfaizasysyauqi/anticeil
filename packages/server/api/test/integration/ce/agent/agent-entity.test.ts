@@ -2,7 +2,7 @@ import { apId } from '@activepieces/core-utils'
 import { AgentIcon, AgentVisibility, ColorName, DEFAULT_AGENT_MAX_STEPS } from '@activepieces/shared'
 import { FastifyInstance } from 'fastify'
 import { databaseConnection } from '../../../../src/app/database/database-connection'
-import { AgentEntity } from '../../../../src/app/ee/agent/agent-entity'
+import { AgentEntity } from '../../../../src/app/agent/agent-entity'
 import { mockAndSaveBasicSetup } from '../../../helpers/mocks'
 import { setupTestEnvironment } from '../../../helpers/test-setup'
 

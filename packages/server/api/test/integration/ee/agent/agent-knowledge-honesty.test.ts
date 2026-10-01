@@ -1,7 +1,7 @@
 import { AgentRunSource, apId, FileCompression, FileType } from '@activepieces/shared'
 import { FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { agentRpcHandlers } from '../../../../src/app/ee/agent/agent-rpc-handlers'
+import { agentRpcHandlers } from '../../../../src/app/agent/agent-rpc-handlers'
 import { knowledgeBaseService } from '../../../../src/app/knowledge-base/knowledge-base.service'
 import { db } from '../../../helpers/db'
 import { createMockFile } from '../../../helpers/mocks'

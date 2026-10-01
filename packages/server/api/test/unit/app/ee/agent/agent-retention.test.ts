@@ -30,7 +30,7 @@ vi.mock('../../../../../src/app/core/db/repo-factory', () => ({
     ),
 }))
 
-const { agentRetention } = await import('../../../../../src/app/ee/agent/agent-retention')
+const { agentRetention } = await import('../../../../../src/app/agent/agent-retention')
 
 const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() } as never
 

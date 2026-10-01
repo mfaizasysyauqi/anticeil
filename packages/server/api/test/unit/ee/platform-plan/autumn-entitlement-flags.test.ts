@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { autumnUtils } from '../../../../src/app/ee/platform/platform-plan/billing-providers/autumn-utils'
+import { autumnUtils } from '../../../../src/app/billing/billing-providers/autumn-utils'
 
 const FREE_FLAGS = ['analyticsEnabled', 'apiKeysEnabled', 'billingEnforced', 'showPoweredBy', 'tablesEnabled']
 const APPSUMO_FLAGS = [...FREE_FLAGS, 'aiProvidersEnabled']

@@ -1,7 +1,7 @@
 import { ActivepiecesError, ErrorCode } from '@activepieces/core-utils'
 import { AgentEvent, AgentEventType, AgentRunSource, EngineResponseStatus, ExecuteAgentRunJobData, LATEST_JOB_DATA_SCHEMA_VERSION, WorkerJobType } from '@activepieces/shared'
 import { describe, expect, it } from 'vitest'
-import { executeAgentRunJob } from '../../../../../../src/lib/execute/jobs/ee/agent/execute-agent-run'
+import { executeAgentRunJob } from '../../../../../../src/lib/execute/jobs/agent/execute-agent-run'
 import { JobContext } from '../../../../../../src/lib/execute/types'
 
 const noopLogger = {

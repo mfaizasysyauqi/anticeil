@@ -49,7 +49,7 @@ vi.mock('ai', async (importOriginal) => ({
     embed: () => mockEmbed(),
 }))
 
-vi.mock('../../../../../src/app/ee/agent/agent-approval-gate', () => ({
+vi.mock('../../../../../src/app/agent/agent-approval-gate', () => ({
     agentApprovalGate: {},
 }))
 
@@ -71,7 +71,7 @@ vi.mock('../../../../../src/app/flows/flow-run/engine-run-callback-service', () 
     engineRunCallbackService: () => ({ updateStepProgress: mockUpdateStepProgress }),
 }))
 
-vi.mock('../../../../../src/app/ee/agent/tools/piece-tool-runner', () => ({
+vi.mock('../../../../../src/app/agent/tools/piece-tool-runner', () => ({
     pieceToolRunner: { runResolved: mockRunResolved, resolveInput: mockResolveInput, withoutCredential: (input: Record<string, unknown>) => input },
 }))
 
@@ -107,7 +107,7 @@ type QueryBuilderMock = {
     execute: () => Promise<{ raw?: unknown[] }>
 }
 
-vi.mock('../../../../../src/app/ee/agent/agent-helpers', () => ({
+vi.mock('../../../../../src/app/agent/agent-helpers', () => ({
     agentHelpers: {
         assertProjectSwitchKeepsKey: mockAssertProjectSwitchKeepsKey,
         resolveFastModel: () => ({}),
@@ -131,15 +131,15 @@ vi.mock('../../../../../src/app/ee/agent/agent-helpers', () => ({
     },
 }))
 
-vi.mock('../../../../../src/app/ee/agent/chat-analytics-sync', () => ({
+vi.mock('../../../../../src/app/agent/chat-analytics-sync', () => ({
     chatAnalyticsTelemetry: () => ({ sendConversationUpdate: mockSendConversationUpdate }),
 }))
 
-vi.mock('../../../../../src/app/ee/agent/chat-tool-billing', () => ({
+vi.mock('../../../../../src/app/agent/chat-tool-billing', () => ({
     chatToolBilling: { chargeForLatestTurn: mockTrack },
 }))
 
-const { agentRpcHandlers } = await import('../../../../../src/app/ee/agent/agent-rpc-handlers')
+const { agentRpcHandlers } = await import('../../../../../src/app/agent/agent-rpc-handlers')
 
 const noopLogger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }
 

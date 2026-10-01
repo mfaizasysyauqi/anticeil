@@ -1,4 +1,4 @@
-import { ActivepiecesClientEventName } from 'ee-embed-sdk';
+import { ActivepiecesClientEventName } from '@anticeil/embed-sdk';
 import { t } from 'i18next';
 import { ChevronLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';

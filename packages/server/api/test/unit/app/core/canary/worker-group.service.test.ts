@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockFindOne = vi.fn()
 const mockUpdate = vi.fn()
 
-vi.mock('../../../../../src/app/ee/platform/platform-plan/platform-plan.service', () => ({
+vi.mock('../../../../../src/app/billing/platform-plan.service', () => ({
     platformPlanRepo: () => ({
         findOne: mockFindOne,
         update: mockUpdate,
@@ -41,12 +41,12 @@ const mockLog: FastifyBaseLogger = {
     level: 'info',
 } as unknown as FastifyBaseLogger
 
-type WorkerGroupService = ReturnType<typeof import('../../../../../src/app/ee/platform/platform-plan/worker-group.service').workerGroupService>
+type WorkerGroupService = ReturnType<typeof import('../../../../../src/app/billing/worker-group.service').workerGroupService>
 
 const CANARY_WORKER_GROUP_ID = 'canary'
 
 async function loadService(): Promise<WorkerGroupService> {
-    const mod = await import('../../../../../src/app/ee/platform/platform-plan/worker-group.service')
+    const mod = await import('../../../../../src/app/billing/worker-group.service')
     return mod.workerGroupService(mockLog)
 }
 

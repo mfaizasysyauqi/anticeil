@@ -1,8 +1,8 @@
 import { ActivepiecesError, AIProviderName, ErrorCode, tryCatchSync } from '@activepieces/core-utils'
 import { ACTIVEPIECES_CHAT_TIERS, AIProviderModelType, aiProviderUtils } from '@activepieces/shared'
 import { describe, expect, it, vi } from 'vitest'
-import { agentHelpers } from '../../../../../src/app/ee/agent/agent-helpers'
-import { agentModelResolution } from '../../../../../src/app/ee/agent/agent-model-resolution'
+import { agentHelpers } from '../../../../../src/app/agent/agent-helpers'
+import { agentModelResolution } from '../../../../../src/app/agent/agent-model-resolution'
 
 const getChatProviderName = vi.fn()
 

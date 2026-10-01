@@ -1,7 +1,7 @@
 import { AIProviderName, ErrorCode } from '@activepieces/core-utils'
 import { ModelMessage } from 'ai'
 import { describe, expect, it } from 'vitest'
-import { agentCompaction } from '../../../../src/app/ee/agent/agent-compaction'
+import { agentCompaction } from '../../../../src/app/agent/agent-compaction'
 
 function makeMessages(count: number, charsPer = 100): ModelMessage[] {
     return Array.from({ length: count }, (_, i) => ({

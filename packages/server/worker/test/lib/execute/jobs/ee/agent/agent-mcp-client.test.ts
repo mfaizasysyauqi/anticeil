@@ -1,7 +1,7 @@
 import { AgentMcpTool, AgentToolType, McpAuthType, McpProtocol } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { agentMcpClient } from '../../../../../../src/lib/execute/jobs/ee/agent/agent-mcp-client'
+import { agentMcpClient } from '../../../../../../src/lib/execute/jobs/agent/agent-mcp-client'
 
 const { mockCreateMCPClient } = vi.hoisted(() => ({
     mockCreateMCPClient: vi.fn(),

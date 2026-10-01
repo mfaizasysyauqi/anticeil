@@ -2,7 +2,7 @@ import { AgentIcon, AgentRunSource, ColorName, DefaultProjectRole, PackageType, 
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { agentRpcHandlers } from '../../../../src/app/ee/agent/agent-rpc-handlers'
+import { agentRpcHandlers } from '../../../../src/app/agent/agent-rpc-handlers'
 import { encryptUtils } from '../../../../src/app/helper/encryption'
 import { db } from '../../../helpers/db'
 import { createMockConnection, createMockPieceMetadata } from '../../../helpers/mocks'
