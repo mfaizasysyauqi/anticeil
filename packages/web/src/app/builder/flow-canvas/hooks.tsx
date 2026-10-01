@@ -210,14 +210,21 @@ export const useResizeCanvas = (
       const { width, height } = entries[0].contentRect;
       setHasCanvasBeenInitialised(true);
       const { x, y, zoom } = getViewport();
-      if (containerRef.current && width !== containerSizeRef.current.width) {
+      if (
+        containerRef.current &&
+        containerSizeRef.current.width > 0 &&
+        width > 0 &&
+        width !== containerSizeRef.current.width
+      ) {
         const newX = x + (width - containerSizeRef.current.width) / 2;
         setViewport({ x: newX, y, zoom });
       }
-      containerSizeRef.current = {
-        width,
-        height,
-      };
+      if (width > 0 && height > 0) {
+        containerSizeRef.current = {
+          width,
+          height,
+        };
+      }
     });
     resizeObserver.observe(containerRef.current);
     return () => {
