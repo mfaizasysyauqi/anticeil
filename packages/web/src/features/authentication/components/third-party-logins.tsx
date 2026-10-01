@@ -153,7 +153,7 @@ const ThirdPartyLogin = React.memo(
           </div>
           <div className="flex items-center gap-2.5 text-foreground/90">
             <Sparkles className="size-3.5 shrink-0 text-primary" />
-            <span>{t('Bring your own API key, full control without subscription')}</span>
+            <span>{t('Bring your own API key on Plus plan and above')}</span>
           </div>
         </div>
 

@@ -278,7 +278,7 @@ function AuthStep({
     <DrawerShell>
       <Heading
         title={t('Welcome to Anticeil')}
-        subtitle={t('Bring your own API key, full control without subscription.')}
+        subtitle={t('Automate anything. Bring your own API key from Plus plan and above.')}
       />
       <ThirdPartyLogin
         isSignUp={effectiveMode === 'signup'}
