@@ -5,8 +5,8 @@ import { AuthorizationRouteSecurity, ProjectAuthorizationConfig } from '../../..
 import { AuthorizationType, RouteKind } from '../../../core/security/authorization/common'
 import { convertToSecurityAccessRequest } from '../../../core/security/v2/authz/authorization-middleware'
 import { system } from '../../../helper/system/system'
-import { projectMemberService } from '../../projects/project-members/project-member.service'
-import { projectRoleService } from '../../projects/project-role/project-role.service'
+import { projectMemberService } from '../../../project/project-members/project-member.service'
+import { projectRoleService } from '../../../project/project-role/project-role.service'
 
 const EDITION_IS_COMMUNITY = system.getEdition() === ApEdition.COMMUNITY
 

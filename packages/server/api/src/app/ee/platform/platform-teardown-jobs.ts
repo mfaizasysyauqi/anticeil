@@ -29,7 +29,7 @@ import { userInvitationRepo } from '../../user-invitations/user-invitation.servi
 import { VariableEntity } from '../../variable/variable.entity'
 import { apiKeyService } from '../api-keys/api-key-service'
 import { auditLogRepo } from '../audit-logs/audit-event-service'
-import { ProjectRoleEntity } from '../projects/project-role/project-role.entity'
+import { ProjectRoleEntity } from '../../project/project-role/project-role.entity'
 import { SigningKeyEntity } from '../signing-key/signing-key-entity'
 import { ConcurrencyPoolEntity } from './concurrency-pool/concurrency-pool.entity'
 

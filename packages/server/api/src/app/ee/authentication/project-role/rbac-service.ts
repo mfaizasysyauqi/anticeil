@@ -3,8 +3,8 @@ import { ApEdition, FlowOperationType, Principal, PrincipalType, UserPrincipal }
 import { FastifyBaseLogger } from 'fastify'
 import { system } from '../../../helper/system/system'
 import { projectService } from '../../../project/project-service'
-import { projectMemberService } from '../../projects/project-members/project-member.service'
-import { projectRoleService } from '../../projects/project-role/project-role.service'
+import { projectMemberService } from '../../../project/project-members/project-member.service'
+import { projectRoleService } from '../../../project/project-role/project-role.service'
 
 export const rbacService = (log: FastifyBaseLogger) => ({
     async assertPrinicpalAccessToProject({ principal, permission, projectId }: AssertRoleHasPermissionParams): Promise<void> {

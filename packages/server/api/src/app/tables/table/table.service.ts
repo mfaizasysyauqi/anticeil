@@ -4,7 +4,7 @@ import { CreateTableRequest, CreateTableWebhookRequest, ExportTableResponse, Fie
 import { FastifyBaseLogger } from 'fastify'
 import { ArrayContains, ILike, In, IsNull } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'
-import { projectStateService } from '../../ee/projects/project-release/project-state/project-state.service'
+import { projectStateService } from '../../project/project-release/project-state/project-state.service'
 import { fileService } from '../../file/file.service'
 import { enforceByteLimit, filesService } from '../../file/files-service'
 import { getFolderIdFromRequest } from '../../flows/flow/flow.service'

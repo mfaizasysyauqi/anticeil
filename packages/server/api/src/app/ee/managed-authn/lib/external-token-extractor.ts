@@ -3,7 +3,7 @@ import { DefaultProjectRole, PiecesFilterType, SigningKey, SigningKeyId } from '
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { JwtSignAlgorithm, jwtUtils } from '../../../helper/jwt-utils'
-import { projectRoleService } from '../../projects/project-role/project-role.service'
+import { projectRoleService } from '../../../project/project-role/project-role.service'
 import { signingKeyService } from '../../signing-key/signing-key-service'
 
 const ALGORITHM = JwtSignAlgorithm.RS256

@@ -8,7 +8,7 @@ import { securityAccess } from '../../core/security/authorization/fastify-securi
 import Paginator from '../../helper/pagination/paginator'
 import { platformService } from '../../platform/platform.service'
 import { userService } from '../../user/user-service'
-import { platformProjectService } from '../projects/platform-project-service'
+import { platformProjectService } from '../../project/platform-project-service'
 
 export const platformListController: FastifyPluginAsyncZod = async (app) => {
 

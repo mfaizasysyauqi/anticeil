@@ -6,7 +6,7 @@ import { system } from '../../../helper/system/system'
 import { platformService } from '../../../platform/platform.service'
 import { projectService } from '../../../project/project-service'
 import { alertsService } from '../../alerts/alerts-service'
-import { projectRoleService } from '../../projects/project-role/project-role.service'
+import { projectRoleService } from '../../../project/project-role/project-role.service'
 import { emailSender, EmailTemplateData } from './email-sender/email-sender'
 
 const EDITION = system.getEdition()
