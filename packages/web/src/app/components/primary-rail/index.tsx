@@ -139,7 +139,7 @@ export function PrimaryRail() {
                 }
               />
             )}
-            {checkAccess(Permission.READ_MCP) && (platform?.plan?.aiProvidersEnabled ?? false) && (
+            {checkAccess(Permission.READ_MCP) && (platform?.plan?.aiProvidersEnabled || platform?.plan?.agentsEnabled) && (
               <RailNavButton
                 collapsed={collapsed}
                 to="/mcp-server"
@@ -242,7 +242,7 @@ export function MobilePrimaryRailSheet({
                   }}
                 />
               )}
-              {checkAccess(Permission.READ_MCP) && (
+              {checkAccess(Permission.READ_MCP) && (platform?.plan?.aiProvidersEnabled || platform?.plan?.agentsEnabled) && (
                 <RailNavButton
                   collapsed={false}
                   to="/mcp-server"
@@ -276,14 +276,16 @@ export function MobilePrimaryRailSheet({
                   });
                 }}
               />
-              <RailNavButton
-                collapsed={false}
-                to="/impact"
-                icon={ChartLine}
-                label={t('Impact')}
-                isActive={({ pathname }) => pathname.startsWith('/impact')}
-                onClick={handleNavigate}
-              />
+              {(platform?.plan?.analyticsEnabled ?? false) && (
+                <RailNavButton
+                  collapsed={false}
+                  to="/impact"
+                  icon={ChartLine}
+                  label={t('Impact')}
+                  isActive={({ pathname }) => pathname.startsWith('/impact')}
+                  onClick={handleNavigate}
+                />
+              )}
             </div>
             <RailPinnedProjects collapsed={false} />
           </div>

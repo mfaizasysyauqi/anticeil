@@ -106,7 +106,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
         includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
         usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
         activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
-        projectsLimit: isEnterprise ? null : (isTeam ? null : 1),
+        projectsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? null : 1)),
         billedTeamProjectsLimit: isTeam ? null : (isPlus ? 1 : 0),
 
         agentsEnabled: isPlus,

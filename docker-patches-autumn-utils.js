@@ -195,14 +195,24 @@ exports.autumnUtils = {
         const users = entitlements.balances[shared_1.UnconsumableFeatureId.USERS_LIMIT];
         const activeFlows = entitlements.balances[shared_1.UnconsumableFeatureId.ACTIVE_FLOWS_LIMIT];
         const credits = entitlements.balances[shared_1.ConsumableFeatureId.AP_CREDITS];
+        const plan = (entitlements.planId || 'free').toLowerCase();
+        const isEnterprise = plan.includes('enterprise');
+        const isTeam = plan.includes('team') || isEnterprise;
+        const isPlus = plan.includes('plus') || isTeam;
+
+        const defaultTeamProjectsLimit = isTeam ? null : (isPlus ? 1 : 0);
+        const defaultUsersLimit = isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1));
+        const defaultActiveFlowsLimit = isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5));
+        const defaultCredits = isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000));
+
         return {
-            ...toPlatformPlanFlags(entitlements.grantedFeatureIds),
+            ...toPlatformPlanFlags(entitlements.grantedFeatureIds, entitlements.planId),
             plan: entitlements.planId,
-            billedTeamProjectsLimit: toPlatformPlanLimit(teamProjects, 1),
-            usersLimit: toPlatformPlanLimit(users, null),
+            billedTeamProjectsLimit: toPlatformPlanLimit(teamProjects, defaultTeamProjectsLimit),
+            usersLimit: toPlatformPlanLimit(users, defaultUsersLimit),
             scheduledUsersLimit: entitlements.scheduledUsersLimit,
-            activeFlowsLimit: toPlatformPlanLimit(activeFlows, null),
-            includedCredits: credits?.granted ?? 0,
+            activeFlowsLimit: toPlatformPlanLimit(activeFlows, defaultActiveFlowsLimit),
+            includedCredits: credits?.granted ?? defaultCredits,
         };
     },
     async readBalance({ platformId, featureId }) {
@@ -467,29 +477,36 @@ function toEntitlementPlan(attachment) {
         featureIds: (attachment.plan?.items ?? []).map((item) => item.featureId),
     };
 }
-function toPlatformPlanFlags(_grantedFeatureIds) {
+function toPlatformPlanFlags(grantedFeatureIds, planId) {
+    const plan = (planId || 'free').toLowerCase();
+    const isEnterprise = plan.includes('enterprise');
+    const isTeam = plan.includes('team') || isEnterprise;
+    const isPlus = plan.includes('plus') || isTeam;
+
+    const has = (feature) => (grantedFeatureIds && typeof grantedFeatureIds.has === 'function' ? grantedFeatureIds.has(feature) : false);
+
     return {
         tablesEnabled: true,
-        eventStreamingEnabled: true,
-        environmentsEnabled: true,
-        analyticsEnabled: true,
-        showPoweredBy: false,
-        auditLogEnabled: true,
-        embeddingEnabled: true,
-        aiProvidersEnabled: true,
         chatEnabled: true,
-        agentsEnabled: true,
-        workerGroupsEnabled: true,
-        managePiecesEnabled: true,
-        manageTemplatesEnabled: true,
-        customAppearanceEnabled: true,
-        projectRolesEnabled: true,
-        globalConnectionsEnabled: true,
-        customRolesEnabled: true,
-        apiKeysEnabled: true,
-        ssoEnabled: true,
-        secretManagersEnabled: true,
-        scimEnabled: true,
+        analyticsEnabled: has(shared_1.FeatureFlagId.ANALYTICS) || isPlus,
+        showPoweredBy: !isPlus,
+        customAppearanceEnabled: has(shared_1.FeatureFlagId.CUSTOM_APPEARANCE) || isPlus,
+        aiProvidersEnabled: has(shared_1.FeatureFlagId.AI_PROVIDERS) || isPlus,
+        agentsEnabled: has(shared_1.FeatureFlagId.AGENTS) || isPlus,
+        globalConnectionsEnabled: has(shared_1.FeatureFlagId.GLOBAL_CONNECTIONS) || isTeam,
+        ssoEnabled: has(shared_1.FeatureFlagId.SSO) || isTeam,
+        customRolesEnabled: has(shared_1.FeatureFlagId.CUSTOM_ROLES) || isTeam,
+        projectRolesEnabled: has(shared_1.FeatureFlagId.PROJECT_ROLES) || isTeam,
+        auditLogEnabled: has(shared_1.FeatureFlagId.AUDIT_LOGS) || isTeam,
+        environmentsEnabled: has(shared_1.FeatureFlagId.ENVIRONMENTS) || isTeam,
+        embeddingEnabled: has(shared_1.FeatureFlagId.EMBEDDED) || isTeam,
+        apiKeysEnabled: has(shared_1.FeatureFlagId.API_KEYS) || isTeam,
+        secretManagersEnabled: has(shared_1.FeatureFlagId.SECRET_MANAGERS) || isTeam,
+        managePiecesEnabled: has(shared_1.FeatureFlagId.MANAGE_PIECES) || isTeam,
+        manageTemplatesEnabled: has(shared_1.FeatureFlagId.MANAGE_TEMPLATES) || isTeam,
+        scimEnabled: has(shared_1.FeatureFlagId.SCIM) || isEnterprise,
+        eventStreamingEnabled: has(shared_1.FeatureFlagId.EVENT_STREAMING) || isEnterprise,
+        workerGroupsEnabled: has(shared_1.FeatureFlagId.WORKER_GROUPS) || isEnterprise,
     };
 }
 function toScheduledUsersLimit(baseSubscriptions) {

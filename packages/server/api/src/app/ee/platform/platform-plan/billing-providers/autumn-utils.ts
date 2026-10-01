@@ -216,14 +216,24 @@ export const autumnUtils = {
         const users = entitlements.balances[UnconsumableFeatureId.USERS_LIMIT]
         const activeFlows = entitlements.balances[UnconsumableFeatureId.ACTIVE_FLOWS_LIMIT]
         const credits = entitlements.balances[ConsumableFeatureId.AP_CREDITS]
+        const plan = (entitlements.planId || 'free').toLowerCase()
+        const isEnterprise = plan.includes('enterprise')
+        const isTeam = plan.includes('team') || isEnterprise
+        const isPlus = plan.includes('plus') || isTeam
+
+        const defaultTeamProjectsLimit = isTeam ? null : (isPlus ? 1 : 0)
+        const defaultUsersLimit = isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1))
+        const defaultActiveFlowsLimit = isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5))
+        const defaultCredits = isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000))
+
         return {
             ...toPlatformPlanFlags(entitlements.grantedFeatureIds, entitlements.planId),
             plan: entitlements.planId,
-            billedTeamProjectsLimit: toPlatformPlanLimit(teamProjects, 1),
-            usersLimit: toPlatformPlanLimit(users, null),
+            billedTeamProjectsLimit: toPlatformPlanLimit(teamProjects, defaultTeamProjectsLimit),
+            usersLimit: toPlatformPlanLimit(users, defaultUsersLimit),
             scheduledUsersLimit: entitlements.scheduledUsersLimit,
-            activeFlowsLimit: toPlatformPlanLimit(activeFlows, null),
-            includedCredits: credits?.granted ?? 0,
+            activeFlowsLimit: toPlatformPlanLimit(activeFlows, defaultActiveFlowsLimit),
+            includedCredits: credits?.granted ?? defaultCredits,
         }
     },
     async readBalance({ platformId, featureId }: BalanceCacheRef): Promise<CreditsBalanceCache | null> {
@@ -511,11 +521,11 @@ function toPlatformPlanFlags(grantedFeatureIds: ReadonlySet<string>, planId?: st
     return {
         tablesEnabled: true,
         chatEnabled: true,
-        analyticsEnabled: true,
+        analyticsEnabled: has(FeatureFlagId.ANALYTICS) || isPlus,
         showPoweredBy: !isPlus,
         customAppearanceEnabled: has(FeatureFlagId.CUSTOM_APPEARANCE) || isPlus,
-        aiProvidersEnabled: has(FeatureFlagId.AI_PROVIDERS) || isTeam,
-        agentsEnabled: has(FeatureFlagId.AGENTS) || isTeam,
+        aiProvidersEnabled: has(FeatureFlagId.AI_PROVIDERS) || isPlus,
+        agentsEnabled: has(FeatureFlagId.AGENTS) || isPlus,
         globalConnectionsEnabled: has(FeatureFlagId.GLOBAL_CONNECTIONS) || isTeam,
         ssoEnabled: has(FeatureFlagId.SSO) || isTeam,
         customRolesEnabled: has(FeatureFlagId.CUSTOM_ROLES) || isTeam,

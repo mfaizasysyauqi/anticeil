@@ -29,7 +29,7 @@ function resolvePlanLimitsAndFeatures(planName) {
         includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
         usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
         activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
-        projectsLimit: isEnterprise ? null : (isTeam ? null : 1),
+        projectsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? null : 1)),
         billedTeamProjectsLimit: isTeam ? null : (isPlus ? 1 : 0),
 
         agentsEnabled: isPlus,
@@ -287,14 +287,14 @@ function resolvePlanLimitsAndFeatures(planName = 'free') {
         includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
         usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
         activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
-        projectsLimit: isEnterprise ? null : (isTeam ? null : 1),
-        billedTeamProjectsLimit: isTeam ? null : 1,
+        projectsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? null : 1)),
+        billedTeamProjectsLimit: isTeam ? null : (isPlus ? 1 : 0),
 
-        agentsEnabled: isTeam,
-        aiProvidersEnabled: isTeam,
+        agentsEnabled: isPlus,
+        aiProvidersEnabled: isPlus,
         chatEnabled: true,
         tablesEnabled: true,
-        analyticsEnabled: true,
+        analyticsEnabled: isPlus,
 
         customAppearanceEnabled: isPlus,
         showPoweredBy: !isPlus,
