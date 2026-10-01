@@ -23,7 +23,7 @@ import { FlowApprovalRequestEntity } from '../ee/flows/flow-approval/flow-approv
 import { OAuthAppEntity } from '../ee/oauth-apps/oauth-app.entity'
 import { PieceSetEntity } from '../ee/pieces/piece-set/piece-set.entity'
 import { ConcurrencyPoolEntity } from '../ee/platform/concurrency-pool/concurrency-pool.entity'
-import { PlatformPlanEntity } from '../ee/platform/platform-plan/platform-plan.entity'
+import { PlatformPlanEntity } from '../billing/platform-plan.entity'
 import { ProjectMemberEntity } from '../ee/projects/project-members/project-member.entity'
 import { ProjectPlanEntity } from '../ee/projects/project-plan/project-plan.entity'
 import { GitRepoEntity } from '../ee/projects/project-release/git-sync/git-sync.entity'

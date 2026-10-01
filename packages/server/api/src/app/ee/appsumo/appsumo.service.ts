@@ -6,7 +6,7 @@ import { repoFactory } from '../../core/db/repo-factory'
 import { AppSumoAction, billingProvider } from '../../platform/billing-provider'
 import { projectService } from '../../project/project-service'
 import { userRepo } from '../../user/user-service'
-import { platformPlanService } from '../platform/platform-plan/platform-plan.service'
+import { platformPlanService } from '../../billing/platform-plan.service'
 import { AppSumoEntity, AppSumoPlan } from './appsumo.entity'
 
 const appsumoRepo = repoFactory(AppSumoEntity)

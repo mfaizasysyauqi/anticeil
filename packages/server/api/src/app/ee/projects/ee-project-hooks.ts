@@ -6,7 +6,7 @@ import { ProjectHooks } from '../../project/project-hooks'
 import { userService } from '../../user/user-service'
 import { alertsService } from '../alerts/alerts-service'
 import { pieceSetService } from '../pieces/piece-set/piece-set.service'
-import { platformPlanService } from '../platform/platform-plan/platform-plan.service'
+import { platformPlanService } from '../../billing/platform-plan.service'
 
 export const projectEnterpriseHooks = (log: FastifyBaseLogger): ProjectHooks => ({
     async postCreate(project, context) {

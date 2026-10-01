@@ -7,7 +7,7 @@ import { userIdentityRepository, userIdentityService } from '../authentication/u
 import { repoFactory } from '../core/db/repo-factory'
 import { distributedLock } from '../database/redis-connections'
 import { invalidateSamlClientCache } from '../ee/authentication/saml-authn/saml-client'
-import { platformPlanService } from '../ee/platform/platform-plan/platform-plan.service'
+import { platformPlanService } from '../billing/platform-plan.service'
 import { defaultTheme } from '../flags/theme'
 import { rejectedPromiseHandler } from '../helper/promise-handler'
 import { system } from '../helper/system/system'

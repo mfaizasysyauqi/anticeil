@@ -8,7 +8,7 @@ import { domainHelper } from '../../../helper/domain-helper'
 import { system } from '../../../helper/system/system'
 import { platformRepo, platformService } from '../../../platform/platform.service'
 import { platformUtils } from '../../../platform/platform.utils'
-import { platformPlanService } from '../../platform/platform-plan/platform-plan.service'
+import { platformPlanService } from '../../../billing/platform-plan.service'
 import { createSamlClient, IdpLoginResponse } from './saml-client'
 
 export const authnSsoSamlService = (log: FastifyBaseLogger) => {

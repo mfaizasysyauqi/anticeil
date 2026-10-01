@@ -15,7 +15,7 @@ import { projectRepo } from '../../project/project-repo'
 import { userRepo } from '../../user/user-service'
 import { WorkerMachine, workerMachineCache } from '../../workers/machine/machine-cache'
 import { workerLiveness } from '../../workers/machine/worker-liveness'
-import { platformPlanRepo } from '../platform/platform-plan/platform-plan.service'
+import { platformPlanRepo } from '../../billing/platform-plan.service'
 
 dayjs.extend(utc)
 

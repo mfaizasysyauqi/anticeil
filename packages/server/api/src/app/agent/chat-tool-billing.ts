@@ -4,7 +4,7 @@ import { FastifyBaseLogger } from 'fastify'
 import { LicenseKeyPostHogEvents } from '../helper/telemetry.utils'
 import { trackBillingAndSendTelemetry } from '../platform/billing-and-telemetry'
 import { CreditUsageSource } from '../platform/billing-provider'
-import { platformPlanService } from '../ee/platform/platform-plan/platform-plan.service'
+import { platformPlanService } from '../billing/platform-plan.service'
 import { agentHelpers } from './agent-helpers'
 import { agentHistory } from './history/agent-history'
 

@@ -4,7 +4,7 @@ import { ApEdition, FileCompression, FileType, FlowActionType, FlowStatus, flowS
 import { FastifyBaseLogger } from 'fastify'
 import { accessTokenManager } from '../authentication/lib/access-token-manager'
 import { distributedLock, distributedStore } from '../database/redis-connections'
-import { workerGroupService } from '../ee/platform/platform-plan/worker-group.service'
+import { workerGroupService } from '../billing/worker-group.service'
 import { fileService } from '../file/file.service'
 import Paginator from '../helper/pagination/paginator'
 import { system } from '../helper/system/system'

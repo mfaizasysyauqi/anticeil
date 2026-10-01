@@ -1,8 +1,8 @@
 import { isNil, tryCatch } from '@activepieces/core-utils'
 import { safeHttp } from '@activepieces/server-utils'
 import { AxiosError, type Method } from 'axios'
-import { system } from '../../../../helper/system/system'
-import { AppSystemProp } from '../../../../helper/system/system-props'
+import { system } from '../../helper/system/system'
+import { AppSystemProp } from '../../helper/system/system-props'
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 const REQUEST_TIMEOUT_MS = 15000

@@ -1,7 +1,7 @@
 import { ActivepiecesError, apId, ErrorCode, isNil, tryCatch } from '@activepieces/core-utils'
 import { isAppSumoCreditedPlan, McpToolResult, PopulatedMcpServer } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { platformPlanService } from '../ee/platform/platform-plan/platform-plan.service'
+import { platformPlanService } from '../billing/platform-plan.service'
 import { rejectedPromiseHandler } from '../helper/promise-handler'
 import { trackBillingAndSendTelemetry } from '../platform/billing-and-telemetry'
 import { assertCreditsAndAppSumoNotExceeded, CreditUsageSource, McpCallCreditConsumptionProperties } from '../platform/billing-provider'

@@ -15,7 +15,7 @@ import { isToolSearchEnabled } from '../../../tool-search/tool-search-flag'
 import { toolSearchReindexJob } from '../../../tool-search/tool-search-reindex.job'
 import { AgentConversationEntity } from '../../../agent/agent-conversation-entity'
 import { chatAnalyticsBulkSync } from '../../../agent/chat-analytics-sync'
-import { CANARY_WORKER_GROUP_ID, workerGroupService } from '../platform-plan/worker-group.service'
+import { CANARY_WORKER_GROUP_ID, workerGroupService } from '../../../billing/worker-group.service'
 import { adminPlatformService } from './admin-platform.service'
 import { denoMigrationService } from './deno-migration.service'
 

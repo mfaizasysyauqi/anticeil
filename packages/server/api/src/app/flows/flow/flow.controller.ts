@@ -8,7 +8,7 @@ import { entitiesMustBeOwnedByCurrentProject } from '../../authentication/author
 import { ProjectResourceType } from '../../core/security/authorization/common'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
 import { assertUserHasPermissionToFlow } from '../../ee/authentication/project-role/rbac-middleware'
-import { platformPlanService } from '../../ee/platform/platform-plan/platform-plan.service'
+import { platformPlanService } from '../../billing/platform-plan.service'
 import { projectLimitsService } from '../../ee/projects/project-plan/project-plan.service'
 import { gitRepoService } from '../../ee/projects/project-release/git-sync/git-sync.service'
 import { networkUtils } from '../../helper/network-utils'

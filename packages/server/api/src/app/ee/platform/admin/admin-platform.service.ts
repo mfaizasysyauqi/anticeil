@@ -8,7 +8,7 @@ import { flowRunRepo, flowRunService } from '../../../flows/flow-run/flow-run-se
 import { billingProvider } from '../../../platform/billing-provider'
 import { platformRepo } from '../../../platform/platform.service'
 import { userRepo } from '../../../user/user-service'
-import { openRouterApi } from '../platform-plan/openrouter/openrouter-api'
+import { openRouterApi } from '../../../billing/openrouter/openrouter-api'
 
 export const adminPlatformService = (log: FastifyBaseLogger) => ({
 
