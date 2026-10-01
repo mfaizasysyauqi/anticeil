@@ -1,5 +1,5 @@
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import { agentRunController } from '../ee/agent/agent-run-controller'
+import { agentRunController } from '../agent/agent-run-controller'
 import { agentToolsController } from './agent-tools-controller'
 
 export const agentsModule: FastifyPluginAsyncZod = async (app) => {
