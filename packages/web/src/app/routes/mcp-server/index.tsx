@@ -69,6 +69,7 @@ export default function McpServerPage() {
           />
         )}
       </div>
+      </div>
     </LockedFeatureGuard>
   );
 }

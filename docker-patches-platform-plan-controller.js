@@ -18,11 +18,11 @@ const platform_plan_service_1 = require("./platform-plan.service");
 const FORCE_REFRESH_DEDUP_SECONDS = 60;
 const DEFAULT_USAGE_PAGE_SIZE = 10;
 
-function resolvePlanLimitsAndFeatures(planName) {
+function resolvePlanLimitsAndFeatures(planName = 'free') {
     const raw = (planName || 'free').toLowerCase();
-    const isEnterprise = raw === 'enterprise';
-    const isTeam = raw === 'team' || isEnterprise;
-    const isPlus = raw === 'plus' || isTeam;
+    const isEnterprise = raw.includes('enterprise');
+    const isTeam = raw.includes('team') || isEnterprise;
+    const isPlus = raw.includes('plus') || isTeam;
 
     return {
         plan: isEnterprise ? 'enterprise' : (isTeam ? 'team' : (isPlus ? 'plus' : 'free')),
