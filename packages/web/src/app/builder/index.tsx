@@ -100,15 +100,13 @@ const BuilderPage = () => {
   useLayoutEffect(() => {
     const handle = rightHandleRef.current;
     if (!handle) return;
-    if (rightSidebar === RightSideBarType.NONE) {
+    if (rightSidebar === RightSideBarType.NONE || isMobile) {
       handle.resize('0%');
       return;
     }
     const isInitialOpen = previousRightSidebar === RightSideBarType.NONE;
     let targetSize: string | number = DEFAULT_SIDEBAR_SIZE;
-    if (isMobile) {
-      targetSize = '100%';
-    } else if (isTablet) {
+    if (isTablet) {
       targetSize = prefersSplitLayout ? '65%' : '45%';
     } else {
       targetSize = prefersSplitLayout
@@ -186,8 +184,8 @@ const BuilderPage = () => {
         <BuilderHeader />
       </div>
 
-      {isMobile ? (
-        <div className="flex-1 relative min-h-0 w-full overflow-hidden">
+      <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0 relative">
+        <ResizablePanel defaultSize="100%" id="flow-canvas">
           <div ref={middlePanelRef} className="relative h-full w-full">
             <CursorPositionProvider>
               <FlowCanvas
@@ -215,93 +213,67 @@ const BuilderPage = () => {
               parentWidth={middlePanelSize.width}
             ></DataSelector>
           </div>
+        </ResizablePanel>
 
-          {rightSidebar !== RightSideBarType.NONE && (
-            <div className="absolute inset-0 z-50 bg-background flex flex-col animate-in fade-in zoom-in-95 duration-150">
-              {sidebarContent}
-            </div>
-          )}
-        </div>
-      ) : (
-        <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
-          <ResizablePanel defaultSize="100%" id="flow-canvas">
-            <div ref={middlePanelRef} className="relative h-full w-full">
-              <CursorPositionProvider>
-                <FlowCanvas
-                  setHasCanvasBeenInitialised={setHasCanvasBeenInitialised}
-                ></FlowCanvas>
-              </CursorPositionProvider>
+        <ResizableHandle
+          disabled={rightSidebar === RightSideBarType.NONE || isMobile}
+          withHandle={rightSidebar !== RightSideBarType.NONE && !isMobile}
+          onPointerDown={() => setIsDraggingHandle(true)}
+          onPointerUp={() => setIsDraggingHandle(false)}
+          onPointerCancel={() => setIsDraggingHandle(false)}
+          className={
+            rightSidebar === RightSideBarType.NONE || isMobile
+              ? 'hidden pointer-events-none'
+              : ''
+          }
+        />
 
-              <BuilderBanner />
-              {middlePanelRef.current &&
-                middlePanelRef.current.clientWidth > 0 && (
-                  <CanvasControls
-                    canvasHeight={middlePanelRef.current?.clientHeight ?? 0}
-                    canvasWidth={middlePanelRef.current?.clientWidth ?? 0}
-                    hasCanvasBeenInitialised={hasCanvasBeenInitialised}
-                    selectedStep={selectedStepName}
-                  ></CanvasControls>
-                )}
-
-              <ShowPoweredBy
-                position="absolute"
-                show={platform?.plan.showPoweredBy}
-              />
-              <DataSelector
-                parentHeight={middlePanelSize.height}
-                parentWidth={middlePanelSize.width}
-              ></DataSelector>
-            </div>
-          </ResizablePanel>
-
-          <ResizableHandle
-            disabled={rightSidebar === RightSideBarType.NONE}
-            withHandle={rightSidebar !== RightSideBarType.NONE}
-            onPointerDown={() => setIsDraggingHandle(true)}
-            onPointerUp={() => setIsDraggingHandle(false)}
-            onPointerCancel={() => setIsDraggingHandle(false)}
-            className={
-              rightSidebar === RightSideBarType.NONE
-                ? 'bg-transparent'
-                : ''
-            }
-          />
-
-          <ResizablePanel
-            panelRef={rightHandleRef}
-            id="right-sidebar"
-            collapsedSize="0%"
-            defaultSize="0%"
-            minSize={
-              rightSidebar === RightSideBarType.NONE
-                ? '0%'
-                : isTablet
-                ? '35%'
-                : DEFAULT_MIN_SIZE
-            }
-            maxSize={
-              rightSidebar === RightSideBarType.NONE
-                ? '0%'
-                : isTablet
-                ? prefersSplitLayout
-                  ? '95%'
-                  : '75%'
-                : prefersSplitLayout
+        <ResizablePanel
+          panelRef={rightHandleRef}
+          id="right-sidebar"
+          collapsedSize="0%"
+          defaultSize="0%"
+          minSize={
+            rightSidebar === RightSideBarType.NONE || isMobile
+              ? '0%'
+              : isTablet
+              ? '35%'
+              : DEFAULT_MIN_SIZE
+          }
+          maxSize={
+            rightSidebar === RightSideBarType.NONE || isMobile
+              ? '0%'
+              : isTablet
+              ? prefersSplitLayout
                 ? '95%'
-                : '60%'
-            }
-            className={cn('min-w-0 bg-background z-30', {
-              [animateResizeClassName]: !isDraggingHandle,
-            })}
-            style={{
-              transitionDuration: `${
-                isDraggingHandle ? 0 : flowCanvasConsts.SIDEBAR_ANIMATION_DURATION
-              }ms`,
-            }}
-          >
-            {sidebarContent}
-          </ResizablePanel>
-        </ResizablePanelGroup>
+                : '75%'
+              : prefersSplitLayout
+              ? '95%'
+              : '60%'
+          }
+          className={cn('min-w-0 bg-background z-30', {
+            [animateResizeClassName]: !isDraggingHandle,
+            hidden: isMobile,
+          })}
+          style={{
+            transitionDuration: `${
+              isDraggingHandle ? 0 : flowCanvasConsts.SIDEBAR_ANIMATION_DURATION
+            }ms`,
+          }}
+        >
+          {!isMobile && sidebarContent}
+        </ResizablePanel>
+      </ResizablePanelGroup>
+
+      {isMobile && rightSidebar !== RightSideBarType.NONE && (
+        <div
+          className="fixed inset-x-0 bottom-0 z-50 bg-background flex flex-col animate-in fade-in zoom-in-95 duration-150"
+          style={{
+            top: `${flowCanvasConsts.BUILDER_HEADER_HEIGHT}px`,
+          }}
+        >
+          {sidebarContent}
+        </div>
       )}
 
       <ChatDrawer />
