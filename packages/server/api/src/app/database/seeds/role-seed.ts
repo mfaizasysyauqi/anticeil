@@ -1,7 +1,7 @@
 import { RoleType } from '@activepieces/core-utils'
 import { DefaultProjectRole, rolePermissions } from '@activepieces/shared'
 import { repoFactory } from '../../core/db/repo-factory'
-import { ProjectRoleEntity } from '../../ee/projects/project-role/project-role.entity'
+import { ProjectRoleEntity } from '../../project/project-role/project-role.entity'
 import { system } from '../../helper/system/system'
 import { DataSeed } from './data-seed'
 

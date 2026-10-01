@@ -4,8 +4,8 @@ import { FastifyBaseLogger } from 'fastify'
 import { agentApprovalGate } from '.././agent-approval-gate'
 import { agentHelpers } from '.././agent-helpers'
 import { userService } from '../../user/user-service'
-import { smtpEmailSender } from '../../ee/helper/email/email-sender/smtp-email-sender'
-import { emailService } from '../../ee/helper/email/email-service'
+import { smtpEmailSender } from '../../helper/email/email-sender/smtp-email-sender'
+import { emailService } from '../../helper/email/email-service'
 
 export const emailRpc = (log: FastifyBaseLogger) => ({
     // Security boundary for the chat agent's ap_send_email tool. Recipients may be any valid

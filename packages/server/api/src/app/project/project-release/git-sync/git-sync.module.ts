@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { entitiesMustBeOwnedByCurrentProject } from '../../../authentication/authorization'
 import { ProjectResourceType } from '../../../core/security/authorization/common'
 import { securityAccess } from '../../../core/security/authorization/fastify-security'
-import { platformMustHaveFeatureEnabled } from '../../../ee/authentication/ee-authorization'
+import { platformMustHaveFeatureEnabled } from '../../../authentication/ee-authorization'
 import { GitRepoEntity } from './git-sync.entity'
 import { gitRepoService } from './git-sync.service'
 

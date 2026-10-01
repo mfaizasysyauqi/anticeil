@@ -1,5 +1,5 @@
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import { platformMustHaveFeatureEnabled } from '../../ee/authentication/ee-authorization'
+import { platformMustHaveFeatureEnabled } from '../../authentication/ee-authorization'
 import { projectReleaseController } from './project-release.controller'
 
 export const projectReleaseModule: FastifyPluginAsyncZod = async (app) => {

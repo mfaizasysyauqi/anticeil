@@ -4,8 +4,8 @@ import { FastifyBaseLogger } from 'fastify'
 import { userIdentityService } from '../authentication/user-identity/user-identity-service'
 import { ProjectHooks } from './project-hooks'
 import { userService } from '../user/user-service'
-import { alertsService } from '../ee/alerts/alerts-service'
-import { pieceSetService } from '../ee/pieces/piece-set/piece-set.service'
+import { alertsService } from '../alerts/alerts-service'
+import { pieceSetService } from '../pieces/piece-set/piece-set.service'
 import { platformPlanService } from '../billing/platform-plan.service'
 
 export const projectEnterpriseHooks = (log: FastifyBaseLogger): ProjectHooks => ({

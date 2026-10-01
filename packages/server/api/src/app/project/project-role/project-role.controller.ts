@@ -5,7 +5,7 @@ import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
 import { applicationEvents } from '../../helper/application-events'
-import { platformMustHaveFeatureEnabled } from '../../ee/authentication/ee-authorization'
+import { platformMustHaveFeatureEnabled } from '../../authentication/ee-authorization'
 import { projectMemberService } from '../project-members/project-member.service'
 import { projectRoleService } from './project-role.service'
 

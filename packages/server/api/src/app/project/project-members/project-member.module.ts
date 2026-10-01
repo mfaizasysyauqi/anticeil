@@ -1,6 +1,6 @@
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { entitiesMustBeOwnedByCurrentProject } from '../../authentication/authorization'
-import { platformMustHaveFeatureEnabled } from '../../ee/authentication/ee-authorization'
+import { platformMustHaveFeatureEnabled } from '../../authentication/ee-authorization'
 import { projectMemberController } from './project-member.controller'
 
 export const projectMemberModule: FastifyPluginAsyncZod = async (app) => {

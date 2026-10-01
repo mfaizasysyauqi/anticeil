@@ -13,7 +13,7 @@ import { billingProvider } from '../platform/billing-provider'
 import { projectService } from '../project/project-service'
 import { userService } from '../user/user-service'
 import { userInvitationsService } from '../user-invitations/user-invitation.service'
-import { platformProjectService } from '../ee/projects/platform-project-service'
+import { platformProjectService } from '../project/platform-project-service'
 import { PlatformPlanEntity } from './platform-plan.entity'
 
 export const platformPlanRepo = repoFactory(PlatformPlanEntity)

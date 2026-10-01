@@ -1,6 +1,6 @@
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { projectWorkerController } from './project-worker-controller'
-import { platformListController } from '../ee/platform/platform-list-controller'
+import { platformListController } from '../platform/platform-list-controller'
 import { platformProjectController } from './platform-project-controller'
 
 export const platformProjectModule: FastifyPluginAsyncZod = async (app) => {

@@ -1,7 +1,7 @@
 import { ActivepiecesError, ErrorCode, isNil, Permission } from '@activepieces/core-utils'
 import { ApEdition, McpToolDefinition } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { getPrincipalRoleOrThrow } from '../ee/authentication/project-role/rbac-middleware'
+import { getPrincipalRoleOrThrow } from '../authentication/project-role/rbac-middleware'
 import { system } from '../helper/system/system'
 
 const EDITION_REQUIRES_RBAC = [ApEdition.CLOUD, ApEdition.ENTERPRISE].includes(system.getEdition())

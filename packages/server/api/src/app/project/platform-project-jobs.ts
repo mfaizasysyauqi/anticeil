@@ -12,7 +12,7 @@ import { flowRepo } from '../flows/flow/flow.repo'
 import { SystemJobData, SystemJobName } from '../helper/system-jobs/common'
 import { systemJobsSchedule } from '../helper/system-jobs/system-job'
 import { ProjectEntity } from './project-entity'
-import { deleteProjectLinkedEntities } from '../ee/platform/platform-teardown-jobs'
+import { deleteProjectLinkedEntities } from '../platform/platform-teardown-jobs'
 
 const projectRepo = repoFactory(ProjectEntity)
 

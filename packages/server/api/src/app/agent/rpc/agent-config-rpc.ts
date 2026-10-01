@@ -18,7 +18,7 @@ import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
 import { platformService } from '../../platform/platform.service'
 import { userService } from '../../user/user-service'
-import { smtpEmailSender } from '../../ee/helper/email/email-sender/smtp-email-sender'
+import { smtpEmailSender } from '../../helper/email/email-sender/smtp-email-sender'
 
 import { CONNECTION_INVENTORY_LIMIT, loadOrStartConversation } from './rpc-shared'
 
