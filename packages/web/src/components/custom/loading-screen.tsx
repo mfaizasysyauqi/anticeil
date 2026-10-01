@@ -11,7 +11,7 @@ export const LoadingScreen = ({
 }: LoadingScreenProps) => {
   return (
     <div
-      className={cn('flex h-screen w-screen items-center justify-center', {
+      className={cn('flex h-screen w-screen items-center justify-center bg-background', {
         'h-full w-full': mode === 'container',
       })}
     >
