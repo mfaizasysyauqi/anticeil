@@ -221,18 +221,31 @@ const PiecesListTab = () => {
 
 const PlatformPiecesPage = () => {
   const { platform } = platformHooks.useCurrentPlatform();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const activeTab = (searchParams.get('tab') as TabValue) || 'pieces';
 
-  const setTab = (tab: TabValue) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (tab === 'pieces') {
-      newParams.delete('tab');
-    } else {
-      newParams.set('tab', tab);
-    }
-    setSearchParams(newParams, { replace: true });
-  };
+  if (activeTab === 'piece-sets') {
+    return (
+      <LockedFeatureGuard
+        featureKey="PIECE_SETS"
+        locked={!platform.plan.managePiecesEnabled}
+        lockTitle={t('Unlock Piece Sets')}
+        lockDescription={t(
+          'Create piece sets to control which pieces and actions are available to specific projects.',
+        )}
+      >
+        <DashboardPageHeader
+          description={t('Manage the pieces that are available to your users')}
+          title={t('Pieces')}
+        />
+        <div className="mx-auto w-full flex flex-col flex-1 min-h-0">
+          <div className="flex-1 min-h-0 flex flex-col min-w-0">
+            <PieceSetsTab />
+          </div>
+        </div>
+      </LockedFeatureGuard>
+    );
+  }
 
   return (
     <>
@@ -241,41 +254,9 @@ const PlatformPiecesPage = () => {
         title={t('Pieces')}
       />
       <div className="mx-auto w-full flex flex-col flex-1 min-h-0">
-        {!platform.plan.managePiecesEnabled && (
-          <div className="px-4 shrink-0">
-            <LockedAlert
-              title={t('Control Pieces')}
-              description={t(
-                "Show the pieces that matter most to your users and hide the ones you don't like.",
-              )}
-              button={
-                <RequestTrial
-                  featureKey="ENTERPRISE_PIECES"
-                  buttonVariant="basic"
-                />
-              }
-            />
-          </div>
-        )}
-        {activeTab === 'piece-sets' ? (
-          <div className="flex-1 min-h-0 flex flex-col min-w-0">
-            <LockedFeatureGuard
-              featureKey="PIECE_SETS"
-              locked={!platform.plan.managePiecesEnabled}
-              lockTitle={t('Unlock Piece Sets')}
-              lockDescription={t(
-                'Create piece sets to control which pieces and actions are available to specific projects.',
-              )}
-              lockVideoUrl="https://cdn.activepieces.com/videos/showcase/piece-sets.mp4"
-            >
-              <PieceSetsTab />
-            </LockedFeatureGuard>
-          </div>
-        ) : (
-          <div className="flex-1 min-h-0 flex flex-col min-w-0">
-            <PiecesListTab />
-          </div>
-        )}
+        <div className="flex-1 min-h-0 flex flex-col min-w-0">
+          <PiecesListTab />
+        </div>
       </div>
     </>
   );
