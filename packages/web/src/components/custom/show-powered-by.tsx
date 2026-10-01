@@ -32,9 +32,9 @@ const ShowPoweredBy = ({ show, position = 'sticky' }: ShowPoweredByProps) => {
         <span className="text-sm transition">Built with</span>
         <div className="flex items-center gap-1.5">
           <img
-            src={branding.logos.logoIconUrl}
+            src="/logo.png"
             alt={branding.websiteName}
-            className="size-3.5 shrink-0 opacity-70"
+            className="size-3.5 shrink-0"
             draggable={false}
           />
           <span className="font-semibold">{branding.websiteName}</span>
