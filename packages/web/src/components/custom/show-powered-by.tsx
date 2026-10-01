@@ -1,3 +1,4 @@
+import { AnticeilIcon } from '@/components/icons/anticeil-icon';
 import { flagsHooks } from '@/hooks/flags-hooks';
 import { cn } from '@/lib/utils';
 
@@ -31,12 +32,7 @@ const ShowPoweredBy = ({ show, position = 'sticky' }: ShowPoweredByProps) => {
       >
         <span className="text-sm transition">Built with</span>
         <div className="flex items-center gap-1.5">
-          <img
-            src="/logo.png"
-            alt={branding.websiteName}
-            className="size-3.5 shrink-0"
-            draggable={false}
-          />
+          <AnticeilIcon className="size-3.5 shrink-0" />
           <span className="font-semibold">{branding.websiteName}</span>
         </div>
       </div>
