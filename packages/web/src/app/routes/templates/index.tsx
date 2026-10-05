@@ -8,7 +8,7 @@ import {
 import { t } from 'i18next';
 import { Plus } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { LoginModal } from '@/components/custom/login-modal';
 import { PageHeader } from '@/components/custom/page-header';
@@ -28,8 +28,12 @@ import { SelectedCategoryView } from './selected-category-view';
 
 const TemplatesPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const token = authenticationSession.getToken();
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(
+    () => isNil(token) && searchParams.get('login') === 'true',
+  );
+
   const { data: templateCategories } = templatesHooks.useTemplateCategories();
   const isShowingOfficialTemplates = true;
   const { templates, isLoading, search, setSearch, category, setCategory } =
@@ -119,7 +123,16 @@ const TemplatesPage = () => {
 
   return (
     <div>
-      <LoginModal open={isLoginModalOpen} onOpenChange={setIsLoginModalOpen} />
+      <LoginModal
+        open={isLoginModalOpen}
+        onOpenChange={(open) => {
+          setIsLoginModalOpen(open);
+          if (!open && searchParams.get('login')) {
+            searchParams.delete('login');
+            setSearchParams(searchParams, { replace: true });
+          }
+        }}
+      />
       <div>
         <div className="sticky top-0 z-10 bg-background">
           <PageHeader
