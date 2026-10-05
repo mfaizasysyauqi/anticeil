@@ -36,7 +36,7 @@ export const CenteredPage = ({
 
   if (!footer) {
     return (
-      <div className={cn('w-full mx-auto py-6', widthClassName)}>
+      <div className={cn('w-full mx-auto py-6 px-6', widthClassName)}>
         {header}
         {children}
       </div>
@@ -45,18 +45,18 @@ export const CenteredPage = ({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className={cn('w-full mx-auto pt-6 shrink-0', widthClassName)}>
+      <div className={cn('w-full mx-auto pt-6 px-6 shrink-0', widthClassName)}>
         {header}
       </div>
       <ScrollArea className="flex-1 min-h-0">
-        <div className={cn('w-full mx-auto pb-6', widthClassName)}>
+        <div className={cn('w-full mx-auto pb-6 px-6', widthClassName)}>
           {children}
         </div>
       </ScrollArea>
       <div className="shrink-0 border-t bg-background">
         <div
           className={cn(
-            'w-full mx-auto py-3 flex justify-end gap-2',
+            'w-full mx-auto py-3 px-6 flex justify-end gap-2',
             widthClassName,
           )}
         >

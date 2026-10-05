@@ -59,19 +59,27 @@ const getPublicIp = async (): Promise<IpMetadata> => {
     }
 }
 
+const firstForwardedValue = (header: string | string[] | undefined): string | undefined => {
+    return (Array.isArray(header) ? header[0] : header)?.split(',')[0]?.trim()
+}
+
 const extractClientRealIp = (request: FastifyRequest, clientIpHeader: string | undefined): string => {
-    if (isNil(clientIpHeader)) {
-        return request.ip
+    if (!isNil(clientIpHeader) && request.headers[clientIpHeader]) {
+        return request.headers[clientIpHeader] as string
     }
-    return request.headers[clientIpHeader] as string
+    const cfIp = request.headers['cf-connecting-ip']
+    if (cfIp && typeof cfIp === 'string') {
+        return cfIp
+    }
+    const forwarded = firstForwardedValue(request.headers['x-forwarded-for'])
+    if (forwarded) {
+        return forwarded
+    }
+    return request.ip
 }
 
 const clientIp = (request: FastifyRequest): string => {
     return extractClientRealIp(request, system.get(AppSystemProp.CLIENT_REAL_IP_HEADER))
-}
-
-const firstForwardedValue = (header: string | string[] | undefined): string | undefined => {
-    return (Array.isArray(header) ? header[0] : header)?.split(',')[0]?.trim()
 }
 
 const configuredUrl = (): URL => {
