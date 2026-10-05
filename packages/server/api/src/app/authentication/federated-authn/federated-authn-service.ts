@@ -85,7 +85,7 @@ export const federatedAuthnService = (log: FastifyBaseLogger) => ({
         })
     },
     async getThirdPartyRedirectUrl(): Promise<string> {
-        return domainHelper.getInternalUrl({
+        return domainHelper.getPublicUrl({
             path: '/redirect',
         })
     },
