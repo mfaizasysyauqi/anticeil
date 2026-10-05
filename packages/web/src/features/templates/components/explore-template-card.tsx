@@ -7,6 +7,8 @@ import { Card } from '@/components/ui/card';
 import { PieceIconList, PieceIconWithPieceName } from '@/features/pieces';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+import { translateTemplate } from '@/app/routes/templates/template-translations-id';
+
 type TemplateCardProps = {
   template: Template;
   onTemplateSelect: (template: Template) => void;
@@ -15,6 +17,7 @@ type TemplateCardProps = {
 export const ExploreTemplateCard = React.memo(
   ({ template, onTemplateSelect }: TemplateCardProps) => {
     const hasFlows = template.flows && template.flows.length > 0;
+    const translated = translateTemplate(template.name, template.summary);
 
     return (
       <Card
@@ -23,12 +26,12 @@ export const ExploreTemplateCard = React.memo(
       >
         <div className="flex flex-col gap-1.5 min-h-0">
           <h3 className="font-semibold text-[15px] leading-snug text-foreground group-hover:text-primary transition-colors line-clamp-2">
-            {template.name}
+            {translated.name}
           </h3>
 
           <p className="text-muted-foreground text-xs leading-relaxed line-clamp-2">
-            {template.summary ? (
-              template.summary
+            {translated.summary ? (
+              translated.summary
             ) : (
               <span className="italic opacity-60">{t('No summary available')}</span>
             )}

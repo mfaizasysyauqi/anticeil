@@ -29,6 +29,7 @@ import { FROM_QUERY_PARAM } from '@/lib/navigation-utils';
 
 import { FlowCard } from './flow-card';
 import { PieceCard } from './piece-card';
+import { translateTemplate } from '../template-translations-id';
 
 type TemplateDetailsPageProps = {
   template: Template;
@@ -38,6 +39,7 @@ const TemplateDetailsPage = ({ template }: TemplateDetailsPageProps) => {
   const token = authenticationSession.getToken();
   const location = useLocation();
   const navigate = useNavigate();
+  const translated = translateTemplate(template.name, template.description);
   const [hasCanvasBeenInitialised, setHasCanvasBeenInitialised] =
     useState(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -158,9 +160,7 @@ const TemplateDetailsPage = ({ template }: TemplateDetailsPageProps) => {
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] h-full w-full overflow-hidden">
           <ScrollArea className="h-full w-full">
             <div className="flex flex-col gap-4 px-6 mt-6 min-w-0">
-              <span className="text-xl font-medium">{template.name}</span>
-
-
+              <span className="text-xl font-medium">{translated.name}</span>
 
               <div className="flex flex-col gap-8 min-w-0">
                 <div className="flex flex-row justify-center gap-3 min-w-0">
@@ -190,7 +190,7 @@ const TemplateDetailsPage = ({ template }: TemplateDetailsPageProps) => {
                     {t('About this template')}
                   </span>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    {template.description}
+                    {translated.summary || template.description}
                   </p>
                 </div>
 

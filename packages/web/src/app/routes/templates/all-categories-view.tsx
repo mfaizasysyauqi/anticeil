@@ -103,7 +103,7 @@ export const AllCategoriesView = ({
       {/* Pinned: Content Creator section always at the top */}
       {contentCreatorTemplates.length > 0 && (
         <CategorySection
-          category="🎬 Content Creator"
+          category="Content Creator"
           templates={contentCreatorTemplates}
           onCategorySelect={stableOnCategorySelect}
           onTemplateSelect={stableOnTemplateSelect}

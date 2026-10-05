@@ -52,7 +52,7 @@ export function UseCaseCard({
         )}
       </div>
       <h3 className="mt-2.5 sm:mt-3 pr-2 sm:pr-7 font-sentient text-[14px] sm:text-[17px] font-medium leading-snug text-foreground break-words">
-        {card.title}
+        {t(card.title)}
       </h3>
       {interactive && (
         <DoodleArrow

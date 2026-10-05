@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/carousel';
 import { ExploreTemplateCard } from '@/features/templates/components/explore-template-card';
 
+import { translateCategory } from './template-translations-id';
+
 type CategorySectionProps = {
   category: string;
   templates: Template[];
@@ -40,7 +42,7 @@ export const CategorySection = React.memo(
           className="w-full"
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-medium">{category}</h2>
+            <h2 className="text-xl font-medium">{translateCategory(category)}</h2>
             <div className="flex items-center">
               <Button
                 variant="ghost"

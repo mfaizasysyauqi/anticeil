@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/carousel';
 import { cn, DASHBOARD_CONTENT_PADDING_X } from '@/lib/utils';
 
+import { translateCategory } from './template-translations-id';
+
 type CategoryFilterCarouselProps = {
   categories: string[];
   selectedCategory: string;
@@ -48,7 +50,7 @@ const CarouselContentWithButtons = ({
                     : 'bg-transparent hover:!bg-sidebar-accent hover:!text-sidebar-accent-foreground border-none'
                 }`}
               >
-                {category}
+                {translateCategory(category)}
               </Button>
             </CarouselItem>
           );
