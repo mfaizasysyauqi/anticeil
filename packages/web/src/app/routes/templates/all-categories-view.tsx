@@ -75,6 +75,7 @@ type AllCategoriesViewProps = {
   onTemplateSelect: (template: Template) => void;
   isLoading?: boolean;
   hideHeader?: boolean;
+  contentCreatorTemplates?: Template[];
 };
 
 export const AllCategoriesView = ({
@@ -84,6 +85,7 @@ export const AllCategoriesView = ({
   onTemplateSelect,
   isLoading = false,
   hideHeader = false,
+  contentCreatorTemplates = [],
 }: AllCategoriesViewProps) => {
   const stableOnCategorySelect = useCallback(onCategorySelect, [
     onCategorySelect,
@@ -98,6 +100,16 @@ export const AllCategoriesView = ({
 
   return (
     <div className="space-y-6">
+      {/* Pinned: Content Creator section always at the top */}
+      {contentCreatorTemplates.length > 0 && (
+        <CategorySection
+          category="🎬 Content Creator"
+          templates={contentCreatorTemplates}
+          onCategorySelect={stableOnCategorySelect}
+          onTemplateSelect={stableOnTemplateSelect}
+        />
+      )}
+
       {categories.map((category) => {
         const categoryTemplates = templatesByCategory[category];
 

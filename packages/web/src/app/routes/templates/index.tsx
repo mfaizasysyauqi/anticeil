@@ -19,6 +19,7 @@ import { DASHBOARD_CONTENT_PADDING_X } from '@/lib/utils';
 
 import { AllCategoriesView } from './all-categories-view';
 import { CategoryFilterCarousel } from './category-filter-carousel';
+import { CONTENT_CREATOR_TEMPLATES } from './content-creator-templates';
 import { EmptyTemplatesView } from './empty-templates-view';
 import { SelectedCategoryView } from './selected-category-view';
 
@@ -76,12 +77,18 @@ const TemplatesPage = () => {
   }, [allOfficialTemplates, isShowingOfficialTemplates]);
 
   const categories = useMemo(() => {
-    return ['All', ...(templateCategories || [])];
+    const cats = templateCategories || [];
+    const hasContentCreator = cats.includes('Content Creator');
+    const base = hasContentCreator ? cats : ['Content Creator', ...cats];
+    return ['All', ...base];
   }, [templateCategories]);
 
   const selectedCategoryTemplates = useMemo(() => {
     if (selectedCategory === 'All') {
       return templates || [];
+    }
+    if (selectedCategory === 'Content Creator') {
+      return CONTENT_CREATOR_TEMPLATES;
     }
     return templatesByCategory[selectedCategory] || [];
   }, [selectedCategory, templates, templatesByCategory]);
@@ -91,8 +98,8 @@ const TemplatesPage = () => {
   const showAllCategories =
     isShowingOfficialTemplates && selectedCategory === 'All';
   const hasTemplates = showAllCategories
-    ? allOfficialTemplates && allOfficialTemplates.length > 0
-    : templates && templates.length > 0;
+    ? (allOfficialTemplates && allOfficialTemplates.length > 0) || CONTENT_CREATOR_TEMPLATES.length > 0
+    : selectedCategoryTemplates.length > 0;
 
   const showCategoryTitleForOfficialTemplates =
     isShowingOfficialTemplates && selectedCategory !== 'All';
@@ -146,6 +153,7 @@ const TemplatesPage = () => {
               onTemplateSelect={handleTemplateSelect}
               isLoading={showLoading}
               hideHeader={!isShowingOfficialTemplates}
+              contentCreatorTemplates={CONTENT_CREATOR_TEMPLATES}
             />
           ) : (
             <SelectedCategoryView

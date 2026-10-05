@@ -23,8 +23,10 @@ export const templatesHooks = {
     return useQuery<Template, Error>({
       queryKey: ['template', id],
       queryFn: () => templatesApi.getTemplate(id),
+      enabled: !!id,
     });
   },
+
 
   useAllOfficialTemplates: () => {
     return useQuery<Template[], Error>({

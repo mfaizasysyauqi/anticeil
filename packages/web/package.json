@@ -133,7 +133,7 @@
     "tailwindcss": "4.1.17"
   },
   "scripts": {
-    "build": "NODE_OPTIONS=--max-old-space-size=4096 vite build",
+    "build": "npx cross-env NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "serve": "vite",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",

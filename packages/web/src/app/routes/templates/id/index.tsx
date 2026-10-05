@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { FlowCanvas } from '@/app/builder/flow-canvas';
 import { CanvasControls } from '@/app/builder/flow-canvas/canvas-controls';
 import { BuilderStateProvider } from '@/app/builder/state/builder-state-provider';
-import { TagWithBright } from '@/components/custom/tag-with-bright';
+
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSidebar } from '@/components/ui/sidebar-shadcn';
@@ -159,20 +159,7 @@ const TemplateDetailsPage = ({ template }: TemplateDetailsPageProps) => {
             <div className="flex flex-col gap-4 px-6 mt-6 min-w-0">
               <span className="text-xl font-medium">{template.name}</span>
 
-              {!isNil(template.tags) && template.tags.length > 0 && (
-                <div className="flex gap-2 flex-wrap min-w-0">
-                  {template.tags.map((tag, index) => (
-                    <TagWithBright
-                      index={index}
-                      key={index}
-                      prefix={t('Save')}
-                      title={tag.title}
-                      color={tag.color}
-                      size="sm"
-                    />
-                  ))}
-                </div>
-              )}
+
 
               <div className="flex flex-col gap-8 min-w-0">
                 <div className="flex flex-row justify-center gap-3 min-w-0">

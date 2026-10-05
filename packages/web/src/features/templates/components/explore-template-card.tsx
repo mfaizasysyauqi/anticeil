@@ -1,11 +1,11 @@
 import { Template } from '@activepieces/shared';
 import { t } from 'i18next';
 import React from 'react';
+import { Check } from 'lucide-react';
 
-import { TagWithBright } from '@/components/custom/tag-with-bright';
-import { Card, CardContent } from '@/components/ui/card';
-import { PieceIconList } from '@/features/pieces';
-import { useGradientFromPieces } from '@/features/templates';
+import { Card } from '@/components/ui/card';
+import { PieceIconList, PieceIconWithPieceName } from '@/features/pieces';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type TemplateCardProps = {
   template: Template;
@@ -14,68 +14,74 @@ type TemplateCardProps = {
 
 export const ExploreTemplateCard = React.memo(
   ({ template, onTemplateSelect }: TemplateCardProps) => {
-    const displayTags = template.tags.slice(0, 2);
     const hasFlows = template.flows && template.flows.length > 0;
-    const { gradient } = useGradientFromPieces(
-      hasFlows ? template.flows![0]?.trigger : undefined,
-    );
 
     return (
       <Card
         onClick={() => onTemplateSelect(template)}
-        variant={'interactive'}
-        className="h-[250px] w-full flex flex-col"
+        className="group relative flex flex-col justify-between h-[190px] w-full p-4 rounded-xl border border-border/50 bg-card/60 hover:bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden"
       >
-        <CardContent className="py-5 px-4 flex flex-col gap-1 flex-1 min-h-0">
-          <div className="h-12 flex flex-col justify-start flex-shrink-0">
-            <h3 className="font-medium text-base leading-tight line-clamp-2">
-              {template.name}
-            </h3>
-          </div>
+        <div className="flex flex-col gap-1.5 min-h-0">
+          <h3 className="font-semibold text-[15px] leading-snug text-foreground group-hover:text-primary transition-colors line-clamp-2">
+            {template.name}
+          </h3>
 
-          <p className="text-muted-foreground text-sm line-clamp-3 mt-1 flex-shrink-0">
+          <p className="text-muted-foreground text-xs leading-relaxed line-clamp-2">
             {template.summary ? (
               template.summary
             ) : (
-              <span className="italic">{t('No summary')}</span>
+              <span className="italic opacity-60">{t('No summary available')}</span>
             )}
           </p>
+        </div>
 
-          <div className="h-8 flex gap-2 flex-wrap overflow-hidden mt-1 flex-shrink-0">
-            {displayTags.length > 0 ? (
-              displayTags
-                .slice(0, 1)
-                .map((tag, index) => (
-                  <TagWithBright
-                    key={index}
-                    index={index}
-                    prefix={t('Save')}
-                    title={tag.title}
-                    color={tag.color}
-                    size="sm"
-                  />
-                ))
-            ) : (
-              <div />
-            )}
+        <div className="flex items-center justify-between pt-3 border-t border-border/40 mt-auto">
+          <div className="flex items-center gap-1">
+            {template.pieces && template.pieces.length > 0 ? (
+              template.pieces.slice(0, 3).map((pieceName) => (
+                <PieceIconWithPieceName
+                  key={pieceName}
+                  pieceName={pieceName}
+                  size="sm"
+                  border={false}
+                  showTooltip={true}
+                />
+              ))
+            ) : hasFlows && template.flows![0]?.trigger ? (
+              <PieceIconList
+                trigger={template.flows![0]?.trigger}
+                maxNumberOfIconsToShow={3}
+                size="sm"
+                className="flex items-center gap-1"
+                excludeCore={true}
+              />
+            ) : null}
           </div>
-        </CardContent>
 
-        <div
-          className="h-16 flex items-center px-4 rounded-b-lg transition-all duration-300"
-          style={{
-            background: gradient || 'transparent',
-          }}
-        >
-          {hasFlows && template.flows![0]?.trigger && (
-            <PieceIconList
-              trigger={template.flows![0]?.trigger}
-              maxNumberOfIconsToShow={4}
-              size="md"
-              className="flex gap-0.5"
-              excludeCore={true}
-            />
-          )}
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="relative flex items-center">
+                  <div className="size-6 rounded-full border border-border/60 bg-background overflow-hidden flex items-center justify-center">
+                    <img
+                      src="/logo.png"
+                      alt="Anticeil"
+                      className="size-4 object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/logo.svg';
+                      }}
+                    />
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 items-center justify-center rounded-full bg-emerald-500 text-white ring-1 ring-background">
+                    <Check className="size-1.5 stroke-[3]" />
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                <span>{t('Verified by Anticeil')}</span>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </Card>
     );
@@ -83,3 +89,4 @@ export const ExploreTemplateCard = React.memo(
 );
 
 ExploreTemplateCard.displayName = 'ExploreTemplateCard';
+

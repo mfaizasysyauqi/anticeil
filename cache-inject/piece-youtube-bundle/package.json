@@ -1,0 +1,11 @@
+{
+  "name": "@activepieces/piece-youtube",
+  "version": "0.7.0",
+  "description": "YouTube piece with Upload Video action",
+  "main": "src/index.js",
+  "files": [
+    "src"
+  ],
+  "keywords": [],
+  "license": "MIT"
+}

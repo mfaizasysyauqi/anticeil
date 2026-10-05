@@ -1,0 +1,5 @@
+UPDATE piece_metadata
+SET actions = (actions::jsonb || '{"upload_video": {"name": "upload_video", "displayName": "Upload Video", "description": "Upload a video file to YouTube from a URL. Supports Shorts.", "requireAuth": true, "props": {"videoUrl": {"displayName": "Video File URL", "description": "Direct URL to the video file (mp4, mov, etc.) to upload.", "required": true, "type": "SHORT_TEXT"}, "title": {"displayName": "Title", "required": true, "type": "SHORT_TEXT"}, "description": {"displayName": "Description", "required": false, "type": "LONG_TEXT"}, "privacyStatus": {"displayName": "Privacy Status", "required": true, "defaultValue": "private", "options": {"options": [{"label": "Private", "value": "private"}, {"label": "Unlisted", "value": "unlisted"}, {"label": "Public", "value": "public"}]}, "type": "STATIC_DROPDOWN"}}, "errorHandlingOptions": {"retryOnFailure": {"defaultValue": false}, "continueOnFailure": {"defaultValue": false}}, "audience": "human", "classification": "WRITE"}}'::jsonb)::json
+WHERE name='@activepieces/piece-youtube' AND version='0.7.0'
+RETURNING name, version;
+

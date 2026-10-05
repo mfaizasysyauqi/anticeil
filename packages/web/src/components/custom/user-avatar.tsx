@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { isNil } from '@activepieces/core-utils';
 import Avatar from 'boring-avatars';
 
@@ -27,27 +28,30 @@ export function UserAvatar({
   className,
   withoutBorder = false,
 }: UserAvatarProps) {
+  const [hasError, setHasError] = useState(false);
   const tooltip = `${name} (${email})`;
 
-  const avatarElement = !isNil(imageUrl) ? (
-    <img
-      src={imageUrl}
-      alt={name}
-      width={size}
-      height={size}
-      className={cn('rounded-full aspect-square object-cover', className)}
-      style={{ width: `${size}px !important`, height: `${size}px !important` }}
-    />
-  ) : (
-    <Avatar
-      name={email}
-      size={size}
-      colors={['#0a0310', '#49007e', '#ff005b', '#ff7d10', '#ffb238']}
-      variant="beam"
-      square
-      className={cn('rounded-full', className)}
-    />
-  );
+  const avatarElement =
+    !isNil(imageUrl) && !hasError ? (
+      <img
+        src={imageUrl}
+        alt={name}
+        width={size}
+        height={size}
+        onError={() => setHasError(true)}
+        className={cn('rounded-full aspect-square object-cover', className)}
+        style={{ width: `${size}px !important`, height: `${size}px !important` }}
+      />
+    ) : (
+      <Avatar
+        name={email || name}
+        size={size}
+        colors={['#0a0310', '#49007e', '#ff005b', '#ff7d10', '#ffb238']}
+        variant="beam"
+        square
+        className={cn('rounded-full', className)}
+      />
+    );
 
   if (disableTooltip) {
     return avatarElement;

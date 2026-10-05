@@ -329,10 +329,13 @@ function RailHeader({
               className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md hover:bg-sidebar-accent"
             >
               <img
-                src={branding.logos.logoIconUrl}
+                src={branding.logos.logoIconUrl || '/logo.png'}
                 alt={branding.websiteName}
-                className="size-5 shrink-0"
+                className="size-5 shrink-0 object-contain"
                 draggable={false}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/logo.svg';
+                }}
               />
             </button>
           </TooltipTrigger>
@@ -368,10 +371,13 @@ function RailHeader({
             className="flex size-9 shrink-0 items-center justify-center rounded-md hover:bg-sidebar-accent"
           >
             <img
-              src={branding.logos.logoIconUrl}
+              src={branding.logos.logoIconUrl || '/logo.png'}
               alt={branding.websiteName}
-              className="size-5 shrink-0"
+              className="size-5 shrink-0 object-contain"
               draggable={false}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/logo.svg';
+              }}
             />
           </Link>
         </TooltipTrigger>
