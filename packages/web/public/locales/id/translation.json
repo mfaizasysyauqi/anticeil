@@ -2553,7 +2553,7 @@
   "{count} mins ago": "{count} mins ago",
   "1 hour ago": "1 hour ago",
   "{count} hours ago": "{count} hours ago",
-  "Continue with Google": "Continue with Google",
+  "Continue with Google": "Lanjutkan dengan Google",
   "Check your inbox": "Check your inbox",
   "Create your account": "Create your account",
   "Dream big. Automate the rest.": "Dream big. Automate the rest.",
@@ -2885,5 +2885,13 @@
   "The input and output were not kept for this call.": "The input and output were not kept for this call.",
   "The input and output are no longer available.": "The input and output are no longer available.",
   "Too large to keep in full — some of it was dropped.": "Too large to keep in full — some of it was dropped.",
-  "what the call costs": "what the call costs"
+  "what the call costs": "what the call costs",
+  "Welcome to Anticeil": "Selamat Datang di Anticeil",
+  "Automate anything. Bring your own API key from Plus plan and above.": "Otomasi apa saja. Gunakan API key sendiri mulai dari paket Plus ke atas.",
+  "1-click instant login, no password needed": "Login instan 1-klik, tanpa perlu repot mengingat password",
+  "Official OAuth 2.0 security via Google": "Keamanan OAuth 2.0 resmi via Google",
+  "Bring your own API key on Plus plan and above": "Gunakan API key sendiri untuk paket Plus ke atas",
+  "Continue with GitHub": "Lanjutkan dengan GitHub",
+  "By continuing, you agree to the Terms of Service & Privacy Policy. 100% Secure & Passwordless.": "Dengan melanjutkan, Anda menyetujui Syarat Layanan & Kebijakan Privasi. 100% Aman & Tanpa Password.",
+  "Or explore templates as Guest (Read-Only) →": "Atau jelajahi template sebagai Tamu (Hanya-Baca) →"
 }

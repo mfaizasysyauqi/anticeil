@@ -145,7 +145,7 @@ const ThirdPartyLogin = React.memo(
         <div className="flex flex-col gap-2 rounded-xl border border-border/70 bg-muted/40 p-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-2.5 text-foreground/90">
             <Zap className="size-4 shrink-0 text-amber-500" />
-            <span>{t('Login instan 1-klik tanpa repot mengingat password')}</span>
+            <span>{t('1-click instant login, no password needed')}</span>
           </div>
           <div className="flex items-center gap-2.5 text-foreground/90">
             <ShieldCheck className="size-4 shrink-0 text-emerald-500" />

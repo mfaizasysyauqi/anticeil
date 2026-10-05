@@ -49,7 +49,7 @@ export const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
             onClick={() => onOpenChange(false)}
             className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:underline cursor-pointer"
           >
-            {t('Atau jelajahi template sebagai Guest (Read-Only) →')}
+            {t('Or explore templates as Guest (Read-Only) →')}
           </button>
         </div>
       </DialogContent>
