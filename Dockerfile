@@ -8,6 +8,7 @@ COPY docker-patches-autumn-utils.js /usr/src/app/packages/server/api/dist/src/ap
 COPY docker-patches-platform-plan-controller.js /usr/src/app/packages/server/api/dist/src/app/ee/platform/platform-plan/platform-plan.controller.js
 COPY docker-patches-machine-service.js /usr/src/app/packages/server/api/dist/src/app/workers/machine/machine-service.js
 COPY docker-patches-ai-providers-index.js /usr/src/app/packages/server/api/dist/src/app/ai/providers/index.js
+COPY docker-patches-federated-authn-service.js /usr/src/app/packages/server/api/dist/src/app/ee/authentication/federated-authn/federated-authn-service.js
 
 # Layer custom Anticeil frontend build onto official stable Activepieces image
 COPY dist/packages/web/ /usr/src/app/dist/packages/web/
