@@ -456,16 +456,28 @@ function RailNavButton({
   onClick?: () => void;
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const active = isActive(location);
+  const isLoggedIn = authenticationSession.isLoggedIn();
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isLoggedIn && to !== '/templates') {
+      e.preventDefault();
+      const searchParams = new URLSearchParams(location.search);
+      searchParams.set('login', 'true');
+      searchParams.set('from', to);
+      navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
+      return;
+    }
+    onClick?.();
+  };
 
   const link = (
     <Link
       to={to}
       aria-label={label}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.();
-      }}
+      onClick={handleClick}
       className={cn(
         'flex shrink-0 items-center gap-3 rounded-full text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground',
         collapsed ? 'size-9 cursor-pointer justify-center' : 'h-10 px-3',
@@ -476,6 +488,7 @@ function RailNavButton({
       {!collapsed && <span className="truncate">{label}</span>}
     </Link>
   );
+
 
   if (!collapsed) {
     return link;

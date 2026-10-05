@@ -3,9 +3,11 @@ import { ApEdition, ApFlagId } from '@activepieces/shared';
 import { Menu, Search, Unplug } from 'lucide-react';
 import React, { ComponentType, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 
+import { LoginModal } from '@/components/custom/login-modal';
 import { UserAvatar } from '@/components/custom/user-avatar';
+
 import { BotIcon } from '@/components/icons/bot';
 import { ChartLineIcon } from '@/components/icons/chart-line';
 import { CompassIcon } from '@/components/icons/compass';
@@ -114,6 +116,7 @@ export function ProjectDashboardLayout({
         {children}
       </ProjectDashboardLayoutInner>
       {edition !== ApEdition.COMMUNITY && <ManagePlanDialog />}
+      <GlobalLoginModal />
     </GlobalSearchProvider>
   );
 
@@ -127,6 +130,26 @@ export function ProjectDashboardLayout({
     </ProjectChangedRedirector>
   );
 }
+
+function GlobalLoginModal() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isLoggedIn = authenticationSession.isLoggedIn();
+  const isOpen = !isLoggedIn && searchParams.get('login') === 'true';
+
+  return (
+    <LoginModal
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && searchParams.get('login')) {
+          const newParams = new URLSearchParams(searchParams);
+          newParams.delete('login');
+          setSearchParams(newParams, { replace: true });
+        }
+      }}
+    />
+  );
+}
+
 
 function ProjectDashboardLayoutInner({
   hideHeader,

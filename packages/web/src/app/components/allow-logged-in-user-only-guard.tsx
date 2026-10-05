@@ -19,8 +19,10 @@ export const AllowOnlyLoggedInUserOnlyGuard = ({
     authenticationSession.logOut();
     const searchParams = new URLSearchParams();
     searchParams.set('from', location.pathname + location.search);
-    return <Navigate to={`/sign-in?${searchParams.toString()}`} replace />;
+    searchParams.set('login', 'true');
+    return <Navigate to={`/templates?${searchParams.toString()}`} replace />;
   }
+
   if (authenticationSession.isOnboarding()) {
     return <Navigate to="/create-platform" replace />;
   }
