@@ -22,6 +22,7 @@ import { billingUtils, BILLING_DATE_FORMAT } from '../utils/billing-utils';
 import { CreditsActionButton } from './credits-action-button';
 
 export const SidebarUsageLimits = React.memo(() => {
+  const token = authenticationSession.getToken();
   const { project } = projectCollectionUtils.useCurrentProject();
   const {
     platformId,
@@ -35,6 +36,10 @@ export const SidebarUsageLimits = React.memo(() => {
   } = useCreditsUsage();
   const { data: edition } = flagsHooks.useFlag<ApEdition>(ApFlagId.EDITION);
 
+  if (!token || !platformId || edition === ApEdition.COMMUNITY) {
+    return null;
+  }
+
   const inWarning = !isUnlimited && severity !== 'default';
   const canManage = isPlatformAdmin && inWarning;
   const needsSubscription = canManage && isPaid;
@@ -43,10 +48,6 @@ export const SidebarUsageLimits = React.memo(() => {
     platformId,
     true,
   );
-
-  if (edition === ApEdition.COMMUNITY) {
-    return null;
-  }
 
   const effectiveCreditsRemaining = creditsRemaining ?? 1000;
   const creditsText = billingUtils.formatCredits(effectiveCreditsRemaining);

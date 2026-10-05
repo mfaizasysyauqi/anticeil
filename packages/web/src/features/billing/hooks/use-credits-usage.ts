@@ -10,6 +10,20 @@ export function useCreditsUsage(): CreditsUsage {
   const { platform } = platformHooks.useCurrentPlatform();
   const isPlatformAdmin = useIsPlatformAdmin();
 
+  if (!platform) {
+    return {
+      platformId: '',
+      usage: undefined,
+      isPlatformAdmin: false,
+      isPaid: false,
+      isBillingEnforced: false,
+      creditsRemaining: null,
+      isUnlimited: true,
+      percentUsed: 0,
+      severity: 'default',
+    };
+  }
+
   const usage = platform.usage;
   const creditsRemaining = usage?.creditsRemaining ?? null;
   const isUnlimited = isNil(creditsRemaining);

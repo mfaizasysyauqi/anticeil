@@ -86,8 +86,8 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
   const queryClient = useQueryClient();
   const { platform, setCurrentPlatform } = platformHooks.useCurrentPlatform();
   const { data: plans, isLoading } = billingQueries.useListPlans(
-    platform.id,
-    enabled,
+    platform?.id ?? '',
+    enabled && !isNil(platform?.id),
   );
   const { ensureSeatFloor, openSeatFloor, seatFloorDialog } =
     usePlanSeatFloorGuard();
@@ -96,8 +96,8 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
   const [isKeepPlanOpen, setIsKeepPlanOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const { data: subscription } = billingQueries.usePlatformSubscription(
-    platform.id,
-    enabled,
+    platform?.id ?? '',
+    enabled && !isNil(platform?.id),
   );
 
   const { mutate: switchPlan, isPending: isSwitching } = useMutation({

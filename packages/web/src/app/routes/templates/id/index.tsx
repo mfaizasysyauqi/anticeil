@@ -19,6 +19,7 @@ import { CanvasControls } from '@/app/builder/flow-canvas/canvas-controls';
 import { BuilderStateProvider } from '@/app/builder/state/builder-state-provider';
 
 import { Button } from '@/components/ui/button';
+import { LoginModal } from '@/components/custom/login-modal';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSidebar } from '@/components/ui/sidebar-shadcn';
 import { UseTemplateDialog } from '@/features/templates/components/use-template-dialog';
@@ -41,6 +42,7 @@ const TemplateDetailsPage = ({ template }: TemplateDetailsPageProps) => {
     useState(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [selectedFlowIndex, setSelectedFlowIndex] = useState(0);
   const [renderKey, setRenderKey] = useState(0);
   const { setOpen } = useSidebar();
@@ -101,9 +103,7 @@ const TemplateDetailsPage = ({ template }: TemplateDetailsPageProps) => {
 
   const handleUseTemplate = () => {
     if (isNil(token)) {
-      navigate(
-        `/sign-in?${FROM_QUERY_PARAM}=${location.pathname}${location.search}`,
-      );
+      setIsLoginModalOpen(true);
       return;
     }
     setIsDialogOpen(true);
@@ -132,6 +132,7 @@ const TemplateDetailsPage = ({ template }: TemplateDetailsPageProps) => {
 
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden absolute inset-0">
+      <LoginModal open={isLoginModalOpen} onOpenChange={setIsLoginModalOpen} />
       {template.type !== TemplateType.SHARED && (
         <div className="border-b py-4 px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 min-w-0">

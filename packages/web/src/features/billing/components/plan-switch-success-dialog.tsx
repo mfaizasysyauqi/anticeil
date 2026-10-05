@@ -30,8 +30,8 @@ export function PlanSwitchSuccessDialog() {
   const { payload: planId, closeDialog } = usePlanSwitchSuccessDialogStore();
   const { platform } = platformHooks.useCurrentPlatform();
   const { data: plans } = billingQueries.useListPlans(
-    platform.id,
-    !isNil(planId),
+    platform?.id ?? '',
+    !isNil(planId) && !isNil(platform?.id),
   );
   const entry = isNil(planId) ? undefined : resolveEntry(planId);
   const features = isNil(entry)

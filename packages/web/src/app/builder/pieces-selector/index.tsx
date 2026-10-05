@@ -164,7 +164,7 @@ const PieceSelectorContent = ({
       operation.type,
       !isNil(aiProviders) && aiProviders.length > 0 && !isAiPieceUnavailable,
     ),
-    config: platform.pieceSelectorConfig,
+    config: platform?.pieceSelectorConfig,
   });
   const firstTab = tabsList[0];
 

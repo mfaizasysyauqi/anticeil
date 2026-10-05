@@ -33,18 +33,7 @@ const TemplateDetailsWrapper = () => {
     return <Navigate to="/templates" replace />;
   }
 
-  const token = authenticationSession.getToken();
-  const isNotAuthenticated = isNil(token);
   const useProjectLayout = template.type !== TemplateType.SHARED;
-
-  if (isNotAuthenticated && useProjectLayout) {
-    return (
-      <Navigate
-        to={`/sign-in?${FROM_QUERY_PARAM}=${location.pathname}${location.search}`}
-        replace
-      />
-    );
-  }
 
   const content = (
     <PageTitle title={template.name}>

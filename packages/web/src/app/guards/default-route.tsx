@@ -14,16 +14,9 @@ import { ProjectDashboardLayout } from '../components/project-layout';
 
 export const DefaultRoute = () => {
   const token = authenticationSession.getToken();
-  const location = useLocation();
   if (!token) {
-    const searchParams = new URLSearchParams();
-    searchParams.set('from', location.pathname + location.search);
-    return (
-      <Navigate
-        to={`/sign-in?${searchParams.toString()}`}
-        replace={true}
-      ></Navigate>
-    );
+    // Guest → explore templates first, login modal appears on action
+    return <Navigate to="/templates" replace />;
   }
   if (authenticationSession.isOnboarding()) {
     return <Navigate to="/create-platform" replace />;

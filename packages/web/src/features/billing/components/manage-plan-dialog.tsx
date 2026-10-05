@@ -11,11 +11,18 @@ import {
 import { useManagePlanDialogStore } from '../stores/manage-plan-dialog-state';
 
 
+import { authenticationSession } from '@/lib/authentication-session';
+
 import { PlanSelector } from './plan-selector';
 import { PlanSwitchSuccessDialog } from './plan-switch-success-dialog';
 
 export function ManagePlanDialog() {
   const { isOpen, closeDialog } = useManagePlanDialogStore();
+  const token = authenticationSession.getToken();
+
+  if (!token) {
+    return null;
+  }
 
   return (
     <>

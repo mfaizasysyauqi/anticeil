@@ -25,7 +25,10 @@ export function KeepPlanDialog({
   info,
 }: KeepPlanDialogProps) {
   const { platform } = platformHooks.useCurrentPlatform();
-  const { data: plans } = billingQueries.useListPlans(platform.id, open);
+  const { data: plans } = billingQueries.useListPlans(
+    platform?.id ?? '',
+    open && !isNil(platform?.id),
+  );
   const { mutate: reactivate, isPending } =
     billingMutations.useReactivateSubscription(() => onOpenChange(false));
 

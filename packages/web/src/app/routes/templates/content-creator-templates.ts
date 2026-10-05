@@ -49,7 +49,7 @@ const scheduleTrigger = (displayName = 'Every Hour') => ({
 
 export const CONTENT_CREATOR_TEMPLATES: Template[] = [
   {
-    id: 'anticeil-yt-viral-clipper',
+    id: 'AnCYtViralClipperShrt1',
     created: new Date().toISOString(),
     updated: new Date().toISOString(),
     name: 'YouTube Viral Clipper → Shorts',
@@ -97,7 +97,7 @@ export const CONTENT_CREATOR_TEMPLATES: Template[] = [
     } as any],
   },
   {
-    id: 'anticeil-content-brief-to-post',
+    id: 'AnCBriefToPostMultiPlt',
     created: new Date().toISOString(),
     updated: new Date().toISOString(),
     name: 'AI Content Brief → Multi-Platform Posts',
@@ -136,7 +136,7 @@ export const CONTENT_CREATOR_TEMPLATES: Template[] = [
     } as any],
   },
   {
-    id: 'anticeil-trending-monitor',
+    id: 'AnCTrendingMonitorYTB1',
     created: new Date().toISOString(),
     updated: new Date().toISOString(),
     name: 'Trending Topic Monitor & Alert',
@@ -180,7 +180,7 @@ export const CONTENT_CREATOR_TEMPLATES: Template[] = [
     } as any],
   },
   {
-    id: 'anticeil-caption-generator',
+    id: 'AnCCaptionHashtagGenr1',
     created: new Date().toISOString(),
     updated: new Date().toISOString(),
     name: 'Auto Caption & Hashtag Generator',
@@ -214,7 +214,7 @@ export const CONTENT_CREATOR_TEMPLATES: Template[] = [
     } as any],
   },
   {
-    id: 'anticeil-content-reward-scraper',
+    id: 'AnCRewardPlatformScrp1',
     created: new Date().toISOString(),
     updated: new Date().toISOString(),
     name: 'Content Reward Platform Scraper',

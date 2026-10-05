@@ -1,3 +1,4 @@
+import { isNil } from '@activepieces/core-utils';
 import {
   Template,
   TemplateTelemetryEventType,
@@ -6,15 +7,17 @@ import {
 } from '@activepieces/shared';
 import { t } from 'i18next';
 import { Plus } from 'lucide-react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { LoginModal } from '@/components/custom/login-modal';
 import { PageHeader } from '@/components/custom/page-header';
 import { SearchInput } from '@/components/custom/search-input';
 import { Button } from '@/components/ui/button';
 import { flowHooks } from '@/features/flows';
 import { templatesTelemetryApi, templatesHooks } from '@/features/templates';
 import { platformHooks } from '@/hooks/platform-hooks';
+import { authenticationSession } from '@/lib/authentication-session';
 import { DASHBOARD_CONTENT_PADDING_X } from '@/lib/utils';
 
 import { AllCategoriesView } from './all-categories-view';
@@ -25,6 +28,8 @@ import { SelectedCategoryView } from './selected-category-view';
 
 const TemplatesPage = () => {
   const navigate = useNavigate();
+  const token = authenticationSession.getToken();
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const { data: templateCategories } = templatesHooks.useTemplateCategories();
   const isShowingOfficialTemplates = true;
   const { templates, isLoading, search, setSearch, category, setCategory } =
@@ -36,6 +41,14 @@ const TemplatesPage = () => {
     templatesHooks.useAllOfficialTemplates();
   const { mutate: createFlow, isPending: isCreateFlowPending } =
     flowHooks.useStartFromScratch(UncategorizedFolderId);
+
+  const handleStartFromScratch = () => {
+    if (isNil(token)) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    createFlow();
+  };
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -106,6 +119,7 @@ const TemplatesPage = () => {
 
   return (
     <div>
+      <LoginModal open={isLoginModalOpen} onOpenChange={setIsLoginModalOpen} />
       <div>
         <div className="sticky top-0 z-10 bg-background">
           <PageHeader
@@ -122,7 +136,7 @@ const TemplatesPage = () => {
                     <Button
                       variant="outline"
                       className="gap-2 h-full"
-                      onClick={() => createFlow()}
+                      onClick={handleStartFromScratch}
                       disabled={isCreateFlowPending}
                     >
                       <Plus className="w-4 h-4" />

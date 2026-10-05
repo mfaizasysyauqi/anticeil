@@ -17,7 +17,7 @@ export const useAuthorization = (projectId?: string) => {
     queryKey: ['project-role', scopedProjectId],
     queryFn: async () => {
       const platform = await platformApi.getCurrentPlatform();
-      if (platform.plan.projectRolesEnabled) {
+      if (platform?.plan?.projectRolesEnabled) {
         const projectRole = await authenticationApi.getCurrentProjectRole({
           projectId: scopedProjectId ?? '',
         });

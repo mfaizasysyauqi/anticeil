@@ -239,7 +239,7 @@ export const billingQueries = {
       staleTime: 5 * 60 * 1000,
       refetchOnMount: 'always',
       refetchOnWindowFocus: false,
-      enabled,
+      enabled: enabled && !isNil(platformId) && platformId !== '',
     });
   },
   useListPlans: (platformId: string, enabled = true) => {

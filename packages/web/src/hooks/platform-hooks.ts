@@ -34,7 +34,12 @@ export const platformHooks = {
     const currentPlatformId = authenticationSession.getPlatformId();
     const query = useSuspenseQuery({
       queryKey: ['platform', currentPlatformId],
-      queryFn: platformApi.getCurrentPlatform,
+      queryFn: async () => {
+        if (!currentPlatformId) {
+          return null as any;
+        }
+        return platformApi.getCurrentPlatform();
+      },
       staleTime: 10 * 1000,
     });
     return {

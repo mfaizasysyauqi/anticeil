@@ -140,36 +140,36 @@ const ThirdPartyLogin = React.memo(
     }
 
     return (
-      <div className="flex flex-col gap-4.5">
+      <div className="flex flex-col gap-4">
         {/* Anticeil Value Highlights */}
-        <div className="flex flex-col gap-2 rounded-xl border border-border/70 bg-muted/40 p-3.5 text-xs text-muted-foreground">
+        <div className="flex flex-col gap-2 rounded-xl border border-border/70 bg-muted/40 p-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-2.5 text-foreground/90">
-            <Zap className="size-3.5 shrink-0 text-amber-500" />
+            <Zap className="size-4 shrink-0 text-amber-500" />
             <span>{t('Login instan 1-klik tanpa repot mengingat password')}</span>
           </div>
           <div className="flex items-center gap-2.5 text-foreground/90">
-            <ShieldCheck className="size-3.5 shrink-0 text-emerald-500" />
+            <ShieldCheck className="size-4 shrink-0 text-emerald-500" />
             <span>{t('Official OAuth 2.0 security via Google')}</span>
           </div>
           <div className="flex items-center gap-2.5 text-foreground/90">
-            <Sparkles className="size-3.5 shrink-0 text-primary" />
+            <Sparkles className="size-4 shrink-0 text-primary" />
             <span>{t('Bring your own API key on Plus plan and above')}</span>
           </div>
         </div>
 
         {/* OAuth Buttons */}
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2">
           {availability.google && (
             <Button
               variant="outline"
-              className="h-12 w-full gap-3 rounded-xl border-border bg-background text-[14px] font-semibold text-foreground shadow-sm transition-all hover:bg-accent hover:border-border-strong active:scale-[0.99] cursor-pointer"
+              className="h-11 w-full gap-2.5 rounded-lg border-border bg-background text-sm font-semibold text-foreground shadow-sm transition-all hover:bg-accent hover:border-border-strong active:scale-[0.99] cursor-pointer"
               disabled={loadingProvider !== null}
               onClick={(e) =>
                 handleProviderClick(e, ThirdPartyAuthnProviderEnum.GOOGLE)
               }
             >
               {loadingProvider === ThirdPartyAuthnProviderEnum.GOOGLE ? (
-                <Loader2 className="size-4.5 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
               ) : (
                 <GoogleLogoIcon />
               )}
@@ -180,14 +180,14 @@ const ThirdPartyLogin = React.memo(
           {availability.github && (
             <Button
               variant="outline"
-              className="h-12 w-full gap-3 rounded-xl border-border bg-background text-[14px] font-semibold text-foreground shadow-sm transition-all hover:bg-accent hover:border-border-strong active:scale-[0.99] cursor-pointer"
+              className="h-11 w-full gap-2.5 rounded-lg border-border bg-background text-sm font-semibold text-foreground shadow-sm transition-all hover:bg-accent hover:border-border-strong active:scale-[0.99] cursor-pointer"
               disabled={loadingProvider !== null}
               onClick={(e) =>
                 handleProviderClick(e, ThirdPartyAuthnProviderEnum.GITHUB)
               }
             >
               {loadingProvider === ThirdPartyAuthnProviderEnum.GITHUB ? (
-                <Loader2 className="size-4.5 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
               ) : (
                 <GithubLogoIcon />
               )}
@@ -236,7 +236,7 @@ const ThirdPartyLogin = React.memo(
         )}
 
         {/* Trust & Privacy Notice */}
-        <p className="mt-1 text-center text-[11px] leading-relaxed text-muted-foreground">
+        <p className="text-center text-xs leading-relaxed text-muted-foreground">
           {t(
             'By continuing, you agree to the Terms of Service & Privacy Policy. 100% Secure & Passwordless.',
           )}

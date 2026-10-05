@@ -22,11 +22,16 @@ import { platformHooks } from '../../../hooks/platform-hooks';
 import { CreatePlatformDialog } from './create-platform-dialog';
 
 export function PlatformSwitcher({ children }: { children: React.ReactNode }) {
+  const token = authenticationSession.getToken();
   const { data: allProjects } = projectHooks.useProjectsForPlatforms();
   const { platform: currentPlatform } = platformHooks.useCurrentPlatform();
   const { data: edition } = flagsHooks.useFlag<ApEdition>(ApFlagId.EDITION);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const isCloud = edition === ApEdition.CLOUD;
+
+  if (!token || !currentPlatform) {
+    return <>{children}</>;
+  }
 
   const platforms = React.useMemo(() => {
     if (!allProjects) return [];

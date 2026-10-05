@@ -254,12 +254,12 @@ export const piecesHooks = {
 
     const pinnedPieces = getPinnedPieces(
       piecesMetadataWithoutEmptySuggestions,
-      platform.pinnedPieces ?? [],
+      platform?.pinnedPieces ?? [],
     );
 
     const popularPieces = getPopularPieces(
       piecesMetadataWithoutEmptySuggestions,
-      platform.pinnedPieces ?? [],
+      platform?.pinnedPieces ?? [],
     );
 
     const flowControllerPieces =
@@ -325,7 +325,7 @@ export const piecesHooks = {
         };
       case PieceSelectorTabType.CUSTOM: {
         const customTab = pieceSelectorCustomization.getCustomTab({
-          config: platform.pieceSelectorConfig,
+          config: platform?.pieceSelectorConfig,
           customTabId: selectedCustomTabId,
         });
         const categories: CategorizedStepMetadataWithSuggestions[] = [];
@@ -531,11 +531,11 @@ const getExploreTabContent = (
   }
   const pinnedPieces = getPinnedPieces(
     queryResult,
-    platform.pinnedPieces ?? [],
+    platform?.pinnedPieces ?? [],
   );
   const popularPieces = getPopularPieces(
     queryResult,
-    platform.pinnedPieces ?? [],
+    platform?.pinnedPieces ?? [],
   );
 
   if (popularPieces.length > 0) {

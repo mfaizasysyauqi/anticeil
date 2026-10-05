@@ -19,7 +19,7 @@ export const platformApi = {
   getCurrentPlatform() {
     const platformId = authenticationSession.getPlatformId();
     if (!platformId) {
-      throw Error('No platform id found');
+      return Promise.resolve(null as any);
     }
     return api.get<PlatformWithoutSensitiveData>(`/v1/platforms/${platformId}`);
   },

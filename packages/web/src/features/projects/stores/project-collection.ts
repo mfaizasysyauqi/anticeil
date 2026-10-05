@@ -296,11 +296,14 @@ export const getProjectName = (
 };
 export const projectHooks = {
   useProjectsForPlatforms: () => {
+    const token = authenticationSession.getToken();
     return useQuery<ProjectWithLimitsWithPlatform[], Error>({
       queryKey: ['projects-for-platforms'],
       queryFn: async () => {
+        if (!token) return [];
         return api.get<ProjectWithLimitsWithPlatform[]>('/v1/platforms');
       },
+      enabled: !isNil(token),
     });
   },
   useReloadPageIfProjectIdChanged: (projectId: string) => {
