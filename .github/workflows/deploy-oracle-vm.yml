@@ -1,5 +1,9 @@
 name: Deploy to Oracle VM
 
+permissions:
+  contents: read
+  packages: write
+
 on:
   push:
     branches:
