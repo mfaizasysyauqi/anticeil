@@ -64,8 +64,10 @@ jobs:
             set -e
             cd ~/anticeil
 
-            # Pull latest code
-            git pull origin ${{ github.ref_name }}
+            # Pull latest code if git repo exists
+            if [ -d .git ]; then
+              git pull origin ${{ github.ref_name }}
+            fi
 
             # Login to GHCR and pull new image
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
