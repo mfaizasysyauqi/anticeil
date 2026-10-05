@@ -31,6 +31,9 @@ export const projectCollection = createCollection<ProjectWithLimits, string>(
     queryKey: ['projects'],
     queryClient: collectionQueryClient,
     queryFn: async () => {
+      if (!authenticationSession.isLoggedIn()) {
+        return [];
+      }
       const request: ListProjectRequestForPlatformQueryParams = {
         cursor: undefined,
         limit: 30000,
@@ -41,6 +44,7 @@ export const projectCollection = createCollection<ProjectWithLimits, string>(
       );
       return response.data;
     },
+
     getKey: (item) => item.id,
     onUpdate: async ({ transaction }) => {
       for (const { original, modified } of transaction.mutations) {
