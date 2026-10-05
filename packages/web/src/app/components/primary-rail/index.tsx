@@ -180,11 +180,13 @@ export function PrimaryRail() {
               />
             )}
           </div>
-          <RailPinnedProjects collapsed={collapsed} />
+          {authenticationSession.isLoggedIn() && (
+            <RailPinnedProjects collapsed={collapsed} />
+          )}
         </div>
 
         <div className="mt-auto flex flex-col gap-1.5 w-full">
-          {!collapsed && (
+          {!collapsed && authenticationSession.isLoggedIn() && (
             <div className="px-2">
               <SidebarUsageLimits />
             </div>
@@ -503,6 +505,13 @@ function RailNavButton({
 }
 
 function RailPinnedProjects({ collapsed }: { collapsed: boolean }) {
+  if (!authenticationSession.isLoggedIn()) {
+    return null;
+  }
+  return <RailPinnedProjectsInner collapsed={collapsed} />;
+}
+
+function RailPinnedProjectsInner({ collapsed }: { collapsed: boolean }) {
   const { data: projects } = projectCollectionUtils.useAll();
   const { platform } = platformHooks.useCurrentPlatform();
   const { data: currentUser } = userHooks.useCurrentUser();

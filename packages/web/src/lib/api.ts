@@ -53,7 +53,7 @@ function globalErrorHandler(error: AxiosError) {
     ) {
       authenticationSession.logOut();
       console.log(errorCode);
-      window.location.href = '/sign-in';
+      window.location.href = '/templates?login=true';
     }
   }
 }
