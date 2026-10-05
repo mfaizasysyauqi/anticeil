@@ -105,12 +105,7 @@ export const userIdentityService = (log: FastifyBaseLogger) => ({
     async verify(id: string): Promise<UserIdentity> {
         const user = await userIdentityRepository().findOneByOrFail({ id })
         if (user.verified) {
-            throw new ActivepiecesError({
-                code: ErrorCode.AUTHORIZATION,
-                params: {
-                    message: 'User is already verified',
-                },
-            })
+            return user
         }
         return userIdentityRepository().save({
             ...user,
@@ -124,12 +119,7 @@ export const userIdentityService = (log: FastifyBaseLogger) => ({
     async verifyAndDiscardPassword(id: string): Promise<UserIdentity> {
         const user = await userIdentityRepository().findOneByOrFail({ id })
         if (user.verified) {
-            throw new ActivepiecesError({
-                code: ErrorCode.AUTHORIZATION,
-                params: {
-                    message: 'User is already verified',
-                },
-            })
+            return user
         }
         return userIdentityRepository().save({
             ...user,
