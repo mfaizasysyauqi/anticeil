@@ -4,6 +4,8 @@ import { FullLogo } from '@/components/custom/full-logo';
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { ThirdPartyLogin } from '@/features/authentication/components/third-party-logins';
 
@@ -25,15 +27,16 @@ export const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
         {/* Header with Logo, Title, Subtitle */}
         <div className="flex flex-col items-center text-center gap-2 pt-1">
           <FullLogo className="h-8 mb-1" />
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
+          <DialogTitle className="text-xl font-bold tracking-tight text-foreground">
             {t('Welcome to Anticeil')}
-          </h1>
-          <p className="text-sm text-muted-foreground leading-normal max-w-[280px]">
+          </DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground leading-normal max-w-[280px]">
             {t(
               'Automate anything. Bring your own API key from Plus plan and above.',
             )}
-          </p>
+          </DialogDescription>
         </div>
+
 
         {/* OAuth Form */}
         <ThirdPartyLogin
