@@ -23,7 +23,7 @@ type ThemeProviderState = {
 };
 
 const initialState: ThemeProviderState = {
-  theme: 'light',
+  theme: 'system',
   setTheme: () => null,
   setThemeWithoutPersisting: () => null,
   forceLightMode: false,
@@ -47,7 +47,7 @@ const getSystemTheme = (): ResolvedTheme =>
 
 export function ThemeProvider({
   children,
-  defaultTheme = 'light',
+  defaultTheme = 'system',
   storageKey = 'ap-ui-theme',
   ...props
 }: ThemeProviderProps) {
