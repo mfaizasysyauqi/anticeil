@@ -1,4 +1,4 @@
-﻿name: Deploy to Oracle VM
+name: Deploy to Oracle VM
 
 on:
   push:
@@ -10,7 +10,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-24.04
-    environment: production
 
     steps:
       - name: Checkout code
