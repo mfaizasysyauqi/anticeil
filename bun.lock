@@ -221,8 +221,8 @@
         "vitest": "3.2.6",
       },
     },
-    "packages/ee/embed-sdk": {
-      "name": "ee-embed-sdk",
+    "packages/embed-sdk": {
+      "name": "@anticeil/embed-sdk",
       "version": "0.16.0",
       "dependencies": {
         "tslib": "2.6.2",
@@ -11044,6 +11044,7 @@
         "@activepieces/core-utils": "workspace:*",
         "@activepieces/pieces-framework": "workspace:*",
         "@activepieces/shared": "workspace:*",
+        "@anticeil/embed-sdk": "workspace:*",
         "@codemirror/commands": "6.10.3",
         "@codemirror/lang-javascript": "6.2.2",
         "@codemirror/lang-json": "6.0.1",
@@ -11098,7 +11099,6 @@
         "date-fns": "4.1.0",
         "dayjs": "1.11.9",
         "deep-equal": "2.2.2",
-        "ee-embed-sdk": "workspace:*",
         "embla-carousel-react": "8.6.0",
         "fast-average-color": "9.5.0",
         "fuse.js": "7.0.0",
@@ -12793,6 +12793,8 @@
     "@alloc/quick-lru": ["@alloc/quick-lru@5.3.0", "", {}, "sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA=="],
 
     "@anthropic-ai/sdk": ["@anthropic-ai/sdk@0.39.0", "", { "dependencies": { "@types/node": "^18.11.18", "@types/node-fetch": "^2.6.4", "abort-controller": "^3.0.0", "agentkeepalive": "^4.2.1", "form-data-encoder": "1.7.2", "formdata-node": "^4.3.2", "node-fetch": "^2.6.7" } }, "sha512-eMyDIPRZbt1CCLErRCi3exlAvNkBtRe+kW5vvJyef93PmNr/clstYgHhtvmkxN82nlKgzyGPCyGxrm0JQ1ZIdg=="],
+
+    "@anticeil/embed-sdk": ["@anticeil/embed-sdk@workspace:packages/embed-sdk"],
 
     "@apidevtools/swagger-methods": ["@apidevtools/swagger-methods@3.0.2", "", {}, "sha512-QAkD5kK2b1WfjDS/UQn/qQkbwF31uqRjPTrsCs5ZG9BQGAkjwvqGFjjPqAuzac/IYzpPtRzjCP1WrTuAIjMrXg=="],
 
@@ -15513,8 +15515,6 @@
     "ecdsa-sig-formatter": ["ecdsa-sig-formatter@1.0.11", "", { "dependencies": { "safe-buffer": "^5.0.1" } }, "sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ=="],
 
     "ed2curve": ["ed2curve@0.3.0", "", { "dependencies": { "tweetnacl": "1.x.x" } }, "sha512-8w2fmmq3hv9rCrcI7g9hms2pMunQr1JINfcjwR9tAyZqhtyaMN991lF/ZfHfr5tzZQ8c7y7aBgZbjfbd0fjFwQ=="],
-
-    "ee-embed-sdk": ["ee-embed-sdk@workspace:packages/ee/embed-sdk"],
 
     "ee-first": ["ee-first@1.1.1", "", {}, "sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow=="],
 

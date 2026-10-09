@@ -643,6 +643,25 @@ export function DocsPage() {
         continue;
       }
 
+      // Break inline headings, numbered items, and bullets into separate lines if they appear together on a single line
+      if (!inCodeBlock && !trimmed.startsWith('<')) {
+        let lineExpanded = trimmed;
+        if (/([^\n])\s+(#{1,6}\s+)/.test(lineExpanded)) {
+          lineExpanded = lineExpanded.replace(/([^\n])\s+(#{1,6}\s+)/g, '$1\n\n$2');
+        }
+        if (/([^\n])\s+(\d+\.\s+)/.test(lineExpanded)) {
+          lineExpanded = lineExpanded.replace(/([^\n])\s+(\d+\.\s+)/g, '$1\n$2');
+        }
+        if (/([^\n])\s+([*-]\s+)/.test(lineExpanded)) {
+          lineExpanded = lineExpanded.replace(/([^\n])\s+([*-]\s+)/g, '$1\n$2');
+        }
+        if (lineExpanded !== trimmed) {
+          const subLines = lineExpanded.split('\n');
+          lines.splice(i, 1, ...subLines);
+          continue;
+        }
+      }
+
       // Check CardGroup
       if (trimmed.startsWith('<CardGroup')) {
         const colMatch = trimmed.match(/cols={?(\d+)}?/);
@@ -807,6 +826,17 @@ export function DocsPage() {
           }
         }
 
+        const expandedCalloutLines = calloutLines
+          .flatMap((l) =>
+            l
+              .replace(/([^\n])\s+(#{1,6}\s+)/g, '$1\n$2')
+              .replace(/([^\n])\s+(\d+\.\s+)/g, '$1\n$2')
+              .replace(/([^\n])\s+([*-]\s+)/g, '$1\n$2')
+              .split('\n'),
+          )
+          .map((l) => l.trim())
+          .filter(Boolean);
+
         elements.push(
           <div
             key={`callout-${elements.length}`}
@@ -826,29 +856,24 @@ export function DocsPage() {
               <Info className="w-5 h-5 shrink-0 text-indigo-600 dark:text-indigo-400 mt-0.5" />
             )}
             <div className="leading-relaxed text-foreground/90 font-normal space-y-2 flex-1">
-              {calloutLines.length === 1 ? (
-                <div>{renderFormattedText(calloutLines[0], currentSlug)}</div>
-              ) : (
-                calloutLines.filter(l => l.trim()).map((l, lIdx) => {
-                  const tLine = l.trim();
-                  if (tLine.startsWith('- ') || tLine.startsWith('* ')) {
-                    return (
-                      <li key={lIdx} className="ml-4 list-disc text-xs sm:text-sm my-0.5">
-                        {renderFormattedText(tLine.slice(2), currentSlug)}
-                      </li>
-                    );
-                  }
-                  const numM = tLine.match(/^(\d+)\.\s+(.*)$/);
-                  if (numM) {
-                    return (
-                      <li key={lIdx} className="ml-5 list-decimal text-xs sm:text-sm my-0.5">
-                        {renderFormattedText(numM[2], currentSlug)}
-                      </li>
-                    );
-                  }
-                  return <p key={lIdx}>{renderFormattedText(tLine, currentSlug)}</p>;
-                })
-              )}
+              {expandedCalloutLines.map((tLine, lIdx) => {
+                if (tLine.startsWith('- ') || tLine.startsWith('* ')) {
+                  return (
+                    <li key={lIdx} className="ml-4 list-disc text-xs sm:text-sm my-1">
+                      {renderFormattedText(tLine.slice(2), currentSlug)}
+                    </li>
+                  );
+                }
+                const numM = tLine.match(/^(\d+)\.\s+(.*)$/);
+                if (numM) {
+                  return (
+                    <li key={lIdx} className="ml-5 list-decimal text-xs sm:text-sm my-1">
+                      {renderFormattedText(numM[2], currentSlug)}
+                    </li>
+                  );
+                }
+                return <p key={lIdx} className="my-1">{renderFormattedText(tLine, currentSlug)}</p>;
+              })}
             </div>
           </div>,
         );
@@ -1010,7 +1035,7 @@ export function DocsPage() {
         const headingText = cleanMojibake(rawTitle);
         const headingId = slugify(headingText);
 
-        const HeadingTag = `h${Math.min(level, 6)}` as keyof JSX.IntrinsicElements;
+        const HeadingTag = (`h${Math.min(level, 6)}`) as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
         const headingClass =
           level === 1
             ? 'text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground'
