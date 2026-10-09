@@ -185,7 +185,7 @@ export function PrivacyPage() {
             </p>
             <div className="p-4 rounded-xl border bg-muted/20 text-xs sm:text-sm space-y-1">
               <div><strong>Tim Privasi & Keamanan Anticeil:</strong></div>
-              <div>Email: <a href="mailto:privacy@anticeil.com" className="text-primary underline">privacy@anticeil.com</a> / <a href="mailto:support@anticeil.com" className="text-primary underline">support@anticeil.com</a></div>
+              <div>Email: <a href="mailto:anticeil.official@gmail.com" className="text-primary underline">anticeil.official@gmail.com</a></div>
               <div>Situs Web: <a href="https://anticeil.com" className="text-primary underline">https://anticeil.com</a></div>
               <div>Lokasi: Jakarta, Republik Indonesia</div>
             </div>

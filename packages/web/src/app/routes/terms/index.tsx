@@ -155,7 +155,7 @@ export function TermsPage() {
             <ul className="list-disc pl-5 space-y-1.5">
               <li><strong>Pembatalan Langganan:</strong> Pengguna dapat membatalkan perpanjangan langganan kapan saja melalui menu Pengaturan Billing di akun Anticeil tanpa dikenakan biaya denda atau penalti pembatalan. Akses paket berbayar tetap aktif hingga akhir periode penagihan yang sedang berjalan.</li>
               <li><strong>Garansi Pengembalian Dana 7 Hari:</strong> Pengguna paket berbayar baru berhak mengajukan permohonan pengembalian dana (refund) penuh dalam kurun waktu <strong>7 (tujuh) hari kalender</strong> sejak tanggal transaksi pertama jika mengalami kendala teknis layanan yang tidak dapat diselesaikan oleh tim dukungan Kami.</li>
-              <li><strong>Prosedur Klaim Refund:</strong> Untuk mengajukan pengembalian dana, kirimkan email ke <a href="mailto:support@anticeil.com" className="text-primary underline">support@anticeil.com</a> dengan menyertakan Nomor Pesanan (Order ID) dari bukti transaksi Midtrans dan alasan pengajuan. Pengembalian akan diproses dalam waktu 3-7 hari kerja melalui metode pembayaran awal.</li>
+              <li><strong>Prosedur Klaim Refund:</strong> Untuk mengajukan pengembalian dana, kirimkan email ke <a href="mailto:anticeil.official@gmail.com" className="text-primary underline">anticeil.official@gmail.com</a> dengan menyertakan Nomor Pesanan (Order ID) dari bukti transaksi Midtrans dan alasan pengajuan. Pengembalian akan diproses dalam waktu 3-7 hari kerja melalui metode pembayaran awal.</li>
             </ul>
           </section>
 
@@ -198,7 +198,7 @@ export function TermsPage() {
             </p>
             <div className="p-4 rounded-xl border bg-muted/20 text-xs sm:text-sm space-y-1">
               <div><strong>Layanan Pelanggan Anticeil:</strong></div>
-              <div>Email: <a href="mailto:support@anticeil.com" className="text-primary underline">support@anticeil.com</a> / <a href="mailto:billing@anticeil.com" className="text-primary underline">billing@anticeil.com</a></div>
+              <div>Email: <a href="mailto:anticeil.official@gmail.com" className="text-primary underline">anticeil.official@gmail.com</a></div>
               <div>Situs Web: <a href="https://anticeil.com" className="text-primary underline">https://anticeil.com</a></div>
               <div>Lokasi: Jakarta, Republik Indonesia</div>
             </div>
