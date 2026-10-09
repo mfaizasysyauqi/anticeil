@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   BookOpen,
   ChevronRight,
@@ -34,7 +35,31 @@ import {
 import { FullLogo } from '@/components/custom/full-logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useTheme } from '@/components/providers/theme-provider';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { localesMap } from '@/lib/locale-utils';
+import { getLegalDoc } from './docs-legal';
 import docsDataRaw from './docs-generated.json';
+
+const TAB_TRANSLATION_KEYS: Record<string, string> = {
+  'Get Started': 'docs.tab.get_started',
+  'Build Flows': 'docs.tab.build_flows',
+  'Pieces': 'docs.tab.pieces',
+  'Developers': 'docs.tab.developers',
+  'Self Hosting': 'docs.tab.self_hosting',
+};
+
+const GROUP_TRANSLATION_KEYS: Record<string, string> = {
+  'Getting Started': 'docs.group.getting_started',
+  'Core Concepts': 'docs.group.core_concepts',
+  'Building Flows': 'docs.group.building_flows',
+  'Legal': 'docs.group.legal',
+};
 
 interface TocItem {
   id: string;
@@ -152,6 +177,18 @@ function resolveDocLink(rawUrl: string, currentSlug: string): string {
   return target;
 }
 
+function resolveDocImgSrc(url: string): string {
+  let s = url;
+  if (s.includes('cdn.anticeil.com/pieces/')) {
+    s = s.replace('cdn.anticeil.com/pieces/', 'cdn.activepieces.com/pieces/');
+  }
+  if (s.startsWith('/resources/') || s.startsWith('resources/')) {
+    const clean = s.replace(/^\/?resources\//, '');
+    s = `https://raw.githubusercontent.com/activepieces/activepieces/main/docs/resources/${clean.replace('anticeil-', 'activepieces-')}`;
+  }
+  return s;
+}
+
 function DocImage({
   src,
   alt,
@@ -161,24 +198,30 @@ function DocImage({
   alt?: string;
   className?: string;
 }) {
-  const [imgSrc, setImgSrc] = useState(src);
+  const [imgSrc, setImgSrc] = useState(() => resolveDocImgSrc(src));
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    setImgSrc(src);
+    setImgSrc(resolveDocImgSrc(src));
     setHasError(false);
   }, [src]);
 
   const handleError = () => {
-    if (!hasError && src.startsWith('/resources/')) {
+    if (!hasError) {
       setHasError(true);
-      const fallbackUrl = `https://raw.githubusercontent.com/activepieces/activepieces/main/docs${src.replace('/anticeil-', '/activepieces-')}`;
-      setImgSrc(fallbackUrl);
+      if (imgSrc.includes('cdn.anticeil.com')) {
+        setImgSrc(imgSrc.replace('cdn.anticeil.com/pieces/', 'cdn.activepieces.com/pieces/'));
+      } else if (src.startsWith('/resources/')) {
+        const clean = src.replace(/^\/?resources\//, '');
+        setImgSrc(`https://raw.githubusercontent.com/activepieces/activepieces/main/docs/resources/${clean}`);
+      } else if (src.startsWith('/img/') || src.startsWith('/images/')) {
+        setImgSrc(`https://raw.githubusercontent.com/activepieces/activepieces/main/docs${src}`);
+      }
     }
   };
 
   return (
-    <div className="my-6 rounded-xl border border-border/40 bg-[#0d121c] p-2 overflow-hidden shadow-sm flex flex-col items-center justify-center">
+    <div className="my-6 rounded-xl border border-border/40 bg-card p-2 overflow-hidden shadow-sm flex flex-col items-center justify-center">
       <img
         src={imgSrc}
         alt={alt || 'Documentation illustration'}
@@ -274,12 +317,24 @@ function renderFormattedText(text: string, currentSlug: string = ''): React.Reac
 export function DocsPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  const { theme, setTheme } = useTheme();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
   const [activeHeadingId, setActiveHeadingId] = useState<string>('');
+
+  const getPageTitle = (p: { slug: string; title: string }) => {
+    if (p.slug === 'legal/terms') return t('docs.page.terms');
+    if (p.slug === 'legal/privacy') return t('docs.page.privacy');
+    return p.title;
+  };
+
+  // Resolved theme for icon display (system → detect actual)
+  const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const toggleTheme = () => setTheme(isDark ? 'light' : 'dark');
 
   // Extract slug from path
   const currentSlug = useMemo(() => {
@@ -293,6 +348,9 @@ export function DocsPage() {
 
   // Current page data
   const currentPage: PageData = useMemo(() => {
+    const legalDoc = getLegalDoc(currentSlug, i18n.language);
+    if (legalDoc) return legalDoc;
+
     if (docsData.pages[currentSlug]) {
       return docsData.pages[currentSlug];
     }
@@ -301,10 +359,12 @@ export function DocsPage() {
       (k) => k.endsWith('/' + currentSlug) || k === currentSlug,
     );
     if (matchedKey && docsData.pages[matchedKey]) {
+      const legalMatch = getLegalDoc(matchedKey, i18n.language);
+      if (legalMatch) return legalMatch;
       return docsData.pages[matchedKey];
     }
     return docsData.pages['overview/welcome'];
-  }, [currentSlug]);
+  }, [currentSlug, i18n.language]);
 
   // Active Tab
   const activeTabName = useMemo(() => {
@@ -383,7 +443,7 @@ export function DocsPage() {
   // Content Renderer with MDX support
   const renderMdxContent = (body: string) => {
     // Process markdown cards and custom blocks
-    const lines = body.split('\n');
+    const lines = body.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
     const elements: React.ReactNode[] = [];
     let inCardGroup = false;
     let cardItems: React.ReactNode[] = [];
@@ -404,11 +464,11 @@ export function DocsPage() {
             key={`table-${elements.length}`}
             className="my-6 overflow-x-auto rounded-lg border border-border/50"
           >
-            <table className="w-full text-left text-xs sm:text-sm">
+            <table className="w-full min-w-[500px] text-left text-xs sm:text-sm">
               <thead className="bg-muted/40 text-foreground border-b border-border/50 font-semibold">
                 <tr>
                   {header.map((col, idx) => (
-                    <th key={idx} className="px-4 py-2.5">
+                    <th key={idx} className="px-4 py-2.5 whitespace-nowrap">
                       {renderFormattedText(col.trim(), currentSlug)}
                     </th>
                   ))}
@@ -476,7 +536,7 @@ export function DocsPage() {
           elements.push(
             <div
               key={`code-${elements.length}`}
-              className="my-6 rounded-xl border border-border/60 bg-[#0d1117] overflow-hidden"
+              className="my-6 rounded-xl border border-border/60 bg-card overflow-hidden"
             >
               <div className="flex items-center justify-between px-4 py-2 bg-muted/20 border-b border-border/40 text-xs text-muted-foreground">
                 <span className="font-mono">{codeBlockLang || 'bash'}</span>
@@ -487,12 +547,12 @@ export function DocsPage() {
                   {copiedCodeIndex === thisIndex ? (
                     <>
                       <Check className="w-3.5 h-3.5 text-green-500" />
-                      <span className="text-green-500">Copied</span>
+                      <span className="text-green-500">{t('docs.code.copied')}</span>
                     </>
                   ) : (
                     <>
                       <Copy className="w-3.5 h-3.5" />
-                      <span>Copy</span>
+                      <span>{t('docs.code.copy')}</span>
                     </>
                   )}
                 </button>
@@ -531,21 +591,59 @@ export function DocsPage() {
       // Inside CardGroup or single Card
       if (trimmed.startsWith('<Card ') || inCardGroup) {
         if (trimmed.startsWith('<Card ')) {
-          const titleMatch = trimmed.match(/title="([^"]+)"/);
-          const iconMatch = trimmed.match(/icon="([^"]+)"/);
-          const hrefMatch = trimmed.match(/href="([^"]+)"/);
-          const colorMatch = trimmed.match(/color="([^"]+)"/);
+          // Collect the full opening tag (which may span multiple lines if icon={<svg ...>} or icon={<img ...>})
+          let openTagBuffer = trimmed;
+          let braceCount = 0;
+          for (const char of openTagBuffer) {
+            if (char === '{') braceCount++;
+            else if (char === '}') braceCount--;
+          }
+          while (
+            i + 1 < lines.length &&
+            (braceCount > 0 || !openTagBuffer.trimEnd().endsWith('>')) &&
+            !lines[i + 1].trim().startsWith('</Card>')
+          ) {
+            i++;
+            const nextLine = lines[i].trim();
+            openTagBuffer += ' ' + nextLine;
+            for (const char of nextLine) {
+              if (char === '{') braceCount++;
+              else if (char === '}') braceCount--;
+            }
+          }
+
+          // Parse attributes from the full opening tag buffer
+          const titleMatch = openTagBuffer.match(/title="([^"]+)"/);
+          const hrefMatch = openTagBuffer.match(/href="([^"]+)"/);
+          const colorMatch = openTagBuffer.match(/color="([^"]+)"/);
+          const svgIconMatch = openTagBuffer.match(/icon=\{\s*(<svg[\s\S]*?<\/svg>)\s*\}/);
+          const imgIconMatch = openTagBuffer.match(/icon=\{\s*<img[^>]*src="([^"]+)"[^>]*\/?>\s*\}/);
+          const stringIconMatch = openTagBuffer.match(/icon="([^"]+)"/);
 
           const cardTitle = titleMatch ? titleMatch[1] : '';
-          const cardIcon = iconMatch ? iconMatch[1] : '';
           const cardHref = hrefMatch ? hrefMatch[1] : '';
           const cardColor = colorMatch ? colorMatch[1] : '#6366F1';
+          const cardSvgHtml = svgIconMatch ? svgIconMatch[1] : null;
+          const cardImgSrc = imgIconMatch ? imgIconMatch[1] : null;
+          const cardIcon = stringIconMatch ? stringIconMatch[1] : '';
 
-          // Extract inner text
+          // Collect body — only plain text lines, skip HTML/JSX/attrs
           let cardDesc = '';
           i++;
           while (i < lines.length && !lines[i].trim().startsWith('</Card>')) {
-            cardDesc += ' ' + lines[i].trim();
+            const ln = lines[i].trim();
+            const isHtmlTag = ln.startsWith('<') || ln.startsWith('</') || ln.includes('</svg>') || ln.includes('<svg') || ln.includes('<path');
+            const isJsxExpr = ln.startsWith('{') || ln.startsWith('}') || ln.includes('href=') || ln.includes('icon=');
+            const isAttrLine = /^[a-zA-Z_-]+=/.test(ln); // e.g. href="..." icon={
+            const isBareClose = ln === '>' || ln === '/>';
+            if (!isHtmlTag && !isJsxExpr && !isAttrLine && !isBareClose && ln.length > 0) {
+              // Strip any remaining inline HTML/JSX from the line
+              const cleaned = ln
+                .replace(/<[^>]*>/g, '')
+                .replace(/\{[^}]*\}/g, '')
+                .trim();
+              if (cleaned.length > 0) cardDesc += (cardDesc ? ' ' : '') + cleaned;
+            }
             i++;
           }
 
@@ -564,17 +662,26 @@ export function DocsPage() {
                   }
                 }
               }}
-              className="p-5 rounded-xl border border-border/50 bg-[#111726]/70 hover:bg-[#151c2e] hover:border-primary/50 transition-all duration-200 cursor-pointer group flex flex-col justify-between"
+              className="p-5 rounded-xl border border-border/50 bg-card/70 hover:bg-muted hover:border-primary/50 transition-all duration-200 cursor-pointer group flex flex-col justify-between"
             >
               <div>
                 <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center mb-3.5 transition-transform group-hover:scale-105"
+                  className="w-9 h-9 rounded-lg flex items-center justify-center mb-3.5 transition-transform group-hover:scale-105 overflow-hidden"
                   style={{
                     backgroundColor: `${cardColor}20`,
                     color: cardColor,
                   }}
                 >
-                  <CardIconComponent className="w-5 h-5" />
+                  {cardSvgHtml ? (
+                    <div
+                      className="w-5 h-5 flex items-center justify-center [&>svg]:w-5 [&>svg]:h-5 [&>svg]:max-w-full [&>svg]:max-h-full"
+                      dangerouslySetInnerHTML={{ __html: cardSvgHtml }}
+                    />
+                  ) : cardImgSrc ? (
+                    <img src={cardImgSrc} alt={cardTitle} className="w-5 h-5 object-contain" />
+                  ) : (
+                    <CardIconComponent className="w-5 h-5" />
+                  )}
                 </div>
                 <h3 className="font-semibold text-sm sm:text-base text-foreground group-hover:text-primary transition-colors flex items-center justify-between">
                   <span>{cardTitle}</span>
@@ -679,12 +786,12 @@ export function DocsPage() {
                 {copiedCodeIndex === promptIdx ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-green-500" />
-                    <span className="text-green-500">Copied</span>
+                    <span className="text-green-500">{t('docs.code.copied')}</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5" />
-                    <span>Copy</span>
+                    <span>{t('docs.code.copy')}</span>
                   </>
                 )}
               </button>
@@ -736,15 +843,14 @@ export function DocsPage() {
         continue;
       }
 
-      // Markdown Tables
-      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      // Markdown Tables — also handle rows that don't have trailing |
+      if (trimmed.startsWith('|')) {
         inTable = true;
-        const row = trimmed
-          .slice(1, -1)
-          .split('|')
-          .map((c) => c.trim());
+        // Normalize: ensure we can split on |
+        const normalized = trimmed.endsWith('|') ? trimmed.slice(1, -1) : trimmed.slice(1);
+        const row = normalized.split('|').map((c) => c.trim());
         // ignore separator row like |---|---|
-        if (!row.every((c) => /^:?-+:?$/.test(c))) {
+        if (!row.every((c) => /^:?-+:?$/.test(c) || c === '')) {
           tableRows.push(row);
         }
         i++;
@@ -797,6 +903,50 @@ export function DocsPage() {
         continue;
       }
 
+      // Multi-image inline container (e.g. piece apps list)
+      if (trimmed.includes('<img') && trimmed.includes('<div')) {
+        const imgRegex = /<img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*\/?>/g;
+        let match;
+        const iconList: { src: string; alt: string }[] = [];
+        while ((match = imgRegex.exec(trimmed)) !== null) {
+          let s = match[1];
+          if (s.includes('cdn.anticeil.com/pieces/')) {
+            s = s.replace('cdn.anticeil.com/pieces/', 'cdn.activepieces.com/pieces/');
+          }
+          iconList.push({ src: s, alt: match[2] || '' });
+        }
+        if (iconList.length > 0) {
+          elements.push(
+            <div
+              key={`icon-grid-${elements.length}`}
+              className="my-3 flex flex-wrap gap-2.5 items-center"
+            >
+              {iconList.map((ic, icIdx) => (
+                <div
+                  key={icIdx}
+                  className="w-11 h-11 rounded-xl bg-card border border-border/50 p-2 flex items-center justify-center shadow-xs hover:scale-105 transition-transform"
+                  title={ic.alt}
+                >
+                  <img
+                    src={ic.src}
+                    alt={ic.alt}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (!target.src.includes('cdn.activepieces.com')) {
+                        target.src = `https://cdn.activepieces.com/pieces/${ic.alt.toLowerCase().replace(/\s+/g, '-')}.png`;
+                      }
+                    }}
+                  />
+                </div>
+              ))}
+            </div>,
+          );
+          i++;
+          continue;
+        }
+      }
+
       // HTML img tags
       if (trimmed.includes('<img')) {
         const srcMatch = trimmed.match(/src="([^"]+)"/);
@@ -828,33 +978,63 @@ export function DocsPage() {
         continue;
       }
 
-      // Videos
-      if (trimmed.includes('<video') || trimmed.endsWith('.mp4')) {
-        const srcMatch = trimmed.match(/src="([^"]+)"/);
-        const vidSrc = srcMatch ? srcMatch[1] : trimmed;
-        elements.push(
-          <div
-            key={`vid-${elements.length}`}
-            className="my-6 rounded-xl border border-border/50 bg-[#0c1017] p-2 overflow-hidden shadow-sm"
-          >
-            <video
-              src={vidSrc}
-              controls
-              className="w-full rounded-lg max-h-[500px]"
-            />
-          </div>,
-        );
+      // Videos — collect multi-line <video> tags and resolve src
+      if (trimmed.includes('<video') || (trimmed.endsWith('.mp4') && !trimmed.startsWith('<'))) {
+        let vidSrc: string | null = null;
+        if (trimmed.endsWith('.mp4')) {
+          vidSrc = trimmed;
+        } else {
+          // collect until </video>
+          const videoLines: string[] = [trimmed];
+          if (!trimmed.includes('</video>')) {
+            i++;
+            while (i < lines.length && !lines[i].includes('</video>')) {
+              videoLines.push(lines[i].trim());
+              i++;
+            }
+            if (i < lines.length) videoLines.push(lines[i].trim());
+          }
+          const combined = videoLines.join(' ');
+          const srcMatch = combined.match(/src="([^"]+)"/);
+          vidSrc = srcMatch ? srcMatch[1] : null;
+        }
+        if (vidSrc) {
+          // Resolve relative video paths to GitHub CDN fallback
+          const resolvedVid = vidSrc.startsWith('http') ? vidSrc
+            : vidSrc.startsWith('/resources/')
+              ? vidSrc
+              : `https://raw.githubusercontent.com/activepieces/activepieces/main/docs${vidSrc.startsWith('/') ? '' : '/'}${vidSrc}`;
+          elements.push(
+            <div
+              key={`vid-${elements.length}`}
+              className="my-6 rounded-xl border border-border/50 bg-card p-2 overflow-hidden shadow-sm"
+            >
+              <video
+                src={resolvedVid}
+                controls
+                className="w-full rounded-lg max-h-[500px]"
+              />
+            </div>,
+          );
+        }
         i++;
         continue;
       }
 
-      // App logos / HTML fallback
-      if (trimmed.includes('<svg')) {
+      // App logos / multi-line SVG blocks — collect all lines until </svg>
+      if (trimmed.startsWith('<svg') || trimmed === '<svg>') {
+        const svgLines: string[] = [line];
+        i++;
+        while (i < lines.length && !lines[i].includes('</svg>')) {
+          svgLines.push(lines[i]);
+          i++;
+        }
+        if (i < lines.length) svgLines.push(lines[i]); // closing </svg>
         elements.push(
           <div
-            key={`html-${elements.length}`}
-            className="my-4 overflow-x-auto"
-            dangerouslySetInnerHTML={{ __html: line }}
+            key={`svg-${elements.length}`}
+            className="my-4 overflow-x-auto flex justify-center"
+            dangerouslySetInnerHTML={{ __html: svgLines.join('\n') }}
           />,
         );
         i++;
@@ -939,9 +1119,9 @@ export function DocsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090d14] text-foreground selection:bg-primary/30 selection:text-primary-foreground font-sans antialiased">
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/30 selection:text-primary-foreground font-sans antialiased">
       {/* 1. Global Header (Symmetric max-w-[1440px] px-6 lg:px-8) */}
-      <header className="sticky top-0 z-50 w-full border-b border-border/30 bg-[#090d14]/90 backdrop-blur-md">
+      <header className="sticky top-0 z-50 w-full border-b border-border/30 bg-background/90 backdrop-blur-md">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Left Brand */}
           <div className="flex items-center gap-3">
@@ -958,7 +1138,7 @@ export function DocsPage() {
             >
               <FullLogo className="h-7 w-auto" />
               <span className="px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase rounded-full bg-primary/15 text-primary border border-primary/25">
-                Docs
+                {t('docs.badge')}
               </span>
             </Link>
           </div>
@@ -967,11 +1147,11 @@ export function DocsPage() {
           <div className="flex-1 max-w-md mx-auto hidden sm:block">
             <button
               onClick={() => setSearchOpen(true)}
-              className="w-full flex items-center justify-between px-3.5 py-1.5 rounded-lg border border-border/50 bg-[#121824] hover:bg-[#161f30] hover:border-primary/40 text-xs text-muted-foreground transition-all focus:outline-none"
+              className="w-full flex items-center justify-between px-3.5 py-1.5 rounded-lg border border-border/50 bg-muted hover:bg-muted/70 hover:border-primary/40 text-xs text-muted-foreground transition-all focus:outline-none"
             >
               <span className="flex items-center gap-2">
                 <Search className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>Search Anticeil docs...</span>
+                <span>{t('docs.search.placeholder')}</span>
               </span>
               <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-background/60 border border-border/50 rounded text-muted-foreground shadow-xs">
                 Ctrl K
@@ -980,10 +1160,10 @@ export function DocsPage() {
           </div>
 
           {/* Right Header Navigation */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
             <button
               onClick={() => setSearchOpen(true)}
-              className="sm:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground"
+              className="sm:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/30"
               aria-label="Search"
             >
               <Search className="w-4 h-4" />
@@ -992,17 +1172,66 @@ export function DocsPage() {
               href="https://github.com/mfaizasysyauqi/anticeil"
               target="_blank"
               rel="noreferrer"
-              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors hidden md:inline-flex items-center gap-1.5"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors hidden lg:inline-flex items-center gap-1.5"
             >
               <Github className="w-4 h-4" />
-              GitHub
+              {t('docs.header.github')}
             </a>
             <Link
               to="/flows"
-              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors hidden md:inline-block"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors hidden lg:inline-block"
             >
-              Pieces
+              {t('docs.header.pieces')}
             </Link>
+
+            {/* Language Switcher Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="px-2 py-1.5 rounded-lg border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all flex items-center gap-1.5 text-xs font-medium"
+                  aria-label={t('docs.header.language', 'Language')}
+                  title={t('docs.header.language', 'Language')}
+                >
+                  <Globe className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                  <span className="hidden md:inline">
+                    {localesMap[i18n.language as keyof typeof localesMap] || 'English'}
+                  </span>
+                  <span className="md:hidden font-semibold text-[11px] uppercase">
+                    {i18n.language ? i18n.language.slice(0, 2) : 'EN'}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44 max-h-72 overflow-y-auto">
+                {Object.entries(localesMap).map(([code, label]) => {
+                  const isSelected =
+                    i18n.language === code || (code === 'en' && !i18n.language);
+                  return (
+                    <DropdownMenuItem
+                      key={code}
+                      onClick={() => i18n.changeLanguage(code)}
+                      className="flex items-center justify-between text-xs cursor-pointer py-1.5"
+                    >
+                      <span>{label}</span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-primary" />}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 sm:p-2 rounded-lg border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all"
+              aria-label={t('docs.header.theme', 'Toggle theme')}
+              title={t('docs.header.theme', 'Toggle theme')}
+            >
+              {isDark ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-indigo-400" />
+              )}
+            </button>
             <a
               href="https://anticeil.com/sign-up"
               target="_blank"
@@ -1010,20 +1239,24 @@ export function DocsPage() {
             >
               <Button
                 size="sm"
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-xs px-3.5 h-8 gap-1.5 rounded-lg shadow-sm"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-xs px-2.5 sm:px-3.5 h-8 gap-1 rounded-lg shadow-sm"
               >
-                <span>Sign Up</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+                <span>{t('docs.header.sign_up')}</span>
+                <ChevronRight className="w-3 h-3 hidden sm:inline-block" />
               </Button>
             </a>
           </div>
         </div>
 
         {/* 2. Global Secondary Tabs Bar (Symmetric max-w-[1440px] px-6 lg:px-8) */}
-        <div className="border-t border-border/30 bg-[#090d14]/70">
+        <div className="border-t border-border/30 bg-background/70">
           <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-7 overflow-x-auto text-xs sm:text-sm scrollbar-none h-11">
             {docsData.tabs.map((tab) => {
               const isActive = tab.name === activeTabName;
+              const tabLabel = t(
+                TAB_TRANSLATION_KEYS[tab.name] || tab.name,
+                tab.name,
+              );
               return (
                 <button
                   key={tab.name}
@@ -1034,7 +1267,7 @@ export function DocsPage() {
                       : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {tab.name}
+                  {tabLabel}
                 </button>
               );
             })}
@@ -1047,53 +1280,60 @@ export function DocsPage() {
         {/* Left Sidebar (Desktop) */}
         <aside className="w-64 shrink-0 py-8 pr-6 border-r border-border/30 sticky top-[6.75rem] h-[calc(100vh-6.75rem)] overflow-y-auto hidden lg:block scrollbar-thin">
           <div className="space-y-6">
-            {activeTab.groups.map((group) => (
-              <div key={group.name} className="space-y-1.5">
-                <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 px-2.5">
-                  {group.name}
-                </h4>
-                <div className="space-y-0.5">
-                  {group.pages.map((p) => {
-                    const isPageActive =
-                      p.slug === currentSlug ||
-                      (currentSlug === 'overview/welcome' &&
-                        p.slug === 'overview/welcome');
-                    const PageIcon = getDocIcon(p.icon);
+            {activeTab.groups.map((group) => {
+              const groupLabel = t(
+                GROUP_TRANSLATION_KEYS[group.name] || group.name,
+                group.name,
+              );
+              return (
+                <div key={group.name} className="space-y-1.5">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 px-2.5">
+                    {groupLabel}
+                  </h4>
+                  <div className="space-y-0.5">
+                    {group.pages.map((p) => {
+                      const isPageActive =
+                        p.slug === currentSlug ||
+                        (currentSlug === 'overview/welcome' &&
+                          p.slug === 'overview/welcome');
+                      const PageIcon = getDocIcon(p.icon);
+                      const title = getPageTitle(p);
 
-                    return (
-                      <button
-                        key={p.slug}
-                        onClick={() => navigate(`/docs/${p.slug}`)}
-                        className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-all text-left group ${
-                          isPageActive
-                            ? 'bg-primary/15 text-primary font-semibold shadow-xs'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                        }`}
-                      >
-                        <PageIcon
-                          className={`w-3.5 h-3.5 shrink-0 ${
+                      return (
+                        <button
+                          key={p.slug}
+                          onClick={() => navigate(`/docs/${p.slug}`)}
+                          className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-all text-left group ${
                             isPageActive
-                              ? 'text-primary'
-                              : 'text-muted-foreground/70 group-hover:text-foreground'
+                              ? 'bg-primary/15 text-primary font-semibold shadow-xs'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
                           }`}
-                        />
-                        <span className="truncate">{p.title}</span>
-                      </button>
-                    );
-                  })}
+                        >
+                          <PageIcon
+                            className={`w-3.5 h-3.5 shrink-0 ${
+                              isPageActive
+                                ? 'text-primary'
+                                : 'text-muted-foreground/70 group-hover:text-foreground'
+                            }`}
+                          />
+                          <span className="truncate">{title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </aside>
 
         {/* Mobile Sidebar Drawer */}
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm lg:hidden flex">
-            <div className="w-72 bg-[#0d131f] border-r border-border/50 h-full p-6 overflow-y-auto space-y-6 shadow-2xl">
+            <div className="w-80 bg-card border-r border-border/50 h-full p-6 overflow-y-auto space-y-6 shadow-2xl">
               <div className="flex items-center justify-between border-b border-border/40 pb-4">
                 <span className="font-bold text-sm tracking-tight text-foreground">
-                  Navigation
+                  {t('docs.sidebar.navigation')}
                 </span>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
@@ -1103,59 +1343,121 @@ export function DocsPage() {
                 </button>
               </div>
 
+              {/* Language & Theme Controls in Mobile Drawer */}
+              <div className="space-y-2 border-b border-border/30 pb-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5" />
+                    {t('docs.header.language')}
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="px-2.5 py-1 rounded-md border border-border/40 text-xs font-medium flex items-center gap-1 bg-muted/30">
+                        <span>
+                          {localesMap[i18n.language as keyof typeof localesMap] || 'English'}
+                        </span>
+                        <ChevronRight className="w-3 h-3 rotate-90" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 max-h-64 overflow-y-auto">
+                      {Object.entries(localesMap).map(([code, label]) => (
+                        <DropdownMenuItem
+                          key={code}
+                          onClick={() => i18n.changeLanguage(code)}
+                          className="flex items-center justify-between text-xs cursor-pointer py-1.5"
+                        >
+                          <span>{label}</span>
+                          {i18n.language === code && <Check className="w-3.5 h-3.5 text-primary" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    {isDark ? <Moon className="w-3.5 h-3.5 text-indigo-400" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
+                    {t('docs.header.theme')}
+                  </span>
+                  <button
+                    onClick={toggleTheme}
+                    className="px-2.5 py-1 rounded-md border border-border/40 text-xs font-medium flex items-center gap-1.5 bg-muted/30 hover:bg-muted/60"
+                  >
+                    {isDark ? (
+                      <Sun className="w-3.5 h-3.5 text-amber-400" />
+                    ) : (
+                      <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                    )}
+                    <span>{isDark ? 'Dark' : 'Light'}</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Mobile Tabs */}
               <div className="space-y-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Category
+                  {t('docs.sidebar.category')}
                 </span>
                 <div className="grid grid-cols-2 gap-1.5 pt-1">
-                  {docsData.tabs.map((tab) => (
-                    <button
-                      key={tab.name}
-                      onClick={() => {
-                        handleSelectTab(tab);
-                      }}
-                      className={`text-xs px-2.5 py-1.5 rounded-md text-left truncate ${
-                        tab.name === activeTabName
-                          ? 'bg-primary text-primary-foreground font-medium'
-                          : 'bg-muted/30 text-muted-foreground'
-                      }`}
-                    >
-                      {tab.name}
-                    </button>
-                  ))}
+                  {docsData.tabs.map((tab) => {
+                    const tabLabel = t(
+                      TAB_TRANSLATION_KEYS[tab.name] || tab.name,
+                      tab.name,
+                    );
+                    return (
+                      <button
+                        key={tab.name}
+                        onClick={() => {
+                          handleSelectTab(tab);
+                        }}
+                        className={`text-xs px-2.5 py-1.5 rounded-md text-left truncate ${
+                          tab.name === activeTabName
+                            ? 'bg-primary text-primary-foreground font-medium'
+                            : 'bg-muted/30 text-muted-foreground'
+                        }`}
+                      >
+                        {tabLabel}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               <div className="space-y-6 pt-2">
-                {activeTab.groups.map((group) => (
-                  <div key={group.name} className="space-y-1">
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-2">
-                      {group.name}
-                    </h4>
-                    <div className="space-y-0.5">
-                      {group.pages.map((p) => {
-                        const isPageActive = p.slug === currentSlug;
-                        return (
-                          <button
-                            key={p.slug}
-                            onClick={() => {
-                              navigate(`/docs/${p.slug}`);
-                              setMobileMenuOpen(false);
-                            }}
-                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-left ${
-                              isPageActive
-                                ? 'bg-primary/15 text-primary font-medium'
-                                : 'text-muted-foreground hover:bg-muted/20'
-                            }`}
-                          >
-                            <span className="truncate">{p.title}</span>
-                          </button>
-                        );
-                      })}
+                {activeTab.groups.map((group) => {
+                  const groupLabel = t(
+                    GROUP_TRANSLATION_KEYS[group.name] || group.name,
+                    group.name,
+                  );
+                  return (
+                    <div key={group.name} className="space-y-1">
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-2">
+                        {groupLabel}
+                      </h4>
+                      <div className="space-y-0.5">
+                        {group.pages.map((p) => {
+                          const isPageActive = p.slug === currentSlug;
+                          const title = getPageTitle(p);
+                          return (
+                            <button
+                              key={p.slug}
+                              onClick={() => {
+                                navigate(`/docs/${p.slug}`);
+                                setMobileMenuOpen(false);
+                              }}
+                              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-left ${
+                                isPageActive
+                                  ? 'bg-primary/15 text-primary font-medium'
+                                  : 'text-muted-foreground hover:bg-muted/20'
+                              }`}
+                            >
+                              <span className="truncate">{title}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
             <div
@@ -1169,7 +1471,12 @@ export function DocsPage() {
         <main className="flex-1 min-w-0 py-8 px-4 sm:px-8 lg:px-12 max-w-4xl">
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-            <span>{currentPage.group || currentPage.tab}</span>
+            <span>
+              {t(
+                GROUP_TRANSLATION_KEYS[currentPage.group] || currentPage.group,
+                currentPage.group || currentPage.tab,
+              )}
+            </span>
             <ChevronRight className="w-3 h-3 text-muted-foreground/60" />
             <span className="text-foreground font-medium">
               {currentPage.title}
@@ -1188,6 +1495,51 @@ export function DocsPage() {
             )}
           </div>
 
+          {/* Mobile / Tablet In-Page TOC Collapsible */}
+          {currentPage.toc && currentPage.toc.length > 0 && (
+            <div className="xl:hidden mb-6 rounded-lg border border-border/40 bg-card/60 p-3">
+              <details className="group">
+                <summary className="flex items-center justify-between text-xs font-semibold text-foreground cursor-pointer list-none select-none">
+                  <span className="flex items-center gap-2">
+                    <ListOrdered className="w-3.5 h-3.5 text-primary" />
+                    <span>{t('docs.toc.title')}</span>
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-open:rotate-90 transition-transform" />
+                </summary>
+                <nav className="mt-3 pt-3 border-t border-border/30 space-y-1.5">
+                  {(() => {
+                    const seen = new Set<string>();
+                    const uniqueToc = currentPage.toc.filter((item) => {
+                      if (seen.has(item.title)) return false;
+                      seen.add(item.title);
+                      return true;
+                    }).slice(0, 25);
+                    return uniqueToc.map((item) => (
+                      <a
+                        key={item.id}
+                        href={`#${item.id}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const target = document.getElementById(item.id);
+                          if (target) {
+                            target.scrollIntoView({ behavior: 'smooth' });
+                            window.history.pushState(null, '', `#${item.id}`);
+                            setActiveHeadingId(item.id);
+                          }
+                        }}
+                        className={`block text-xs py-1 transition-colors ${
+                          item.level === 3 ? 'pl-3 text-muted-foreground/80' : 'text-muted-foreground'
+                        } hover:text-foreground`}
+                      >
+                        {item.title}
+                      </a>
+                    ));
+                  })()}
+                </nav>
+              </details>
+            </div>
+          )}
+
           <div className="border-b border-border/30 my-6" />
 
           {/* Render MDX Body */}
@@ -1198,12 +1550,12 @@ export function DocsPage() {
           {/* Page Footer / Feedback */}
           <div className="mt-14 pt-8 border-t border-border/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-3">
-              <span>Was this page helpful?</span>
+              <span>{t('docs.page.helpful')}</span>
               <button className="px-2.5 py-1 rounded-md border border-border/50 hover:bg-muted/30 transition-colors">
-                Yes
+                {t('docs.page.yes')}
               </button>
               <button className="px-2.5 py-1 rounded-md border border-border/50 hover:bg-muted/30 transition-colors">
-                No
+                {t('docs.page.no')}
               </button>
             </div>
             <div className="flex items-center gap-4">
@@ -1213,7 +1565,7 @@ export function DocsPage() {
                 rel="noreferrer"
                 className="hover:text-primary transition-colors inline-flex items-center gap-1"
               >
-                <span>Suggest edits</span>
+                <span>{t('docs.page.suggest_edits')}</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
               <a
@@ -1222,7 +1574,7 @@ export function DocsPage() {
                 rel="noreferrer"
                 className="hover:text-primary transition-colors"
               >
-                Raise issue
+                {t('docs.page.raise_issue')}
               </a>
             </div>
           </div>
@@ -1233,37 +1585,46 @@ export function DocsPage() {
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <ListOrdered className="w-3.5 h-3.5" />
-              <span>On this page</span>
+              <span>{t('docs.toc.title')}</span>
             </div>
             <nav className="space-y-1.5">
               {currentPage.toc && currentPage.toc.length > 0 ? (
-                currentPage.toc.map((item) => (
-                  <a
-                    key={item.id}
-                    href={`#${item.id}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      const target = document.getElementById(item.id);
-                      if (target) {
-                        target.scrollIntoView({ behavior: 'smooth' });
-                        window.history.pushState(null, '', `#${item.id}`);
-                        setActiveHeadingId(item.id);
-                      }
-                    }}
-                    className={`block text-xs leading-snug transition-colors ${
-                      item.level === 3 ? 'pl-3' : ''
-                    } ${
-                      activeHeadingId === item.id
-                        ? 'text-primary font-medium'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {item.title}
-                  </a>
-                ))
+                (() => {
+                  // Deduplicate by title, keep first occurrence, cap at 25
+                  const seen = new Set<string>();
+                  const uniqueToc = currentPage.toc.filter((item) => {
+                    if (seen.has(item.title)) return false;
+                    seen.add(item.title);
+                    return true;
+                  }).slice(0, 25);
+                  return uniqueToc.map((item) => (
+                    <a
+                      key={item.id}
+                      href={`#${item.id}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const target = document.getElementById(item.id);
+                        if (target) {
+                          target.scrollIntoView({ behavior: 'smooth' });
+                          window.history.pushState(null, '', `#${item.id}`);
+                          setActiveHeadingId(item.id);
+                        }
+                      }}
+                      className={`block text-xs leading-snug transition-colors ${
+                        item.level === 3 ? 'pl-3' : ''
+                      } ${
+                        activeHeadingId === item.id
+                          ? 'text-primary font-medium'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {item.title}
+                    </a>
+                  ));
+                })()
               ) : (
                 <span className="text-xs text-muted-foreground/60 italic">
-                  Overview
+                  {t('docs.toc.overview')}
                 </span>
               )}
             </nav>
@@ -1274,7 +1635,7 @@ export function DocsPage() {
       {/* Search Modal */}
       {searchOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-start justify-center pt-20 p-4">
-          <div className="w-full max-w-lg bg-[#0d131f] border border-border/60 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="w-full max-w-lg bg-popover border border-border/60 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40">
               <Search className="w-4 h-4 text-muted-foreground" />
               <input
@@ -1282,7 +1643,7 @@ export function DocsPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search documentation, guides, APIs..."
+                placeholder={t('docs.search.modal.placeholder')}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
               <button
@@ -1306,10 +1667,10 @@ export function DocsPage() {
                   >
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-foreground group-hover:text-primary">
-                        {res.title}
+                        {getPageTitle(res)}
                       </span>
                       <span className="text-[10px] text-muted-foreground uppercase">
-                        {res.tab}
+                        {t(TAB_TRANSLATION_KEYS[res.tab] || res.tab, res.tab)}
                       </span>
                     </div>
                     {res.description && (
@@ -1321,11 +1682,11 @@ export function DocsPage() {
                 ))
               ) : searchQuery.trim() ? (
                 <div className="p-6 text-center text-xs text-muted-foreground">
-                  No matching documentation pages found for "{searchQuery}".
+                  {t('docs.search.no_results', { query: searchQuery })}
                 </div>
               ) : (
                 <div className="p-4 text-xs text-muted-foreground space-y-1">
-                  <p className="font-medium text-foreground">Popular Guides:</p>
+                  <p className="font-medium text-foreground">{t('docs.search.popular_guides')}</p>
                   <div className="grid grid-cols-2 gap-1 pt-1">
                     <button
                       onClick={() => {
@@ -1334,7 +1695,7 @@ export function DocsPage() {
                       }}
                       className="text-left p-1.5 rounded hover:bg-muted/30 text-xs text-primary"
                     >
-                      Welcome to Anticeil
+                      {t('docs.search.welcome')}
                     </button>
                     <button
                       onClick={() => {
@@ -1343,7 +1704,7 @@ export function DocsPage() {
                       }}
                       className="text-left p-1.5 rounded hover:bg-muted/30 text-xs text-primary"
                     >
-                      AI Agents Overview
+                      {t('docs.search.agents')}
                     </button>
                     <button
                       onClick={() => {
@@ -1352,7 +1713,7 @@ export function DocsPage() {
                       }}
                       className="text-left p-1.5 rounded hover:bg-muted/30 text-xs text-primary"
                     >
-                      Building Flows
+                      {t('docs.search.flows')}
                     </button>
                     <button
                       onClick={() => {
@@ -1361,7 +1722,7 @@ export function DocsPage() {
                       }}
                       className="text-left p-1.5 rounded hover:bg-muted/30 text-xs text-primary"
                     >
-                      Self-Hosting & Docker
+                      {t('docs.search.hosting')}
                     </button>
                   </div>
                 </div>
