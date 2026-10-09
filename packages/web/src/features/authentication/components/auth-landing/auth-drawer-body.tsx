@@ -412,34 +412,29 @@ function LegalNote() {
     ApFlagId.PRIVACY_POLICY_URL,
   );
 
-  if (isNil(termsUrl) && isNil(privacyUrl)) {
-    return null;
-  }
+  const effectiveTerms = termsUrl || '/terms';
+  const effectivePrivacy = privacyUrl || '/privacy';
 
   return (
     <p className="mt-8 border-t pt-5 text-center text-[11px] leading-relaxed text-muted-foreground">
       {t('By continuing, you agree to our')}{' '}
-      {!isNil(termsUrl) && (
-        <a
-          href={termsUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="underline underline-offset-2 transition-colors hover:text-foreground"
-        >
-          {t('Terms of Service')}
-        </a>
-      )}
-      {!isNil(termsUrl) && !isNil(privacyUrl) && ` ${t('and')} `}
-      {!isNil(privacyUrl) && (
-        <a
-          href={privacyUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="underline underline-offset-2 transition-colors hover:text-foreground"
-        >
-          {t('Privacy Policy')}
-        </a>
-      )}
+      <a
+        href={effectiveTerms}
+        target="_blank"
+        rel="noreferrer"
+        className="underline underline-offset-2 transition-colors hover:text-foreground"
+      >
+        {t('Terms of Service')}
+      </a>
+      {` ${t('and')} `}
+      <a
+        href={effectivePrivacy}
+        target="_blank"
+        rel="noreferrer"
+        className="underline underline-offset-2 transition-colors hover:text-foreground"
+      >
+        {t('Privacy Policy')}
+      </a>
     </p>
   );
 }

@@ -57,7 +57,7 @@ export const billingMutations = {
         platformBillingApi.checkout(params),
       onSuccess: ({ checkoutUrl }, { planId }) => {
         if (checkoutUrl) {
-          window.open(checkoutUrl, '_blank');
+          window.location.href = checkoutUrl;
         } else {
           refreshBillingCaches(queryClient);
           usePlanSwitchSuccessDialogStore.getState().openDialog(planId);

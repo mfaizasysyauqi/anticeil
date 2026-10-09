@@ -1,27 +1,27 @@
 {
    "$schema": "https://mintlify.com/docs.json",
    "theme": "mint",
-   "name": "Activepieces",
+   "name": "Anticeil",
    "colors": {
-      "primary": "#9675FF",
-      "light": "#9675FF",
-      "dark": "#9675FF"
+      "primary": "#6366F1",
+      "light": "#6366F1",
+      "dark": "#6366F1"
    },
    "navbar": {
       "links": [
          {
             "label": "GitHub",
-            "href": "https://github.com/activepieces/activepieces"
+            "href": "https://github.com/mfaizasysyauqi/anticeil"
          },
          {
-            "label": "Pieces",
-            "href": "https://www.activepieces.com/pieces"
+            "label": "App",
+            "href": "https://anticeil.com"
          }
       ],
       "primary": {
          "type": "button",
-         "label": "Sign Up",
-         "href": "https://cloud.activepieces.com/sign-up"
+         "label": "Mulai Gratis",
+         "href": "https://anticeil.com/sign-up"
       }
    },
    "redirects": [

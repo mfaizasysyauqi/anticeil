@@ -110,11 +110,20 @@ const platformPlanController = async (app) => {
     });
     app.post('/checkout', CheckoutRequest, async (request) => {
         const platformId = request.principal.platform.id;
-        const result = await billing_provider_1.billingProvider.get(request.log).createCheckoutSession({
+        let result = await billing_provider_1.billingProvider.get(request.log).createCheckoutSession({
             platformId,
             planId: request.body.planId,
             successUrl: request.body.successUrl,
         });
+        if (!result || !result.checkoutUrl) {
+            result = await createMidtransSnapSession({
+                log: request.log,
+                platformId,
+                planId: request.body.planId,
+                successUrl: request.body.successUrl,
+                userEmail: await resolveActorEmail(request.log, request.principal.id),
+            });
+        }
         (0, promise_handler_1.rejectedPromiseHandler)((0, platform_plan_telemetry_1.platformPlanTelemetry)(request.log).onCheckoutStarted({ platformId, planId: request.body.planId }), request.log);
         await refreshWhenAppliedImmediately({ log: request.log, platformId, checkoutUrl: result.checkoutUrl });
         return result;
@@ -541,3 +550,62 @@ const SetupPaymentRequest = {
     },
     config: PLATFORM_ADMIN_ONLY,
 };
+
+async function createMidtransSnapSession({ log, platformId, planId, successUrl, userEmail }) {
+    const rawPlan = (planId || '').toLowerCase();
+    const isEnterprise = rawPlan.includes('enterprise');
+    const isTeam = rawPlan.includes('team') || isEnterprise;
+    const isPlus = rawPlan.includes('plus') || isTeam;
+    const isAnnual = rawPlan.includes('annual') || rawPlan.includes('year');
+
+    const planName = isEnterprise ? 'Enterprise' : (isTeam ? 'Team' : (isPlus ? 'Plus' : 'Free'));
+    let price = 0;
+    if (isEnterprise) price = 50000000;
+    else if (isTeam) price = isAnnual ? 29900000 : 2990000;
+    else if (isPlus) price = isAnnual ? 2990000 : 299000;
+
+    if (price === 0) return { checkoutUrl: null };
+
+    const serverKey = process.env.AP_MIDTRANS_SERVER_KEY;
+    if (!serverKey) {
+        log.warn({ platformId }, '[Midtrans] AP_MIDTRANS_SERVER_KEY is not configured');
+        return { checkoutUrl: null };
+    }
+    const orderId = `ANTICEIL-${platformId.substring(0, 8)}-${rawPlan}-${Date.now()}`;
+    const finishUrl = successUrl || `${process.env.AP_FRONTEND_URL || 'https://anticeil.com'}/platform/billing?status=success`;
+
+    const snapPayload = {
+        transaction_details: { order_id: orderId, gross_amount: price },
+        item_details: [{ id: rawPlan, price, quantity: 1, name: `Anticeil Paket ${planName}` }],
+        customer_details: { email: userEmail || 'billing@anticeil.com', first_name: 'Pelanggan Anticeil' },
+        callbacks: { finish: finishUrl }
+    };
+
+    const isProdConfig = process.env.AP_MIDTRANS_IS_PRODUCTION === 'true';
+    const endpoints = isProdConfig
+        ? ['https://app.midtrans.com/snap/v1/transactions', 'https://app.sandbox.midtrans.com/snap/v1/transactions']
+        : ['https://app.sandbox.midtrans.com/snap/v1/transactions', 'https://app.midtrans.com/snap/v1/transactions'];
+
+    const authHeader = Buffer.from(`${serverKey}:`).toString('base64');
+    for (const endpoint of endpoints) {
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    Authorization: `Basic ${authHeader}`
+                },
+                body: JSON.stringify(snapPayload)
+            });
+            const data = await res.json();
+            if (data && data.redirect_url) {
+                log.info({ platformId, orderId, redirectUrl: data.redirect_url, endpoint }, '[Midtrans] Snap transaction created in controller');
+                return { checkoutUrl: data.redirect_url };
+            }
+        } catch (err) {
+            log.warn({ err, endpoint }, '[Midtrans] Snap request error');
+        }
+    }
+    return { checkoutUrl: null };
+}

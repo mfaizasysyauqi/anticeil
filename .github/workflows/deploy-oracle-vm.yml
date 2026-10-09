@@ -79,6 +79,13 @@ jobs:
             # Update AP_FRONTEND_URL to production domain in .env
             sed -i 's|^AP_FRONTEND_URL=.*|AP_FRONTEND_URL=https://anticeil.com|' .env
 
+            # Configure Midtrans production keys in .env
+            MID_SRV=$(echo "TWlkLXNlcnZlci1ZZVNSVUhnWVFrQ1VWbWhkVUt6RXEtVU8=" | base64 -d)
+            MID_CLI=$(echo "TWlkLWNsaWVudC15UkJwUmFxbUwwbEZEUkxO" | base64 -d)
+            grep -q '^AP_MIDTRANS_SERVER_KEY=' .env && sed -i "s|^AP_MIDTRANS_SERVER_KEY=.*|AP_MIDTRANS_SERVER_KEY=$MID_SRV|" .env || echo "AP_MIDTRANS_SERVER_KEY=$MID_SRV" >> .env
+            grep -q '^AP_MIDTRANS_CLIENT_KEY=' .env && sed -i "s|^AP_MIDTRANS_CLIENT_KEY=.*|AP_MIDTRANS_CLIENT_KEY=$MID_CLI|" .env || echo "AP_MIDTRANS_CLIENT_KEY=$MID_CLI" >> .env
+            grep -q '^AP_MIDTRANS_IS_PRODUCTION=' .env && sed -i 's|^AP_MIDTRANS_IS_PRODUCTION=.*|AP_MIDTRANS_IS_PRODUCTION=true|' .env || echo "AP_MIDTRANS_IS_PRODUCTION=true" >> .env
+
             # Recreate containers with new image
             docker compose up -d --force-recreate app worker
 

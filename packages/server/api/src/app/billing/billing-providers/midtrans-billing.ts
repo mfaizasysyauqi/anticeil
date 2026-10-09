@@ -132,42 +132,117 @@ export const midtransBillingProvider = (log: FastifyBaseLogger): BillingProvider
         const isEnterprise = rawPlan.includes('enterprise')
         const isTeam = rawPlan.includes('team') || isEnterprise
         const isPlus = rawPlan.includes('plus') || isTeam
+        const isAnnual = rawPlan.includes('annual') || rawPlan.includes('year')
 
-        const planName = isEnterprise ? 'enterprise' : (isTeam ? 'team' : (isPlus ? 'plus' : 'free'))
+        const planName = isEnterprise ? 'Enterprise' : (isTeam ? 'Team' : (isPlus ? 'Plus' : 'Free'))
 
-        await platformPlanRepo().update({ platformId }, {
-            plan: planName,
-            agentsEnabled: isPlus,
-            aiProvidersEnabled: isPlus,
-            chatEnabled: true,
-            tablesEnabled: true,
-            apiKeysEnabled: isTeam,
-            billedTeamProjectsLimit: isTeam ? null : (isPlus ? 1 : 0),
-            includedCredits: isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)),
-            usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
-            projectsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? null : 1)),
-            activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
-            analyticsEnabled: isPlus,
-            customRolesEnabled: isTeam,
-            projectRolesEnabled: isTeam,
-            ssoEnabled: isTeam,
-            scimEnabled: isEnterprise,
-            globalConnectionsEnabled: isTeam,
-            auditLogEnabled: isTeam,
-            environmentsEnabled: isTeam,
-            eventStreamingEnabled: isEnterprise,
-            workerGroupsEnabled: isEnterprise,
-            customDomainsEnabled: isEnterprise,
-            showPoweredBy: !isPlus,
-            secretManagersEnabled: isTeam,
-            customAppearanceEnabled: isPlus,
-            managePiecesEnabled: isTeam,
-            manageTemplatesEnabled: isTeam,
-            embeddingEnabled: isTeam,
-        })
-        await distributedStore.delete(getBillingOverviewKey(platformId))
-        await distributedStore.delete(getPlatformPlanNameKey(platformId))
-        log.info({ platformId, planName }, 'Plan instantly upgraded in development mode')
+        let price = 0
+        if (isEnterprise) {
+            price = 50000000
+        }
+        else if (isTeam) {
+            price = isAnnual ? 29900000 : 2990000
+        }
+        else if (isPlus) {
+            price = isAnnual ? 2990000 : 299000
+        }
+
+        if (price === 0) {
+            await platformPlanRepo().update({ platformId }, {
+                plan: 'free',
+                agentsEnabled: false,
+                aiProvidersEnabled: false,
+                chatEnabled: true,
+                tablesEnabled: true,
+                apiKeysEnabled: false,
+                billedTeamProjectsLimit: 0,
+                includedCredits: 1000,
+                usersLimit: 1,
+                projectsLimit: 1,
+                activeFlowsLimit: 5,
+                analyticsEnabled: false,
+                customRolesEnabled: false,
+                projectRolesEnabled: false,
+                ssoEnabled: false,
+                scimEnabled: false,
+                globalConnectionsEnabled: false,
+                auditLogEnabled: false,
+                environmentsEnabled: false,
+                eventStreamingEnabled: false,
+                workerGroupsEnabled: false,
+                customDomainsEnabled: false,
+                showPoweredBy: true,
+                secretManagersEnabled: false,
+                customAppearanceEnabled: false,
+                managePiecesEnabled: false,
+                manageTemplatesEnabled: false,
+                embeddingEnabled: false,
+            })
+            await distributedStore.delete(getBillingOverviewKey(platformId))
+            await distributedStore.delete(getPlatformPlanNameKey(platformId))
+            log.info({ platformId }, 'Plan reset to free')
+            return { checkoutUrl: null }
+        }
+
+        const serverKey = system.get(AppSystemProp.MIDTRANS_SERVER_KEY) || process.env.AP_MIDTRANS_SERVER_KEY
+        if (!serverKey) {
+            log.warn({ platformId }, '[Midtrans] AP_MIDTRANS_SERVER_KEY is not configured')
+            return { checkoutUrl: null }
+        }
+        const orderId = `ANTICEIL-${platformId.substring(0, 8)}-${rawPlan}-${Date.now()}`
+        const finishUrl = successUrl || `${system.get(AppSystemProp.FRONTEND_URL) || 'https://anticeil.com'}/platform/billing?status=success`
+
+        const snapPayload = {
+            transaction_details: {
+                order_id: orderId,
+                gross_amount: price,
+            },
+            item_details: [
+                {
+                    id: rawPlan,
+                    price,
+                    quantity: 1,
+                    name: `Anticeil Paket ${planName}`,
+                },
+            ],
+            customer_details: {
+                email: 'billing@anticeil.com',
+                first_name: 'Pelanggan Anticeil',
+            },
+            callbacks: {
+                finish: finishUrl,
+            },
+        }
+
+        const isProdConfig = system.getBoolean(AppSystemProp.MIDTRANS_IS_PRODUCTION) ?? (process.env.AP_MIDTRANS_IS_PRODUCTION === 'true')
+        const endpoints = isProdConfig
+            ? ['https://app.midtrans.com/snap/v1/transactions', 'https://app.sandbox.midtrans.com/snap/v1/transactions']
+            : ['https://app.sandbox.midtrans.com/snap/v1/transactions', 'https://app.midtrans.com/snap/v1/transactions']
+
+        const authHeader = Buffer.from(`${serverKey}:`).toString('base64')
+
+        for (const endpoint of endpoints) {
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        Authorization: `Basic ${authHeader}`,
+                    },
+                    body: JSON.stringify(snapPayload),
+                })
+                const snapData = (await response.json()) as { redirect_url?: string, token?: string, error_messages?: string[] }
+                if (snapData && snapData.redirect_url) {
+                    log.info({ platformId, orderId, redirectUrl: snapData.redirect_url, endpoint }, '[Midtrans] Snap transaction created')
+                    return { checkoutUrl: snapData.redirect_url }
+                }
+                log.warn({ endpoint, snapData }, '[Midtrans] Snap endpoint returned non-redirect payload')
+            }
+            catch (err) {
+                log.warn({ err, endpoint }, '[Midtrans] Failed to call Snap endpoint')
+            }
+        }
 
         return { checkoutUrl: null }
     },

@@ -9,6 +9,7 @@ import dayjs from 'dayjs';
 import { t } from 'i18next';
 import { ArrowUpRight, ExternalLink, RefreshCw } from 'lucide-react';
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { BillingPageShell } from '@/app/components/billing-page-shell';
@@ -246,6 +247,25 @@ function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
             isTrialKey={isTrialKeySection}
           />
         </BillingSection>
+
+        <Separator />
+        <div className="pt-2 pb-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-foreground">Pembayaran Aman:</span>
+            <span>Diproses oleh Payment Gateway resmi Midtrans (IDR)</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <Link to="/terms" target="_blank" className="hover:text-foreground underline">
+              Syarat & Ketentuan Layanan
+            </Link>
+            <Link to="/privacy" target="_blank" className="hover:text-foreground underline">
+              Kebijakan Privasi
+            </Link>
+            <Link to="/docs" target="_blank" className="hover:text-foreground underline">
+              Dokumentasi
+            </Link>
+          </div>
+        </div>
       </div>
       {deactivateUsersDialog}
       <CancelSubscriptionDialog

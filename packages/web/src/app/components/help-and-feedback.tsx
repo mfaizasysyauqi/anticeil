@@ -25,14 +25,42 @@ export const HelpAndFeedback = () => {
       <DropdownMenuSubContent className="w-[220px]">
         <DropdownMenuItem asChild>
           <Link
-            to="https://activepieces.com/docs"
+            to="/docs"
             target="_blank"
             rel="noopener noreferrer"
             className="flex justify-between w-full"
           >
             <div className="flex items-center gap-2">
               <BookOpen className="size-4" />
-              <span>Documentation</span>
+              <span>{t('Documentation')}</span>
+            </div>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link
+            to="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex justify-between w-full"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs">📜</span>
+              <span>{t('Syarat & Ketentuan')}</span>
+            </div>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link
+            to="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex justify-between w-full"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs">🔒</span>
+              <span>{t('Kebijakan Privasi')}</span>
             </div>
           </Link>
         </DropdownMenuItem>
