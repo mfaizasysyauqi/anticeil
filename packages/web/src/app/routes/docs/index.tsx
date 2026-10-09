@@ -1340,31 +1340,56 @@ export function DocsPage() {
 
       // Unordered lists
       if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-        const listText = trimmed.slice(2);
+        const listItems: string[] = [];
+        while (i < lines.length) {
+          const lTrim = lines[i].trim();
+          if (lTrim.startsWith('- ') || lTrim.startsWith('* ')) {
+            listItems.push(lTrim.slice(2));
+            i++;
+          } else {
+            break;
+          }
+        }
         elements.push(
-          <li
-            key={`li-${elements.length}`}
-            className="text-xs sm:text-sm text-foreground/85 dark:text-muted-foreground ml-4 list-disc leading-relaxed my-1"
+          <ul
+            key={`ul-${elements.length}`}
+            className="my-3 space-y-1.5 pl-4 list-disc text-xs sm:text-sm text-foreground/85 dark:text-muted-foreground leading-relaxed"
           >
-            {renderFormattedText(listText, currentSlug)}
-          </li>,
+            {listItems.map((item, idx) => (
+              <li key={idx} className="my-1 pl-1">
+                {renderFormattedText(item, currentSlug)}
+              </li>
+            ))}
+          </ul>,
         );
-        i++;
         continue;
       }
 
       // Numbered lists
-      const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
-      if (numMatch) {
+      if (/^\d+\.\s+/.test(trimmed)) {
+        const listItems: { num: number; text: string }[] = [];
+        while (i < lines.length) {
+          const lTrim = lines[i].trim();
+          const nM = lTrim.match(/^(\d+)\.\s+(.*)$/);
+          if (nM) {
+            listItems.push({ num: parseInt(nM[1], 10), text: nM[2] });
+            i++;
+          } else {
+            break;
+          }
+        }
         elements.push(
-          <li
-            key={`oli-${elements.length}`}
-            className="text-xs sm:text-sm text-foreground/85 dark:text-muted-foreground ml-5 list-decimal leading-relaxed my-1"
+          <ol
+            key={`ol-${elements.length}`}
+            className="my-3 space-y-1.5 pl-5 list-decimal text-xs sm:text-sm text-foreground/85 dark:text-muted-foreground leading-relaxed"
           >
-            {renderFormattedText(numMatch[2], currentSlug)}
-          </li>,
+            {listItems.map((item, idx) => (
+              <li key={idx} value={item.num} className="my-1 pl-1">
+                {renderFormattedText(item.text, currentSlug)}
+              </li>
+            ))}
+          </ol>,
         );
-        i++;
         continue;
       }
 
