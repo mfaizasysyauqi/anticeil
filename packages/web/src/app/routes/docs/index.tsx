@@ -241,32 +241,67 @@ function DocImage({
 function cleanMojibake(text: string): string {
   if (!text) return text;
   return text
-    .replace(/â€”/g, ' — ')
+    .replace(/â€”/g, '—')
     .replace(/â€“/g, '–')
-    .replace(/â†’/g, ' → ')
-    .replace(/å†’/g, ' → ')
-    .replace(/â†['’]/g, ' → ')
-    .replace(/â†/g, ' → ')
-    .replace(/â†”/g, ' ↔ ')
+    .replace(/â†’/g, '→')
+    .replace(/å†’/g, '→')
+    .replace(/â†['’]/g, '→')
+    .replace(/â†”/g, '↔')
     .replace(/â†©/g, '↵')
+    .replace(/â†/g, '→')
+    .replace(/â€º/g, '›')
+    .replace(/â€¹/g, '‹')
     .replace(/â€™/g, "'")
     .replace(/â€˜/g, "'")
     .replace(/â€œ/g, '"')
     .replace(/â€[”"\x9d\x9c]/g, '"')
-    .replace(/â€/g, ' — ')
-    .replace(/â€¦/g, '...')
+    .replace(/â€ /g, '— ')
+    .replace(/â€¦/g, '…')
     .replace(/âœ…/g, '✅')
     .replace(/âœ“/g, '✓')
-    .replace(/â\x9DŒ/g, '❌')
+    .replace(/â\x9DŒ|â Œ/g, '❌')
     .replace(/â\x9D—/g, '❓')
     .replace(/â‰ˆ/g, '≈')
     .replace(/â‰¤/g, '≤')
-    .replace(/â‰¥/g, '≥');
+    .replace(/â‰¥/g, '≥')
+    .replace(/â‰«/g, '≪')
+    .replace(/â”€/g, '─')
+    .replace(/â”│|â”‚/g, '│')
+    .replace(/â”œ/g, '├')
+    .replace(/â””/g, '└')
+    .replace(/â”Œ/g, '┌')
+    .replace(/â”\x90|â” /g, '┐')
+    .replace(/â”┤/g, '┤')
+    .replace(/â”┴/g, '┴')
+    .replace(/â”┬/g, '┬')
+    .replace(/â”¼/g, '┼')
+    .replace(/â”˜/g, '┘')
+    .replace(/â–¼/g, '▼')
+    .replace(/â–▶|â–¶/g, '▶')
+    .replace(/â˜•/g, '☕')
+    .replace(/âœ¨/g, '✨')
+    .replace(/âˆ’/g, '−')
+    .replace(/âˆˆ/g, '∈')
+    .replace(/â€/g, '—');
 }
 
 function renderFormattedText(text: string, currentSlug: string = ''): React.ReactNode {
   if (!text) return null;
   const cleanedText = cleanMojibake(text);
+
+  // If text starts with markdown heading prefix (e.g. inside an accordion or list: "#### Title")
+  const headingInline = cleanedText.match(/^(#{1,6})\s*(.*)$/);
+  if (headingInline) {
+    const level = headingInline[1].length;
+    const hText = headingInline[2];
+    return (
+      <span className={`block font-bold text-foreground my-2 ${
+        level === 1 ? 'text-xl' : level === 2 ? 'text-lg' : level === 3 ? 'text-base' : 'text-sm'
+      }`}>
+        {renderFormattedText(hText, currentSlug)}
+      </span>
+    );
+  }
 
   const regex = /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*)/g;
   const nodes: React.ReactNode[] = [];
@@ -509,7 +544,7 @@ export function DocsPage() {
                     className="hover:bg-muted/20 transition-colors"
                   >
                     {row.map((cell, cIdx) => (
-                      <td key={cIdx} className="px-4 py-2 text-foreground/90 dark:text-muted-foreground">
+                      <td key={cIdx} className="px-4 py-2 text-foreground/90 dark:text-foreground/85">
                         {renderFormattedText(cell.trim(), currentSlug)}
                       </td>
                     ))}
@@ -856,10 +891,54 @@ export function DocsPage() {
               <span>{accTitle}</span>
               <ChevronRight className="w-4 h-4 text-muted-foreground group-open:rotate-90 transition-transform" />
             </summary>
-            <div className="pt-3 text-muted-foreground leading-relaxed">
-              {renderFormattedText(accBody.trim(), currentSlug)}
+            <div className="pt-3 text-foreground/85 dark:text-muted-foreground leading-relaxed space-y-2">
+              {accBody.split('\n').filter(l => l.trim()).map((l, lIdx) => (
+                <div key={lIdx}>{renderFormattedText(l.trim(), currentSlug)}</div>
+              ))}
             </div>
           </details>,
+        );
+        i++;
+        continue;
+      }
+
+      // Steps container and Step elements (<Steps> and <Step title="...">)
+      if (trimmed.startsWith('<Steps>') || trimmed.startsWith('<Steps ') || trimmed.startsWith('</Steps>')) {
+        i++;
+        continue;
+      }
+
+      if (trimmed.startsWith('<Step ') || trimmed.startsWith('<Step>')) {
+        const titleMatch = trimmed.match(/title="([^"]+)"/);
+        const iconMatch = trimmed.match(/icon="([^"]+)"/);
+        const stepTitle = titleMatch ? titleMatch[1] : 'Step';
+        const stepIcon = iconMatch ? iconMatch[1] : '';
+        const stepLines: string[] = [];
+        i++;
+        while (i < lines.length && !lines[i].trim().startsWith('</Step>')) {
+          stepLines.push(lines[i]);
+          i++;
+        }
+
+        const StepIconComp = stepIcon ? getDocIcon(stepIcon) : null;
+
+        elements.push(
+          <div
+            key={`step-${elements.length}`}
+            className="relative pl-8 sm:pl-10 my-6 border-l-2 border-primary/30 last:border-l-0"
+          >
+            <div className="absolute -left-[17px] top-0 w-8 h-8 rounded-full bg-primary/10 border-2 border-primary flex items-center justify-center text-primary font-bold text-xs shadow-xs">
+              {StepIconComp ? <StepIconComp className="w-3.5 h-3.5" /> : <span>{elements.length + 1}</span>}
+            </div>
+            <h4 className="text-base sm:text-lg font-bold text-foreground mb-2">
+              {renderFormattedText(stepTitle, currentSlug)}
+            </h4>
+            <div className="text-xs sm:text-sm text-foreground/85 dark:text-muted-foreground leading-relaxed space-y-2">
+              {stepLines.filter(l => l.trim()).map((l, lIdx) => (
+                <div key={lIdx}>{renderFormattedText(l.trim(), currentSlug)}</div>
+              ))}
+            </div>
+          </div>,
         );
         i++;
         continue;
@@ -888,7 +967,7 @@ export function DocsPage() {
       }
 
       // Headings (H1 to H6)
-      const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+      const headingMatch = trimmed.match(/^(#{1,6})\s*(.+)$/);
       if (headingMatch) {
         const level = headingMatch[1].length;
         const rawTitle = headingMatch[2].replace(/\*\*/g, '').trim();
@@ -902,10 +981,10 @@ export function DocsPage() {
             : level === 2
               ? 'text-xl sm:text-2xl font-bold tracking-tight text-foreground'
               : level === 3
-                ? 'text-lg font-semibold tracking-tight text-foreground'
+                ? 'text-lg font-bold tracking-tight text-foreground'
                 : level === 4
-                  ? 'text-base font-semibold tracking-tight text-foreground'
-                  : 'text-sm font-semibold tracking-tight text-foreground/90';
+                  ? 'text-base font-bold tracking-tight text-foreground'
+                  : 'text-sm font-semibold tracking-tight text-foreground';
 
         const wrapperSpacing =
           level === 1 || level === 2
@@ -1174,7 +1253,7 @@ export function DocsPage() {
         elements.push(
           <blockquote
             key={`bq-${elements.length}`}
-            className="my-4 border-l-2 border-primary/50 pl-4 py-1 text-xs sm:text-sm text-muted-foreground italic"
+            className="my-4 border-l-2 border-primary/50 pl-4 py-1 text-xs sm:text-sm text-foreground/80 dark:text-muted-foreground italic"
           >
             {renderFormattedText(trimmed.slice(2), currentSlug)}
           </blockquote>,
@@ -1189,7 +1268,7 @@ export function DocsPage() {
         elements.push(
           <li
             key={`li-${elements.length}`}
-            className="text-xs sm:text-sm text-muted-foreground ml-4 list-disc leading-relaxed my-1"
+            className="text-xs sm:text-sm text-foreground/85 dark:text-muted-foreground ml-4 list-disc leading-relaxed my-1"
           >
             {renderFormattedText(listText, currentSlug)}
           </li>,
@@ -1204,7 +1283,7 @@ export function DocsPage() {
         elements.push(
           <li
             key={`oli-${elements.length}`}
-            className="text-xs sm:text-sm text-muted-foreground ml-5 list-decimal leading-relaxed my-1"
+            className="text-xs sm:text-sm text-foreground/85 dark:text-muted-foreground ml-5 list-decimal leading-relaxed my-1"
           >
             {renderFormattedText(numMatch[2], currentSlug)}
           </li>,
@@ -1218,7 +1297,7 @@ export function DocsPage() {
         elements.push(
           <p
             key={`p-${elements.length}`}
-            className="text-xs sm:text-sm text-muted-foreground leading-relaxed my-3"
+            className="text-xs sm:text-sm text-foreground/85 dark:text-muted-foreground leading-relaxed my-3"
           >
             {renderFormattedText(trimmed, currentSlug)}
           </p>,
@@ -1605,8 +1684,8 @@ export function DocsPage() {
               {currentPage.title}
             </h1>
             {currentPage.description && (
-              <p className="text-sm sm:text-base text-muted-foreground mt-2 leading-relaxed">
-                {currentPage.description}
+              <p className="text-sm sm:text-base text-foreground/85 dark:text-muted-foreground mt-2 leading-relaxed">
+                {cleanMojibake(currentPage.description)}
               </p>
             )}
           </div>
@@ -1647,7 +1726,7 @@ export function DocsPage() {
                           item.level === 3 ? 'pl-3 text-muted-foreground/80' : 'text-muted-foreground'
                         } hover:text-foreground`}
                       >
-                        {item.title}
+                        {cleanMojibake(item.title)}
                       </a>
                     ));
                   })()}
@@ -1734,7 +1813,7 @@ export function DocsPage() {
                           : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      {item.title}
+                      {cleanMojibake(item.title)}
                     </a>
                   ));
                 })()
