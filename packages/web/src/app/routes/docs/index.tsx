@@ -903,48 +903,129 @@ export function DocsPage() {
         continue;
       }
 
-      // Multi-image inline container (e.g. piece apps list)
-      if (trimmed.includes('<img') && trimmed.includes('<div')) {
-        const imgRegex = /<img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*\/?>/g;
-        let match;
-        const iconList: { src: string; alt: string }[] = [];
-        while ((match = imgRegex.exec(trimmed)) !== null) {
-          let s = match[1];
-          if (s.includes('cdn.anticeil.com/pieces/')) {
-            s = s.replace('cdn.anticeil.com/pieces/', 'cdn.activepieces.com/pieces/');
-          }
-          iconList.push({ src: s, alt: match[2] || '' });
-        }
-        if (iconList.length > 0) {
-          elements.push(
-            <div
-              key={`icon-grid-${elements.length}`}
-              className="my-3 flex flex-wrap gap-2.5 items-center"
-            >
-              {iconList.map((ic, icIdx) => (
-                <div
-                  key={icIdx}
-                  className="w-11 h-11 rounded-xl bg-card border border-border/50 p-2 flex items-center justify-center shadow-xs hover:scale-105 transition-transform"
-                  title={ic.alt}
-                >
-                  <img
-                    src={ic.src}
-                    alt={ic.alt}
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      if (!target.src.includes('cdn.activepieces.com')) {
-                        target.src = `https://cdn.activepieces.com/pieces/${ic.alt.toLowerCase().replace(/\s+/g, '-')}.png`;
-                      }
-                    }}
-                  />
-                </div>
-              ))}
-            </div>,
-          );
+      // HTML <div> container blocks (e.g. multi-image apps lists, MCP client badge rows, etc.)
+      if (trimmed.startsWith('<div')) {
+        let divBuffer = line;
+        if (!trimmed.includes('</div>')) {
           i++;
-          continue;
+          while (i < lines.length && !lines[i].includes('</div>')) {
+            divBuffer += '\n' + lines[i];
+            i++;
+          }
+          if (i < lines.length) {
+            divBuffer += '\n' + lines[i];
+          }
         }
+
+        // Case A: Multi-image inline container (e.g. piece apps list)
+        if (divBuffer.includes('<img')) {
+          const imgRegex = /<img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*\/?>/g;
+          let match;
+          const iconList: { src: string; alt: string }[] = [];
+          while ((match = imgRegex.exec(divBuffer)) !== null) {
+            let s = match[1];
+            if (s.includes('cdn.anticeil.com/pieces/')) {
+              s = s.replace('cdn.anticeil.com/pieces/', 'cdn.activepieces.com/pieces/');
+            }
+            iconList.push({ src: s, alt: match[2] || '' });
+          }
+          if (iconList.length > 0) {
+            elements.push(
+              <div
+                key={`icon-grid-${elements.length}`}
+                className="my-3 flex flex-wrap gap-2.5 items-center"
+              >
+                {iconList.map((ic, icIdx) => (
+                  <div
+                    key={icIdx}
+                    className="w-11 h-11 rounded-xl bg-card border border-border/50 p-2 flex items-center justify-center shadow-xs hover:scale-105 transition-transform"
+                    title={ic.alt}
+                  >
+                    <img
+                      src={ic.src}
+                      alt={ic.alt}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        if (!target.src.includes('cdn.activepieces.com')) {
+                          target.src = `https://cdn.activepieces.com/pieces/${ic.alt.toLowerCase().replace(/\s+/g, '-')}.png`;
+                        }
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>,
+            );
+            i++;
+            continue;
+          }
+        }
+
+        // Case B: Multi-item span badges/clients (e.g. MCP clients: Claude, Copilot, Cursor, Gemini CLI, Windsurf, Zed)
+        if (
+          divBuffer.includes('<span') &&
+          (divBuffer.includes('<svg') ||
+            divBuffer.includes('Claude') ||
+            divBuffer.includes('Cursor'))
+        ) {
+          const spanRegex = /<span[^>]*>([\s\S]*?)<\/span>/g;
+          let spanMatch;
+          const clientBadges: { svg?: string; text: string }[] = [];
+          while ((spanMatch = spanRegex.exec(divBuffer)) !== null) {
+            const inner = spanMatch[1];
+            const svgMatch = inner.match(/<svg[\s\S]*?<\/svg>/);
+            const textOnly = inner
+              .replace(/<svg[\s\S]*?<\/svg>/g, '')
+              .replace(/<[^>]+>/g, '')
+              .trim();
+            if (textOnly || svgMatch) {
+              clientBadges.push({
+                svg: svgMatch ? svgMatch[0] : undefined,
+                text: textOnly,
+              });
+            }
+          }
+
+          if (clientBadges.length > 0) {
+            elements.push(
+              <div
+                key={`client-badges-${elements.length}`}
+                className="my-4 flex flex-wrap gap-2.5 items-center"
+              >
+                {clientBadges.map((badge, bIdx) => (
+                  <div
+                    key={bIdx}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/50 bg-card/70 hover:bg-muted/40 hover:border-border transition-all text-xs sm:text-sm font-medium text-foreground shadow-xs group"
+                  >
+                    {badge.svg && (
+                      <span
+                        className="w-4 h-4 shrink-0 flex items-center justify-center text-foreground/80 group-hover:text-foreground [&>svg]:w-4 [&>svg]:h-4 [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:fill-current"
+                        dangerouslySetInnerHTML={{ __html: badge.svg }}
+                      />
+                    )}
+                    <span>{badge.text}</span>
+                  </div>
+                ))}
+              </div>,
+            );
+            i++;
+            continue;
+          }
+        }
+
+        i++;
+        continue;
+      }
+
+      // Ignore stray closing HTML tags or break lines
+      if (
+        trimmed.startsWith('</') ||
+        trimmed.startsWith('<br') ||
+        trimmed === '</div>' ||
+        trimmed === '</span>'
+      ) {
+        i++;
+        continue;
       }
 
       // HTML img tags
