@@ -31,6 +31,7 @@ import {
   Info,
   AlertTriangle,
   Lightbulb,
+  Hash,
 } from 'lucide-react';
 import { FullLogo } from '@/components/custom/full-logo';
 import { Button } from '@/components/ui/button';
@@ -285,23 +286,27 @@ function cleanMojibake(text: string): string {
     .replace(/â€/g, '—');
 }
 
-function renderFormattedText(text: string, currentSlug: string = ''): React.ReactNode {
+function renderFormattedText(text: string, currentSlug: string = '', depth = 0): React.ReactNode {
   if (!text) return null;
   const cleanedText = cleanMojibake(text);
 
   // If text starts with markdown heading prefix (e.g. inside an accordion or list: "#### Title")
-  const headingInline = cleanedText.match(/^(#{1,6})\s*(.*)$/);
-  if (headingInline) {
-    const level = headingInline[1].length;
-    const hText = headingInline[2];
-    return (
-      <span className={`block font-bold text-foreground my-2 ${
-        level === 1 ? 'text-xl' : level === 2 ? 'text-lg' : level === 3 ? 'text-base' : 'text-sm'
-      }`}>
-        {renderFormattedText(hText, currentSlug)}
-      </span>
-    );
+  if (depth === 0) {
+    const headingInline = cleanedText.match(/^(#{1,6})\s*(.*)$/);
+    if (headingInline) {
+      const level = headingInline[1].length;
+      const hText = headingInline[2];
+      return (
+        <span className={`block font-bold text-foreground my-2 ${
+          level === 1 ? 'text-xl' : level === 2 ? 'text-lg' : level === 3 ? 'text-base' : 'text-sm'
+        }`}>
+          {renderFormattedText(hText, currentSlug, depth + 1)}
+        </span>
+      );
+    }
   }
+
+  if (depth > 5) return cleanedText;
 
   const regex = /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*)/g;
   const nodes: React.ReactNode[] = [];
@@ -314,11 +319,13 @@ function renderFormattedText(text: string, currentSlug: string = ''): React.Reac
     }
 
     const [, , linkText, linkUrl, boldText, codeText, italicText] = match;
-    const key = `fmt-${lastIndex}-${match.index}`;
+    const key = `fmt-${depth}-${lastIndex}-${match.index}`;
 
     if (linkText && linkUrl) {
-      const resolved = resolveDocLink(linkUrl, currentSlug);
+      const cleanUrl = linkUrl.trim().split(/\s+/)[0];
+      const resolved = resolveDocLink(cleanUrl, currentSlug);
       const isExternal = resolved.startsWith('http://') || resolved.startsWith('https://');
+      const innerContent = renderFormattedText(linkText, currentSlug, depth + 1);
       if (isExternal) {
         nodes.push(
           <a
@@ -328,7 +335,7 @@ function renderFormattedText(text: string, currentSlug: string = ''): React.Reac
             rel="noreferrer"
             className="text-primary hover:underline font-medium inline-flex items-center gap-0.5"
           >
-            <span>{linkText}</span>
+            <span>{innerContent}</span>
             <ExternalLink className="w-3 h-3 inline-block ml-0.5 opacity-70" />
           </a>,
         );
@@ -339,14 +346,14 @@ function renderFormattedText(text: string, currentSlug: string = ''): React.Reac
             to={resolved}
             className="text-primary hover:underline font-medium"
           >
-            {linkText}
+            {innerContent}
           </Link>,
         );
       }
     } else if (boldText !== undefined) {
       nodes.push(
         <strong key={key} className="font-semibold text-foreground">
-          {boldText}
+          {renderFormattedText(boldText, currentSlug, depth + 1)}
         </strong>,
       );
     } else if (codeText !== undefined) {
@@ -361,7 +368,7 @@ function renderFormattedText(text: string, currentSlug: string = ''): React.Reac
     } else if (italicText !== undefined) {
       nodes.push(
         <em key={key} className="italic text-foreground/90">
-          {italicText}
+          {renderFormattedText(italicText, currentSlug, depth + 1)}
         </em>,
       );
     }
@@ -1003,13 +1010,28 @@ export function DocsPage() {
           >
             <HeadingTag className={`${headingClass} flex items-center gap-2`}>
               <span>{renderFormattedText(headingText, currentSlug)}</span>
-              <a
-                href={`#${headingId}`}
-                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-opacity text-xs"
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const target = document.getElementById(headingId);
+                  if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                    window.history.pushState(null, '', `${location.pathname}#${headingId}`);
+                    setActiveHeadingId(headingId);
+                    try {
+                      navigator.clipboard.writeText(`${window.location.origin}${location.pathname}#${headingId}`);
+                    } catch {
+                      // ignore clipboard errors
+                    }
+                  }
+                }}
+                className="opacity-0 group-hover:opacity-100 text-muted-foreground/60 hover:text-primary transition-opacity p-0.5 rounded cursor-pointer"
+                title="Salin tautan ke bagian ini"
                 aria-label={`Link to ${headingText}`}
               >
-                #
-              </a>
+                <Hash className="w-3.5 h-3.5" />
+              </button>
             </HeadingTag>
           </div>,
         );
