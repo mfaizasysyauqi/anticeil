@@ -238,17 +238,44 @@ function DocImage({
   );
 }
 
+function cleanMojibake(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/â€”/g, ' — ')
+    .replace(/â€“/g, '–')
+    .replace(/â†’/g, ' → ')
+    .replace(/å†’/g, ' → ')
+    .replace(/â†['’]/g, ' → ')
+    .replace(/â†/g, ' → ')
+    .replace(/â†”/g, ' ↔ ')
+    .replace(/â†©/g, '↵')
+    .replace(/â€™/g, "'")
+    .replace(/â€˜/g, "'")
+    .replace(/â€œ/g, '"')
+    .replace(/â€[”"\x9d\x9c]/g, '"')
+    .replace(/â€/g, ' — ')
+    .replace(/â€¦/g, '...')
+    .replace(/âœ…/g, '✅')
+    .replace(/âœ“/g, '✓')
+    .replace(/â\x9DŒ/g, '❌')
+    .replace(/â\x9D—/g, '❓')
+    .replace(/â‰ˆ/g, '≈')
+    .replace(/â‰¤/g, '≤')
+    .replace(/â‰¥/g, '≥');
+}
+
 function renderFormattedText(text: string, currentSlug: string = ''): React.ReactNode {
   if (!text) return null;
+  const cleanedText = cleanMojibake(text);
 
   const regex = /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*)/g;
   const nodes: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(text)) !== null) {
+  while ((match = regex.exec(cleanedText)) !== null) {
     if (match.index > lastIndex) {
-      nodes.push(text.slice(lastIndex, match.index));
+      nodes.push(cleanedText.slice(lastIndex, match.index));
     }
 
     const [, , linkText, linkUrl, boldText, codeText, italicText] = match;
@@ -291,7 +318,7 @@ function renderFormattedText(text: string, currentSlug: string = ''): React.Reac
       nodes.push(
         <code
           key={key}
-          className="px-1.5 py-0.5 mx-0.5 rounded-md bg-muted/80 text-primary border border-border/50 font-mono text-xs"
+          className="px-1.5 py-0.5 mx-0.5 rounded-md bg-muted text-foreground font-medium dark:text-emerald-300 border border-border/60 font-mono text-[12px]"
         >
           {codeText}
         </code>,
@@ -307,8 +334,8 @@ function renderFormattedText(text: string, currentSlug: string = ''): React.Reac
     lastIndex = regex.lastIndex;
   }
 
-  if (lastIndex < text.length) {
-    nodes.push(text.slice(lastIndex));
+  if (lastIndex < cleanedText.length) {
+    nodes.push(cleanedText.slice(lastIndex));
   }
 
   return nodes.length === 1 ? nodes[0] : <>{nodes}</>;
@@ -443,7 +470,8 @@ export function DocsPage() {
   // Content Renderer with MDX support
   const renderMdxContent = (body: string) => {
     // Process markdown cards and custom blocks
-    const lines = body.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+    const cleanBody = cleanMojibake(body);
+    const lines = cleanBody.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
     const elements: React.ReactNode[] = [];
     let inCardGroup = false;
     let cardItems: React.ReactNode[] = [];
@@ -465,7 +493,7 @@ export function DocsPage() {
             className="my-6 overflow-x-auto rounded-lg border border-border/50"
           >
             <table className="w-full min-w-[500px] text-left text-xs sm:text-sm">
-              <thead className="bg-muted/40 text-foreground border-b border-border/50 font-semibold">
+              <thead className="bg-muted/50 text-foreground border-b border-border/50 font-semibold">
                 <tr>
                   {header.map((col, idx) => (
                     <th key={idx} className="px-4 py-2.5 whitespace-nowrap">
@@ -481,7 +509,7 @@ export function DocsPage() {
                     className="hover:bg-muted/20 transition-colors"
                   >
                     {row.map((cell, cIdx) => (
-                      <td key={cIdx} className="px-4 py-2 text-muted-foreground">
+                      <td key={cIdx} className="px-4 py-2 text-foreground/90 dark:text-muted-foreground">
                         {renderFormattedText(cell.trim(), currentSlug)}
                       </td>
                     ))}
@@ -536,18 +564,18 @@ export function DocsPage() {
           elements.push(
             <div
               key={`code-${elements.length}`}
-              className="my-6 rounded-xl border border-border/60 bg-card overflow-hidden"
+              className="my-6 rounded-xl border border-slate-800 bg-slate-950 overflow-hidden shadow-sm"
             >
-              <div className="flex items-center justify-between px-4 py-2 bg-muted/20 border-b border-border/40 text-xs text-muted-foreground">
+              <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-800 text-xs text-slate-400">
                 <span className="font-mono">{codeBlockLang || 'bash'}</span>
                 <button
                   onClick={() => handleCopyCode(currentCode, thisIndex)}
-                  className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+                  className="flex items-center gap-1.5 hover:text-slate-200 transition-colors"
                 >
                   {copiedCodeIndex === thisIndex ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-green-500" />
-                      <span className="text-green-500">{t('docs.code.copied')}</span>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">{t('docs.code.copied')}</span>
                     </>
                   ) : (
                     <>
@@ -557,10 +585,10 @@ export function DocsPage() {
                   )}
                 </button>
               </div>
-              <pre className="p-4 text-xs sm:text-sm font-mono overflow-x-auto text-emerald-300">
+              <pre className="p-4 text-xs sm:text-sm font-mono overflow-x-auto text-emerald-400">
                 <code>{currentCode}</code>
               </pre>
-            </div>,
+            </div>
           );
         }
         i++;
@@ -735,20 +763,20 @@ export function DocsPage() {
             key={`callout-${elements.length}`}
             className={`my-5 p-4 rounded-xl border text-xs sm:text-sm flex gap-3.5 items-start ${
               isWarning
-                ? 'bg-amber-950/20 border-amber-800/40 text-amber-200'
+                ? 'bg-amber-500/10 border-amber-500/30'
                 : isTip
-                  ? 'bg-emerald-950/20 border-emerald-800/40 text-emerald-200'
-                  : 'bg-indigo-950/20 border-indigo-800/40 text-indigo-200'
+                  ? 'bg-emerald-500/10 border-emerald-500/30'
+                  : 'bg-indigo-500/10 border-indigo-500/30'
             }`}
           >
             {isWarning ? (
-              <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
             ) : isTip ? (
-              <Lightbulb className="w-5 h-5 shrink-0 text-emerald-400 mt-0.5" />
+              <Lightbulb className="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
             ) : (
-              <Info className="w-5 h-5 shrink-0 text-indigo-400 mt-0.5" />
+              <Info className="w-5 h-5 shrink-0 text-indigo-600 dark:text-indigo-400 mt-0.5" />
             )}
-            <div className="leading-relaxed">
+            <div className="leading-relaxed text-foreground/90">
               {renderFormattedText(noteContent.trim(), currentSlug)}
             </div>
           </div>,
@@ -859,44 +887,51 @@ export function DocsPage() {
         flushTable();
       }
 
-      // Headings
-      if (trimmed.startsWith('## ') || trimmed.startsWith('### ')) {
-        const isH2 = trimmed.startsWith('## ');
-        const headingText = trimmed
-          .replace(/^#{2,3}\s+/, '')
-          .replace(/\*\*/g, '')
-          .trim();
+      // Headings (H1 to H6)
+      const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+      if (headingMatch) {
+        const level = headingMatch[1].length;
+        const rawTitle = headingMatch[2].replace(/\*\*/g, '').trim();
+        const headingText = cleanMojibake(rawTitle);
         const headingId = slugify(headingText);
+
+        const HeadingTag = `h${Math.min(level, 6)}` as keyof JSX.IntrinsicElements;
+        const headingClass =
+          level === 1
+            ? 'text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground'
+            : level === 2
+              ? 'text-xl sm:text-2xl font-bold tracking-tight text-foreground'
+              : level === 3
+                ? 'text-lg font-semibold tracking-tight text-foreground'
+                : level === 4
+                  ? 'text-base font-semibold tracking-tight text-foreground'
+                  : 'text-sm font-semibold tracking-tight text-foreground/90';
+
+        const wrapperSpacing =
+          level === 1 || level === 2
+            ? 'mt-10 mb-4'
+            : level === 3
+              ? 'mt-8 mb-3'
+              : level === 4
+                ? 'mt-6 mb-2.5'
+                : 'mt-5 mb-2';
 
         elements.push(
           <div
             key={`heading-${elements.length}`}
             id={headingId}
-            className={`group scroll-mt-32 ${isH2 ? 'mt-10 mb-4' : 'mt-8 mb-3'}`}
+            className={`group scroll-mt-32 ${wrapperSpacing}`}
           >
-            {isH2 ? (
-              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                <span>{headingText}</span>
-                <a
-                  href={`#${headingId}`}
-                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-opacity text-sm"
-                  aria-label={`Link to ${headingText}`}
-                >
-                  #
-                </a>
-              </h2>
-            ) : (
-              <h3 className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
-                <span>{headingText}</span>
-                <a
-                  href={`#${headingId}`}
-                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-opacity text-xs"
-                  aria-label={`Link to ${headingText}`}
-                >
-                  #
-                </a>
-              </h3>
-            )}
+            <HeadingTag className={`${headingClass} flex items-center gap-2`}>
+              <span>{renderFormattedText(headingText, currentSlug)}</span>
+              <a
+                href={`#${headingId}`}
+                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-opacity text-xs"
+                aria-label={`Link to ${headingText}`}
+              >
+                #
+              </a>
+            </HeadingTag>
           </div>,
         );
         i++;
