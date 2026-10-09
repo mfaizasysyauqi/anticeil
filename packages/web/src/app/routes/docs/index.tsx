@@ -1,576 +1,1049 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   ChevronRight,
-  Code2,
-  Cpu,
-  CreditCard,
-  FileText,
+  ExternalLink,
+  Github,
+  Globe,
   Layers,
+  ListOrdered,
   Menu,
-  Rocket,
+  Moon,
   Search,
   Server,
-  ShieldCheck,
-  Terminal,
+  Share2,
+  Sparkles,
+  Sun,
   X,
   Zap,
+  Cpu,
+  Bot,
+  Database,
+  Shield,
+  Code,
+  Terminal,
+  FileCode,
+  Sliders,
+  Check,
+  Copy,
+  Info,
+  AlertTriangle,
+  Lightbulb,
 } from 'lucide-react';
 import { FullLogo } from '@/components/custom/full-logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import docsDataRaw from './docs-generated.json';
 
-interface DocSection {
+interface TocItem {
   id: string;
-  category: string;
   title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  content: React.ReactNode;
+  level: number;
+}
+
+interface PageData {
+  slug: string;
+  tab: string;
+  group: string;
+  title: string;
+  sidebarTitle: string;
+  description: string;
+  icon?: string;
+  body: string;
+  toc: TocItem[];
+}
+
+interface NavGroup {
+  name: string;
+  icon?: string;
+  pages: {
+    slug: string;
+    title: string;
+    icon?: string;
+    subGroup?: string;
+  }[];
+}
+
+interface NavTab {
+  name: string;
+  groups: NavGroup[];
+}
+
+const docsData = docsDataRaw as unknown as {
+  tabs: NavTab[];
+  pages: Record<string, PageData>;
+  redirects: Record<string, string>;
+};
+
+// Map icons to Lucide components
+function getDocIcon(iconName?: string) {
+  switch (iconName?.toLowerCase()) {
+    case 'robot':
+    case 'bot':
+      return Bot;
+    case 'sitemap':
+    case 'workflow':
+    case 'zap':
+      return Zap;
+    case 'table':
+    case 'grid':
+    case 'database':
+      return Database;
+    case 'server':
+    case 'cpu':
+      return Server;
+    case 'code':
+    case 'terminal':
+      return Terminal;
+    case 'lock':
+    case 'shield':
+    case 'key':
+      return Shield;
+    case 'message':
+    case 'chat':
+      return Sparkles;
+    case 'puzzle-piece':
+    case 'plug':
+      return Sliders;
+    default:
+      return BookOpen;
+  }
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
 }
 
 export function DocsPage() {
-  const [activeId, setActiveId] = useState<string>('intro');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const sections: DocSection[] = [
-    {
-      id: 'intro',
-      category: 'Memulai (Getting Started)',
-      title: 'Pengenalan Anticeil',
-      icon: Rocket,
-      content: (
-        <div className="space-y-6">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary mb-2">
-              Dokumentasi Resmi Anticeil
-            </div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Pengenalan Anticeil</h1>
-            <p className="mt-2 text-muted-foreground text-sm leading-relaxed">
-              Platform otomasi alur kerja (workflow automation) tanpa kode, integrasi agen kecerdasan buatan (AI Agents), dan orkestrasi alur kerja digital untuk tim modern dan kreator konten.
-            </p>
-          </div>
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
+  const [activeHeadingId, setActiveHeadingId] = useState<string>('');
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl border bg-card hover:border-primary/50 transition-colors">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-3">
-                <Zap className="w-4 h-4" />
+  // Extract slug from path
+  const currentSlug = useMemo(() => {
+    let raw = location.pathname.replace(/^\/docs\/?/, '').replace(/\/$/, '');
+    if (!raw) raw = 'overview/welcome';
+    if (docsData.redirects[raw]) {
+      raw = docsData.redirects[raw];
+    }
+    return raw;
+  }, [location.pathname]);
+
+  // Current page data
+  const currentPage: PageData = useMemo(() => {
+    if (docsData.pages[currentSlug]) {
+      return docsData.pages[currentSlug];
+    }
+    // Fallback: search by ending slug
+    const matchedKey = Object.keys(docsData.pages).find(
+      (k) => k.endsWith('/' + currentSlug) || k === currentSlug,
+    );
+    if (matchedKey && docsData.pages[matchedKey]) {
+      return docsData.pages[matchedKey];
+    }
+    return docsData.pages['overview/welcome'];
+  }, [currentSlug]);
+
+  // Active Tab
+  const activeTabName = useMemo(() => {
+    return currentPage?.tab || 'Get Started';
+  }, [currentPage]);
+
+  const activeTab = useMemo(() => {
+    return (
+      docsData.tabs.find((t) => t.name === activeTabName) || docsData.tabs[0]
+    );
+  }, [activeTabName]);
+
+  // Handle Tab Switch
+  const handleSelectTab = (tab: NavTab) => {
+    const firstGroup = tab.groups[0];
+    const firstPage = firstGroup?.pages[0];
+    if (firstPage) {
+      navigate(`/docs/${firstPage.slug}`);
+    }
+  };
+
+  // Handle Code Copy
+  const handleCopyCode = (code: string, index: number) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCodeIndex(index);
+    setTimeout(() => setCopiedCodeIndex(null), 2000);
+  };
+
+  // Keyboard shortcut Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+      if (e.key === 'Escape') {
+        setSearchOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Scroll to hash if present
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.replace('#', '');
+      const el = document.getElementById(id);
+      if (el) {
+        setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 100);
+      }
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentSlug, location.hash]);
+
+  // Search Results
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    const results: PageData[] = [];
+    for (const page of Object.values(docsData.pages)) {
+      if (
+        page.title.toLowerCase().includes(q) ||
+        page.sidebarTitle.toLowerCase().includes(q) ||
+        page.description.toLowerCase().includes(q) ||
+        page.slug.toLowerCase().includes(q)
+      ) {
+        results.push(page);
+        if (results.length >= 10) break;
+      }
+    }
+    return results;
+  }, [searchQuery]);
+
+  // Content Renderer with MDX support
+  const renderMdxContent = (body: string) => {
+    // Process markdown cards and custom blocks
+    const lines = body.split('\n');
+    const elements: React.ReactNode[] = [];
+    let inCardGroup = false;
+    let cardItems: React.ReactNode[] = [];
+    let cardCols = 2;
+    let inTable = false;
+    let tableRows: string[][] = [];
+    let inCodeBlock = false;
+    let codeBlockLang = '';
+    let codeBlockContent: string[] = [];
+    let codeBlockIdx = 0;
+
+    const flushTable = () => {
+      if (tableRows.length > 0) {
+        const header = tableRows[0];
+        const bodyRows = tableRows.slice(1);
+        elements.push(
+          <div
+            key={`table-${elements.length}`}
+            className="my-6 overflow-x-auto rounded-lg border border-border/50"
+          >
+            <table className="w-full text-left text-xs sm:text-sm">
+              <thead className="bg-muted/40 text-foreground border-b border-border/50 font-semibold">
+                <tr>
+                  {header.map((col, idx) => (
+                    <th key={idx} className="px-4 py-2.5">
+                      {col.trim()}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {bodyRows.map((row, rIdx) => (
+                  <tr
+                    key={rIdx}
+                    className="hover:bg-muted/20 transition-colors"
+                  >
+                    {row.map((cell, cIdx) => (
+                      <td key={cIdx} className="px-4 py-2 text-muted-foreground">
+                        {cell.trim()}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>,
+        );
+        tableRows = [];
+      }
+      inTable = false;
+    };
+
+    const flushCards = () => {
+      if (cardItems.length > 0) {
+        const gridColsClass =
+          cardCols === 3
+            ? 'grid-cols-1 md:grid-cols-3'
+            : cardCols === 4
+              ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4'
+              : 'grid-cols-1 md:grid-cols-2';
+
+        elements.push(
+          <div
+            key={`cardgroup-${elements.length}`}
+            className={`grid ${gridColsClass} gap-4 my-6`}
+          >
+            {cardItems}
+          </div>,
+        );
+        cardItems = [];
+      }
+      inCardGroup = false;
+    };
+
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      // Code blocks
+      if (trimmed.startsWith('```')) {
+        if (!inCodeBlock) {
+          inCodeBlock = true;
+          codeBlockLang = trimmed.replace('```', '').trim();
+          codeBlockContent = [];
+        } else {
+          inCodeBlock = false;
+          const currentCode = codeBlockContent.join('\n');
+          const thisIndex = codeBlockIdx++;
+          elements.push(
+            <div
+              key={`code-${elements.length}`}
+              className="my-6 rounded-xl border border-border/60 bg-[#0d1117] overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-4 py-2 bg-muted/20 border-b border-border/40 text-xs text-muted-foreground">
+                <span className="font-mono">{codeBlockLang || 'bash'}</span>
+                <button
+                  onClick={() => handleCopyCode(currentCode, thisIndex)}
+                  className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+                >
+                  {copiedCodeIndex === thisIndex ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-green-500" />
+                      <span className="text-green-500">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
               </div>
-              <h3 className="font-semibold text-sm">Visual Flow Builder</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Rancang dan jalankan otomasi dengan kanvas drag-and-drop interaktif. Hubungkan trigger webhook, aplikasi eksternal, dan aksi berantai tanpa perlu coding manual.
-              </p>
-            </div>
-            <div className="p-4 rounded-xl border bg-card hover:border-primary/50 transition-colors">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-3">
-                <Cpu className="w-4 h-4" />
-              </div>
-              <h3 className="font-semibold text-sm">Kecerdasan Buatan (AI Agents)</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Bebaskan agen AI untuk membuat keputusan, mengolah data formulir, merangkum dokumen, dan berinteraksi melalui Model Context Protocol (MCP).
-              </p>
-            </div>
-            <div className="p-4 rounded-xl border bg-card hover:border-primary/50 transition-colors">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-3">
-                <CreditCard className="w-4 h-4" />
-              </div>
-              <h3 className="font-semibold text-sm">Pembayaran Lokal Midtrans</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Terhubung langsung dengan gerbang pembayaran nasional Midtrans. Bayar langganan dengan QRIS, GoPay, Virtual Account Bank (BCA, Mandiri, BRI, BNI), atau Kartu Kredit.
-              </p>
-            </div>
-            <div className="p-4 rounded-xl border bg-card hover:border-primary/50 transition-colors">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-3">
-                <Server className="w-4 h-4" />
-              </div>
-              <h3 className="font-semibold text-sm">100% Fleksibel & Mandiri (Self-Host)</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Jalankan di server Oracle VM atau VPS Anda sendiri via Docker, dan hubungkan frontend di Cloudflare Workers/Pages dengan latensi ultra rendah.
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-xl border bg-muted/40">
-            <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-2">Langkah Selanjutnya</h4>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setActiveId('quickstart')}
-                className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90"
-              >
-                Mulai Panduan Cepat →
-              </button>
-              <button
-                onClick={() => setActiveId('midtrans')}
-                className="text-xs px-3 py-1.5 rounded-lg border bg-background font-medium hover:bg-muted"
-              >
-                Pelajari Paket & Midtrans
-              </button>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'quickstart',
-      category: 'Memulai (Getting Started)',
-      title: 'Panduan Cepat 5 Menit',
-      icon: Terminal,
-      content: (
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Panduan Cepat 5 Menit</h1>
-            <p className="mt-2 text-muted-foreground text-sm">
-              Mulai membuat otomasi pertama Anda dalam hitungan menit di platform Anticeil.
-            </p>
-          </div>
-
-          <ol className="space-y-4">
-            <li className="p-4 rounded-xl border bg-card space-y-2">
-              <div className="font-semibold text-sm flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">1</span>
-                Masuk ke Akun Anticeil
-              </div>
-              <p className="text-xs text-muted-foreground pl-8">
-                Buka <a href="https://anticeil.com/sign-in" className="text-primary underline">anticeil.com/sign-in</a> dan masuk menggunakan email atau akun Google Anda.
-              </p>
-            </li>
-            <li className="p-4 rounded-xl border bg-card space-y-2">
-              <div className="font-semibold text-sm flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">2</span>
-                Buat Alur Kerja Baru
-              </div>
-              <p className="text-xs text-muted-foreground pl-8">
-                Klik tombol <strong>&quot;Mulai dari awal&quot;</strong> atau pilih dari katalog templat otomasi yang telah disediakan untuk kreator konten dan tim pemasaran.
-              </p>
-            </li>
-            <li className="p-4 rounded-xl border bg-card space-y-2">
-              <div className="font-semibold text-sm flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">3</span>
-                Pilih Pemicu (Trigger) & Aksi (Action)
-              </div>
-              <p className="text-xs text-muted-foreground pl-8">
-                Tentukan kejadian awal, seperti pesan masuk Telegram, formulir leads baru, atau jadwal waktu tertentu, kemudian tambahkan langkah berikutnya.
-              </p>
-            </li>
-            <li className="p-4 rounded-xl border bg-card space-y-2">
-              <div className="font-semibold text-sm flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">4</span>
-                Publikasikan Alur Kerja
-              </div>
-              <p className="text-xs text-muted-foreground pl-8">
-                Tekan tombol <strong>Publikasikan</strong> di pojok kanan atas. Alur kerja Anda kini aktif 24/7 di cloud Anticeil!
-              </p>
-            </li>
-          </ol>
-        </div>
-      ),
-    },
-    {
-      id: 'flows',
-      category: 'Alur Kerja (Flows)',
-      title: 'Membangun Alur Kerja & Trigger',
-      icon: Layers,
-      content: (
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Membangun Alur Kerja & Trigger</h1>
-            <p className="mt-2 text-muted-foreground text-sm">
-              Struktur alur kerja di Anticeil terdiri dari satu Pemicu (Trigger) dan serangkaian Tindakan (Actions).
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl border bg-card space-y-2">
-              <h3 className="font-semibold text-sm">1. Webhook Triggers</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Menyediakan URL endpoint HTTPS unik yang dapat dipanggil dari aplikasi luar mana pun secara instan saat ada data baru masuk.
-              </p>
-              <div className="p-2.5 rounded-lg bg-muted text-[11px] font-mono text-muted-foreground">
-                POST https://anticeil.com/api/v1/webhooks/YOUR_FLOW_WEBHOOK_ID
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl border bg-card space-y-2">
-              <h3 className="font-semibold text-sm">2. Polling Triggers</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Anticeil memeriksa aplikasi sumber secara otomatis pada interval reguler (misal: setiap 5 menit) untuk mencari baris spreadsheet baru, email masuk, dsb.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl border bg-card space-y-2">
-              <h3 className="font-semibold text-sm">3. Cabang Kondisi (Branching / If-Else)</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Gunakan blok kondisi untuk mengevaluasi data dan membagi alur kerja ke jalur yang berbeda berdasarkan logika bisnis Anda.
-              </p>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'ai-agents',
-      category: 'Kecerdasan Buatan (AI)',
-      title: 'AI Agents & OpenRouter',
-      icon: Cpu,
-      content: (
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">AI Agents & OpenRouter</h1>
-            <p className="mt-2 text-muted-foreground text-sm">
-              Anticeil mengintegrasikan AI terdepan dengan dukungan model OpenRouter dan protokol MCP secara bawaan.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl border bg-card space-y-2">
-              <h3 className="font-semibold text-sm">Penyedia Model Default (Free Tier Ready)</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Anticeil telah dikonfigurasi dengan gateway AI OpenRouter sehingga Anda dapat langsung memanfaatkan model AI tanpa harus mengeluarkan biaya langganan AI terpisah.
-              </p>
-              <ul className="text-xs space-y-1 text-muted-foreground list-disc pl-5">
-                <li>Model Cepat: Pemrosesan teks ringkas, ekstraksi data formulir, penamaan variabel.</li>
-                <li>Model Cerdas: Pemecahan masalah logika, pembuatan kode automasi, dan penalaran multi-langkah.</li>
-                <li>Dukungan Kunci Kustom: Anda bebas memasukkan API Key OpenAI, Claude, atau OpenRouter pribadi kapan saja di Pengaturan.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'midtrans',
-      category: 'Pembayaran & Langganan',
-      title: 'Integrasi Pembayaran Midtrans',
-      icon: CreditCard,
-      content: (
-        <div className="space-y-6">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-2">
-              Terverifikasi & Resmi di Indonesia
-            </div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Integrasi Pembayaran Midtrans</h1>
-            <p className="mt-2 text-muted-foreground text-sm">
-              Panduan lengkap mengenai paket langganan Anticeil dan proses transaksi melalui payment gateway Midtrans.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl border bg-card space-y-2">
-              <h3 className="font-semibold text-sm">Metode Pembayaran yang Didukung</h3>
-              <p className="text-xs text-muted-foreground">
-                Pelanggan di Indonesia dapat menyelesaikan pembayaran dalam hitungan detik menggunakan saluran resmi Midtrans Snap:
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                <div className="p-2.5 rounded-lg border text-center text-xs font-medium bg-muted/40">
-                  QRIS (Semua Bank & E-Wallet)
-                </div>
-                <div className="p-2.5 rounded-lg border text-center text-xs font-medium bg-muted/40">
-                  GoPay & ShopeePay
-                </div>
-                <div className="p-2.5 rounded-lg border text-center text-xs font-medium bg-muted/40">
-                  Virtual Account (BCA, Mandiri, BRI, BNI)
-                </div>
-                <div className="p-2.5 rounded-lg border text-center text-xs font-medium bg-muted/40">
-                  Kartu Kredit Visa / Mastercard
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl border bg-card space-y-2">
-              <h3 className="font-semibold text-sm">Alur Pembayaran & Aktivasi Otomatis</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Saat Anda mengklik tombol <strong>Konfirmasi & Bayar</strong> pada halaman Billing:
-              </p>
-              <ol className="text-xs space-y-1.5 text-muted-foreground list-decimal pl-5">
-                <li>Sistem Anticeil membuat token sesi transaksi Snap yang aman via API Midtrans.</li>
-                <li>Layar pembayaran Midtrans Snap terbuka menampilkan rincian nominal dalam Rupiah (IDR).</li>
-                <li>Setelah Anda menyelesaikan transfer atau memindai kode QRIS, Midtrans mengirimkan notifikasi webhook terenkripsi ke server Anticeil.</li>
-                <li>Kuota kredit AI dan limit akun Anda otomatis ditingkatkan tanpa perlu konfirmasi manual!</li>
-              </ol>
-            </div>
-
-            <div className="p-4 rounded-xl border bg-muted/40 space-y-2 text-xs">
-              <div className="font-semibold text-foreground">Dokumen Hukum & Legalitas Transaksi:</div>
-              <p className="text-muted-foreground">
-                Sebelum melakukan transaksi, Anda dapat meninjau{' '}
-                <Link to="/terms" className="text-primary underline">Syarat & Ketentuan Layanan</Link> serta{' '}
-                <Link to="/privacy" className="text-primary underline">Kebijakan Privasi</Link> resmi Kami.
-              </p>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'self-host',
-      category: 'Deployment & Hosting',
-      title: 'Self-Hosting via Docker & Cloudflare',
-      icon: Server,
-      content: (
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Self-Hosting via Docker & Cloudflare</h1>
-            <p className="mt-2 text-muted-foreground text-sm">
-              Arsitektur hibrida Anticeil memungkinkan backend dijalankan di VM/VPS dan frontend di Cloudflare Workers.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl border bg-card space-y-2">
-              <h3 className="font-semibold text-sm">1. Backend dengan Docker Compose</h3>
-              <p className="text-xs text-muted-foreground">
-                Jalankan service container app, worker, postgres, dan redis dengan satu perintah:
-              </p>
-              <pre className="p-3 rounded-lg bg-muted text-[11px] font-mono text-foreground overflow-x-auto">
-{`# Jalankan Anticeil stack
-docker compose up -d
-
-# Periksa status kontainer
-docker compose ps`}
+              <pre className="p-4 text-xs sm:text-sm font-mono overflow-x-auto text-emerald-300">
+                <code>{currentCode}</code>
               </pre>
-            </div>
+            </div>,
+          );
+        }
+        i++;
+        continue;
+      }
 
-            <div className="p-4 rounded-xl border bg-card space-y-2">
-              <h3 className="font-semibold text-sm">2. Frontend di Cloudflare Workers</h3>
-              <p className="text-xs text-muted-foreground">
-                Build frontend web dan deploy ke Cloudflare Workers dengan konfigurasi wrangler:
-              </p>
-              <pre className="p-3 rounded-lg bg-muted text-[11px] font-mono text-foreground overflow-x-auto">
-{`# Build frontend
-bun x turbo run build --filter=web
+      if (inCodeBlock) {
+        codeBlockContent.push(line);
+        i++;
+        continue;
+      }
 
-# Deploy ke Cloudflare Workers
-cd packages/web
-bunx wrangler deploy --config wrangler.jsonc`}
-              </pre>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'api-reference',
-      category: 'Pengembang (Developer)',
-      title: 'REST API & Kunci Akses',
-      icon: Code2,
-      content: (
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">REST API & Kunci Akses</h1>
-            <p className="mt-2 text-muted-foreground text-sm">
-              Gunakan API Anticeil untuk memicu alur kerja, mengelola proyek, dan membaca riwayat eksekusi secara terprogram.
-            </p>
-          </div>
+      // Check CardGroup
+      if (trimmed.startsWith('<CardGroup')) {
+        const colMatch = trimmed.match(/cols={?(\d+)}?/);
+        cardCols = colMatch ? parseInt(colMatch[1], 10) : 2;
+        inCardGroup = true;
+        i++;
+        continue;
+      }
 
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl border bg-card space-y-2">
-              <h3 className="font-semibold text-sm">Autentikasi Header</h3>
-              <p className="text-xs text-muted-foreground">
-                Sertakan API Key Anda dalam header HTTP Authorization:
-              </p>
-              <div className="p-3 rounded-lg bg-muted text-[11px] font-mono text-foreground">
-                Authorization: Bearer YOUR_ANTICEIL_API_KEY
+      if (trimmed.startsWith('</CardGroup>')) {
+        flushCards();
+        i++;
+        continue;
+      }
+
+      // Inside CardGroup or single Card
+      if (trimmed.startsWith('<Card ') || inCardGroup) {
+        if (trimmed.startsWith('<Card ')) {
+          const titleMatch = trimmed.match(/title="([^"]+)"/);
+          const iconMatch = trimmed.match(/icon="([^"]+)"/);
+          const hrefMatch = trimmed.match(/href="([^"]+)"/);
+          const colorMatch = trimmed.match(/color="([^"]+)"/);
+
+          const cardTitle = titleMatch ? titleMatch[1] : '';
+          const cardIcon = iconMatch ? iconMatch[1] : '';
+          const cardHref = hrefMatch ? hrefMatch[1] : '';
+          const cardColor = colorMatch ? colorMatch[1] : '#6366F1';
+
+          // Extract inner text
+          let cardDesc = '';
+          i++;
+          while (i < lines.length && !lines[i].trim().startsWith('</Card>')) {
+            cardDesc += ' ' + lines[i].trim();
+            i++;
+          }
+
+          const CardIconComponent = getDocIcon(cardIcon);
+
+          const cardNode = (
+            <div
+              key={`card-${cardItems.length}-${cardTitle}`}
+              onClick={() => {
+                if (cardHref) {
+                  if (cardHref.startsWith('http')) {
+                    window.open(cardHref, '_blank');
+                  } else {
+                    const clean = cardHref.startsWith('/docs')
+                      ? cardHref
+                      : `/docs${cardHref.startsWith('/') ? '' : '/'}${cardHref}`;
+                    navigate(clean);
+                  }
+                }
+              }}
+              className="p-5 rounded-xl border border-border/50 bg-[#111726]/70 hover:bg-[#151c2e] hover:border-primary/50 transition-all duration-200 cursor-pointer group flex flex-col justify-between"
+            >
+              <div>
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center mb-3.5 transition-transform group-hover:scale-105"
+                  style={{
+                    backgroundColor: `${cardColor}20`,
+                    color: cardColor,
+                  }}
+                >
+                  <CardIconComponent className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-sm sm:text-base text-foreground group-hover:text-primary transition-colors flex items-center justify-between">
+                  <span>{cardTitle}</span>
+                  <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-primary" />
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                  {cardDesc.replace(/\*\*/g, '').trim()}
+                </p>
               </div>
             </div>
+          );
 
-            <div className="p-4 rounded-xl border bg-card space-y-2">
-              <h3 className="font-semibold text-sm">Contoh Memicu Flow via cURL</h3>
-              <pre className="p-3 rounded-lg bg-muted text-[11px] font-mono text-foreground overflow-x-auto">
-{`curl -X POST https://anticeil.com/api/v1/webhooks/FLOW_ID \\
-  -H "Content-Type: application/json" \\
-  -d '{"message": "Halo dari API", "status": "active"}'`}
-              </pre>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-  ];
+          if (inCardGroup) {
+            cardItems.push(cardNode);
+          } else {
+            elements.push(
+              <div key={`single-card-${elements.length}`} className="my-4">
+                {cardNode}
+              </div>,
+            );
+          }
+          i++;
+          continue;
+        }
+      }
 
-  const filteredSections = sections.filter(
-    (s) =>
-      s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.category.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+      // Notes and callouts
+      if (
+        trimmed.startsWith('<Note') ||
+        trimmed.startsWith('<Info') ||
+        trimmed.startsWith('<Tip') ||
+        trimmed.startsWith('<Warning')
+      ) {
+        const isWarning = trimmed.startsWith('<Warning');
+        const isTip = trimmed.startsWith('<Tip');
+        let noteContent = '';
+        i++;
+        while (
+          i < lines.length &&
+          !lines[i].trim().startsWith('</Note>') &&
+          !lines[i].trim().startsWith('</Info>') &&
+          !lines[i].trim().startsWith('</Tip>') &&
+          !lines[i].trim().startsWith('</Warning>')
+        ) {
+          noteContent += ' ' + lines[i].trim();
+          i++;
+        }
 
-  const activeSection = sections.find((s) => s.id === activeId) || sections[0];
+        elements.push(
+          <div
+            key={`callout-${elements.length}`}
+            className={`my-5 p-4 rounded-xl border text-xs sm:text-sm flex gap-3.5 items-start ${
+              isWarning
+                ? 'bg-amber-950/20 border-amber-800/40 text-amber-200'
+                : isTip
+                  ? 'bg-emerald-950/20 border-emerald-800/40 text-emerald-200'
+                  : 'bg-indigo-950/20 border-indigo-800/40 text-indigo-200'
+            }`}
+          >
+            {isWarning ? (
+              <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
+            ) : isTip ? (
+              <Lightbulb className="w-5 h-5 shrink-0 text-emerald-400 mt-0.5" />
+            ) : (
+              <Info className="w-5 h-5 shrink-0 text-indigo-400 mt-0.5" />
+            )}
+            <div className="leading-relaxed">{noteContent.trim()}</div>
+          </div>,
+        );
+        i++;
+        continue;
+      }
 
-  // Group by category
-  const categories = Array.from(new Set(sections.map((s) => s.category)));
+      // Markdown Tables
+      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+        inTable = true;
+        const row = trimmed
+          .slice(1, -1)
+          .split('|')
+          .map((c) => c.trim());
+        // ignore separator row like |---|---|
+        if (!row.every((c) => /^:?-+:?$/.test(c))) {
+          tableRows.push(row);
+        }
+        i++;
+        continue;
+      } else if (inTable) {
+        flushTable();
+      }
+
+      // Headings
+      if (trimmed.startsWith('## ') || trimmed.startsWith('### ')) {
+        const isH2 = trimmed.startsWith('## ');
+        const headingText = trimmed
+          .replace(/^#{2,3}\s+/, '')
+          .replace(/\*\*/g, '')
+          .trim();
+        const headingId = slugify(headingText);
+
+        elements.push(
+          <div
+            key={`heading-${elements.length}`}
+            id={headingId}
+            className={`group scroll-mt-32 ${isH2 ? 'mt-10 mb-4' : 'mt-8 mb-3'}`}
+          >
+            {isH2 ? (
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                <span>{headingText}</span>
+                <a
+                  href={`#${headingId}`}
+                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-opacity text-sm"
+                  aria-label={`Link to ${headingText}`}
+                >
+                  #
+                </a>
+              </h2>
+            ) : (
+              <h3 className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
+                <span>{headingText}</span>
+                <a
+                  href={`#${headingId}`}
+                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-opacity text-xs"
+                  aria-label={`Link to ${headingText}`}
+                >
+                  #
+                </a>
+              </h3>
+            )}
+          </div>,
+        );
+        i++;
+        continue;
+      }
+
+      // App logos / HTML images fallback
+      if (trimmed.includes('<img') || trimmed.includes('<svg')) {
+        elements.push(
+          <div
+            key={`html-${elements.length}`}
+            className="my-4 overflow-x-auto"
+            dangerouslySetInnerHTML={{ __html: line }}
+          />,
+        );
+        i++;
+        continue;
+      }
+
+      // Lists
+      if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        const listText = trimmed.slice(2);
+        elements.push(
+          <li
+            key={`li-${elements.length}`}
+            className="text-xs sm:text-sm text-muted-foreground ml-4 list-disc leading-relaxed my-1"
+          >
+            {listText}
+          </li>,
+        );
+        i++;
+        continue;
+      }
+
+      // Paragraphs
+      if (trimmed.length > 0 && !trimmed.startsWith('<')) {
+        // Parse bold and links
+        elements.push(
+          <p
+            key={`p-${elements.length}`}
+            className="text-xs sm:text-sm text-muted-foreground leading-relaxed my-3"
+          >
+            {trimmed}
+          </p>,
+        );
+      }
+
+      i++;
+    }
+
+    if (inTable) flushTable();
+    if (inCardGroup) flushCards();
+
+    return elements;
+  };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary/20">
-      {/* Top Navbar */}
-      <header className="border-b bg-background/80 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-[#090d14] text-foreground selection:bg-primary/30 selection:text-primary-foreground font-sans antialiased">
+      {/* 1. Global Header (Symmetric max-w-[1440px] px-6 lg:px-8) */}
+      <header className="sticky top-0 z-50 w-full border-b border-border/30 bg-[#090d14]/90 backdrop-blur-md">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          {/* Left Brand */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="md:hidden p-2 rounded-lg border hover:bg-muted"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-1.5 rounded-lg border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              aria-label="Toggle menu"
             >
-              {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
-            <Link to="/" className="flex items-center gap-2">
-              <FullLogo />
+            <Link
+              to="/docs/overview/welcome"
+              className="flex items-center gap-2.5 group"
+            >
+              <FullLogo className="h-7 w-auto" />
+              <span className="font-bold text-lg tracking-tight group-hover:text-primary transition-colors">
+                anticeil
+              </span>
+              <span className="px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase rounded-full bg-primary/15 text-primary border border-primary/25">
+                Docs
+              </span>
             </Link>
-            <span className="hidden sm:inline-block text-xs font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground">
-              Dokumentasi
-            </span>
           </div>
 
-          <div className="flex-1 max-w-md hidden sm:block">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Cari dokumentasi..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 text-xs bg-muted/50 border-muted"
-              />
-            </div>
+          {/* Center Search Input */}
+          <div className="flex-1 max-w-md mx-auto hidden sm:block">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="w-full flex items-center justify-between px-3.5 py-1.5 rounded-lg border border-border/50 bg-[#121824] hover:bg-[#161f30] hover:border-primary/40 text-xs text-muted-foreground transition-all focus:outline-none"
+            >
+              <span className="flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Search Anticeil docs...</span>
+              </span>
+              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-background/60 border border-border/50 rounded text-muted-foreground shadow-xs">
+                Ctrl K
+              </kbd>
+            </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link to="/terms">
-              <Button variant="ghost" size="sm" className="hidden lg:flex text-xs">
-                Syarat & Ketentuan
-              </Button>
+          {/* Right Header Navigation */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="sm:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground"
+              aria-label="Search"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+            <a
+              href="https://github.com/mfaizasysyauqi/anticeil"
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors hidden md:inline-flex items-center gap-1.5"
+            >
+              <Github className="w-4 h-4" />
+              GitHub
+            </a>
+            <Link
+              to="/flows"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors hidden md:inline-block"
+            >
+              Pieces
             </Link>
-            <Link to="/privacy">
-              <Button variant="ghost" size="sm" className="hidden lg:flex text-xs">
-                Kebijakan Privasi
+            <a
+              href="https://anticeil.com/sign-up"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Button
+                size="sm"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-xs px-3.5 h-8 gap-1.5 rounded-lg shadow-sm"
+              >
+                <span>Sign Up</span>
+                <ChevronRight className="w-3.5 h-3.5" />
               </Button>
-            </Link>
-            <Link to="/sign-in">
-              <Button size="sm" className="text-xs">
-                Buka Aplikasi
-              </Button>
-            </Link>
+            </a>
+          </div>
+        </div>
+
+        {/* 2. Global Secondary Tabs Bar (Symmetric max-w-[1440px] px-6 lg:px-8) */}
+        <div className="border-t border-border/30 bg-[#090d14]/70">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-7 overflow-x-auto text-xs sm:text-sm scrollbar-none h-11">
+            {docsData.tabs.map((tab) => {
+              const isActive = tab.name === activeTabName;
+              return (
+                <button
+                  key={tab.name}
+                  onClick={() => handleSelectTab(tab)}
+                  className={`h-full flex items-center transition-colors whitespace-nowrap border-b-2 font-medium ${
+                    isActive
+                      ? 'border-primary text-foreground font-semibold'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {tab.name}
+                </button>
+              );
+            })}
           </div>
         </div>
       </header>
 
-      {/* Body Layout */}
-      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 flex">
-        {/* Left Sidebar */}
-        <aside
-          className={`
-            fixed md:sticky top-16 z-40 h-[calc(100vh-4rem)] w-64 shrink-0 border-r bg-background
-            p-4 overflow-y-auto transition-transform duration-200
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-            left-0
-          `}
-        >
-          <div className="sm:hidden mb-4">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Cari dokumentasi..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 text-xs"
-              />
-            </div>
-          </div>
+      {/* 3. Main Layout Container (Symmetric max-w-[1440px] px-6 lg:px-8) */}
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex min-h-[calc(100vh-6.75rem)]">
+        {/* Left Sidebar (Desktop) */}
+        <aside className="w-64 shrink-0 py-8 pr-6 border-r border-border/30 sticky top-[6.75rem] h-[calc(100vh-6.75rem)] overflow-y-auto hidden lg:block scrollbar-thin">
+          <div className="space-y-6">
+            {activeTab.groups.map((group) => (
+              <div key={group.name} className="space-y-1.5">
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 px-2.5">
+                  {group.name}
+                </h4>
+                <div className="space-y-0.5">
+                  {group.pages.map((p) => {
+                    const isPageActive =
+                      p.slug === currentSlug ||
+                      (currentSlug === 'overview/welcome' &&
+                        p.slug === 'overview/welcome');
+                    const PageIcon = getDocIcon(p.icon);
 
-          <nav className="space-y-6">
-            {categories.map((category) => {
-              const categoryItems = filteredSections.filter((s) => s.category === category);
-              if (categoryItems.length === 0) return null;
-
-              return (
-                <div key={category} className="space-y-1.5">
-                  <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2">
-                    {category}
-                  </div>
-                  <div className="space-y-0.5">
-                    {categoryItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = item.id === activeId;
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            setActiveId(item.id);
-                            setSidebarOpen(false);
-                          }}
-                          className={`
-                            w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors
-                            ${
-                              isActive
-                                ? 'bg-primary text-primary-foreground font-semibold'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                            }
-                          `}
-                        >
-                          <div className="flex items-center gap-2 truncate">
-                            <Icon className="w-3.5 h-3.5 shrink-0" />
-                            <span className="truncate">{item.title}</span>
-                          </div>
-                          {isActive && <ChevronRight className="w-3.5 h-3.5 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
+                    return (
+                      <button
+                        key={p.slug}
+                        onClick={() => navigate(`/docs/${p.slug}`)}
+                        className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-all text-left group ${
+                          isPageActive
+                            ? 'bg-primary/15 text-primary font-semibold shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                        }`}
+                      >
+                        <PageIcon
+                          className={`w-3.5 h-3.5 shrink-0 ${
+                            isPageActive
+                              ? 'text-primary'
+                              : 'text-muted-foreground/70 group-hover:text-foreground'
+                          }`}
+                        />
+                        <span className="truncate">{p.title}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </nav>
-
-          <div className="mt-8 pt-4 border-t space-y-2">
-            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2">
-              Tautan Terkait
-            </div>
-            <Link
-              to="/terms"
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Syarat & Ketentuan</span>
-            </Link>
-            <Link
-              to="/privacy"
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Kebijakan Privasi</span>
-            </Link>
+              </div>
+            ))}
           </div>
         </aside>
 
-        {/* Content Area */}
-        <main className="flex-1 min-w-0 py-8 md:px-8 max-w-4xl">
-          <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Dokumentasi</span>
-            <ChevronRight className="w-3 h-3" />
-            <span>{activeSection.category}</span>
-            <ChevronRight className="w-3 h-3" />
-            <span className="text-foreground font-medium">{activeSection.title}</span>
+        {/* Mobile Sidebar Drawer */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm lg:hidden flex">
+            <div className="w-72 bg-[#0d131f] border-r border-border/50 h-full p-6 overflow-y-auto space-y-6 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-border/40 pb-4">
+                <span className="font-bold text-sm tracking-tight text-foreground">
+                  Navigation
+                </span>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Mobile Tabs */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Category
+                </span>
+                <div className="grid grid-cols-2 gap-1.5 pt-1">
+                  {docsData.tabs.map((tab) => (
+                    <button
+                      key={tab.name}
+                      onClick={() => {
+                        handleSelectTab(tab);
+                      }}
+                      className={`text-xs px-2.5 py-1.5 rounded-md text-left truncate ${
+                        tab.name === activeTabName
+                          ? 'bg-primary text-primary-foreground font-medium'
+                          : 'bg-muted/30 text-muted-foreground'
+                      }`}
+                    >
+                      {tab.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-6 pt-2">
+                {activeTab.groups.map((group) => (
+                  <div key={group.name} className="space-y-1">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-2">
+                      {group.name}
+                    </h4>
+                    <div className="space-y-0.5">
+                      {group.pages.map((p) => {
+                        const isPageActive = p.slug === currentSlug;
+                        return (
+                          <button
+                            key={p.slug}
+                            onClick={() => {
+                              navigate(`/docs/${p.slug}`);
+                              setMobileMenuOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-left ${
+                              isPageActive
+                                ? 'bg-primary/15 text-primary font-medium'
+                                : 'text-muted-foreground hover:bg-muted/20'
+                            }`}
+                          >
+                            <span className="truncate">{p.title}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div
+              className="flex-1"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+          </div>
+        )}
+
+        {/* Center Main Content */}
+        <main className="flex-1 min-w-0 py-8 px-4 sm:px-8 lg:px-12 max-w-4xl">
+          {/* Breadcrumbs */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+            <span>{currentPage.group || currentPage.tab}</span>
+            <ChevronRight className="w-3 h-3 text-muted-foreground/60" />
+            <span className="text-foreground font-medium">
+              {currentPage.title}
+            </span>
           </div>
 
-          <div className="bg-card rounded-2xl border p-6 sm:p-8">
-            {activeSection.content}
+          {/* Heading and Description */}
+          <div className="mb-6">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
+              {currentPage.title}
+            </h1>
+            {currentPage.description && (
+              <p className="text-sm sm:text-base text-muted-foreground mt-2 leading-relaxed">
+                {currentPage.description}
+              </p>
+            )}
+          </div>
+
+          <div className="border-b border-border/30 my-6" />
+
+          {/* Render MDX Body */}
+          <div className="space-y-2">
+            {renderMdxContent(currentPage.body)}
+          </div>
+
+          {/* Page Footer / Feedback */}
+          <div className="mt-14 pt-8 border-t border-border/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-3">
+              <span>Was this page helpful?</span>
+              <button className="px-2.5 py-1 rounded-md border border-border/50 hover:bg-muted/30 transition-colors">
+                Yes
+              </button>
+              <button className="px-2.5 py-1 rounded-md border border-border/50 hover:bg-muted/30 transition-colors">
+                No
+              </button>
+            </div>
+            <div className="flex items-center gap-4">
+              <a
+                href={`https://github.com/mfaizasysyauqi/anticeil/edit/main/docs/${currentPage.slug}.mdx`}
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-primary transition-colors inline-flex items-center gap-1"
+              >
+                <span>Suggest edits</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+              <a
+                href="https://github.com/mfaizasysyauqi/anticeil/issues/new"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-primary transition-colors"
+              >
+                Raise issue
+              </a>
+            </div>
           </div>
         </main>
+
+        {/* Right Sidebar ("On this page" Table of Contents) */}
+        <aside className="w-60 shrink-0 py-8 pl-6 border-l border-border/20 sticky top-[6.75rem] h-[calc(100vh-6.75rem)] overflow-y-auto hidden xl:block scrollbar-thin">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <ListOrdered className="w-3.5 h-3.5" />
+              <span>On this page</span>
+            </div>
+            <nav className="space-y-1.5">
+              {currentPage.toc && currentPage.toc.length > 0 ? (
+                currentPage.toc.map((item) => (
+                  <a
+                    key={item.id}
+                    href={`#${item.id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const target = document.getElementById(item.id);
+                      if (target) {
+                        target.scrollIntoView({ behavior: 'smooth' });
+                        window.history.pushState(null, '', `#${item.id}`);
+                        setActiveHeadingId(item.id);
+                      }
+                    }}
+                    className={`block text-xs leading-snug transition-colors ${
+                      item.level === 3 ? 'pl-3' : ''
+                    } ${
+                      activeHeadingId === item.id
+                        ? 'text-primary font-medium'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {item.title}
+                  </a>
+                ))
+              ) : (
+                <span className="text-xs text-muted-foreground/60 italic">
+                  Overview
+                </span>
+              )}
+            </nav>
+          </div>
+        </aside>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t py-6 bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-          <div>
-            © {new Date().getFullYear()} Anticeil. Platform Otomasi & AI Terbuka (Lisensi MIT).
-          </div>
-          <div className="flex items-center gap-4">
-            <Link to="/terms" className="hover:text-foreground underline">Syarat & Ketentuan</Link>
-            <Link to="/privacy" className="hover:text-foreground underline">Kebijakan Privasi</Link>
-            <Link to="/docs" className="hover:text-foreground underline">Dokumentasi</Link>
+      {/* Search Modal */}
+      {searchOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-start justify-center pt-20 p-4">
+          <div className="w-full max-w-lg bg-[#0d131f] border border-border/60 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40">
+              <Search className="w-4 h-4 text-muted-foreground" />
+              <input
+                autoFocus
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search documentation, guides, APIs..."
+                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+              />
+              <button
+                onClick={() => setSearchOpen(false)}
+                className="text-xs text-muted-foreground hover:text-foreground p-1"
+              >
+                ESC
+              </button>
+            </div>
+            <div className="max-h-80 overflow-y-auto p-2 divide-y divide-border/20">
+              {searchResults.length > 0 ? (
+                searchResults.map((res) => (
+                  <button
+                    key={res.slug}
+                    onClick={() => {
+                      navigate(`/docs/${res.slug}`);
+                      setSearchOpen(false);
+                      setSearchQuery('');
+                    }}
+                    className="w-full text-left p-2.5 rounded-lg hover:bg-primary/10 transition-colors group flex flex-col"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-foreground group-hover:text-primary">
+                        {res.title}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground uppercase">
+                        {res.tab}
+                      </span>
+                    </div>
+                    {res.description && (
+                      <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
+                        {res.description}
+                      </p>
+                    )}
+                  </button>
+                ))
+              ) : searchQuery.trim() ? (
+                <div className="p-6 text-center text-xs text-muted-foreground">
+                  No matching documentation pages found for "{searchQuery}".
+                </div>
+              ) : (
+                <div className="p-4 text-xs text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground">Popular Guides:</p>
+                  <div className="grid grid-cols-2 gap-1 pt-1">
+                    <button
+                      onClick={() => {
+                        navigate('/docs/overview/welcome');
+                        setSearchOpen(false);
+                      }}
+                      className="text-left p-1.5 rounded hover:bg-muted/30 text-xs text-primary"
+                    >
+                      Welcome to Anticeil
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigate('/docs/agents/overview');
+                        setSearchOpen(false);
+                      }}
+                      className="text-left p-1.5 rounded hover:bg-muted/30 text-xs text-primary"
+                    >
+                      AI Agents Overview
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigate('/docs/flows/building-flows');
+                        setSearchOpen(false);
+                      }}
+                      className="text-left p-1.5 rounded hover:bg-muted/30 text-xs text-primary"
+                    >
+                      Building Flows
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigate('/docs/install/overview');
+                        setSearchOpen(false);
+                      }}
+                      className="text-left p-1.5 rounded hover:bg-muted/30 text-xs text-primary"
+                    >
+                      Self-Hosting & Docker
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </footer>
+      )}
     </div>
   );
 }
-
-export default DocsPage;

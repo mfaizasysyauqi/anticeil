@@ -161,6 +161,16 @@ export const publicRoutes = [
     ),
   },
   {
+    path: '/docs/*',
+    element: (
+      <PageTitle title="Dokumentasi">
+        <SuspenseWrapper>
+          <DocsPage />
+        </SuspenseWrapper>
+      </PageTitle>
+    ),
+  },
+  {
     path: '/redirect',
     element: <RedirectPage></RedirectPage>,
   },
