@@ -255,10 +255,10 @@ function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
             <span>{t('Processed by official Midtrans Payment Gateway (IDR)')}</span>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/terms" target="_blank" className="hover:text-foreground underline">
+            <Link to="/docs/legal/terms" target="_blank" className="hover:text-foreground underline">
               {t('Terms of Service')}
             </Link>
-            <Link to="/privacy" target="_blank" className="hover:text-foreground underline">
+            <Link to="/docs/legal/privacy" target="_blank" className="hover:text-foreground underline">
               {t('Privacy Policy')}
             </Link>
             <Link to="/docs" target="_blank" className="hover:text-foreground underline">

@@ -178,6 +178,22 @@
               "icon": "file-contract"
             }
           ]
+        },
+        {
+          "name": "Legal",
+          "icon": "shield",
+          "pages": [
+            {
+              "slug": "legal/terms",
+              "title": "Terms of Service",
+              "icon": "shield"
+            },
+            {
+              "slug": "legal/privacy",
+              "title": "Privacy Policy",
+              "icon": "lock"
+            }
+          ]
         }
       ]
     },
@@ -9631,6 +9647,110 @@
           "level": 3
         }
       ]
+    },
+    "legal/terms": {
+      "slug": "legal/terms",
+      "tab": "Get Started",
+      "group": "Legal",
+      "title": "Syarat dan Ketentuan Layanan (Terms of Service)",
+      "sidebarTitle": "Terms of Service",
+      "description": "Syarat dan Ketentuan resmi penggunaan platform Anticeil dan pemrosesan pembayaran Midtrans",
+      "icon": "shield",
+      "body": "Syarat dan Ketentuan ini mengatur penggunaan platform otomasi alur kerja dan AI Anticeil ([anticeil.com](https://anticeil.com)). Pembayaran tagihan langganan resmi diproses secara aman melalui gerbang pembayaran terlisensi **Midtrans** dalam mata uang Rupiah (IDR).\n\n<Info>\n**Dokumen Resmi Merchant:** Berlaku efektif untuk seluruh pengguna platform Anticeil. Terakhir diperbarui: Oktober 2026.\n</Info>\n\n## 1. Definisi dan Identitas Penyelenggara\n\nPlatform **Anticeil** (\"Layanan\", \"Kami\") adalah platform otomasi alur kerja (workflow automation), integrasi aplikasi tanpa kode, dan orkestrasi agen AI yang disediakan melalui situs web resmi **anticeil.com**.\n\nDengan mendaftar, mengakses, atau menggunakan Layanan, Pengguna (\"Anda\") menyetujui untuk terikat secara hukum oleh Syarat dan Ketentuan ini serta Kebijakan Privasi Kami. Apabila Anda tidak menyetujui salah satu ketentuan, Anda dipersilakan untuk tidak menggunakan Layanan Kami.\n\n## 2. Ketentuan Akun dan Pendaftaran\n\n- Pengguna wajib berusia sekurang-kurangnya 18 tahun atau memiliki persetujuan orang tua/wali yang sah menurut hukum Republik Indonesia.\n- Pengguna wajib memberikan informasi identitas (nama, alamat email aktif) yang akurat dan terkini saat proses pendaftaran.\n- Pengguna bertanggung jawab penuh atas keamanan kredensial akun, kata sandi, dan kunci API (API Key) miliknya.\n- Satu akun hanya boleh digunakan oleh satu entitas atau tim sesuai kuota paket langganan yang dipilih.\n\n## 3. Paket Berlangganan, Harga, dan Mata Uang\n\nAnticeil menyediakan pilihan paket langganan dengan harga resmi dalam satuan mata uang **Rupiah (IDR)**:\n\n| Paket | Harga Bulanan | Harga Tahunan | Fitur Utama |\n|---|---|---|---|\n| **Free** | Rp 0 | Rp 0 | 1.000 kredit otomasi, 1 anggota tim, alur kerja standar |\n| **Plus** | Rp 299.000 | Rp 2.990.000 / thn | 10.000 kredit otomasi, 5 anggota tim, AI Agents & kustomisasi |\n| **Team** | Rp 2.990.000 | Rp 29.900.000 / thn | 50.000 kredit otomasi, 25 anggota tim, SSO, Audit Log & Prioritas |\n\n*Harga di atas belum termasuk Pajak Pertambahan Nilai (PPN) apabila diwajibkan oleh ketentuan perpajakan Republik Indonesia.*\n\n## 4. Metode Pembayaran & Verifikasi Midtrans\n\nSemua transaksi pembayaran paket berbayar di Anticeil diproses secara langsung melalui mitra resmi Payment Gateway **Midtrans (PT Midtrans)** yang telah berizin dan diawasi oleh Bank Indonesia:\n\n- **QRIS & E-Wallet:** GoPay, OVO, ShopeePay, DANA, LinkAja.\n- **Virtual Account (Transfer Bank):** BCA, Mandiri, BNI, BRI, Permata Bank, dan bank lainnya.\n- **Kartu Kredit / Debit:** Visa, MasterCard, JCB, American Express dengan autentikasi 3D Secure (3DS).\n\nAnticeil tidak pernah menyimpan data nomor kartu kredit atau informasi finansial sensitif Pengguna di server Kami. Seluruh pemrosesan pembayaran tunduk pada standar keamanan perbankan global PCI-DSS Level 1 yang dikelola oleh Midtrans.\n\n## 5. Kebijakan Pembatalan dan Pengembalian Dana (Refund)\n\nKami mengutamakan kepuasan dan kepastian bagi setiap pelanggan Anticeil:\n\n- **Pembatalan Langganan:** Pengguna dapat membatalkan perpanjangan langganan kapan saja melalui menu Pengaturan Billing di akun Anticeil tanpa dikenakan biaya denda atau penalti pembatalan. Akses paket berbayar tetap aktif hingga akhir periode penagihan yang sedang berjalan.\n- **Garansi Pengembalian Dana 7 Hari:** Pengguna paket berbayar baru berhak mengajukan permohonan pengembalian dana (refund) penuh dalam kurun waktu **7 (tujuh) hari kalender** sejak tanggal transaksi pertama jika mengalami kendala teknis layanan yang tidak dapat diselesaikan oleh tim dukungan Kami.\n- **Prosedur Klaim Refund:** Untuk mengajukan pengembalian dana, kirimkan email ke [anticeil.official@gmail.com](mailto:anticeil.official@gmail.com) dengan menyertakan Nomor Pesanan (Order ID) dari bukti transaksi Midtrans dan alasan pengajuan. Pengembalian akan diproses dalam waktu 3-7 hari kerja melalui metode pembayaran awal.\n\n## 6. Kepemilikan Data dan Hak Kekayaan Intelektual\n\nSeluruh data bisnis, kredensial integrasi, konfigurasi alur kerja (flows), dan konten yang Anda buat pada platform Anticeil tetap merupakan hak milik penuh Anda. Kami tidak mengklaim kepemilikan apapun atas data Anda.\n\nMerek dagang, logo Anticeil, desain antarmuka, dan kode sumber dasar perangkat lunak dilindungi oleh hukum hak cipta dan lisensi perangkat lunak yang berlaku.\n\n## 7. Ketersediaan Layanan & Batasan Tanggung Jawab\n\nKami berkomitmen untuk menyediakan uptime layanan hingga 99,9%. Namun, Layanan disediakan dengan basis \"sebagaimana adanya\" (as is) tanpa jaminan mutlak atas ketiadaan gangguan akibat kegagalan pihak ketiga (seperti penyedia API pihak ketiga, jaringan internet global, atau pemadaman cloud provider).\n\n## 8. Hukum yang Berlaku dan Penyelesaian Sengketa\n\nSyarat dan Ketentuan ini diatur dan ditafsirkan sesuai dengan hukum Republik Indonesia. Setiap perselisihan yang timbul akan diupayakan diselesaikan terlebih dahulu melalui musyawarah untuk mufakat, atau melalui yurisdiksi Pengadilan Negeri di Indonesia.\n\n## 9. Informasi Kontak Dukungan Pelanggan\n\nApabila Anda memiliki pertanyaan, klarifikasi, atau memerlukan bantuan terkait Syarat dan Ketentuan Layanan maupun transaksi Midtrans, silakan hubungi Kami:\n\n- **Email Layanan Pelanggan:** [anticeil.official@gmail.com](mailto:anticeil.official@gmail.com)\n- **Situs Web Resmi:** [https://anticeil.com](https://anticeil.com)\n- **Lokasi Kantor:** Jakarta, Republik Indonesia",
+      "toc": [
+        {
+          "id": "1-definisi-dan-identitas-penyelenggara",
+          "title": "1. Definisi dan Identitas Penyelenggara",
+          "level": 2
+        },
+        {
+          "id": "2-ketentuan-akun-dan-pendaftaran",
+          "title": "2. Ketentuan Akun dan Pendaftaran",
+          "level": 2
+        },
+        {
+          "id": "3-paket-berlangganan-harga-dan-mata-uang",
+          "title": "3. Paket Berlangganan, Harga, dan Mata Uang",
+          "level": 2
+        },
+        {
+          "id": "4-metode-pembayaran-verifikasi-midtrans",
+          "title": "4. Metode Pembayaran & Verifikasi Midtrans",
+          "level": 2
+        },
+        {
+          "id": "5-kebijakan-pembatalan-dan-pengembalian-dana-refund",
+          "title": "5. Kebijakan Pembatalan dan Pengembalian Dana (Refund)",
+          "level": 2
+        },
+        {
+          "id": "6-kepemilikan-data-dan-hak-kekayaan-intelektual",
+          "title": "6. Kepemilikan Data dan Hak Kekayaan Intelektual",
+          "level": 2
+        },
+        {
+          "id": "7-ketersediaan-layanan-batasan-tanggung-jawab",
+          "title": "7. Ketersediaan Layanan & Batasan Tanggung Jawab",
+          "level": 2
+        },
+        {
+          "id": "8-hukum-yang-berlaku-dan-penyelesaian-sengketa",
+          "title": "8. Hukum yang Berlaku dan Penyelesaian Sengketa",
+          "level": 2
+        },
+        {
+          "id": "9-informasi-kontak-dukungan-pelanggan",
+          "title": "9. Informasi Kontak Dukungan Pelanggan",
+          "level": 2
+        }
+      ]
+    },
+    "legal/privacy": {
+      "slug": "legal/privacy",
+      "tab": "Get Started",
+      "group": "Legal",
+      "title": "Kebijakan Privasi (Privacy Policy)",
+      "sidebarTitle": "Privacy Policy",
+      "description": "Kebijakan privasi dan standar perlindungan data pribadi pengguna platform Anticeil sesuai UU PDP",
+      "icon": "lock",
+      "body": "Anticeil menghormati dan melindungi data pribadi seluruh pengguna. Dokumen ini menjelaskan bagaimana Kami mengumpulkan, menggunakan, menyimpan, dan melindungi informasi Anda sesuai Undang-Undang Perlindungan Data Pribadi (UU PDP No. 27 Tahun 2022). Seluruh data transaksi pembayaran diproses melalui saluran terenkripsi PCI-DSS oleh **Midtrans**.\n\n<Info>\n**Kepatuhan UU PDP No. 27 Tahun 2022:** Dokumen resmi standar keamanan dan perlindungan privasi data pengguna platform Anticeil. Terakhir diperbarui: Oktober 2026.\n</Info>\n\n## 1. Informasi yang Kami Kumpulkan\n\nKami mengumpulkan informasi yang diperlukan untuk mengoperasikan Layanan secara aman dan efektif:\n\n- **Data Akun Pengguna:** Nama lengkap, alamat email, foto profil (opsional), dan kata sandi yang telah dienkripsi menggunakan algoritma hashing satu arah yang aman.\n- **Data Alur Kerja & Eksekusi:** Konfigurasi flow, nama project, trigger webhook, dan parameter otomasi yang Anda buat untuk menjalankan integrasi.\n- **Kunci API & Kredensial:** Token koneksi OAuth dan API Key pihak ketiga disimpan dalam database terenkripsi kuat menggunakan AES-256-GCM.\n- **Data Transaksi Pembayaran:** Status pesanan, ID transaksi, jenis paket yang dibeli, dan waktu pembayaran yang diteruskan melalui Midtrans.\n\n## 2. Pemrosesan Data Pembayaran oleh Midtrans\n\nUntuk menjaga standar keamanan tertinggi, **Anticeil tidak pernah menyimpan, mencatat, atau mengakses data kartu kredit** (seperti 16 digit nomor kartu, tanggal kedaluwarsa, atau kode CVV/CVC) maupun kata sandi perbankan Anda pada infrastruktur Kami.\n\nKetika Anda melakukan pembelian atau perpanjangan langganan paket:\n- Transaksi diarahkan secara aman ke antarmuka **Midtrans Snap** melalui koneksi HTTPS/TLS 1.3 terenkripsi.\n- Midtrans memproses autentikasi pembayaran langsung ke jaringan bank terkait dan penerbit kartu sesuai standar internasional **PCI-DSS (Payment Card Industry Data Security Standard) Level 1**.\n- Anticeil hanya menerima pemberitahuan status transaksi (berhasil, tertunda, atau gagal) beserta Nomor Transaksi (Order ID) dari webhook Midtrans untuk mengaktifkan kuota paket Anda secara otomatis.\n\n## 3. Tujuan Penggunaan Informasi\n\nInformasi yang Kami peroleh digunakan semata-mata untuk:\n- Menyediakan, memelihara, dan meningkatkan fungsi platform Anticeil.\n- Mengeksekusi alur kerja otomasi dan interaksi agen AI sesuai instruksi Anda.\n- Mengirimkan informasi penting seperti notifikasi status flow, konfirmasi aktivasi paket, dan faktur penagihan.\n- Mencegah aktivitas penyalahgunaan, akses ilegal, atau serangan siber terhadap akun dan infrastruktur.\n\n## 4. Perlindungan dan Penyimpanan Data\n\nKeamanan data Anda adalah prioritas utama Kami. Kami menerapkan langkah-langkah perlindungan teknis dan organisasi yang ketat:\n- **Enkripsi Dalam Transit:** Seluruh komunikasi antara browser Anda dan server Kami dienkripsi menggunakan protokol TLS/HTTPS.\n- **Enkripsi Saat Istirahat (At Rest):** Seluruh kredensial rahasia disimpan dalam bentuk terenkripsi menggunakan kunci enkripsi server independen (AES-256).\n- **Isolasi Eksekusi:** Kode otomasi dan flow pengguna dijalankan dalam lingkungan eksekusi terisolasi (sandbox) untuk mencegah kebocoran antar akun.\n\n## 5. Pembagian Data ke Pihak Ketiga\n\nKami tidak menjual, menyewakan, atau memperdagangkan data pribadi Anda kepada pihak mana pun untuk keperluan periklanan. Data hanya dibagikan ke pihak ketiga dalam kondisi berikut:\n- **Mitra Pembayaran Resmi:** Midtrans untuk tujuan verifikasi dan pemrosesan transaksi pembayaran langganan.\n- **Penyedia Layanan yang Anda Hubungkan:** Aplikasi eksternal (seperti Google Workspace, Telegram, OpenAI, Slack) hanya menerima data yang secara spesifik Anda konfigurasikan dalam alur kerja otomasi Anda.\n- **Kewajiban Hukum:** Apabila diwajibkan oleh perintah pengadilan atau otoritas penegak hukum Republik Indonesia yang sah.\n\n## 6. Hak-Hak Pengguna (Subjek Data)\n\nBerdasarkan UU Perlindungan Data Pribadi (UU PDP), Anda berhak untuk:\n- Mengakses dan memperoleh salinan data pribadi yang Kami simpan.\n- Memperbarui atau memperbaiki data pribadi yang tidak akurat melalui menu Pengaturan Profil.\n- Meminta penghapusan permanen akun beserta seluruh data konfigurasi flow dan riwayat eksekusi.\n- Mencabut izin koneksi pihak ketiga kapan saja melalui menu Koneksi di antarmuka Anticeil.\n\n## 7. Kontak Pengaduan & Perlindungan Data\n\nJika Anda memiliki pertanyaan mengenai Kebijakan Privasi ini atau ingin mengajukan hak terkait data pribadi Anda, silakan hubungi Tim Privasi Kami:\n\n- **Tim Privasi & Keamanan Anticeil:** [anticeil.official@gmail.com](mailto:anticeil.official@gmail.com)\n- **Situs Web Resmi:** [https://anticeil.com](https://anticeil.com)\n- **Lokasi Kantor:** Jakarta, Republik Indonesia",
+      "toc": [
+        {
+          "id": "1-informasi-yang-kami-kumpulkan",
+          "title": "1. Informasi yang Kami Kumpulkan",
+          "level": 2
+        },
+        {
+          "id": "2-pemrosesan-data-pembayaran-oleh-midtrans",
+          "title": "2. Pemrosesan Data Pembayaran oleh Midtrans",
+          "level": 2
+        },
+        {
+          "id": "3-tujuan-penggunaan-informasi",
+          "title": "3. Tujuan Penggunaan Informasi",
+          "level": 2
+        },
+        {
+          "id": "4-perlindungan-dan-penyimpanan-data",
+          "title": "4. Perlindungan dan Penyimpanan Data",
+          "level": 2
+        },
+        {
+          "id": "5-pembagian-data-ke-pihak-ketiga",
+          "title": "5. Pembagian Data ke Pihak Ketiga",
+          "level": 2
+        },
+        {
+          "id": "6-hak-hak-pengguna-subjek-data",
+          "title": "6. Hak-Hak Pengguna (Subjek Data)",
+          "level": 2
+        },
+        {
+          "id": "7-kontak-pengaduan-perlindungan-data",
+          "title": "7. Kontak Pengaduan & Perlindungan Data",
+          "level": 2
+        }
+      ]
     }
   },
   "redirects": {
@@ -9655,6 +9775,9 @@
     "install/guides/setup-opentelemetry": "install/configure-operate/setup-opentelemetry",
     "install/guides/separate-workers": "install/configure-operate/separate-workers",
     "install/guides/setup-app-webhooks": "install/configure-operate/setup-app-webhooks",
-    "install/guides/rollback": "install/configure-operate/rollback"
+    "install/guides/rollback": "install/configure-operate/rollback",
+    "terms": "legal/terms",
+    "privacy": "legal/privacy",
+    "legal": "legal/terms"
   }
 }

@@ -39,7 +39,7 @@ export const HelpAndFeedback = () => {
 
         <DropdownMenuItem asChild>
           <Link
-            to="/terms"
+            to="/docs/legal/terms"
             target="_blank"
             rel="noopener noreferrer"
             className="flex justify-between w-full"
@@ -53,7 +53,7 @@ export const HelpAndFeedback = () => {
 
         <DropdownMenuItem asChild>
           <Link
-            to="/privacy"
+            to="/docs/legal/privacy"
             target="_blank"
             rel="noopener noreferrer"
             className="flex justify-between w-full"
@@ -67,7 +67,7 @@ export const HelpAndFeedback = () => {
 
         <DropdownMenuItem asChild>
           <Link
-            to="https://github.com/activepieces/activepieces/releases"
+            to="https://github.com/mfaizasysyauqi/anticeil/releases"
             target="_blank"
             rel="noopener noreferrer"
             className="flex justify-between w-full"

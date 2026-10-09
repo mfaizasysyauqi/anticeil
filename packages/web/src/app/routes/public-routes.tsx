@@ -28,14 +28,8 @@ const TemplatesPage = lazyWithRetry(
   () => import('./templates').then((m) => ({ default: m.TemplatesPage })),
   'public-templates',
 );
-const TermsPage = lazyWithRetry(
-  () => import('./terms').then((m) => ({ default: m.TermsPage })),
-  'public-terms',
-);
-const PrivacyPage = lazyWithRetry(
-  () => import('./privacy').then((m) => ({ default: m.PrivacyPage })),
-  'public-privacy',
-);
+import { Navigate } from 'react-router-dom';
+
 const DocsPage = lazyWithRetry(
   () => import('./docs').then((m) => ({ default: m.DocsPage })),
   'public-docs',
@@ -112,43 +106,19 @@ export const publicRoutes = [
   },
   {
     path: '/terms',
-    element: (
-      <PageTitle title="Syarat dan Ketentuan">
-        <SuspenseWrapper>
-          <TermsPage />
-        </SuspenseWrapper>
-      </PageTitle>
-    ),
+    element: <Navigate to="/docs/legal/terms" replace />,
   },
   {
     path: '/syarat-ketentuan',
-    element: (
-      <PageTitle title="Syarat dan Ketentuan">
-        <SuspenseWrapper>
-          <TermsPage />
-        </SuspenseWrapper>
-      </PageTitle>
-    ),
+    element: <Navigate to="/docs/legal/terms" replace />,
   },
   {
     path: '/privacy',
-    element: (
-      <PageTitle title="Kebijakan Privasi">
-        <SuspenseWrapper>
-          <PrivacyPage />
-        </SuspenseWrapper>
-      </PageTitle>
-    ),
+    element: <Navigate to="/docs/legal/privacy" replace />,
   },
   {
     path: '/kebijakan-privasi',
-    element: (
-      <PageTitle title="Kebijakan Privasi">
-        <SuspenseWrapper>
-          <PrivacyPage />
-        </SuspenseWrapper>
-      </PageTitle>
-    ),
+    element: <Navigate to="/docs/legal/privacy" replace />,
   },
   {
     path: '/docs',

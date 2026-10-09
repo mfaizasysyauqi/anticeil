@@ -412,8 +412,8 @@ function LegalNote() {
     ApFlagId.PRIVACY_POLICY_URL,
   );
 
-  const effectiveTerms = termsUrl || '/terms';
-  const effectivePrivacy = privacyUrl || '/privacy';
+  const effectiveTerms = termsUrl || '/docs/legal/terms';
+  const effectivePrivacy = privacyUrl || '/docs/legal/privacy';
 
   return (
     <p className="mt-8 border-t pt-5 text-center text-[11px] leading-relaxed text-muted-foreground">
