@@ -778,26 +778,33 @@ export function DocsPage() {
         }
       }
 
-      // Notes and callouts
-      if (
-        trimmed.startsWith('<Note') ||
-        trimmed.startsWith('<Info') ||
-        trimmed.startsWith('<Tip') ||
-        trimmed.startsWith('<Warning')
-      ) {
-        const isWarning = trimmed.startsWith('<Warning');
-        const isTip = trimmed.startsWith('<Tip');
-        let noteContent = '';
-        i++;
-        while (
-          i < lines.length &&
-          !lines[i].trim().startsWith('</Note>') &&
-          !lines[i].trim().startsWith('</Info>') &&
-          !lines[i].trim().startsWith('</Tip>') &&
-          !lines[i].trim().startsWith('</Warning>')
-        ) {
-          noteContent += ' ' + lines[i].trim();
+      // Notes and callouts (<Note>, <Info>, <Tip>, <Warning>)
+      const calloutMatch = trimmed.match(/^<(Note|Info|Tip|Warning)(\s+[^>]*)?>([\s\S]*)$/);
+      if (calloutMatch) {
+        const tagName = calloutMatch[1];
+        const isWarning = tagName === 'Warning';
+        const isTip = tagName === 'Tip';
+        const closeTag = `</${tagName}>`;
+
+        const calloutLines: string[] = [];
+        const restOfLine = calloutMatch[3] || '';
+
+        if (restOfLine.includes(closeTag)) {
+          // Single-line callout: <Info>Content...</Info>
+          const singleContent = restOfLine.split(closeTag)[0].trim();
+          if (singleContent) calloutLines.push(singleContent);
+        } else {
+          // Multi-line callout
+          if (restOfLine.trim()) calloutLines.push(restOfLine.trim());
           i++;
+          while (i < lines.length && !lines[i].includes(closeTag)) {
+            calloutLines.push(lines[i]);
+            i++;
+          }
+          if (i < lines.length && lines[i].includes(closeTag)) {
+            const beforeClose = lines[i].split(closeTag)[0].trim();
+            if (beforeClose) calloutLines.push(beforeClose);
+          }
         }
 
         elements.push(
@@ -818,8 +825,30 @@ export function DocsPage() {
             ) : (
               <Info className="w-5 h-5 shrink-0 text-indigo-600 dark:text-indigo-400 mt-0.5" />
             )}
-            <div className="leading-relaxed text-foreground/90">
-              {renderFormattedText(noteContent.trim(), currentSlug)}
+            <div className="leading-relaxed text-foreground/90 font-normal space-y-2 flex-1">
+              {calloutLines.length === 1 ? (
+                <div>{renderFormattedText(calloutLines[0], currentSlug)}</div>
+              ) : (
+                calloutLines.filter(l => l.trim()).map((l, lIdx) => {
+                  const tLine = l.trim();
+                  if (tLine.startsWith('- ') || tLine.startsWith('* ')) {
+                    return (
+                      <li key={lIdx} className="ml-4 list-disc text-xs sm:text-sm my-0.5">
+                        {renderFormattedText(tLine.slice(2), currentSlug)}
+                      </li>
+                    );
+                  }
+                  const numM = tLine.match(/^(\d+)\.\s+(.*)$/);
+                  if (numM) {
+                    return (
+                      <li key={lIdx} className="ml-5 list-decimal text-xs sm:text-sm my-0.5">
+                        {renderFormattedText(numM[2], currentSlug)}
+                      </li>
+                    );
+                  }
+                  return <p key={lIdx}>{renderFormattedText(tLine, currentSlug)}</p>;
+                })
+              )}
             </div>
           </div>,
         );
