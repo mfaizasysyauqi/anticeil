@@ -119,6 +119,158 @@ function slugify(text: string): string {
     .replace(/\s+/g, '-');
 }
 
+function resolveDocLink(rawUrl: string, currentSlug: string): string {
+  if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+    if (rawUrl.includes('activepieces.com/docs/')) {
+      const sub = rawUrl.split('activepieces.com/docs/')[1] || '';
+      return `/docs/${sub.replace(/\/$/, '')}`;
+    }
+    return rawUrl;
+  }
+  let target = rawUrl.trim().replace(/\.(md|mdx)$/, '');
+  if (target.startsWith('#')) {
+    return target;
+  }
+  if (target.startsWith('./')) {
+    const parts = currentSlug.split('/');
+    parts.pop();
+    const base = parts.join('/');
+    target = base ? `${base}/${target.slice(2)}` : target.slice(2);
+  } else if (target.startsWith('../')) {
+    const parts = currentSlug.split('/');
+    parts.pop();
+    while (target.startsWith('../')) {
+      parts.pop();
+      target = target.slice(3);
+    }
+    const base = parts.join('/');
+    target = base ? `${base}/${target}` : target;
+  }
+  if (!target.startsWith('/docs')) {
+    target = `/docs${target.startsWith('/') ? '' : '/'}${target}`;
+  }
+  return target;
+}
+
+function DocImage({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt?: string;
+  className?: string;
+}) {
+  const [imgSrc, setImgSrc] = useState(src);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setImgSrc(src);
+    setHasError(false);
+  }, [src]);
+
+  const handleError = () => {
+    if (!hasError && src.startsWith('/resources/')) {
+      setHasError(true);
+      const fallbackUrl = `https://raw.githubusercontent.com/activepieces/activepieces/main/docs${src.replace('/anticeil-', '/activepieces-')}`;
+      setImgSrc(fallbackUrl);
+    }
+  };
+
+  return (
+    <div className="my-6 rounded-xl border border-border/40 bg-[#0d121c] p-2 overflow-hidden shadow-sm flex flex-col items-center justify-center">
+      <img
+        src={imgSrc}
+        alt={alt || 'Documentation illustration'}
+        loading="lazy"
+        onError={handleError}
+        className={`max-w-full h-auto rounded-lg object-contain ${className || ''}`}
+      />
+      {alt && (
+        <span className="text-[11px] text-muted-foreground/80 mt-2 text-center italic">
+          {alt}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function renderFormattedText(text: string, currentSlug: string = ''): React.ReactNode {
+  if (!text) return null;
+
+  const regex = /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*)/g;
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    const [, , linkText, linkUrl, boldText, codeText, italicText] = match;
+    const key = `fmt-${lastIndex}-${match.index}`;
+
+    if (linkText && linkUrl) {
+      const resolved = resolveDocLink(linkUrl, currentSlug);
+      const isExternal = resolved.startsWith('http://') || resolved.startsWith('https://');
+      if (isExternal) {
+        nodes.push(
+          <a
+            key={key}
+            href={resolved}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline font-medium inline-flex items-center gap-0.5"
+          >
+            <span>{linkText}</span>
+            <ExternalLink className="w-3 h-3 inline-block ml-0.5 opacity-70" />
+          </a>,
+        );
+      } else {
+        nodes.push(
+          <Link
+            key={key}
+            to={resolved}
+            className="text-primary hover:underline font-medium"
+          >
+            {linkText}
+          </Link>,
+        );
+      }
+    } else if (boldText !== undefined) {
+      nodes.push(
+        <strong key={key} className="font-semibold text-foreground">
+          {boldText}
+        </strong>,
+      );
+    } else if (codeText !== undefined) {
+      nodes.push(
+        <code
+          key={key}
+          className="px-1.5 py-0.5 mx-0.5 rounded-md bg-muted/80 text-primary border border-border/50 font-mono text-xs"
+        >
+          {codeText}
+        </code>,
+      );
+    } else if (italicText !== undefined) {
+      nodes.push(
+        <em key={key} className="italic text-foreground/90">
+          {italicText}
+        </em>,
+      );
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes.length === 1 ? nodes[0] : <>{nodes}</>;
+}
+
 export function DocsPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -257,7 +409,7 @@ export function DocsPage() {
                 <tr>
                   {header.map((col, idx) => (
                     <th key={idx} className="px-4 py-2.5">
-                      {col.trim()}
+                      {renderFormattedText(col.trim(), currentSlug)}
                     </th>
                   ))}
                 </tr>
@@ -270,7 +422,7 @@ export function DocsPage() {
                   >
                     {row.map((cell, cIdx) => (
                       <td key={cIdx} className="px-4 py-2 text-muted-foreground">
-                        {cell.trim()}
+                        {renderFormattedText(cell.trim(), currentSlug)}
                       </td>
                     ))}
                   </tr>
@@ -407,10 +559,8 @@ export function DocsPage() {
                   if (cardHref.startsWith('http')) {
                     window.open(cardHref, '_blank');
                   } else {
-                    const clean = cardHref.startsWith('/docs')
-                      ? cardHref
-                      : `/docs${cardHref.startsWith('/') ? '' : '/'}${cardHref}`;
-                    navigate(clean);
+                    const resolved = resolveDocLink(cardHref, currentSlug);
+                    navigate(resolved);
                   }
                 }
               }}
@@ -431,7 +581,7 @@ export function DocsPage() {
                   <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-primary" />
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                  {cardDesc.replace(/\*\*/g, '').trim()}
+                  {renderFormattedText(cardDesc.trim(), currentSlug)}
                 </p>
               </div>
             </div>
@@ -491,9 +641,97 @@ export function DocsPage() {
             ) : (
               <Info className="w-5 h-5 shrink-0 text-indigo-400 mt-0.5" />
             )}
-            <div className="leading-relaxed">{noteContent.trim()}</div>
+            <div className="leading-relaxed">
+              {renderFormattedText(noteContent.trim(), currentSlug)}
+            </div>
           </div>,
         );
+        i++;
+        continue;
+      }
+
+      // AI Prompt blocks
+      if (trimmed.startsWith('<Prompt')) {
+        const descMatch = trimmed.match(/description="([^"]+)"/);
+        const promptDesc = descMatch ? descMatch[1] : 'AI Assistant Prompt';
+        let promptBody = '';
+        i++;
+        while (i < lines.length && !lines[i].trim().startsWith('</Prompt>')) {
+          promptBody += (promptBody ? '\n' : '') + lines[i];
+          i++;
+        }
+        const promptIdx = codeBlockIdx++;
+        const currentPrompt = promptBody.trim();
+        elements.push(
+          <div
+            key={`prompt-${elements.length}`}
+            className="my-6 rounded-xl border border-primary/30 bg-primary/5 p-4"
+          >
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-primary/20 text-xs text-primary font-medium">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{promptDesc}</span>
+              </span>
+              <button
+                onClick={() => handleCopyCode(currentPrompt, promptIdx)}
+                className="flex items-center gap-1 hover:text-foreground transition-colors text-muted-foreground"
+              >
+                {copiedCodeIndex === promptIdx ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-green-500" />
+                    <span className="text-green-500">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="text-xs sm:text-sm text-foreground/90 whitespace-pre-wrap font-sans leading-relaxed">
+              {renderFormattedText(currentPrompt, currentSlug)}
+            </div>
+          </div>,
+        );
+        i++;
+        continue;
+      }
+
+      // Accordion
+      if (trimmed.startsWith('<Accordion ') || trimmed.startsWith('<AccordionGroup')) {
+        if (trimmed.startsWith('<AccordionGroup')) {
+          i++;
+          continue;
+        }
+        const titleMatch = trimmed.match(/title="([^"]+)"/);
+        const accTitle = titleMatch ? titleMatch[1] : 'Details';
+        let accBody = '';
+        i++;
+        while (i < lines.length && !lines[i].trim().startsWith('</Accordion>')) {
+          accBody += (accBody ? '\n' : '') + lines[i];
+          i++;
+        }
+        elements.push(
+          <details
+            key={`acc-${elements.length}`}
+            className="my-3 rounded-lg border border-border/40 bg-muted/10 p-3.5 text-xs sm:text-sm group"
+          >
+            <summary className="font-semibold text-foreground cursor-pointer select-none list-none flex items-center justify-between">
+              <span>{accTitle}</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground group-open:rotate-90 transition-transform" />
+            </summary>
+            <div className="pt-3 text-muted-foreground leading-relaxed">
+              {renderFormattedText(accBody.trim(), currentSlug)}
+            </div>
+          </details>,
+        );
+        i++;
+        continue;
+      }
+
+      // Frame wrappers
+      if (trimmed.startsWith('<Frame') || trimmed.startsWith('</Frame>')) {
         i++;
         continue;
       }
@@ -559,8 +797,59 @@ export function DocsPage() {
         continue;
       }
 
-      // App logos / HTML images fallback
-      if (trimmed.includes('<img') || trimmed.includes('<svg')) {
+      // HTML img tags
+      if (trimmed.includes('<img')) {
+        const srcMatch = trimmed.match(/src="([^"]+)"/);
+        const altMatch = trimmed.match(/alt="([^"]+)"/);
+        if (srcMatch) {
+          elements.push(
+            <DocImage
+              key={`img-${elements.length}`}
+              src={srcMatch[1]}
+              alt={altMatch ? altMatch[1] : ''}
+            />,
+          );
+          i++;
+          continue;
+        }
+      }
+
+      // Markdown image ![alt](src)
+      const mdImgMatch = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+      if (mdImgMatch) {
+        elements.push(
+          <DocImage
+            key={`mdimg-${elements.length}`}
+            src={mdImgMatch[2]}
+            alt={mdImgMatch[1]}
+          />,
+        );
+        i++;
+        continue;
+      }
+
+      // Videos
+      if (trimmed.includes('<video') || trimmed.endsWith('.mp4')) {
+        const srcMatch = trimmed.match(/src="([^"]+)"/);
+        const vidSrc = srcMatch ? srcMatch[1] : trimmed;
+        elements.push(
+          <div
+            key={`vid-${elements.length}`}
+            className="my-6 rounded-xl border border-border/50 bg-[#0c1017] p-2 overflow-hidden shadow-sm"
+          >
+            <video
+              src={vidSrc}
+              controls
+              className="w-full rounded-lg max-h-[500px]"
+            />
+          </div>,
+        );
+        i++;
+        continue;
+      }
+
+      // App logos / HTML fallback
+      if (trimmed.includes('<svg')) {
         elements.push(
           <div
             key={`html-${elements.length}`}
@@ -572,7 +861,33 @@ export function DocsPage() {
         continue;
       }
 
-      // Lists
+      // Horizontal dividers
+      if (trimmed === '---' || trimmed === '***') {
+        elements.push(
+          <hr
+            key={`hr-${elements.length}`}
+            className="my-8 border-t border-border/40"
+          />,
+        );
+        i++;
+        continue;
+      }
+
+      // Blockquotes
+      if (trimmed.startsWith('> ')) {
+        elements.push(
+          <blockquote
+            key={`bq-${elements.length}`}
+            className="my-4 border-l-2 border-primary/50 pl-4 py-1 text-xs sm:text-sm text-muted-foreground italic"
+          >
+            {renderFormattedText(trimmed.slice(2), currentSlug)}
+          </blockquote>,
+        );
+        i++;
+        continue;
+      }
+
+      // Unordered lists
       if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
         const listText = trimmed.slice(2);
         elements.push(
@@ -580,7 +895,22 @@ export function DocsPage() {
             key={`li-${elements.length}`}
             className="text-xs sm:text-sm text-muted-foreground ml-4 list-disc leading-relaxed my-1"
           >
-            {listText}
+            {renderFormattedText(listText, currentSlug)}
+          </li>,
+        );
+        i++;
+        continue;
+      }
+
+      // Numbered lists
+      const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+      if (numMatch) {
+        elements.push(
+          <li
+            key={`oli-${elements.length}`}
+            className="text-xs sm:text-sm text-muted-foreground ml-5 list-decimal leading-relaxed my-1"
+          >
+            {renderFormattedText(numMatch[2], currentSlug)}
           </li>,
         );
         i++;
@@ -589,13 +919,12 @@ export function DocsPage() {
 
       // Paragraphs
       if (trimmed.length > 0 && !trimmed.startsWith('<')) {
-        // Parse bold and links
         elements.push(
           <p
             key={`p-${elements.length}`}
             className="text-xs sm:text-sm text-muted-foreground leading-relaxed my-3"
           >
-            {trimmed}
+            {renderFormattedText(trimmed, currentSlug)}
           </p>,
         );
       }
@@ -628,9 +957,6 @@ export function DocsPage() {
               className="flex items-center gap-2.5 group"
             >
               <FullLogo className="h-7 w-auto" />
-              <span className="font-bold text-lg tracking-tight group-hover:text-primary transition-colors">
-                anticeil
-              </span>
               <span className="px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase rounded-full bg-primary/15 text-primary border border-primary/25">
                 Docs
               </span>
