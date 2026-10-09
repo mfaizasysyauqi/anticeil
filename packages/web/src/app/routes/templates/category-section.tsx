@@ -1,7 +1,7 @@
 import { Template } from '@activepieces/shared';
-import { t } from 'i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +29,7 @@ export const CategorySection = React.memo(
     onCategorySelect,
     onTemplateSelect,
   }: CategorySectionProps) => {
+    const { t } = useTranslation();
     if (!templates || templates.length === 0) return null;
 
     return (

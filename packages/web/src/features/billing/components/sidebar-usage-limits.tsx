@@ -1,8 +1,8 @@
 import { isNil } from '@activepieces/core-utils';
 import { ApEdition, ApFlagId } from '@activepieces/shared';
-import { t } from 'i18next';
 import { SquareArrowOutUpRight } from 'lucide-react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { TextWithTooltip } from '@/components/custom/text-with-tooltip';
@@ -22,6 +22,7 @@ import { billingUtils, BILLING_DATE_FORMAT } from '../utils/billing-utils';
 import { CreditsActionButton } from './credits-action-button';
 
 export const SidebarUsageLimits = React.memo(() => {
+  const { t } = useTranslation();
   const token = authenticationSession.getToken();
   const { project } = projectCollectionUtils.useCurrentProject();
   const {

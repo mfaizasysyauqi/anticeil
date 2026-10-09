@@ -5,10 +5,10 @@ import {
   TemplateType,
   UncategorizedFolderId,
 } from '@activepieces/shared';
-import { t } from 'i18next';
 import { Plus } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 import { LoginModal } from '@/components/custom/login-modal';
 import { PageHeader } from '@/components/custom/page-header';
@@ -27,6 +27,7 @@ import { EmptyTemplatesView } from './empty-templates-view';
 import { SelectedCategoryView } from './selected-category-view';
 
 const TemplatesPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const token = authenticationSession.getToken();

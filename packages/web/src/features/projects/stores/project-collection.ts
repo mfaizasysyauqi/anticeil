@@ -23,6 +23,7 @@ import { useLocation } from 'react-router-dom';
 import { useEmbedding } from '@/components/providers/embed-provider';
 import { api } from '@/lib/api';
 import { authenticationSession } from '@/lib/authentication-session';
+import { t } from 'i18next';
 
 const collectionQueryClient = new QueryClient();
 
@@ -295,7 +296,7 @@ export const getProjectName = (
   project: Pick<ProjectWithLimits, 'type' | 'displayName'>,
 ): string => {
   return project.type === ProjectType.PERSONAL
-    ? 'Personal Project'
+    ? t('Personal Project')
     : project.displayName;
 };
 export const projectHooks = {
