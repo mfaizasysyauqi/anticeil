@@ -251,18 +251,18 @@ function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
         <Separator />
         <div className="pt-2 pb-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground">Pembayaran Aman:</span>
-            <span>Diproses oleh Payment Gateway resmi Midtrans (IDR)</span>
+            <span className="font-semibold text-foreground">{t('Secure Payment:')}</span>
+            <span>{t('Processed by official Midtrans Payment Gateway (IDR)')}</span>
           </div>
           <div className="flex items-center gap-4">
             <Link to="/terms" target="_blank" className="hover:text-foreground underline">
-              Syarat & Ketentuan Layanan
+              {t('Terms of Service')}
             </Link>
             <Link to="/privacy" target="_blank" className="hover:text-foreground underline">
-              Kebijakan Privasi
+              {t('Privacy Policy')}
             </Link>
             <Link to="/docs" target="_blank" className="hover:text-foreground underline">
-              Dokumentasi
+              {t('Documentation')}
             </Link>
           </div>
         </div>

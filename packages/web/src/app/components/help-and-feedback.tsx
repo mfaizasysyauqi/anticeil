@@ -1,6 +1,6 @@
 import { ApFlagId, supportUrl } from '@activepieces/shared';
 import { t } from 'i18next';
-import { BookOpen, CircleHelp, History } from 'lucide-react';
+import { BookOpen, CircleHelp, FileText, History, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import {
@@ -45,8 +45,8 @@ export const HelpAndFeedback = () => {
             className="flex justify-between w-full"
           >
             <div className="flex items-center gap-2">
-              <span className="text-xs">📜</span>
-              <span>{t('Syarat & Ketentuan')}</span>
+              <FileText className="size-4" />
+              <span>{t('Terms of Service')}</span>
             </div>
           </Link>
         </DropdownMenuItem>
@@ -59,8 +59,8 @@ export const HelpAndFeedback = () => {
             className="flex justify-between w-full"
           >
             <div className="flex items-center gap-2">
-              <span className="text-xs">🔒</span>
-              <span>{t('Kebijakan Privasi')}</span>
+              <ShieldCheck className="size-4" />
+              <span>{t('Privacy Policy')}</span>
             </div>
           </Link>
         </DropdownMenuItem>

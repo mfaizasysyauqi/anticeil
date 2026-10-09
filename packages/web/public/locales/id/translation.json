@@ -1934,8 +1934,8 @@
   "Don't have an account?": "Belum punya akun?",
   "Sign up": "Daftar",
   "By continuing, you agree to our": "Dengan melanjutkan, Anda menyetujui kami",
-  "Terms of Service": "Ketentuan Layanan",
-  "and": "Dan",
+  "Terms of Service": "Syarat & Ketentuan",
+  "and": "dan",
   "Privacy Policy": "Kebijakan Privasi",
   "or": "atau",
   "Welcome back": "Selamat Datang kembali",
@@ -2993,5 +2993,9 @@
   "Verified by Anticeil": "Diverifikasi oleh Anticeil",
   "You have reached your team project limit. Upgrade your plan to create more.": "Anda telah mencapai batas proyek tim. Tingkatkan paket Anda untuk membuat lebih banyak.",
   "connected clients": "klien terhubung",
-  "run": "eksekusi"
+  "run": "eksekusi",
+  "Documentation": "Dokumentasi",
+  "Changelog": "Log Perubahan",
+  "Secure Payment:": "Pembayaran Aman:",
+  "Processed by official Midtrans Payment Gateway (IDR)": "Diproses oleh Payment Gateway resmi Midtrans (IDR)"
 }

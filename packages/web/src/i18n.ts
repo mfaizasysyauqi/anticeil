@@ -34,7 +34,7 @@ i18n
   .use(initReactI18next)
   .init({
     lng: initialLng,
-    fallbackLng: LocalesEnum.INDONESIAN,
+    fallbackLng: LocalesEnum.ENGLISH,
     debug: false,
     resources: {
       [LocalesEnum.INDONESIAN]: {
