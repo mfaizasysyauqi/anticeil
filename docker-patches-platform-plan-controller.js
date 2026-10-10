@@ -379,7 +379,7 @@ const platformPlanController = async (app) => {
         return reply.status(200).send({ status: 'OK' });
     });
     // POST /midtrans-token — generates a Snap token so the frontend can open the payment popup
-    app.post('/midtrans-token', { config: { allowedPrincipals: [shared_1.PrincipalType.USER] } }, async (request, reply) => {
+    app.post('/midtrans-token', { config: { allowedPrincipals: [shared_1.PrincipalType.USER, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
         try {
             const { plan, cycle } = request.body || {};
             const planKey = (plan || '').toLowerCase();
@@ -389,14 +389,22 @@ const platformPlanController = async (app) => {
                 return reply.status(400).send({ error: 'Invalid plan or price not found' });
             }
 
-            let platformId = request.principal?.platform?.id;
+            let platformId = request.principal?.platform?.id || request.principal?.platformId;
             if (!platformId) {
                 const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
                 platformId = platforms[0]?.id;
             }
 
-            const orderId = `anticeil-${platformId}-${planKey}-${cycle}-${Date.now()}`;
-            const userEmail = await resolveActorEmail(request.log, request.principal.id);
+            const orderId = `anticeil-${platformId || 'platform'}-${planKey}-${cycle}-${Date.now()}`;
+            let userEmail = 'billing@anticeil.com';
+            if (request.principal?.id) {
+                try {
+                    const resolved = await resolveActorEmail(request.log, request.principal.id);
+                    if (resolved) userEmail = resolved;
+                } catch (e) {
+                    // Ignore email lookup failure
+                }
+            }
 
             const serverKey = process.env.AP_MIDTRANS_SERVER_KEY ?? '';
             const clientKey = process.env.AP_MIDTRANS_CLIENT_KEY ?? '';
@@ -405,14 +413,10 @@ const platformPlanController = async (app) => {
             const auth = Buffer.from(`${serverKey}:`).toString('base64');
 
             const itemName = `Anticeil ${planKey.charAt(0).toUpperCase() + planKey.slice(1)} Plan (${cycle === 'year' ? 'Annual' : 'Monthly'})`;
-            const backendUrl = process.env.AP_BACKEND_URL || process.env.AP_FRONTEND_URL || 'http://localhost:3000';
             const snapPayload = {
                 transaction_details: { order_id: orderId, gross_amount: grossAmount },
-                customer_details: { first_name: 'Anticeil', email: userEmail || 'billing@anticeil.com' },
+                customer_details: { first_name: 'Anticeil User', email: userEmail },
                 item_details: [{ id: orderId, price: grossAmount, quantity: 1, name: itemName }],
-                callbacks: {
-                    notification: `${backendUrl}/api/v1/platform-billing/midtrans-webhook`,
-                },
             };
 
             const res = await fetch(`${snapBase}/transactions`, {
@@ -423,17 +427,19 @@ const platformPlanController = async (app) => {
             const data = await res.json();
             if (!data?.token) {
                 request.log.warn({ data, planKey, grossAmount }, '[Midtrans] Failed to get snap token');
-                return reply.status(502).send({ error: 'Failed to create Midtrans token' });
+                return reply.status(502).send({ error: data?.error_messages?.[0] || 'Failed to create Midtrans token' });
             }
 
             // Store the order metadata so the webhook can resolve platformId + plan
-            await redis_connections_1.distributedStore.put(`anticeil:midtrans:order:${orderId}`, { platformId, planKey, cycle }, 60 * 60 * 24);
+            if (platformId) {
+                await redis_connections_1.distributedStore.put(`anticeil:midtrans:order:${orderId}`, { platformId, planKey, cycle }, 60 * 60 * 24);
+            }
 
             request.log.info({ orderId, planKey, grossAmount, platformId }, '[Midtrans] Snap token created');
             return reply.status(200).send({ snapToken: data.token, orderId, clientKey });
         } catch (err) {
             request.log.error({ err }, '[Midtrans] midtrans-token error');
-            return reply.status(500).send({ error: 'Internal error creating payment token' });
+            return reply.status(500).send({ error: err?.message || 'Internal error creating payment token' });
         }
     });
 };

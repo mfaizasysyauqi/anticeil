@@ -283,44 +283,68 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
      * The frontend uses this token to open the Snap.js payment popup.
      */
     app.post('/midtrans-token', MidtransTokenRequest, async (request, reply) => {
-        const platformId = request.principal.platform.id
-        const { plan, cycle } = request.body as { plan: string; cycle: 'month' | 'year' }
+        try {
+            let platformId = request.principal?.platform?.id
+            if (!platformId) {
+                const platforms = await platformService(request.log).getAll()
+                platformId = platforms[0]?.id
+            }
 
-        const planKey = plan.toLowerCase()
-        const grossAmount = midtransService.getPlanPrice(planKey, cycle)
-        if (grossAmount === 0) {
-            throw new Error(`Invalid plan '${planKey}' or billing cycle '${cycle}'`)
-        }
+            const { plan, cycle } = request.body as { plan: string; cycle: 'month' | 'year' }
 
-        // Unique order id per transaction attempt
-        const orderId = `anticeil-${platformId}-${planKey}-${cycle}-${Date.now()}`
+            const planKey = (plan || '').toLowerCase()
+            const grossAmount = midtransService.getPlanPrice(planKey, cycle)
+            if (grossAmount === 0) {
+                return reply.status(StatusCodes.BAD_REQUEST).send({
+                    error: `Invalid plan '${planKey}' or billing cycle '${cycle}'`,
+                } as any)
+            }
 
-        // Resolve user email for Midtrans customer_details
-        const user = await userService(request.log).getMetaInformation({ id: request.principal.id })
-        const customerEmail = user?.email ?? 'user@anticeil.com'
-        const customerName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Anticeil User'
+            // Unique order id per transaction attempt
+            const orderId = `anticeil-${platformId || 'platform'}-${planKey}-${cycle}-${Date.now()}`
 
-        const itemName = `Anticeil ${planKey.charAt(0).toUpperCase() + planKey.slice(1)} Plan (${cycle === 'year' ? 'Annual' : 'Monthly'})`
+            // Resolve user email for Midtrans customer_details
+            let customerEmail = 'billing@anticeil.com'
+            let customerName = 'Anticeil User'
+            if (request.principal?.id) {
+                try {
+                    const user = await userService(request.log).getMetaInformation({ id: request.principal.id })
+                    if (user?.email) customerEmail = user.email
+                    customerName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Anticeil User'
+                } catch {
+                    // Ignore user lookup error
+                }
+            }
 
-        const snap = await midtransService.createSnapToken({
-            orderId,
-            grossAmount,
-            customerName,
-            customerEmail,
-            itemName,
-        })
+            const itemName = `Anticeil ${planKey.charAt(0).toUpperCase() + planKey.slice(1)} Plan (${cycle === 'year' ? 'Annual' : 'Monthly'})`
 
-        // Persist the pending order so the webhook can resolve platformId + plan
-        await distributedStore.put(
-            `anticeil:midtrans:order:${orderId}`,
-            { platformId, planKey, cycle },
-            60 * 60 * 24, // expire after 24h
-        )
+            const snap = await midtransService.createSnapToken({
+                orderId,
+                grossAmount,
+                customerName,
+                customerEmail,
+                itemName,
+            })
 
-        return {
-            snapToken: snap.token,
-            orderId,
-            clientKey: midtransService.getClientKey(),
+            // Persist the pending order so the webhook can resolve platformId + plan
+            if (platformId) {
+                await distributedStore.put(
+                    `anticeil:midtrans:order:${orderId}`,
+                    { platformId, planKey, cycle },
+                    60 * 60 * 24, // expire after 24h
+                )
+            }
+
+            return {
+                snapToken: snap.token,
+                orderId,
+                clientKey: midtransService.getClientKey(),
+            }
+        } catch (err: any) {
+            request.log.error({ err }, '[Midtrans] midtrans-token generation failed')
+            return reply.status(StatusCodes.INTERNAL_SERVER_ERROR).send({
+                error: err?.message || 'Failed to create Midtrans token',
+            } as any)
         }
     })
 
@@ -619,7 +643,9 @@ const MidtransTokenRequest = {
             }),
         },
     },
-    config: PLATFORM_ADMIN_ONLY,
+    config: {
+        allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+    },
 }
 
 // Midtrans webhook is unauthenticated (called by Midtrans servers)
