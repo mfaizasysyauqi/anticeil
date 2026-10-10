@@ -9,6 +9,9 @@ COPY docker-patches-platform-plan-controller.js /usr/src/app/packages/server/api
 COPY docker-patches-machine-service.js /usr/src/app/packages/server/api/dist/src/app/workers/machine/machine-service.js
 COPY docker-patches-ai-providers-index.js /usr/src/app/packages/server/api/dist/src/app/ai/providers/index.js
 COPY docker-patches-federated-authn-service.js /usr/src/app/packages/server/api/dist/src/app/ee/authentication/federated-authn/federated-authn-service.js
+COPY docker-patches-authorize.js /usr/src/app/packages/server/api/dist/src/app/core/security/v2/authz/authorize.js
+COPY docker-patches-ai-provider-controller.js /usr/src/app/packages/server/api/dist/src/app/ai/ai-provider-controller.js
+COPY docker-patches-piece-set-controller.js /usr/src/app/packages/server/api/dist/src/app/ee/pieces/piece-set/piece-set.controller.js
 
 # Layer custom Anticeil frontend build onto official stable Activepieces image
 COPY dist/packages/web/ /usr/src/app/dist/packages/web/
