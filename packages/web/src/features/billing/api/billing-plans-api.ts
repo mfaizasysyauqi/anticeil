@@ -78,4 +78,10 @@ export const platformBillingApi = {
       params,
     );
   },
+  getMidtransToken(params: { plan: string; cycle: 'month' | 'year' }) {
+    return api.post<{ snapToken: string; orderId: string; clientKey: string }>(
+      '/v1/platform-billing/midtrans-token',
+      params,
+    );
+  },
 };

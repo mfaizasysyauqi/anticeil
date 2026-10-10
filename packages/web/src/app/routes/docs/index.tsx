@@ -2370,19 +2370,22 @@ export function DocsPage() {
                   }).slice(0, 35);
 
                   const ITEM_H = 32;
-                  const TRANS_H = 12;
+                  const HALF = ITEM_H / 2; // 16 — vertical center of each row
+                  const TRANS_H = 10;      // diagonal transition span
                   const totalH = uniqueToc.length * ITEM_H;
 
-                  // Build the single continuous SVG path across all items
+                  // Build path: starts at center of first item, ends at center of last item
+                  // Transitions happen halfway between adjacent item centers
                   const startX = uniqueToc[0].level >= 3 ? 20.5 : 8.5;
-                  let d = `M ${startX} 0`;
+                  let d = `M ${startX} ${HALF}`;
                   for (let i = 0; i < uniqueToc.length; i++) {
                     const currX = uniqueToc[i].level >= 3 ? 20.5 : 8.5;
                     if (i < uniqueToc.length - 1) {
                       const nextX = uniqueToc[i + 1].level >= 3 ? 20.5 : 8.5;
-                      const boundary = (i + 1) * ITEM_H;
-                      const diagStart = boundary - TRANS_H / 2;
-                      const diagEnd = boundary + TRANS_H / 2;
+                      // transition midpoint = halfway between two item centers
+                      const midY = (i + 1) * ITEM_H + HALF - HALF; // = (i+1)*ITEM_H
+                      const diagStart = midY - TRANS_H / 2;
+                      const diagEnd = midY + TRANS_H / 2;
                       d += ` L ${currX} ${diagStart}`;
                       if (currX !== nextX) {
                         d += ` L ${nextX} ${diagEnd}`;
@@ -2390,7 +2393,8 @@ export function DocsPage() {
                         d += ` L ${currX} ${diagEnd}`;
                       }
                     } else {
-                      d += ` L ${currX} ${totalH}`;
+                      // end at center of last item
+                      d += ` L ${currX} ${i * ITEM_H + HALF}`;
                     }
                   }
 

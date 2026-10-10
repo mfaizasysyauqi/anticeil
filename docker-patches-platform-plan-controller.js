@@ -248,23 +248,37 @@ const platformPlanController = async (app) => {
 
         if (transactionStatus === 'capture' || transactionStatus === 'settlement') {
             if (fraudStatus === 'accept' || !fraudStatus) {
-                const grossAmount = Number(body?.gross_amount);
-                const isTeam = grossAmount >= 2000000;
-                const isPlus = grossAmount >= 200000 && !isTeam;
+                // Try to resolve platform + plan from Redis order metadata first
+                const orderMeta = orderId ? await redis_connections_1.distributedStore.get(`anticeil:midtrans:order:${orderId}`) : null;
 
-                const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
-                const platform = platforms[0];
-                if (platform) {
-                    const planName = isTeam ? 'team' : (isPlus ? 'plus' : 'free');
+                let platformId;
+                let planName;
+
+                if (orderMeta && orderMeta.platformId && orderMeta.planKey) {
+                    platformId = orderMeta.platformId;
+                    planName = orderMeta.planKey;
+                } else {
+                    // Fallback: determine plan from gross amount
+                    const grossAmount = Number(body?.gross_amount);
+                    const isTeam = grossAmount >= 2000000;
+                    const isPlus = grossAmount >= 200000 && !isTeam;
+                    planName = isTeam ? 'team' : (isPlus ? 'plus' : 'free');
+
+                    const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
+                    platformId = platforms[0]?.id;
+                }
+
+                if (platformId) {
                     const planData = resolvePlanLimitsAndFeatures(planName);
-                    await (0, platform_plan_service_1.platformPlanRepo)().update({ platformId: platform.id }, planData);
-                    await redis_connections_1.distributedStore.delete((0, keys_1.getBillingOverviewKey)(platform.id));
-                    await redis_connections_1.distributedStore.delete((0, keys_1.getPlatformPlanNameKey)(platform.id));
-                    await redis_connections_1.distributedStore.delete((0, keys_1.getCreditsBalanceKey)(platform.id));
-                    await redis_connections_1.distributedStore.delete((0, keys_1.getCustomerStateMissKey)(platform.id));
+                    await (0, platform_plan_service_1.platformPlanRepo)().update({ platformId }, planData);
+                    await redis_connections_1.distributedStore.delete((0, keys_1.getBillingOverviewKey)(platformId));
+                    await redis_connections_1.distributedStore.delete((0, keys_1.getPlatformPlanNameKey)(platformId));
+                    await redis_connections_1.distributedStore.delete((0, keys_1.getCreditsBalanceKey)(platformId));
+                    await redis_connections_1.distributedStore.delete((0, keys_1.getCustomerStateMissKey)(platformId));
+                    if (orderId) await redis_connections_1.distributedStore.delete(`anticeil:midtrans:order:${orderId}`);
 
                     const currentMonth = (0, server_utils_1.apDayjs)().format('YYYY-MM');
-                    const usageKey = `anticeil:credits_usage:${platform.id}:${currentMonth}`;
+                    const usageKey = `anticeil:credits_usage:${platformId}:${currentMonth}`;
                     const currentUsage = (await redis_connections_1.distributedStore.get(usageKey)) ?? 0;
                     const newBalance = {
                         featureId: shared_1.ConsumableFeatureId.AP_CREDITS,
@@ -275,12 +289,70 @@ const platformPlanController = async (app) => {
                         syncedAt: Date.now(),
                         nextResetAt: (0, server_utils_1.apDayjs)().endOf('month').valueOf(),
                     };
-                    await redis_connections_1.distributedStore.put((0, keys_1.getCreditsBalanceKey)(platform.id), newBalance, 60 * 60);
-                    request.log.info({ platformId: platform.id, planName: planData.plan, creditsRemaining: newBalance.remaining }, 'Midtrans plan upgraded successfully');
+                    await redis_connections_1.distributedStore.put((0, keys_1.getCreditsBalanceKey)(platformId), newBalance, 60 * 60);
+                    request.log.info({ platformId, planName: planData.plan, orderId }, 'Midtrans payment verified — plan applied');
                 }
             }
         }
         return reply.status(200).send({ status: 'OK' });
+    });
+    // POST /midtrans-token — generates a Snap token so the frontend can open the payment popup
+    app.post('/midtrans-token', { config: { allowedPrincipals: [shared_1.PrincipalType.USER] } }, async (request, reply) => {
+        try {
+            const { plan, cycle } = request.body || {};
+            const planKey = (plan || '').toLowerCase();
+            const PLAN_PRICES = { plus: { month: 299000, year: 2990000 }, team: { month: 2990000, year: 29900000 } };
+            const grossAmount = PLAN_PRICES[planKey]?.[cycle] ?? 0;
+            if (!grossAmount) {
+                return reply.status(400).send({ error: 'Invalid plan or price not found' });
+            }
+
+            let platformId = request.principal?.platform?.id;
+            if (!platformId) {
+                const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
+                platformId = platforms[0]?.id;
+            }
+
+            const orderId = `anticeil-${platformId}-${planKey}-${cycle}-${Date.now()}`;
+            const userEmail = await resolveActorEmail(request.log, request.principal.id);
+
+            const serverKey = process.env.AP_MIDTRANS_SERVER_KEY ?? '';
+            const clientKey = process.env.AP_MIDTRANS_CLIENT_KEY ?? '';
+            const isProduction = process.env.AP_MIDTRANS_IS_PRODUCTION === 'true';
+            const snapBase = isProduction ? 'https://app.midtrans.com/snap/v1' : 'https://app.sandbox.midtrans.com/snap/v1';
+            const auth = Buffer.from(`${serverKey}:`).toString('base64');
+
+            const itemName = `Anticeil ${planKey.charAt(0).toUpperCase() + planKey.slice(1)} Plan (${cycle === 'year' ? 'Annual' : 'Monthly'})`;
+            const backendUrl = process.env.AP_BACKEND_URL || process.env.AP_FRONTEND_URL || 'http://localhost:3000';
+            const snapPayload = {
+                transaction_details: { order_id: orderId, gross_amount: grossAmount },
+                customer_details: { first_name: 'Anticeil', email: userEmail || 'billing@anticeil.com' },
+                item_details: [{ id: orderId, price: grossAmount, quantity: 1, name: itemName }],
+                callbacks: {
+                    notification: `${backendUrl}/api/v1/platform-billing/midtrans-webhook`,
+                },
+            };
+
+            const res = await fetch(`${snapBase}/transactions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+                body: JSON.stringify(snapPayload),
+            });
+            const data = await res.json();
+            if (!data?.token) {
+                request.log.warn({ data, planKey, grossAmount }, '[Midtrans] Failed to get snap token');
+                return reply.status(502).send({ error: 'Failed to create Midtrans token' });
+            }
+
+            // Store the order metadata so the webhook can resolve platformId + plan
+            await redis_connections_1.distributedStore.put(`anticeil:midtrans:order:${orderId}`, { platformId, planKey, cycle }, 60 * 60 * 24);
+
+            request.log.info({ orderId, planKey, grossAmount, platformId }, '[Midtrans] Snap token created');
+            return reply.status(200).send({ snapToken: data.token, orderId, clientKey });
+        } catch (err) {
+            request.log.error({ err }, '[Midtrans] midtrans-token error');
+            return reply.status(500).send({ error: 'Internal error creating payment token' });
+        }
     });
 };
 exports.platformPlanController = platformPlanController;

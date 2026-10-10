@@ -3,7 +3,7 @@ import { PurchasablePlan } from '@activepieces/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { t } from 'i18next';
 import { Check, Info, Minus } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -98,6 +98,34 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
   const { data: subscription } = billingQueries.usePlatformSubscription(
     platform?.id ?? '',
     enabled && !isNil(platform?.id),
+  );
+
+  const [isMidtransLoading, setIsMidtransLoading] = useState(false);
+
+  // Loads Midtrans Snap.js once (sandbox or production)
+  const loadSnapScript = useCallback(
+    (clientKey: string): Promise<void> =>
+      new Promise((resolve) => {
+        if ((window as any).snap) {
+          resolve();
+          return;
+        }
+        const isProduction = import.meta.env.VITE_MIDTRANS_IS_PRODUCTION === 'true';
+        const src = isProduction
+          ? 'https://app.midtrans.com/snap/snap.js'
+          : 'https://app.sandbox.midtrans.com/snap/snap.js';
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+          existing.addEventListener('load', () => resolve());
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.setAttribute('data-client-key', clientKey);
+        script.onload = () => resolve();
+        document.head.appendChild(script);
+      }),
+    [],
   );
 
   const { mutate: switchPlan, isPending: isSwitching } = useMutation({
@@ -223,7 +251,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
       ? 'year'
       : 'month');
 
-  const proceedCheckout = (intent: CheckoutIntent) => {
+  const proceedCheckout = async (intent: CheckoutIntent) => {
     const rawPlan = (intent.planId || intent.planName || '').toLowerCase();
     const targetPlanKey = rawPlan.includes('enterprise')
       ? 'enterprise'
@@ -233,7 +261,47 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
           ? 'plus'
           : 'free';
 
-    switchPlan(targetPlanKey);
+    // Free / Enterprise: skip payment, switch directly
+    if (targetPlanKey === 'free' || targetPlanKey === 'enterprise') {
+      switchPlan(targetPlanKey);
+      return;
+    }
+
+    setIsMidtransLoading(true);
+    try {
+      const { snapToken, clientKey } = await platformBillingApi.getMidtransToken({
+        plan: targetPlanKey,
+        cycle: billingCycle,
+      });
+
+      await loadSnapScript(clientKey);
+
+      (window as any).snap.pay(snapToken, {
+        onSuccess: () => {
+          toast.success(t('Pembayaran berhasil! Plan {plan} sedang diaktifkan...', { plan: targetPlanKey.toUpperCase() }));
+          // Refresh billing info — webhook will have applied the plan
+          setTimeout(() => {
+            queryClient.invalidateQueries();
+            onSelected?.();
+          }, 2000);
+        },
+        onPending: () => {
+          toast.info(t('Pembayaran pending. Plan akan diaktifkan setelah konfirmasi bank.'));
+          onSelected?.();
+        },
+        onError: () => {
+          toast.error(t('Pembayaran gagal. Silakan coba lagi.'));
+        },
+        onClose: () => {
+          // User closed popup without completing
+        },
+      });
+    } catch (err) {
+      console.error('Midtrans error:', err);
+      toast.error(t('Gagal memulai pembayaran. Silakan coba lagi.'));
+    } finally {
+      setIsMidtransLoading(false);
+    }
   };
 
   const handleCheckout = (intent: CheckoutIntent) => {
@@ -244,6 +312,8 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
       proceed: () => proceedCheckout(intent),
     });
   };
+
+  const isCheckoutPending = isSwitching || isMidtransLoading;
 
   if (isLoading || isNil(plans)) {
     return (
@@ -436,7 +506,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
                   highlighted={entry.highlighted}
                   apiPlan={apiPlan}
                   currentPlanId={currentPlanId}
-                  isPending={isSwitching}
+                  isPending={isCheckoutPending}
                   checkoutPlanId={undefined}
                   onCheckout={(planId, action) =>
                     handleCheckout({
@@ -603,7 +673,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
                         highlighted={entry.highlighted}
                         apiPlan={apiPlan}
                         currentPlanId={currentPlanId}
-                        isPending={isSwitching}
+                        isPending={isCheckoutPending}
                         checkoutPlanId={undefined}
                         onCheckout={(planId, action) =>
                           handleCheckout({

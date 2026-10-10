@@ -12,6 +12,7 @@ import { billingProvider } from '../platform/billing-provider'
 import { platformService } from '../platform/platform.service'
 import { userService } from '../user/user-service'
 import { platformPlanRepo, platformPlanService } from './platform-plan.service'
+import { midtransService } from './midtrans.service'
 
 const FORCE_REFRESH_DEDUP_SECONDS = 60
 const DEFAULT_USAGE_PAGE_SIZE = 10
@@ -201,6 +202,132 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
 
         request.log.info({ platformId, planName, creditsRemaining: newBalance.remaining }, 'Plan switched successfully (development mode)')
         return { success: true, plan: planName }
+    })
+
+    /**
+     * POST /midtrans-token
+     * Creates a Midtrans Snap transaction token for the given plan.
+     * The frontend uses this token to open the Snap.js payment popup.
+     */
+    app.post('/midtrans-token', MidtransTokenRequest, async (request, reply) => {
+        const platformId = request.principal.platform.id
+        const { plan, cycle } = request.body as { plan: string; cycle: 'month' | 'year' }
+
+        const planKey = plan.toLowerCase()
+        const grossAmount = midtransService.getPlanPrice(planKey, cycle)
+        if (grossAmount === 0) {
+            throw new Error(`Invalid plan '${planKey}' or billing cycle '${cycle}'`)
+        }
+
+        // Unique order id per transaction attempt
+        const orderId = `anticeil-${platformId}-${planKey}-${cycle}-${Date.now()}`
+
+        // Resolve user email for Midtrans customer_details
+        const user = await userService(request.log).getMetaInformation({ id: request.principal.id })
+        const customerEmail = user?.email ?? 'user@anticeil.com'
+        const customerName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Anticeil User'
+
+        const itemName = `Anticeil ${planKey.charAt(0).toUpperCase() + planKey.slice(1)} Plan (${cycle === 'year' ? 'Annual' : 'Monthly'})`
+
+        const snap = await midtransService.createSnapToken({
+            orderId,
+            grossAmount,
+            customerName,
+            customerEmail,
+            itemName,
+        })
+
+        // Persist the pending order so the webhook can resolve platformId + plan
+        await distributedStore.put(
+            `anticeil:midtrans:order:${orderId}`,
+            { platformId, planKey, cycle },
+            60 * 60 * 24, // expire after 24h
+        )
+
+        return {
+            snapToken: snap.token,
+            orderId,
+            clientKey: midtransService.getClientKey(),
+        }
+    })
+
+    /**
+     * POST /midtrans-notification
+     * Midtrans webhook — verifies payment and applies the plan.
+     * This endpoint must be whitelisted in Midtrans dashboard:
+     *   https://dashboard.sandbox.midtrans.com -> Settings -> Configuration -> Payment Notification URL
+     */
+    app.post('/midtrans-notification', MidtransNotificationRequest, async (request) => {
+        const body = request.body as { order_id: string }
+        const orderId = body.order_id
+
+        // Always re-verify via Midtrans API (never trust raw notification body alone)
+        const status = await midtransService.getTransactionStatus(orderId)
+        if (!midtransService.isPaymentSuccess(status)) {
+            request.log.info({ orderId, status: status.transaction_status }, 'Midtrans notification: payment not successful, ignoring')
+            return { received: true }
+        }
+
+        // Retrieve pending order metadata from Redis
+        const orderMeta = await distributedStore.get<{ platformId: string; planKey: string; cycle: string }>(
+            `anticeil:midtrans:order:${orderId}`,
+        )
+        if (isNil(orderMeta)) {
+            request.log.warn({ orderId }, 'Midtrans notification: order metadata not found in Redis, ignoring')
+            return { received: true }
+        }
+
+        const { platformId, planKey } = orderMeta
+        const isEnterprise = planKey === 'enterprise'
+        const isTeam = planKey === 'team' || isEnterprise
+        const isPlus = planKey === 'plus' || isTeam
+        const includedCredits = isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000))
+
+        await platformPlanService(request.log).getOrCreateForPlatform(platformId)
+        await platformPlanRepo().update({ platformId }, {
+            plan: planKey,
+            includedCredits,
+            usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
+            activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
+            projectsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? null : 1)),
+            billedTeamProjectsLimit: isTeam ? null : (isPlus ? 1 : 0),
+            agentsEnabled: isPlus,
+            aiProvidersEnabled: isPlus,
+            chatEnabled: true,
+            tablesEnabled: true,
+            analyticsEnabled: isPlus,
+            customAppearanceEnabled: isPlus,
+            showPoweredBy: !isPlus,
+            globalConnectionsEnabled: isTeam,
+            ssoEnabled: isTeam,
+            customRolesEnabled: isTeam,
+            projectRolesEnabled: isTeam,
+            auditLogEnabled: isTeam,
+            environmentsEnabled: isTeam,
+            embeddingEnabled: isTeam,
+            apiKeysEnabled: isTeam,
+            secretManagersEnabled: isTeam,
+            managePiecesEnabled: isTeam,
+            manageTemplatesEnabled: isTeam,
+            scimEnabled: isEnterprise,
+            eventStreamingEnabled: isEnterprise,
+            workerGroupsEnabled: isEnterprise,
+            customDomainsEnabled: isEnterprise,
+            dedicatedWorkers: null,
+            canary: false,
+        })
+
+        // Bust all billing caches so the next /info call reflects the new plan
+        await Promise.all([
+            distributedStore.delete(getBillingOverviewKey(platformId)),
+            distributedStore.delete(getPlatformPlanNameKey(platformId)),
+            distributedStore.delete(getCreditsBalanceKey(platformId)),
+            distributedStore.delete(getCustomerStateMissKey(platformId)),
+            distributedStore.delete(`anticeil:midtrans:order:${orderId}`),
+        ])
+
+        request.log.info({ orderId, platformId, planKey }, 'Midtrans payment verified — plan applied')
+        return { received: true }
     })
 }
 
@@ -401,4 +528,33 @@ type RefreshWhenAppliedImmediatelyParams = {
     log: FastifyBaseLogger
     platformId: string
     checkoutUrl: string | null
+}
+
+const MidtransTokenRequest = {
+    schema: {
+        body: z.object({
+            plan: z.string(),
+            cycle: z.enum(['month', 'year']),
+        }),
+        response: {
+            [StatusCodes.OK]: z.object({
+                snapToken: z.string(),
+                orderId: z.string(),
+                clientKey: z.string(),
+            }),
+        },
+    },
+    config: PLATFORM_ADMIN_ONLY,
+}
+
+// Midtrans webhook is unauthenticated (called by Midtrans servers)
+const MidtransNotificationRequest = {
+    schema: {
+        body: z.object({
+            order_id: z.string(),
+        }).passthrough(),
+        response: {
+            [StatusCodes.OK]: z.object({ received: z.boolean() }),
+        },
+    },
 }
