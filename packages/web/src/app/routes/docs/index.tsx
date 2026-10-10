@@ -545,6 +545,7 @@ export function DocsPage() {
     let codeBlockLang = '';
     let codeBlockContent: string[] = [];
     let codeBlockIdx = 0;
+    let stepCounter = 0;
 
     const flushTable = () => {
       if (tableRows.length > 0) {
@@ -622,7 +623,24 @@ export function DocsPage() {
           codeBlockContent = [];
         } else {
           inCodeBlock = false;
-          const currentCode = codeBlockContent.join('\n');
+          // Dedent code if indented inside components like <Step>
+          const nonEmpty = codeBlockContent.filter((l) => l.trim().length > 0);
+          const minIndent =
+            nonEmpty.length > 0
+              ? nonEmpty.reduce((min, l) => {
+                  const match = l.match(/^(\s*)/);
+                  return Math.min(min, match ? match[1].length : 0);
+                }, Infinity)
+              : 0;
+          const cleanedCodeLines =
+            isFinite(minIndent) && minIndent > 0
+              ? codeBlockContent.map((l) =>
+                  l.startsWith(' '.repeat(minIndent))
+                    ? l.slice(minIndent)
+                    : l.trimStart(),
+                )
+              : codeBlockContent;
+          const currentCode = cleanedCodeLines.join('\n');
           const thisIndex = codeBlockIdx++;
           elements.push(
             <div
@@ -974,9 +992,7 @@ export function DocsPage() {
               <ChevronRight className="w-4 h-4 text-muted-foreground group-open:rotate-90 transition-transform" />
             </summary>
             <div className="pt-3 text-foreground/85 dark:text-muted-foreground leading-relaxed space-y-2">
-              {accBody.split('\n').filter(l => l.trim()).map((l, lIdx) => (
-                <div key={lIdx}>{renderFormattedText(l.trim(), currentSlug)}</div>
-              ))}
+              {renderMdxContent(accBody)}
             </div>
           </details>,
         );
@@ -984,16 +1000,57 @@ export function DocsPage() {
         continue;
       }
 
+      // CodeGroup wrappers
+      if (trimmed.startsWith('<CodeGroup>') || trimmed.startsWith('<CodeGroup ') || trimmed.startsWith('</CodeGroup>')) {
+        i++;
+        continue;
+      }
+
+      // Snippets (<Snippet file="..." />)
+      const snippetMatch = trimmed.match(/<Snippet\s+file="([^"]+)"\s*\/?>/);
+      if (snippetMatch) {
+        const file = snippetMatch[1];
+        let snippetBody = '';
+        if (file === 'replace-oauth2-apps.mdx') {
+          snippetBody = isIndonesian
+            ? '<Tip>Jika Anda ingin pengguna Anda menggunakan aplikasi OAuth2 Anda sendiri, kami sarankan Anda memeriksa [panduan ini](/admin-guide/guides/manage-oauth2).</Tip>'
+            : '<Tip>If you would like your users to use your own OAuth2 apps, we recommend you check [this](/admin-guide/guides/manage-oauth2).</Tip>';
+        } else if (file === 'embed-feature.mdx') {
+          snippetBody = isIndonesian
+            ? '<Note icon="crown">Penyematan (Embedding) tersedia di paket Enterprise kami. [Hubungi tim penjualan](https://anticeil.com/contact) untuk konsultasi kebutuhan Anda.</Note>'
+            : '<Note icon="crown">Embedding is available on our enterprise plan. [Talk to sales](https://anticeil.com/contact) and we\'ll help you scope it.</Note>';
+        } else if (file === 'enterprise-feature.mdx') {
+          snippetBody = isIndonesian
+            ? '<Note icon="crown">Ini adalah fitur berbayar. Lihat [paket dan harga](https://anticeil.com/pricing), atau [hubungi tim penjualan](https://anticeil.com/contact) tentang paket enterprise.</Note>'
+            : '<Note icon="crown">This is a paid feature. See [plans and pricing](https://anticeil.com/pricing), or [talk to sales](https://anticeil.com/contact) about an enterprise plan.</Note>';
+        } else if (file === 'execution-mode.mdx') {
+          snippetBody = `| Name | Supports NPM | Privileged Docker | Performance | Multi Tenant | Reusable Workers | Env Variable |
+| --- | --- | --- | --- | --- | --- | --- |
+| Sandboxed (Recommended) | Yes | No | Fast | Yes | Yes | \`AP_EXECUTION_MODE=SANDBOXED\` |
+| Isolate | Yes | No | Ultra Fast | Partial | Yes | \`AP_EXECUTION_MODE=ISOLATE\` |
+| Unisolated | Yes | No | Fast | No | Yes | \`AP_EXECUTION_MODE=UNISOLATED\` |`;
+        }
+        if (snippetBody) {
+          elements.push(...renderMdxContent(snippetBody));
+        }
+        i++;
+        continue;
+      }
+
       // Steps container and Step elements (<Steps> and <Step title="...">)
       if (trimmed.startsWith('<Steps>') || trimmed.startsWith('<Steps ') || trimmed.startsWith('</Steps>')) {
+        if (trimmed.startsWith('<Steps>') || trimmed.startsWith('<Steps ')) {
+          stepCounter = 0;
+        }
         i++;
         continue;
       }
 
       if (trimmed.startsWith('<Step ') || trimmed.startsWith('<Step>')) {
+        stepCounter++;
         const titleMatch = trimmed.match(/title="([^"]+)"/);
         const iconMatch = trimmed.match(/icon="([^"]+)"/);
-        const stepTitle = titleMatch ? titleMatch[1] : 'Step';
+        const stepTitle = titleMatch ? titleMatch[1] : `Step ${stepCounter}`;
         const stepIcon = iconMatch ? iconMatch[1] : '';
         const stepLines: string[] = [];
         i++;
@@ -1003,6 +1060,9 @@ export function DocsPage() {
         }
 
         const StepIconComp = stepIcon ? getDocIcon(stepIcon) : null;
+        const translatedStepTitle = isIndonesian && DOCS_HEADING_TRANSLATION_MAP[stepTitle]
+          ? DOCS_HEADING_TRANSLATION_MAP[stepTitle]
+          : stepTitle;
 
         elements.push(
           <div
@@ -1010,15 +1070,13 @@ export function DocsPage() {
             className="relative pl-8 sm:pl-10 my-6 border-l-2 border-primary/30 last:border-l-0"
           >
             <div className="absolute -left-[17px] top-0 w-8 h-8 rounded-full bg-primary/10 border-2 border-primary flex items-center justify-center text-primary font-bold text-xs shadow-xs">
-              {StepIconComp ? <StepIconComp className="w-3.5 h-3.5" /> : <span>{elements.length + 1}</span>}
+              {StepIconComp ? <StepIconComp className="w-3.5 h-3.5" /> : <span>{stepCounter}</span>}
             </div>
             <h4 className="text-base sm:text-lg font-bold text-foreground mb-2">
-              {renderFormattedText(stepTitle, currentSlug)}
+              {renderFormattedText(translatedStepTitle, currentSlug)}
             </h4>
             <div className="text-xs sm:text-sm text-foreground/85 dark:text-muted-foreground leading-relaxed space-y-2">
-              {stepLines.filter(l => l.trim()).map((l, lIdx) => (
-                <div key={lIdx}>{renderFormattedText(l.trim(), currentSlug)}</div>
-              ))}
+              {renderMdxContent(stepLines.join('\n'))}
             </div>
           </div>,
         );
