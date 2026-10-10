@@ -82,6 +82,69 @@ const COMPARISON_ROWS: {
   },
 ];
 
+const DEFAULT_PURCHASABLE_PLANS: PurchasablePlan[] = [
+  {
+    id: 'free',
+    name: 'Free',
+    description: 'For individuals exploring automation',
+    price: 0,
+    interval: 'month',
+    priceDisplay: 'Rp 0',
+    baseVariantId: null,
+    includedSeats: 1,
+    includedCredits: 1000,
+    creditsResetInterval: 'month',
+  },
+  {
+    id: 'plus-monthly',
+    name: 'Plus',
+    description: 'For solo builders who automate regularly',
+    price: 299000,
+    interval: 'month',
+    priceDisplay: 'Rp 299k',
+    baseVariantId: null,
+    includedSeats: 5,
+    includedCredits: 10000,
+    creditsResetInterval: 'month',
+  },
+  {
+    id: 'plus-annual',
+    name: 'Plus (annual)',
+    description: 'For solo builders who automate regularly',
+    price: 2990000,
+    interval: 'year',
+    priceDisplay: 'Rp 2.99M',
+    baseVariantId: null,
+    includedSeats: 5,
+    includedCredits: 10000,
+    creditsResetInterval: 'month',
+  },
+  {
+    id: 'team-monthly',
+    name: 'Team',
+    description: 'For teams that collaborate on automations',
+    price: 2990000,
+    interval: 'month',
+    priceDisplay: 'Rp 2.99M',
+    baseVariantId: null,
+    includedSeats: 25,
+    includedCredits: 50000,
+    creditsResetInterval: 'month',
+  },
+  {
+    id: 'team-annual',
+    name: 'Team (annual)',
+    description: 'For teams that collaborate on automations',
+    price: 29900000,
+    interval: 'year',
+    priceDisplay: 'Rp 29.9M',
+    baseVariantId: null,
+    includedSeats: 25,
+    includedCredits: 50000,
+    creditsResetInterval: 'month',
+  },
+];
+
 export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
   const queryClient = useQueryClient();
   const { platform, setCurrentPlatform } = platformHooks.useCurrentPlatform();
@@ -239,7 +302,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
   const downgradeWarning = planSelectorUtils.dropToFreeWarning(
     subscription?.additionalSeats,
   );
-  const allPlans = plans ?? [];
+  const allPlans = (plans && plans.length > 0) ? plans : DEFAULT_PURCHASABLE_PLANS;
   const currentPlan = allPlans.find((plan) => plan.id === currentPlanId);
   const hasAnnualOption = allPlans.some(
     (plan) => plan.interval === planSelectorUtils.ANNUAL_INTERVAL,
@@ -315,7 +378,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
 
   const isCheckoutPending = isSwitching || isMidtransLoading;
 
-  if (isLoading || isNil(plans)) {
+  if (isLoading && isNil(plans)) {
     return (
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-5 gap-0">
