@@ -45,6 +45,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { localesMap } from '@/lib/locale-utils';
 import { getLegalDoc } from './docs-legal';
+import {
+  DOCS_TABS_ID,
+  DOCS_GROUPS_ID,
+  DOCS_PAGE_TITLES_ID,
+  DOCS_HEADING_TRANSLATION_MAP,
+  getLocalizedDoc,
+  PageData,
+  TocItem,
+} from './docs-i18n';
 import docsDataRaw from './docs-generated.json';
 
 const TAB_TRANSLATION_KEYS: Record<string, string> = {
@@ -61,24 +70,6 @@ const GROUP_TRANSLATION_KEYS: Record<string, string> = {
   'Building Flows': 'docs.group.building_flows',
   'Legal': 'docs.group.legal',
 };
-
-interface TocItem {
-  id: string;
-  title: string;
-  level: number;
-}
-
-interface PageData {
-  slug: string;
-  tab: string;
-  group: string;
-  title: string;
-  sidebarTitle: string;
-  description: string;
-  icon?: string;
-  body: string;
-  toc: TocItem[];
-}
 
 interface NavGroup {
   name: string;
@@ -395,9 +386,15 @@ export function DocsPage() {
   const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
   const [activeHeadingId, setActiveHeadingId] = useState<string>('');
 
+  const isIndonesian = i18n.language === 'id' || i18n.language.startsWith('id');
+
   const getPageTitle = (p: { slug: string; title: string }) => {
     if (p.slug === 'legal/terms') return t('docs.page.terms');
     if (p.slug === 'legal/privacy') return t('docs.page.privacy');
+    if (isIndonesian) {
+      if (DOCS_PAGE_TITLES_ID[p.slug]) return DOCS_PAGE_TITLES_ID[p.slug];
+      if (DOCS_PAGE_TITLES_ID[p.title]) return DOCS_PAGE_TITLES_ID[p.title];
+    }
     return p.title;
   };
 
@@ -417,23 +414,44 @@ export function DocsPage() {
 
   // Current page data
   const currentPage: PageData = useMemo(() => {
+    const localized = getLocalizedDoc(currentSlug, i18n.language);
+    if (localized) return localized;
+
     const legalDoc = getLegalDoc(currentSlug, i18n.language);
     if (legalDoc) return legalDoc;
 
     if (docsData.pages[currentSlug]) {
-      return docsData.pages[currentSlug];
+      const base = docsData.pages[currentSlug];
+      if (isIndonesian) {
+        return {
+          ...base,
+          title: DOCS_PAGE_TITLES_ID[base.slug] || DOCS_PAGE_TITLES_ID[base.title] || base.title,
+          sidebarTitle: DOCS_PAGE_TITLES_ID[base.slug] || DOCS_PAGE_TITLES_ID[base.sidebarTitle] || base.sidebarTitle,
+        };
+      }
+      return base;
     }
     // Fallback: search by ending slug
     const matchedKey = Object.keys(docsData.pages).find(
       (k) => k.endsWith('/' + currentSlug) || k === currentSlug,
     );
     if (matchedKey && docsData.pages[matchedKey]) {
+      const locMatch = getLocalizedDoc(matchedKey, i18n.language);
+      if (locMatch) return locMatch;
       const legalMatch = getLegalDoc(matchedKey, i18n.language);
       if (legalMatch) return legalMatch;
-      return docsData.pages[matchedKey];
+      const base = docsData.pages[matchedKey];
+      if (isIndonesian) {
+        return {
+          ...base,
+          title: DOCS_PAGE_TITLES_ID[base.slug] || DOCS_PAGE_TITLES_ID[base.title] || base.title,
+          sidebarTitle: DOCS_PAGE_TITLES_ID[base.slug] || DOCS_PAGE_TITLES_ID[base.sidebarTitle] || base.sidebarTitle,
+        };
+      }
+      return base;
     }
-    return docsData.pages['overview/welcome'];
-  }, [currentSlug, i18n.language]);
+    return getLocalizedDoc('overview/welcome', i18n.language) || docsData.pages['overview/welcome'];
+  }, [currentSlug, i18n.language, isIndonesian]);
 
   // Active Tab
   const activeTabName = useMemo(() => {
@@ -1063,7 +1081,7 @@ export function DocsPage() {
             className={`group scroll-mt-32 ${wrapperSpacing}`}
           >
             <HeadingTag className={`${headingClass} flex items-center gap-2`}>
-              <span>{renderFormattedText(headingText, currentSlug)}</span>
+              <span>{renderFormattedText(isIndonesian && DOCS_HEADING_TRANSLATION_MAP[headingText] ? DOCS_HEADING_TRANSLATION_MAP[headingText] : headingText, currentSlug)}</span>
               <button
                 type="button"
                 onClick={(e) => {
@@ -1549,10 +1567,12 @@ export function DocsPage() {
           <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-7 overflow-x-auto text-xs sm:text-sm scrollbar-none h-11">
             {docsData.tabs.map((tab) => {
               const isActive = tab.name === activeTabName;
-              const tabLabel = t(
-                TAB_TRANSLATION_KEYS[tab.name] || tab.name,
-                tab.name,
-              );
+              const tabLabel = isIndonesian
+                ? DOCS_TABS_ID[tab.name] || tab.name
+                : t(
+                    TAB_TRANSLATION_KEYS[tab.name] || tab.name,
+                    tab.name,
+                  );
               return (
                 <button
                   key={tab.name}
@@ -1577,10 +1597,12 @@ export function DocsPage() {
         <aside className="w-64 shrink-0 py-8 pr-6 border-r border-border/30 sticky top-[6.75rem] h-[calc(100vh-6.75rem)] overflow-y-auto hidden lg:block scrollbar-thin">
           <div className="space-y-6">
             {activeTab.groups.map((group) => {
-              const groupLabel = t(
-                GROUP_TRANSLATION_KEYS[group.name] || group.name,
-                group.name,
-              );
+              const groupLabel = isIndonesian
+                ? DOCS_GROUPS_ID[group.name] || group.name
+                : t(
+                    GROUP_TRANSLATION_KEYS[group.name] || group.name,
+                    group.name,
+                  );
               return (
                 <div key={group.name} className="space-y-1.5">
                   <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 px-2.5">
@@ -1695,10 +1717,12 @@ export function DocsPage() {
                 </span>
                 <div className="grid grid-cols-2 gap-1.5 pt-1">
                   {docsData.tabs.map((tab) => {
-                    const tabLabel = t(
-                      TAB_TRANSLATION_KEYS[tab.name] || tab.name,
-                      tab.name,
-                    );
+                    const tabLabel = isIndonesian
+                      ? DOCS_TABS_ID[tab.name] || tab.name
+                      : t(
+                          TAB_TRANSLATION_KEYS[tab.name] || tab.name,
+                          tab.name,
+                        );
                     return (
                       <button
                         key={tab.name}
@@ -1720,10 +1744,12 @@ export function DocsPage() {
 
               <div className="space-y-6 pt-2">
                 {activeTab.groups.map((group) => {
-                  const groupLabel = t(
-                    GROUP_TRANSLATION_KEYS[group.name] || group.name,
-                    group.name,
-                  );
+                  const groupLabel = isIndonesian
+                    ? DOCS_GROUPS_ID[group.name] || group.name
+                    : t(
+                        GROUP_TRANSLATION_KEYS[group.name] || group.name,
+                        group.name,
+                      );
                   return (
                     <div key={group.name} className="space-y-1">
                       <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-2">
@@ -1768,10 +1794,12 @@ export function DocsPage() {
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
             <span>
-              {t(
-                GROUP_TRANSLATION_KEYS[currentPage.group] || currentPage.group,
-                currentPage.group || currentPage.tab,
-              )}
+              {isIndonesian
+                ? DOCS_GROUPS_ID[currentPage.group] || currentPage.group
+                : t(
+                    GROUP_TRANSLATION_KEYS[currentPage.group] || currentPage.group,
+                    currentPage.group || currentPage.tab,
+                  )}
             </span>
             <ChevronRight className="w-3 h-3 text-muted-foreground/60" />
             <span className="text-foreground font-medium">
@@ -1827,7 +1855,7 @@ export function DocsPage() {
                           item.level === 3 ? 'pl-3 text-muted-foreground/80' : 'text-muted-foreground'
                         } hover:text-foreground`}
                       >
-                        {cleanMojibake(item.title)}
+                        {cleanMojibake(isIndonesian && DOCS_HEADING_TRANSLATION_MAP[item.title] ? DOCS_HEADING_TRANSLATION_MAP[item.title] : item.title)}
                       </a>
                     ));
                   })()}
@@ -1914,7 +1942,7 @@ export function DocsPage() {
                           : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      {cleanMojibake(item.title)}
+                      {cleanMojibake(isIndonesian && DOCS_HEADING_TRANSLATION_MAP[item.title] ? DOCS_HEADING_TRANSLATION_MAP[item.title] : item.title)}
                     </a>
                   ));
                 })()
