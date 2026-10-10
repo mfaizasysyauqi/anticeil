@@ -50,6 +50,7 @@ import {
   DOCS_GROUPS_ID,
   DOCS_PAGE_TITLES_ID,
   DOCS_HEADING_TRANSLATION_MAP,
+  DOCS_DESCRIPTION_TRANSLATION_MAP,
   getLocalizedDoc,
   PageData,
   TocItem,
@@ -427,6 +428,7 @@ export function DocsPage() {
           ...base,
           title: DOCS_PAGE_TITLES_ID[base.slug] || DOCS_PAGE_TITLES_ID[base.title] || base.title,
           sidebarTitle: DOCS_PAGE_TITLES_ID[base.slug] || DOCS_PAGE_TITLES_ID[base.sidebarTitle] || base.sidebarTitle,
+          description: DOCS_DESCRIPTION_TRANSLATION_MAP[base.description] || base.description,
         };
       }
       return base;
@@ -446,6 +448,7 @@ export function DocsPage() {
           ...base,
           title: DOCS_PAGE_TITLES_ID[base.slug] || DOCS_PAGE_TITLES_ID[base.title] || base.title,
           sidebarTitle: DOCS_PAGE_TITLES_ID[base.slug] || DOCS_PAGE_TITLES_ID[base.sidebarTitle] || base.sidebarTitle,
+          description: DOCS_DESCRIPTION_TRANSLATION_MAP[base.description] || base.description,
         };
       }
       return base;
@@ -1999,7 +2002,9 @@ export function DocsPage() {
                     </div>
                     {res.description && (
                       <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
-                        {res.description}
+                        {isIndonesian && DOCS_DESCRIPTION_TRANSLATION_MAP[res.description]
+                          ? DOCS_DESCRIPTION_TRANSLATION_MAP[res.description]
+                          : res.description}
                       </p>
                     )}
                   </button>
