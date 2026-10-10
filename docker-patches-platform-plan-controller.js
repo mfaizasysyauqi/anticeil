@@ -90,9 +90,16 @@ const platformPlanController = async (app) => {
         }
     });
     app.post('/refresh', RefreshRequest, async (request) => {
-        const platformId = request.principal.platform.id;
-        await redis_connections_1.distributedStore.runOnceWithin((0, keys_1.getEntitlementsForceRefreshKey)(platformId), FORCE_REFRESH_DEDUP_SECONDS, () => billing_provider_1.billingProvider.get(request.log).refreshEntitlements(platformId));
-        return getBillingInformation(request.log, platformId);
+        let platformId = request.principal?.platform?.id || request.principal?.platformId;
+        if (!platformId) {
+            const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
+            platformId = platforms[0]?.id;
+        }
+        if (platformId) {
+            await redis_connections_1.distributedStore.runOnceWithin((0, keys_1.getEntitlementsForceRefreshKey)(platformId), FORCE_REFRESH_DEDUP_SECONDS, () => billing_provider_1.billingProvider.get(request.log).refreshEntitlements(platformId));
+            return getBillingInformation(request.log, platformId);
+        }
+        return getBillingInformation(request.log, 'default');
     });
     app.get('/plans', ListPlansRequest, async (request, reply) => {
         try {
@@ -656,7 +663,7 @@ const InfoRequest = {
     },
 };
 const RefreshRequest = {
-    config: PLATFORM_ADMIN_ONLY,
+    config: { allowedPrincipals: [shared_1.PrincipalType.USER, shared_1.PrincipalType.SERVICE] },
     schema: {
         response: {
             [http_status_codes_1.StatusCodes.OK]: shared_1.PlatformBillingInformation,

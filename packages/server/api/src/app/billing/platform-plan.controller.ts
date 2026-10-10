@@ -24,13 +24,16 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
     })
 
     app.post('/refresh', RefreshRequest, async (request) => {
-        const platformId = request.principal.platform.id
-        await distributedStore.runOnceWithin(
-            getEntitlementsForceRefreshKey(platformId),
-            FORCE_REFRESH_DEDUP_SECONDS,
-            () => billingProvider.get(request.log).refreshEntitlements(platformId),
-        )
-        return getBillingInformation(request.log, platformId)
+        const platformId = request.principal.platform?.id
+        if (platformId) {
+            await distributedStore.runOnceWithin(
+                getEntitlementsForceRefreshKey(platformId),
+                FORCE_REFRESH_DEDUP_SECONDS,
+                () => billingProvider.get(request.log).refreshEntitlements(platformId),
+            )
+            return getBillingInformation(request.log, platformId)
+        }
+        return getBillingInformation(request.log, 'default')
     })
 
     app.get('/plans', ListPlansRequest, async (request) => {
@@ -507,7 +510,9 @@ const PLATFORM_ADMIN_ONLY = {
 }
 
 const InfoRequest = {
-    config: PLATFORM_ADMIN_ONLY,
+    config: {
+        allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+    },
     schema: {
         response: {
             [StatusCodes.OK]: PlatformBillingInformation,
@@ -516,7 +521,9 @@ const InfoRequest = {
 }
 
 const RefreshRequest = {
-    config: PLATFORM_ADMIN_ONLY,
+    config: {
+        allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+    },
     schema: {
         response: {
             [StatusCodes.OK]: PlatformBillingInformation,
