@@ -413,10 +413,17 @@ const platformPlanController = async (app) => {
             const auth = Buffer.from(`${serverKey}:`).toString('base64');
 
             const itemName = `Anticeil ${planKey.charAt(0).toUpperCase() + planKey.slice(1)} (${cycle === 'year' ? 'Annual' : 'Monthly'})`;
+            const frontendUrl = process.env.AP_FRONTEND_URL || 'https://anticeil.com';
+            const cleanOrigin = frontendUrl.replace(/\/$/, '');
             const snapPayload = {
                 transaction_details: { order_id: orderId, gross_amount: grossAmount },
                 customer_details: { first_name: 'Anticeil User', email: userEmail },
                 item_details: [{ id: planKey, price: grossAmount, quantity: 1, name: itemName }],
+                callbacks: {
+                    finish: `${cleanOrigin}/platform/billing/success?action=upgrade`,
+                    error: `${cleanOrigin}/platform/billing/error`,
+                    unfinish: `${cleanOrigin}/platform/billing`,
+                },
             };
 
             const endpoints = isProduction

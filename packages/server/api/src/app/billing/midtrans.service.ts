@@ -61,6 +61,11 @@ async function createSnapToken({
                 name: itemName,
             },
         ],
+        callbacks: {
+            finish: `${(process.env.AP_FRONTEND_URL || 'https://anticeil.com').replace(/\/$/, '')}/platform/billing/success?action=upgrade`,
+            error: `${(process.env.AP_FRONTEND_URL || 'https://anticeil.com').replace(/\/$/, '')}/platform/billing/error`,
+            unfinish: `${(process.env.AP_FRONTEND_URL || 'https://anticeil.com').replace(/\/$/, '')}/platform/billing`,
+        },
     }
 
     const endpoints = isProduction

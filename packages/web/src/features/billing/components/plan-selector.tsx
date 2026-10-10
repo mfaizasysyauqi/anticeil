@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { t } from 'i18next';
 import { Check, Info, Minus } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -146,6 +147,7 @@ const DEFAULT_PURCHASABLE_PLANS: PurchasablePlan[] = [
 ];
 
 export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { platform, setCurrentPlatform } = platformHooks.useCurrentPlatform();
   const { data: plans, isLoading } = billingQueries.useListPlans(
@@ -342,11 +344,8 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
       (window as any).snap.pay(snapToken, {
         onSuccess: () => {
           toast.success(t('Pembayaran berhasil! Plan {plan} sedang diaktifkan...', { plan: targetPlanKey.toUpperCase() }));
-          // Refresh billing info — webhook will have applied the plan
-          setTimeout(() => {
-            queryClient.invalidateQueries();
-            onSelected?.();
-          }, 2000);
+          navigate('/platform/billing/success?action=upgrade');
+          onSelected?.();
         },
         onPending: () => {
           toast.info(t('Pembayaran pending. Plan akan diaktifkan setelah konfirmasi bank.'));
@@ -354,6 +353,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
         },
         onError: () => {
           toast.error(t('Pembayaran gagal. Silakan coba lagi.'));
+          navigate('/platform/billing/error');
         },
         onClose: () => {
           // User closed popup without completing
