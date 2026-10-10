@@ -66,13 +66,13 @@ const ListAIProvidersForProject = {
 
 const ListAIProviderConfigs = {
     config: {
-        security: securityAccess.platformAdminOnly([PrincipalType.USER]),
+        security: securityAccess.publicPlatform([PrincipalType.USER]),
     },
 }
 
 const ListModelsForConfig = {
     config: {
-        security: securityAccess.platformAdminOnly([PrincipalType.USER]),
+        security: securityAccess.publicPlatform([PrincipalType.USER]),
     },
     schema: {
         params: z.object({
