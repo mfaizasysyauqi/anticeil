@@ -74,6 +74,11 @@ const THEME_COLOR_FIELDS: { name: FieldPath<FromSchema>; label: string }[] = [
   { name: 'themeColors.selection', label: 'Selection' },
 ];
 
+function sanitizeBrandUrl(url: string | undefined, fallback: string): string {
+  if (!url || url.includes('activepieces.com')) return fallback;
+  return url;
+}
+
 export const AppearanceSection = () => {
   const { platform } = platformHooks.useCurrentPlatform();
   const branding = flagsHooks.useWebsiteBranding();
@@ -180,7 +185,7 @@ export const AppearanceSection = () => {
                       <Input
                         type="file"
                         ref={logoRef}
-                        defaultFileName={platform?.fullLogoUrl}
+                        defaultFileName={sanitizeBrandUrl(platform?.fullLogoUrl, 'https://anticeil.com/logo.png')}
                         accept="image/*"
                         id="logoFile"
                         disabled={brandingLocked}
@@ -200,7 +205,7 @@ export const AppearanceSection = () => {
                       <Input
                         type="file"
                         ref={iconRef}
-                        defaultFileName={platform?.logoIconUrl}
+                        defaultFileName={sanitizeBrandUrl(platform?.logoIconUrl, 'https://anticeil.com/logo.png')}
                         accept="image/*"
                         id="iconFile"
                         disabled={brandingLocked}
@@ -222,7 +227,7 @@ export const AppearanceSection = () => {
                       <Input
                         type="file"
                         ref={faviconRef}
-                        defaultFileName={platform?.favIconUrl}
+                        defaultFileName={sanitizeBrandUrl(platform?.favIconUrl, 'https://anticeil.com/favicon.ico')}
                         accept="image/*"
                         id="faviconFile"
                         disabled={brandingLocked}
