@@ -970,7 +970,7 @@ export function DocsPage() {
       }
 
       // Break inline headings, numbered items, and bullets into separate lines if they appear together on a single line
-      if (!inCodeBlock && !trimmed.startsWith('<')) {
+      if (!inCodeBlock && !trimmed.startsWith('<') && !trimmed.startsWith('|')) {
         let lineExpanded = trimmed;
         if (/([^\n])\s+(#{1,6}\s+)/.test(lineExpanded)) {
           lineExpanded = lineExpanded.replace(/([^\n])\s+(#{1,6}\s+)/g, '$1\n\n$2');
