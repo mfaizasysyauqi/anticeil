@@ -334,7 +334,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
 
     setIsMidtransLoading(true);
     try {
-      const { snapToken, clientKey } = await platformBillingApi.getMidtransToken({
+      const { snapToken, clientKey, orderId } = await platformBillingApi.getMidtransToken({
         plan: targetPlanKey,
         cycle: billingCycle,
       });
@@ -344,7 +344,8 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
       (window as any).snap.pay(snapToken, {
         onSuccess: () => {
           toast.success(t('Pembayaran berhasil! Plan {plan} sedang diaktifkan...', { plan: targetPlanKey.toUpperCase() }));
-          navigate('/platform/billing/success?action=upgrade');
+          switchPlan(targetPlanKey);
+          navigate(`/platform/billing/success?action=upgrade&order_id=${orderId || ''}&plan=${targetPlanKey}&transaction_status=settlement`);
           onSelected?.();
         },
         onPending: () => {
@@ -455,7 +456,9 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
             monthlySibling,
           });
           const isCurrent =
-            (!isNil(apiPlan) && apiPlan.id.toLowerCase() === currentPlanId) ||
+            (!isNil(apiPlan) &&
+              (apiPlan.id.toLowerCase() === currentPlanId ||
+                apiPlan.id.toLowerCase().startsWith(currentPlanId))) ||
             entry.key === currentPlanId ||
             (entry.key === 'enterprise' && currentPlanId === 'enterprise') ||
             (entry.key === 'free' &&
@@ -643,7 +646,9 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
                   monthlySibling,
                 });
                 const isCurrent =
-                  (!isNil(apiPlan) && apiPlan.id.toLowerCase() === currentPlanId) ||
+                  (!isNil(apiPlan) &&
+                    (apiPlan.id.toLowerCase() === currentPlanId ||
+                      apiPlan.id.toLowerCase().startsWith(currentPlanId))) ||
                   entry.key === currentPlanId ||
                   (entry.key === 'enterprise' && currentPlanId === 'enterprise') ||
                   (entry.key === 'free' &&

@@ -10,6 +10,7 @@ import { CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 import { billingMutations, refreshBillingCaches } from '../hooks/billing-hooks';
+import { platformBillingApi } from '../api/billing-plans-api';
 
 const REDIRECT_DELAY_MS = 5000;
 
@@ -28,7 +29,23 @@ export const Success = () => {
   const finalizing = isIdle || isPending;
 
   useEffect(() => {
-    finalize();
+    const rawPlan = searchParams.get('plan');
+    const orderId = searchParams.get('order_id');
+    const planFromOrder = rawPlan || (orderId ? orderId.split('-')[2] : null);
+
+    if (planFromOrder && ['plus', 'team', 'enterprise'].includes(planFromOrder.toLowerCase())) {
+      platformBillingApi
+        .switchPlan({ plan: planFromOrder.toLowerCase() })
+        .then(() => {
+          refreshBillingCaches(queryClient);
+          finalize();
+        })
+        .catch(() => {
+          finalize();
+        });
+    } else {
+      finalize();
+    }
   }, []);
 
   function leave(path: string) {
