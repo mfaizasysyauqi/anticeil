@@ -105,7 +105,7 @@ export function PlatformSidebar() {
             {
               to: '/platform/security/project-roles',
               label: t('Project Roles'),
-              isCrown: true,
+              isCrown: !platform.plan.projectRolesEnabled,
             },
           ],
         },
@@ -118,7 +118,7 @@ export function PlatformSidebar() {
             {
               to: '/platform/setup/connections',
               label: t('Global Connections'),
-              isCrown: true,
+              isCrown: !platform.plan.globalConnectionsEnabled,
             },
           ],
         },
@@ -136,7 +136,7 @@ export function PlatformSidebar() {
             {
               to: '/platform/setup/pieces?tab=piece-sets',
               label: t('Piece Sets'),
-              isCrown: true,
+              isCrown: !platform.plan.managePiecesEnabled,
             },
           ],
         },
@@ -144,7 +144,7 @@ export function PlatformSidebar() {
           to: '/platform/setup/templates',
           label: t('Templates'),
           icon: LayoutGridIcon,
-          isCrown: true,
+          isCrown: !platform.plan.manageTemplatesEnabled,
         },
         {
           to: '/platform/setup/ai',
@@ -164,19 +164,19 @@ export function PlatformSidebar() {
           to: '/platform/security/sso',
           label: t('Single Sign On'),
           icon: LogIn,
-          isCrown: true,
+          isCrown: !platform.plan.ssoEnabled,
         },
         {
           to: '/platform/security/secret-managers',
           label: t('Secret Managers'),
           icon: Key,
-          isCrown: true,
+          isCrown: !platform.plan.secretManagersEnabled,
         },
         {
           to: '/platform/security/audit-logs',
           label: t('Audit Logs'),
           icon: ShieldCheck,
-          isCrown: true,
+          isCrown: !platform.plan.auditLogEnabled,
           subItems: [
             { to: '/platform/security/audit-logs', label: t('Events') },
             {
@@ -199,7 +199,7 @@ export function PlatformSidebar() {
           to: '/platform/security/embed',
           label: t('Embedding'),
           icon: Hash,
-          isCrown: true,
+          isCrown: !platform.plan.embeddingEnabled,
         },
         {
           to: '/platform/setup/mcp',
@@ -225,7 +225,7 @@ export function PlatformSidebar() {
             {
               to: '/platform/infrastructure/workers?tab=worker-groups',
               label: t('Worker groups'),
-              isCrown: true,
+              isCrown: !platform.plan.workerGroupsEnabled,
             },
           ],
         },

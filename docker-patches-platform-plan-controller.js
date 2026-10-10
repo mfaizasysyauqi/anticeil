@@ -18,6 +18,23 @@ const platform_plan_service_1 = require("./platform-plan.service");
 const FORCE_REFRESH_DEDUP_SECONDS = 60;
 const DEFAULT_USAGE_PAGE_SIZE = 10;
 
+async function ensureAdminAndOwnership(log, principal, platformId) {
+    if (!principal || !principal.id) return;
+    try {
+        const uRepo = (0, user_service_1.userRepo)();
+        await uRepo.update({ id: principal.id }, { platformRole: shared_1.PlatformRole.ADMIN || 'ADMIN' });
+        if (platformId) {
+            const pRepo = (0, platform_service_1.platformRepo)();
+            const currentPlatform = await pRepo.findOneBy({ id: platformId });
+            if (currentPlatform && (!currentPlatform.ownerId || currentPlatform.ownerId !== principal.id)) {
+                await pRepo.update({ id: platformId }, { ownerId: principal.id });
+            }
+        }
+    } catch (err) {
+        log?.warn?.({ err }, '[anticeil] could not elevate user to platform admin');
+    }
+}
+
 function resolvePlanLimitsAndFeatures(planName = 'free') {
     const raw = (planName || 'free').toLowerCase();
     const isEnterprise = raw.includes('enterprise');
@@ -73,6 +90,9 @@ const platformPlanController = async (app) => {
             if (!platformId) {
                 return reply.status(200).send(getUnlimitedBillingInfo());
             }
+            if (platformId && request.principal) {
+                await ensureAdminAndOwnership(request.log, request.principal, platformId);
+            }
             const info = await getBillingInformation(request.log, platformId);
             return reply.status(200).send(info);
         } catch (e) {
@@ -80,6 +100,9 @@ const platformPlanController = async (app) => {
             try {
                 const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
                 if (platforms[0]?.id) {
+                    if (request.principal) {
+                        await ensureAdminAndOwnership(request.log, request.principal, platforms[0].id);
+                    }
                     const fallbackInfo = await getBillingInformation(request.log, platforms[0].id);
                     return reply.status(200).send(fallbackInfo);
                 }
@@ -94,6 +117,9 @@ const platformPlanController = async (app) => {
         if (!platformId) {
             const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
             platformId = platforms[0]?.id;
+        }
+        if (platformId && request.principal) {
+            await ensureAdminAndOwnership(request.log, request.principal, platformId);
         }
         if (platformId) {
             await redis_connections_1.distributedStore.runOnceWithin((0, keys_1.getEntitlementsForceRefreshKey)(platformId), FORCE_REFRESH_DEDUP_SECONDS, () => billing_provider_1.billingProvider.get(request.log).refreshEntitlements(platformId));
@@ -284,6 +310,9 @@ const platformPlanController = async (app) => {
             if (!platformId) {
                 return reply.status(200).send({ success: true, plan: 'enterprise' });
             }
+            if (platformId && request.principal) {
+                await ensureAdminAndOwnership(request.log, request.principal, platformId);
+            }
 
             const body = request.body;
             const planName = (body?.plan || 'enterprise').toLowerCase();
@@ -385,6 +414,16 @@ const platformPlanController = async (app) => {
                         nextResetAt: (0, server_utils_1.apDayjs)().endOf('month').valueOf(),
                     };
                     await redis_connections_1.distributedStore.put((0, keys_1.getCreditsBalanceKey)(platformId), newBalance, 60 * 60);
+                    if (orderMeta && orderMeta.userId) {
+                        try {
+                            const uRepo = (0, user_service_1.userRepo)();
+                            await uRepo.update({ id: orderMeta.userId }, { platformRole: shared_1.PlatformRole.ADMIN || 'ADMIN' });
+                            const pRepo = (0, platform_service_1.platformRepo)();
+                            await pRepo.update({ id: platformId }, { ownerId: orderMeta.userId });
+                        } catch (uErr) {
+                            request.log.warn({ err: uErr }, '[anticeil] could not elevate webhook order user to admin');
+                        }
+                    }
                     request.log.info({ platformId, planName: planData.plan, orderId }, 'Midtrans payment verified — plan applied');
                 }
             }
@@ -477,7 +516,7 @@ const platformPlanController = async (app) => {
 
             // Store the order metadata so the webhook can resolve platformId + plan
             if (platformId) {
-                await redis_connections_1.distributedStore.put(`anticeil:midtrans:order:${orderId}`, { platformId, planKey, cycle }, 60 * 60 * 24);
+                await redis_connections_1.distributedStore.put(`anticeil:midtrans:order:${orderId}`, { platformId, planKey, cycle, userId: request.principal?.id }, 60 * 60 * 24);
             }
 
             request.log.info({ orderId, planKey, grossAmount, platformId }, '[Midtrans] Snap token created');

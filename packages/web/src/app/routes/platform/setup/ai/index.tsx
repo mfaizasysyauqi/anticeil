@@ -15,7 +15,7 @@ export default function AIProvidersPage() {
   return (
     <LockedFeatureGuard
       featureKey="UNIVERSAL_AI"
-      locked={currentUser?.platformRole !== PlatformRole.ADMIN || !platform.plan.aiProvidersEnabled}
+      locked={!platform?.plan?.aiProvidersEnabled}
       lockTitle={t('Unlock AI Providers')}
       lockDescription={t(
         'Set your AI providers so your users enjoy a seamless building experience with our universal AI pieces',
@@ -35,7 +35,7 @@ export function AICapabilitiesPage() {
   return (
     <LockedFeatureGuard
       featureKey="UNIVERSAL_AI"
-      locked={currentUser?.platformRole !== PlatformRole.ADMIN || !platform.plan.aiProvidersEnabled}
+      locked={!platform?.plan?.aiProvidersEnabled}
       lockTitle={t('Unlock AI Capabilities')}
       lockDescription={t(
         'Configure AI capabilities and tools for your automations.',

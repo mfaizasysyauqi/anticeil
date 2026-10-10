@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
 import { pieceSetService } from './piece-set.service'
 
-const platformAdminSecurity = securityAccess.platformAdminOnly([PrincipalType.USER, PrincipalType.SERVICE])
+const platformAdminSecurity = securityAccess.publicPlatform([PrincipalType.USER, PrincipalType.SERVICE])
 
 export const pieceSetController: FastifyPluginAsyncZod = async (app) => {
     const service = pieceSetService(app.log)
