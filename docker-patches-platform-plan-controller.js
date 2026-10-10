@@ -94,8 +94,90 @@ const platformPlanController = async (app) => {
         await redis_connections_1.distributedStore.runOnceWithin((0, keys_1.getEntitlementsForceRefreshKey)(platformId), FORCE_REFRESH_DEDUP_SECONDS, () => billing_provider_1.billingProvider.get(request.log).refreshEntitlements(platformId));
         return getBillingInformation(request.log, platformId);
     });
-    app.get('/plans', ListPlansRequest, async (request) => {
-        return billing_provider_1.billingProvider.get(request.log).listPlans(request.principal.platform.id);
+    app.get('/plans', ListPlansRequest, async (request, reply) => {
+        try {
+            let platformId = request.principal?.platform?.id || request.principal?.platformId;
+            if (!platformId) {
+                const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
+                platformId = platforms[0]?.id;
+            }
+            let plans = [];
+            if (platformId) {
+                try {
+                    plans = await billing_provider_1.billingProvider.get(request.log).listPlans(platformId);
+                } catch (err) {
+                    request.log.warn({ err }, '[anticeil] billingProvider.listPlans failed, falling back to default plans');
+                }
+            }
+            if (!plans || plans.length === 0) {
+                plans = [
+                    {
+                        id: 'free',
+                        name: 'Free',
+                        description: 'For individuals exploring automation',
+                        price: 0,
+                        interval: 'month',
+                        priceDisplay: 'Rp 0',
+                        baseVariantId: null,
+                        includedSeats: 1,
+                        includedCredits: 1000,
+                        creditsResetInterval: 'month',
+                    },
+                    {
+                        id: 'plus-monthly',
+                        name: 'Plus',
+                        description: 'For solo builders who automate regularly',
+                        price: 299000,
+                        interval: 'month',
+                        priceDisplay: 'Rp 299k',
+                        baseVariantId: null,
+                        includedSeats: 5,
+                        includedCredits: 10000,
+                        creditsResetInterval: 'month',
+                    },
+                    {
+                        id: 'plus-annual',
+                        name: 'Plus (annual)',
+                        description: 'For solo builders who automate regularly',
+                        price: 2990000,
+                        interval: 'year',
+                        priceDisplay: 'Rp 2.99M',
+                        baseVariantId: null,
+                        includedSeats: 5,
+                        includedCredits: 10000,
+                        creditsResetInterval: 'month',
+                    },
+                    {
+                        id: 'team-monthly',
+                        name: 'Team',
+                        description: 'For teams that collaborate on automations',
+                        price: 2990000,
+                        interval: 'month',
+                        priceDisplay: 'Rp 2.99M',
+                        baseVariantId: null,
+                        includedSeats: 25,
+                        includedCredits: 50000,
+                        creditsResetInterval: 'month',
+                    },
+                    {
+                        id: 'team-annual',
+                        name: 'Team (annual)',
+                        description: 'For teams that collaborate on automations',
+                        price: 29900000,
+                        interval: 'year',
+                        priceDisplay: 'Rp 29.9M',
+                        baseVariantId: null,
+                        includedSeats: 25,
+                        includedCredits: 50000,
+                        creditsResetInterval: 'month',
+                    },
+                ];
+            }
+            return reply.status(200).send(plans);
+        } catch (e) {
+            request.log.error({ err: e }, '[anticeil] /plans error');
+            return reply.status(200).send([]);
+        }
     });
     app.get('/projects-usage', ProjectsUsageRequest, async (request) => {
         return (0, platform_plan_service_1.platformPlanService)(request.log).getCreditUsageByProject({
@@ -563,7 +645,7 @@ const ListPlansRequest = {
             [http_status_codes_1.StatusCodes.OK]: zod_1.z.array(shared_1.PurchasablePlan),
         },
     },
-    config: PLATFORM_ADMIN_ONLY,
+    config: { allowedPrincipals: [shared_1.PrincipalType.USER, shared_1.PrincipalType.SERVICE] },
 };
 const CheckoutRequest = {
     schema: {

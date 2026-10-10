@@ -34,7 +34,80 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
     })
 
     app.get('/plans', ListPlansRequest, async (request) => {
-        return billingProvider.get(request.log).listPlans(request.principal.platform.id)
+        const platformId = request.principal.platform?.id
+        let plans: PurchasablePlan[] = []
+        if (platformId) {
+            try {
+                plans = await billingProvider.get(request.log).listPlans(platformId)
+            } catch (err) {
+                request.log.warn({ err }, 'Failed to list plans from billingProvider, using default plans')
+            }
+        }
+        if (!plans || plans.length === 0) {
+            plans = [
+                {
+                    id: 'free',
+                    name: 'Free',
+                    description: 'For individuals exploring automation',
+                    price: 0,
+                    interval: 'month',
+                    priceDisplay: 'Rp 0',
+                    baseVariantId: null,
+                    includedSeats: 1,
+                    includedCredits: 1000,
+                    creditsResetInterval: 'month',
+                },
+                {
+                    id: 'plus-monthly',
+                    name: 'Plus',
+                    description: 'For solo builders who automate regularly',
+                    price: 299000,
+                    interval: 'month',
+                    priceDisplay: 'Rp 299k',
+                    baseVariantId: null,
+                    includedSeats: 5,
+                    includedCredits: 10000,
+                    creditsResetInterval: 'month',
+                },
+                {
+                    id: 'plus-annual',
+                    name: 'Plus (annual)',
+                    description: 'For solo builders who automate regularly',
+                    price: 2990000,
+                    interval: 'year',
+                    priceDisplay: 'Rp 2.99M',
+                    baseVariantId: null,
+                    includedSeats: 5,
+                    includedCredits: 10000,
+                    creditsResetInterval: 'month',
+                },
+                {
+                    id: 'team-monthly',
+                    name: 'Team',
+                    description: 'For teams that collaborate on automations',
+                    price: 2990000,
+                    interval: 'month',
+                    priceDisplay: 'Rp 2.99M',
+                    baseVariantId: null,
+                    includedSeats: 25,
+                    includedCredits: 50000,
+                    creditsResetInterval: 'month',
+                },
+                {
+                    id: 'team-annual',
+                    name: 'Team (annual)',
+                    description: 'For teams that collaborate on automations',
+                    price: 29900000,
+                    interval: 'year',
+                    priceDisplay: 'Rp 29.9M',
+                    baseVariantId: null,
+                    includedSeats: 25,
+                    includedCredits: 50000,
+                    creditsResetInterval: 'month',
+                },
+            ]
+        }
+        return plans
     })
 
     app.get('/projects-usage', ProjectsUsageRequest, async (request) => {
@@ -448,7 +521,9 @@ const ListPlansRequest = {
             [StatusCodes.OK]: z.array(PurchasablePlan),
         },
     },
-    config: PLATFORM_ADMIN_ONLY,
+    config: {
+        allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+    },
 }
 
 const CheckoutRequest = {
