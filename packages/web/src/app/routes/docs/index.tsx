@@ -2236,7 +2236,7 @@ export function DocsPage() {
         )}
 
         {/* Center Main Content */}
-        <main className="flex-1 min-w-0 py-8 px-4 sm:px-8 lg:px-12 max-w-4xl">
+        <main className="flex-1 min-w-0 py-6 sm:py-8 px-0 lg:px-12 w-full max-w-none lg:max-w-4xl">
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
             <span>
