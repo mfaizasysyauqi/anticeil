@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { McpSvg } from '@/assets/img/custom/mcp';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { INTERNAL_ERROR_MESSAGE } from '@/components/ui/sonner';
 import { projectCollectionUtils } from '@/features/projects';
@@ -223,6 +223,7 @@ export function ProjectSettingsDialog({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl w-[calc(100vw-1.5rem)] sm:w-full max-h-[90vh] rounded-xl flex flex-col p-0 overflow-hidden">
+        <DialogTitle className="sr-only">{t('Project Settings')}</DialogTitle>
         <div className="flex flex-col md:flex-row h-full max-h-[85vh] md:h-[650px]">
           <div className="w-full md:w-[220px] bg-sidebar border-b md:border-b-0 md:border-r border-border shrink-0">
             <nav className="space-y-1 p-2 md:p-3 h-full flex flex-col">

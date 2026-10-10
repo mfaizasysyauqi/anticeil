@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { memoryRouter } from '@/app/guards';
 import { LoadingSpinner } from '@/components/custom/spinner';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { oauthAppsQueries } from '@/features/connections';
 import { piecesHooks } from '@/features/pieces';
 import { parentWindow } from '@/lib/dom-utils';
@@ -137,6 +137,7 @@ const EmbeddedConnectionDialogContent = ({
         )}
         showCloseButton={!isLoadingPiece}
       >
+        <DialogTitle className="sr-only">Connect</DialogTitle>
         {isLoadingPiece ||
           (loadingPiecesOAuth2AppsMap && (
             <div className="flex justify-center items-center">

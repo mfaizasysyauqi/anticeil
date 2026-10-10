@@ -5,7 +5,7 @@ import {
 } from '@anticeil/embed-sdk';
 import { useEffect, useState } from 'react';
 
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { parentWindow } from '@/lib/dom-utils';
 
 import { McpServerSettings } from '../../components/project-settings/mcp-server';
@@ -51,6 +51,7 @@ export const EmbeddedMcpSettingsDialog = () => {
         onInteractOutside={(e) => e.preventDefault()}
         className="max-h-[80vh] min-w-[450px] max-w-[450px] lg:min-w-[700px] lg:max-w-[700px] overflow-y-auto"
       >
+        <DialogTitle className="sr-only">MCP Settings</DialogTitle>
         <McpServerSettings />
       </DialogContent>
     </Dialog>
