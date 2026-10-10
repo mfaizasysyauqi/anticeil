@@ -300,6 +300,21 @@ function renderFormattedText(text: string, currentSlug: string = '', depth = 0):
 
   if (depth > 5) return cleanedText;
 
+  // Handle HTML line breaks (<br>, <br/>, <br />)
+  if (/<br\s*\/?>|<\/br>/i.test(cleanedText)) {
+    const brParts = cleanedText.split(/<br\s*\/?>|<\/br>/gi);
+    return (
+      <>
+        {brParts.map((part, pIdx) => (
+          <React.Fragment key={`br-${depth}-${pIdx}`}>
+            {pIdx > 0 && <br />}
+            {renderFormattedText(part, currentSlug, depth + 1)}
+          </React.Fragment>
+        ))}
+      </>
+    );
+  }
+
   const regex = /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*)/g;
   const nodes: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -1086,6 +1101,25 @@ export function DocsPage() {
 
       // Frame wrappers
       if (trimmed.startsWith('<Frame') || trimmed.startsWith('</Frame>')) {
+        i++;
+        continue;
+      }
+
+      // Update tags (<Update label="...">)
+      const updateMatch = trimmed.match(/<Update\s+label="([^"]+)">/);
+      if (updateMatch) {
+        elements.push(
+          <div
+            key={`update-${elements.length}`}
+            className="my-3 px-3 py-1 text-xs font-semibold rounded-full bg-primary/15 text-primary border border-primary/25 inline-flex items-center"
+          >
+            {updateMatch[1]}
+          </div>,
+        );
+        i++;
+        continue;
+      }
+      if (trimmed === '</Update>') {
         i++;
         continue;
       }
