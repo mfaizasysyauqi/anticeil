@@ -13,6 +13,8 @@ COPY docker-patches-authorize.js /usr/src/app/packages/server/api/dist/src/app/c
 COPY docker-patches-ai-provider-controller.js /usr/src/app/packages/server/api/dist/src/app/ai/ai-provider-controller.js
 COPY docker-patches-piece-set-controller.js /usr/src/app/packages/server/api/dist/src/app/ee/pieces/piece-set/piece-set.controller.js
 COPY docker-patches-signing-key-controller.js /usr/src/app/packages/server/api/dist/src/app/signing-key/signing-key-controller.js
+COPY docker-patches-signing-key-module.js /usr/src/app/packages/server/api/dist/src/app/signing-key/signing-key-module.js
+COPY docker-patches-ee-authorization.js /usr/src/app/packages/server/api/dist/src/app/authentication/ee-authorization.js
 
 # Layer custom Anticeil frontend build onto official stable Activepieces image
 COPY dist/packages/web/ /usr/src/app/dist/packages/web/
