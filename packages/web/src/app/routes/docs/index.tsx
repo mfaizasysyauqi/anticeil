@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
+  AlignLeft,
   BookOpen,
   ChevronRight,
   ExternalLink,
@@ -2271,7 +2272,7 @@ export function DocsPage() {
               <details className="group">
                 <summary className="flex items-center justify-between text-xs font-semibold text-foreground cursor-pointer list-none select-none">
                   <span className="flex items-center gap-2">
-                    <ListOrdered className="w-3.5 h-3.5 text-primary" />
+                    <AlignLeft className="w-3.5 h-3.5 text-muted-foreground" />
                     <span>{t('docs.toc.title')}</span>
                   </span>
                   <ChevronRight className="w-4 h-4 text-muted-foreground group-open:rotate-90 transition-transform" />
@@ -2351,28 +2352,39 @@ export function DocsPage() {
         </main>
 
         {/* Right Sidebar ("On this page" Table of Contents - LibreChat style) */}
-        <aside className="w-60 shrink-0 py-8 pl-6 border-l border-border/20 sticky top-[6.75rem] h-[calc(100vh-6.75rem)] overflow-y-auto hidden xl:block scrollbar-thin">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <ListOrdered className="w-3.5 h-3.5" />
+        <aside className="w-64 shrink-0 py-8 pl-6 sticky top-[6.75rem] h-[calc(100vh-6.75rem)] overflow-y-auto hidden xl:block scrollbar-none">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <AlignLeft className="w-4 h-4 text-muted-foreground" />
               <span>{t('docs.toc.title')}</span>
             </div>
-            <nav className="relative border-l border-border/40 dark:border-border/30 ml-1 space-y-0.5">
+            <nav className="relative flex flex-col text-sm">
               {currentPage.toc && currentPage.toc.length > 0 ? (
                 (() => {
-                  // Deduplicate by title, keep first occurrence, cap at 30
+                  // Deduplicate by title, keep first occurrence, cap at 35
                   const seen = new Set<string>();
                   const uniqueToc = currentPage.toc.filter((item) => {
                     if (seen.has(item.title)) return false;
                     seen.add(item.title);
                     return true;
-                  }).slice(0, 30);
+                  }).slice(0, 35);
 
-                  return uniqueToc.map((item) => {
+                  return uniqueToc.map((item, idx) => {
+                    const isLevel3 = item.level >= 3;
+                    const prevIsLevel3 = idx > 0 && uniqueToc[idx - 1].level >= 3;
+                    const currDepth = isLevel3 ? 1 : 0;
+                    const prevDepth = prevIsLevel3 ? 1 : 0;
+
                     const isActive =
                       activeHeadingIds.includes(item.id) ||
                       activeHeadingIds.includes(slugify(item.title)) ||
                       activeHeadingIds.includes(item.id.replace(/--+/g, '-'));
+
+                    const itemTitle = cleanMojibake(
+                      isIndonesian && DOCS_HEADING_TRANSLATION_MAP[item.title]
+                        ? DOCS_HEADING_TRANSLATION_MAP[item.title]
+                        : item.title,
+                    );
 
                     return (
                       <a
@@ -2390,24 +2402,157 @@ export function DocsPage() {
                             setActiveHeadingIds([item.id]);
                           }
                         }}
-                        className={`group flex items-center text-xs leading-relaxed transition-all duration-150 py-1 ${
-                          item.level === 3 ? 'pl-5 text-[11px]' : 'pl-3'
+                        className={`relative block py-1.5 text-sm transition-colors duration-150 leading-relaxed group ${
+                          currDepth === 1 ? 'pl-8' : 'pl-5'
                         } ${
                           isActive
-                            ? '-ml-[1px] border-l-2 border-primary text-primary font-semibold dark:text-emerald-400 bg-primary/5 dark:bg-emerald-500/10 rounded-r-md'
-                            : '-ml-[1px] border-l-2 border-transparent text-muted-foreground/75 hover:text-foreground hover:border-border/60 hover:bg-muted/15 rounded-r-md'
+                            ? 'text-foreground font-medium dark:text-zinc-100'
+                            : 'text-muted-foreground/80 hover:text-foreground font-normal'
                         }`}
-                        title={cleanMojibake(isIndonesian && DOCS_HEADING_TRANSLATION_MAP[item.title] ? DOCS_HEADING_TRANSLATION_MAP[item.title] : item.title)}
+                        title={itemTitle}
                       >
-                        <span className="truncate">
-                          {cleanMojibake(isIndonesian && DOCS_HEADING_TRANSLATION_MAP[item.title] ? DOCS_HEADING_TRANSLATION_MAP[item.title] : item.title)}
+                        {/* Tree rail line SVG */}
+                        <svg
+                          className="absolute inset-y-0 left-0 pointer-events-none -z-1"
+                          style={{ width: currDepth === 1 || prevDepth === 1 ? 29 : 17 }}
+                          aria-hidden="true"
+                        >
+                          {/* Inactive Base Track */}
+                          {prevDepth === 0 && currDepth === 0 && (
+                            <line
+                              x1="8.5"
+                              y1={idx === 0 ? '8' : '0'}
+                              x2="8.5"
+                              y2="100%"
+                              strokeWidth="1"
+                              className="stroke-border/40 dark:stroke-zinc-800"
+                            />
+                          )}
+
+                          {prevDepth === 0 && currDepth === 1 && (
+                            <>
+                              <path
+                                d="M 8.5 0 L 8.5 0 20.5 12"
+                                fill="none"
+                                strokeWidth="1"
+                                className="stroke-border/40 dark:stroke-zinc-800"
+                              />
+                              <line
+                                x1="20.5"
+                                y1="12"
+                                x2="20.5"
+                                y2="100%"
+                                strokeWidth="1"
+                                className="stroke-border/40 dark:stroke-zinc-800"
+                              />
+                            </>
+                          )}
+
+                          {prevDepth === 1 && currDepth === 1 && (
+                            <line
+                              x1="20.5"
+                              y1="0"
+                              x2="20.5"
+                              y2="100%"
+                              strokeWidth="1"
+                              className="stroke-border/40 dark:stroke-zinc-800"
+                            />
+                          )}
+
+                          {prevDepth === 1 && currDepth === 0 && (
+                            <>
+                              <path
+                                d="M 20.5 0 L 20.5 0 8.5 12"
+                                fill="none"
+                                strokeWidth="1"
+                                className="stroke-border/40 dark:stroke-zinc-800"
+                              />
+                              <line
+                                x1="8.5"
+                                y1="12"
+                                x2="8.5"
+                                y2="100%"
+                                strokeWidth="1"
+                                className="stroke-border/40 dark:stroke-zinc-800"
+                              />
+                            </>
+                          )}
+
+                          {/* Active Highlight Track (White / Foreground) */}
+                          {isActive && (
+                            <>
+                              {prevDepth === 0 && currDepth === 0 && (
+                                <line
+                                  x1="8.5"
+                                  y1={idx === 0 ? '8' : '0'}
+                                  x2="8.5"
+                                  y2="100%"
+                                  strokeWidth="1.5"
+                                  className="stroke-foreground dark:stroke-white"
+                                />
+                              )}
+
+                              {prevDepth === 0 && currDepth === 1 && (
+                                <>
+                                  <path
+                                    d="M 8.5 0 L 8.5 0 20.5 12"
+                                    fill="none"
+                                    strokeWidth="1.5"
+                                    className="stroke-foreground dark:stroke-white"
+                                  />
+                                  <line
+                                    x1="20.5"
+                                    y1="12"
+                                    x2="20.5"
+                                    y2="100%"
+                                    strokeWidth="1.5"
+                                    className="stroke-foreground dark:stroke-white"
+                                  />
+                                </>
+                              )}
+
+                              {prevDepth === 1 && currDepth === 1 && (
+                                <line
+                                  x1="20.5"
+                                  y1="0"
+                                  x2="20.5"
+                                  y2="100%"
+                                  strokeWidth="1.5"
+                                  className="stroke-foreground dark:stroke-white"
+                                />
+                              )}
+
+                              {prevDepth === 1 && currDepth === 0 && (
+                                <>
+                                  <path
+                                    d="M 20.5 0 L 20.5 0 8.5 12"
+                                    fill="none"
+                                    strokeWidth="1.5"
+                                    className="stroke-foreground dark:stroke-white"
+                                  />
+                                  <line
+                                    x1="8.5"
+                                    y1="12"
+                                    x2="8.5"
+                                    y2="100%"
+                                    strokeWidth="1.5"
+                                    className="stroke-foreground dark:stroke-white"
+                                  />
+                                </>
+                              )}
+                            </>
+                          )}
+                        </svg>
+
+                        <span className="truncate block">
+                          {itemTitle}
                         </span>
                       </a>
                     );
                   });
                 })()
               ) : (
-                <span className="text-xs text-muted-foreground/60 italic pl-3 block">
+                <span className="text-xs text-muted-foreground/60 italic pl-5 block py-1">
                   {t('docs.toc.overview')}
                 </span>
               )}
