@@ -326,6 +326,7 @@ const platformPlanController = async (app) => {
             request.log.error({ err }, 'Failed to switch plan');
             return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: err?.message || 'Failed to switch plan' });
         }
+    });
     app.get('/midtrans-webhook', { config: { allowedPrincipals: [shared_1.PrincipalType.UNKNOWN, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
         return reply.status(200).send({ status: 'OK' });
     });
