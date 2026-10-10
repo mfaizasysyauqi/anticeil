@@ -550,7 +550,9 @@ export function DocsPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
-  const [activeHeadingId, setActiveHeadingId] = useState<string>('');
+  const [activeHeadingIds, setActiveHeadingIds] = useState<string[]>([]);
+  const activeHeadingId = activeHeadingIds[0] || '';
+  const setActiveHeadingId = (id: string) => setActiveHeadingIds(id ? [id] : []);
 
   const isIndonesian = i18n.language === 'id' || i18n.language.startsWith('id');
 
@@ -676,83 +678,122 @@ export function DocsPage() {
     }
   }, [currentSlug, location.hash]);
 
-  // Dynamic Scroll Spy for Table of Contents ("DI HALAMAN INI") - LibreChat style
+  // Dynamic Multi-Heading Scroll Spy for Table of Contents ("DI HALAMAN INI") - LibreChat style
   useEffect(() => {
     if (!currentPage?.toc || currentPage.toc.length === 0) {
-      setActiveHeadingId('');
+      setActiveHeadingIds([]);
       return;
     }
 
     const tocList = currentPage.toc;
-    const tocIds = tocList.map((item) => item.id);
 
-    // Initial check or reset on page navigation
-    const initialHash = window.location.hash.replace('#', '');
-    if (initialHash && tocIds.includes(initialHash)) {
-      setActiveHeadingId(initialHash);
-    } else if (tocIds.length > 0) {
-      setActiveHeadingId(tocIds[0]);
-    }
+    const findElement = (item: TocItem) => {
+      return (
+        document.getElementById(item.id) ||
+        document.getElementById(slugify(item.title)) ||
+        document.getElementById(item.id.replace(/--+/g, '-'))
+      );
+    };
 
     let ticking = false;
 
-    const updateActiveHeading = () => {
-      // If user is scrolled near top, highlight first heading
-      if (window.scrollY < 80) {
-        if (tocIds.length > 0) setActiveHeadingId(tocIds[0]);
+    const updateActiveHeadings = () => {
+      const viewportHeight = window.innerHeight;
+      const topThreshold = 130; // below sticky navbar
+      const bottomThreshold = viewportHeight - 60; // above viewport bottom
+
+      // Check if scrolled near the very top of document
+      if (window.scrollY < 60) {
+        const visibleAtTop: string[] = [];
+        for (const item of tocList) {
+          const el = findElement(item);
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            if (rect.top >= 0 && rect.top < bottomThreshold) {
+              visibleAtTop.push(item.id);
+            }
+          }
+        }
+        setActiveHeadingIds(visibleAtTop.length > 0 ? visibleAtTop : [tocList[0].id]);
         ticking = false;
         return;
       }
 
-      // If user is near bottom of page, highlight last heading
-      const scrollBottom = window.innerHeight + window.scrollY;
-      const docHeight = document.documentElement.scrollHeight;
-      if (scrollBottom >= docHeight - 60) {
-        if (tocIds.length > 0) setActiveHeadingId(tocIds[tocIds.length - 1]);
-        ticking = false;
-        return;
-      }
-
-      // Find the heading that is currently nearest to or passed top offset (150px)
-      const topOffset = 150;
-      let currentActive = tocIds[0] || '';
-
+      // 1. Find the section that started above or near topThreshold (current section being read)
+      let currentTopSectionId = '';
       for (let i = 0; i < tocList.length; i++) {
         const item = tocList[i];
-        let el = document.getElementById(item.id);
-        if (!el) el = document.getElementById(slugify(item.title));
-        if (!el) el = document.getElementById(item.id.replace(/--+/g, '-'));
-
+        const el = findElement(item);
         if (el) {
           const rect = el.getBoundingClientRect();
-          if (rect.top <= topOffset) {
-            currentActive = item.id;
+          if (rect.top <= topThreshold) {
+            currentTopSectionId = item.id;
           } else {
             break;
           }
         }
       }
 
-      if (currentActive) {
-        setActiveHeadingId((prev) => (prev !== currentActive ? currentActive : prev));
+      // 2. Find all headings physically visible inside the viewport
+      const visibleInside: string[] = [];
+      for (let i = 0; i < tocList.length; i++) {
+        const item = tocList[i];
+        const el = findElement(item);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= bottomThreshold && rect.top >= topThreshold) {
+            visibleInside.push(item.id);
+          }
+        }
       }
+
+      // Combine current top section + all visible headings
+      const combined = new Set<string>();
+      if (currentTopSectionId) combined.add(currentTopSectionId);
+      for (const id of visibleInside) combined.add(id);
+
+      // Fallback if none found
+      let nextActive = Array.from(combined);
+      if (nextActive.length === 0 && tocList.length > 0) {
+        nextActive = [tocList[0].id];
+      }
+
+      setActiveHeadingIds((prev) => {
+        if (
+          prev.length === nextActive.length &&
+          prev.every((val, idx) => val === nextActive[idx])
+        ) {
+          return prev;
+        }
+        return nextActive;
+      });
 
       ticking = false;
     };
 
     const handleScroll = () => {
       if (!ticking) {
-        window.requestAnimationFrame(updateActiveHeading);
+        window.requestAnimationFrame(updateActiveHeadings);
         ticking = true;
       }
     };
 
-    const timer = setTimeout(updateActiveHeading, 150);
+    // Initial check on mount/page change
+    const initialHash = window.location.hash.replace('#', '');
+    if (initialHash && tocList.some((item) => item.id === initialHash)) {
+      setActiveHeadingIds([initialHash]);
+    } else {
+      updateActiveHeadings();
+    }
+
+    const timer = setTimeout(updateActiveHeadings, 150);
 
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
     return () => {
       clearTimeout(timer);
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
     };
   }, [currentSlug, currentPage?.toc]);
 
@@ -2329,9 +2370,9 @@ export function DocsPage() {
 
                   return uniqueToc.map((item) => {
                     const isActive =
-                      activeHeadingId === item.id ||
-                      activeHeadingId === slugify(item.title) ||
-                      activeHeadingId === item.id.replace(/--+/g, '-');
+                      activeHeadingIds.includes(item.id) ||
+                      activeHeadingIds.includes(slugify(item.title)) ||
+                      activeHeadingIds.includes(item.id.replace(/--+/g, '-'));
 
                     return (
                       <a
@@ -2346,7 +2387,7 @@ export function DocsPage() {
                           if (target) {
                             target.scrollIntoView({ behavior: 'smooth' });
                             window.history.pushState(null, '', `#${item.id}`);
-                            setActiveHeadingId(item.id);
+                            setActiveHeadingIds([item.id]);
                           }
                         }}
                         className={`group flex items-center text-xs leading-relaxed transition-all duration-150 py-1 ${
