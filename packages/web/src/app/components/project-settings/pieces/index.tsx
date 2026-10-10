@@ -60,7 +60,11 @@ const columns: ColumnDef<RowDataWithActions<PieceMetadataModelSummary>>[] = [
       />
     ),
     cell: ({ row }) => {
-      return <div className="text-left">{row.original.name}</div>;
+      return (
+        <div className="text-left">
+          {row.original.name.replace(/^@activepieces\//, '@anticeil/')}
+        </div>
+      );
     },
   },
   {

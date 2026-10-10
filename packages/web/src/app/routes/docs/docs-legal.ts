@@ -186,6 +186,160 @@ If you have questions regarding this Privacy Policy or wish to exercise your dat
       { id: '7-data-protection-grievance-contact', title: '7. Data Protection & Grievance Contact', level: 2 },
     ],
   },
+  'legal/payment': {
+    slug: 'legal/payment',
+    tab: 'Get Started',
+    group: 'Legal',
+    title: 'Payment Guide & Verification',
+    sidebarTitle: 'Payment Guide',
+    description: 'Official step-by-step payment instructions, Midtrans payment channels, pricing, and instant activation guide for Anticeil',
+    icon: 'credit-card',
+    body: `This official Payment Guide outlines the steps, accepted payment channels, pricing tiers, and automated verification process for Anticeil subscriptions ([anticeil.com](https://anticeil.com)). All digital payment transactions are securely processed via licensed payment gateway **Midtrans** (PT Midtrans) under the supervision of Bank Indonesia in Indonesian Rupiah (IDR).
+
+<Info>
+**Official Merchant Payment Documentation:** Designed for Midtrans production verification and as an end-user guide for subscription checkout. Last updated: October 2026.
+</Info>
+
+## 1. Overview & Official Currency
+
+Anticeil is a modern workflow automation, application integration, and AI orchestration platform. Subscription billing is officially quoted and charged in **Indonesian Rupiah (IDR)**.
+
+Transactions are protected by Bank Indonesia-regulated infrastructure and certified **PCI-DSS Level 1** compliance. Once a payment is completed, your account quota and subscription features are activated automatically in real time.
+
+## 2. Subscription Plans & Official Pricing
+
+Anticeil provides flexible subscription plans with monthly and annual billing cycles:
+
+| Plan | Monthly Price | Annual Price | Key Inclusions |
+|---|---|---|---|
+| **Free** | Rp 0 | Rp 0 | 1,000 automation credits, 1 team member, standard pieces |
+| **Plus** | Rp 299,000 | Rp 2,990,000 / yr | 10,000 automation credits, AI Agents, custom webhooks, priority queue |
+| **Team** | Rp 2,990,000 | Rp 29,900,000 / yr | 50,000 automation credits, 25 team members, SSO, Audit Logs, dedicated support |
+
+*All prices are billed transparently without hidden setup fees. Prices exclude applicable Value Added Tax (VAT) if required by taxation rules.*
+
+## 3. Supported Midtrans Payment Channels
+
+Users can settle subscription invoices using a variety of instant payment methods provided by Midtrans:
+
+- **QRIS & e-Wallets (Instant Settlement):**
+  - QRIS (compatible with BCA Mobile, Livin by Mandiri, BRImo, BNI Mobile, CIMB Octo, GoPay, OVO, ShopeePay, DANA, LinkAja, and any Indonesian QRIS-compatible app)
+  - GoPay / GoPay Later
+- **Virtual Account Bank Transfer (Automatic Verification 24/7):**
+  - BCA Virtual Account
+  - Mandiri Virtual Account (Bill Payment)
+  - BRI Virtual Account (BRIVA)
+  - BNI Virtual Account
+  - Permata Bank & Other ATM Bersama / Prima / Alto banks
+- **Credit & Debit Cards (Global Acceptance):**
+  - Visa, MasterCard, JCB, and American Express
+  - Equipped with 3D Secure (3DS OTP) authentication for cardholder protection
+
+## 4. Step-by-Step Payment Instructions
+
+Follow these 4 simple steps to upgrade or renew your Anticeil subscription:
+
+### Step 1: Select Your Plan and Billing Cycle
+
+Log in to your Anticeil dashboard and navigate to **Settings** > **Billing & Subscriptions** (or visit \`https://app.anticeil.com/billing\`). Compare plan features, choose between **Monthly** or **Annual** billing, and click **Pilih Paket Plus** or **Pilih Paket Team**.
+
+![Step 1: Choose subscription plan and billing cycle on Anticeil](/resources/screenshots/payment-guide/step-1-choose-plan.jpg)
+
+### Step 2: Open Midtrans Snap Checkout
+
+A secure **Midtrans Snap Payment** dialog will appear on your screen, detailing your order summary (e.g. "Anticeil Plus Subscription - Rp 299.000"). Select your preferred payment channel:
+1. **QRIS / e-Wallet** (GoPay, QRIS)
+2. **Virtual Account** (BCA, Mandiri, BNI, BRI)
+3. **Credit / Debit Card** (Visa, Mastercard)
+
+Then click **Lanjut ke Pembayaran** (Proceed to Payment).
+
+![Step 2: Select payment method inside Midtrans Snap popup](/resources/screenshots/payment-guide/step-2-select-payment-method.jpg)
+
+### Step 3: Complete Payment via Preferred Channel
+
+Follow the on-screen instructions according to your chosen payment method:
+
+![Step 3: Scan QRIS code or copy Bank Virtual Account number](/resources/screenshots/payment-guide/step-3-complete-payment-qris-va.jpg)
+
+- **For QRIS:** Scan the dynamic QR code on screen using your mobile banking or e-wallet application, verify the merchant name (**Anticeil**), and confirm with your PIN.
+- **For Virtual Account:** Copy the 16-digit Virtual Account number and transfer the exact bill amount through mobile banking, internet banking, or ATM.
+- **For Credit Card:** Enter your 16-digit card number, expiry date, and CVV, then input the 6-digit OTP code sent via SMS by your bank.
+
+### Step 4: Automatic Verification & Instant Activation
+
+Once your transaction is processed, Midtrans instantly sends an encrypted webhook notification to Anticeil. Your payment status will update to **Success** and your plan quota will be activated immediately.
+
+![Step 4: Payment confirmed and Anticeil subscription activated instantly](/resources/screenshots/payment-guide/step-4-payment-success-activated.jpg)
+
+You can download your official tax invoice anytime from the billing history panel.
+
+## 5. Channel-Specific Payment Steps
+
+### A. How to Pay with QRIS (BCA Mobile, Livin, GoPay, OVO, Dana)
+1. Select **QRIS** on the Midtrans payment modal.
+2. Open your mobile banking app (e.g., BCA Mobile, Mandiri Livin, BRImo) or e-wallet (GoPay, OVO, DANA, ShopeePay).
+3. Tap the **Scan QR / QRIS** icon.
+4. Point your camera at the QR code displayed on the screen.
+5. Verify that the merchant name appears as **Anticeil** and the amount matches your subscription plan.
+6. Enter your 6-digit PIN and complete the transaction.
+7. The checkout screen will automatically refresh and confirm payment success within 5 seconds.
+
+### B. How to Pay with BCA Virtual Account
+1. Open the **BCA mobile (m-BCA)** app and enter your m-BCA access code.
+2. Select menu **m-Transfer** > **BCA Virtual Account**.
+3. Input or paste the Anticeil BCA Virtual Account number provided on screen (e.g. \`1234 5678 9012 3456\`).
+4. Review the payment details (Merchant: Anticeil, Total Amount: Rp 299,000).
+5. Enter your m-BCA PIN. Transaction is complete!
+
+### C. How to Pay with Mandiri, BRI, or BNI Virtual Account
+1. Open your bank's mobile banking app (Livin' by Mandiri, BRImo, or BNI Mobile Banking).
+2. Choose **Transfer** / **Bayar** > **Virtual Account** (or **BRIVA** for BRI / **Bayar Multi Payment** for Mandiri).
+3. Paste the Virtual Account number displayed by Midtrans.
+4. Confirm total amount and enter your transaction PIN.
+
+### D. How to Pay with Credit or Debit Card
+1. Select **Credit Card** in the Midtrans payment dialog.
+2. Enter your 16-digit Card Number, Expiration Date (MM/YY), and 3-digit CVV/CVC code.
+3. Click **Pay Now**.
+4. You will be redirected to the bank's **3D Secure** authentication page.
+5. Enter the one-time OTP sent to your registered phone number.
+6. Upon authorization, your subscription is activated immediately.
+
+## 6. Cancellation & 7-Day Refund Policy
+
+We stand by the quality of our service and offer transparent consumer protection:
+
+- **Cancel Anytime:** You can cancel auto-renewals anytime with a single click in your Anticeil Billing Settings. You retain full access until the end of your prepaid period.
+- **7-Day Money-Back Guarantee:** If you encounter technical hurdles or find that Anticeil does not suit your workflows, you may request a 100% refund within **7 (seven) days** of your initial paid transaction.
+- **Refund Procedure:** Simply email [anticeil.official@gmail.com](mailto:anticeil.official@gmail.com) with your Order ID. Approved refunds are credited back to your original payment method within 3-7 business days.
+
+## 7. Security & Consumer Protection (PCI-DSS)
+
+Your security and financial data privacy are our highest priority:
+- **Zero Card Storage:** Anticeil never stores, views, or logs credit card numbers, CVVs, or bank credentials.
+- **PCI-DSS Level 1:** All transaction data is processed directly on Midtrans's PCI-DSS Level 1 certified infrastructure.
+- **TLS 1.3 Encryption:** All communication channels between your browser, Anticeil, and Midtrans are protected by military-grade 256-bit SSL/TLS encryption.
+
+## 8. Customer Support & Billing Inquiries
+
+Need help with payment or have a custom enterprise invoicing requirement? Our team is ready to assist:
+
+- **Customer Support Email:** [anticeil.official@gmail.com](mailto:anticeil.official@gmail.com)
+- **Official Website:** [https://anticeil.com](https://anticeil.com)
+- **Response Time:** Under 24 hours (Monday - Sunday, 08:00 - 20:00 WIB)
+- **Office Location:** Jakarta, Republic of Indonesia`,
+    toc: [
+      { id: '1-overview-official-currency', title: '1. Overview & Official Currency', level: 2 },
+      { id: '2-subscription-plans-official-pricing', title: '2. Subscription Plans & Official Pricing', level: 2 },
+      { id: '3-supported-midtrans-payment-channels', title: '3. Supported Midtrans Payment Channels', level: 2 },
+      { id: '4-step-by-step-payment-instructions', title: '4. Step-by-Step Payment Instructions', level: 2 },
+      { id: '5-channel-specific-payment-steps', title: '5. Channel-Specific Payment Steps', level: 2 },
+      { id: '6-cancellation-7-day-refund-policy', title: '6. Cancellation & 7-Day Refund Policy', level: 2 },
+      { id: '7-security-consumer-protection-pci-dss', title: '7. Security & Consumer Protection (PCI-DSS)', level: 2 },
+      { id: '8-customer-support-billing-inquiries', title: '8. Customer Support & Billing Inquiries', level: 2 },
+    ],
+  },
 };
 
 export const LEGAL_PAGES_ID: Record<string, LegalPageData> = {
@@ -356,6 +510,160 @@ Jika Anda memiliki pertanyaan mengenai Kebijakan Privasi ini atau ingin mengajuk
       { id: '5-pembagian-data-ke-pihak-ketiga', title: '5. Pembagian Data ke Pihak Ketiga', level: 2 },
       { id: '6-hak-hak-pengguna-subjek-data', title: '6. Hak-Hak Pengguna (Subjek Data)', level: 2 },
       { id: '7-kontak-pengaduan-perlindungan-data', title: '7. Kontak Pengaduan & Perlindungan Data', level: 2 },
+    ],
+  },
+  'legal/payment': {
+    slug: 'legal/payment',
+    tab: 'Get Started',
+    group: 'Legal',
+    title: 'Tata Cara Pembayaran',
+    sidebarTitle: 'Tata Cara Pembayaran',
+    description: 'Panduan resmi tata cara pembayaran langganan Anticeil melalui payment gateway Midtrans (QRIS, Virtual Account, Kartu Kredit)',
+    icon: 'credit-card',
+    body: `Dokumen resmi ini menjelaskan tata cara pembayaran, daftar metode pembayaran yang didukung, rincian paket langganan, dan proses verifikasi otomatis untuk seluruh transaksi di platform Anticeil ([anticeil.com](https://anticeil.com)). Seluruh transaksi digital diproses secara aman melalui gerbang pembayaran berlisensi **Midtrans** (PT Midtrans) di bawah pengawasan Bank Indonesia dalam mata uang Rupiah (IDR).
+
+<Info>
+**Dokumen Resmi Pembayaran Merchant:** Disusun untuk keperluan verifikasi produksi Midtrans dan panduan pembayaran bagi pengguna layanan Anticeil. Terakhir diperbarui: Oktober 2026.
+</Info>
+
+## 1. Gambaran Umum & Mata Uang Resmi
+
+Anticeil adalah platform otomasi alur kerja (workflow automation), integrasi aplikasi tanpa kode, dan orkestrasi agen AI modern. Tagihan biaya langganan secara resmi dinyatakan dan ditagihkan dalam **Rupiah Indonesia (IDR)**.
+
+Seluruh transaksi pembayaran dilindungi oleh regulasi Bank Indonesia dan standar keamanan internasional **PCI-DSS Level 1**. Setelah pembayaran berhasil dilakukan, kuota kredit eksekusi dan seluruh fitur paket langganan Anda akan aktif secara otomatis dan instan tanpa perlu konfirmasi manual.
+
+## 2. Pilihan Paket Langganan & Tarif Resmi
+
+Anticeil menyediakan pilihan paket langganan dengan siklus penagihan bulanan maupun tahunan yang transparan:
+
+| Paket | Tarif Bulanan | Tarif Tahunan | Fasilitas Utama |
+|---|---|---|---|
+| **Free** | Rp 0 | Rp 0 | 1.000 kredit otomasi, 1 anggota tim, komponen standar |
+| **Plus** | Rp 299.000 | Rp 2.990.000 / thn | 10.000 kredit otomasi, Akses Agen AI, webhook kustom, antrean prioritas |
+| **Team** | Rp 2.990.000 | Rp 29.900.000 / thn | 50.000 kredit otomasi, 25 anggota tim, SSO, Audit Logs, dukungan prioritas |
+
+*Seluruh tarif di atas ditagihkan secara transparan tanpa biaya tersembunyi (no hidden fees). Tarif belum termasuk Pajak Pertambahan Nilai (PPN) apabila disyaratkan oleh regulasi perpajakan yang berlaku.*
+
+## 3. Saluran Pembayaran Resmi Midtrans
+
+Pengguna dapat melakukan pembayaran langganan melalui berbagai saluran pembayaran instan yang disediakan oleh Midtrans:
+
+- **QRIS & Dompet Digital (e-Wallet - Real-Time):**
+  - QRIS (Dapat dipindai dari BCA Mobile, Livin by Mandiri, BRImo, BNI Mobile, CIMB Octo Mobile, GoPay, OVO, ShopeePay, DANA, LinkAja, dan seluruh aplikasi perbankan berstandar QRIS Nasional)
+  - GoPay / GoPay Later
+- **Virtual Account Transfer Bank (Verifikasi Otomatis 24/7):**
+  - BCA Virtual Account
+  - Mandiri Virtual Account (Bill Payment)
+  - BRI Virtual Account (BRIVA)
+  - BNI Virtual Account
+  - Permata Bank & Jaringan ATM Bersama / Prima / Alto
+- **Kartu Kredit & Debit Internasional:**
+  - Visa, MasterCard, JCB, dan American Express
+  - Dilengkapi fitur keamanan 3D Secure (OTP SMS) langsung dari bank penerbit kartu
+
+## 4. Panduan Langkah Demi Langkah Pembayaran
+
+Ikuti 4 langkah mudah berikut untuk melakukan pembayaran paket langganan Anticeil:
+
+### Langkah 1: Pilih Paket & Periode Penagihan
+
+Masuk ke dashboard Anticeil Anda, lalu buka menu **Pengaturan** > **Tagihan & Langganan** (atau akses langsung di \`https://app.anticeil.com/billing\`). Pelajari fitur paket yang Anda butuhkan, tentukan siklus penagihan (**Bulanan** atau **Tahunan**), lalu klik tombol **Pilih Paket Plus** atau **Pilih Paket Team**.
+
+![Langkah 1: Memilih paket langganan dan siklus penagihan di Anticeil](/resources/screenshots/payment-guide/step-1-choose-plan.jpg)
+
+### Langkah 2: Buka Popup Midtrans Snap & Pilih Metode
+
+Jendela popup **Midtrans Snap Payment** yang aman akan muncul di layar Anda dengan rincian pemesanan resmi (contoh: "Anticeil Plus Subscription - Rp 299.000"). Pilih salah satu metode pembayaran yang Anda inginkan:
+1. **QRIS / e-Wallet** (GoPay, QRIS)
+2. **Virtual Account** (BCA, Mandiri, BNI, BRI)
+3. **Kartu Kredit / Debit** (Visa, Mastercard)
+
+Kemudian klik tombol **Lanjut ke Pembayaran**.
+
+![Langkah 2: Memilih metode pembayaran di popup Midtrans Snap](/resources/screenshots/payment-guide/step-2-select-payment-method.jpg)
+
+### Langkah 3: Selesaikan Pembayaran Sesuai Saluran
+
+Selesaikan transaksi Anda sesuai instruksi pembayaran pada saluran yang dipilih:
+
+![Langkah 3: Memindai kode QRIS atau menyalin Nomor Virtual Account bank](/resources/screenshots/payment-guide/step-3-complete-payment-qris-va.jpg)
+
+- **Untuk QRIS:** Buka aplikasi mobile banking atau dompet digital Anda, scan kode QR yang tampil di layar, periksa nama merchant (**Anticeil**), dan konfirmasi dengan PIN Anda.
+- **Untuk Virtual Account:** Salin 16 digit Nomor Virtual Account yang tertera dan lakukan transfer nominal yang sesuai melalui m-Banking, ATM, atau Internet Banking.
+- **Untuk Kartu Kredit:** Masukkan 16 digit nomor kartu, masa berlaku kartu, dan kode CVV, lalu masukkan 6 digit kode OTP (3D Secure) yang dikirimkan bank ke ponsel Anda.
+
+### Langkah 4: Verifikasi Otomatis & Aktivasi Instan
+
+Setelah pembayaran selesai, Midtrans secara otomatis mengirimkan notifikasi terenkripsi (webhook) ke server Anticeil. Layar konfirmasi **Pembayaran Berhasil!** akan langsung muncul dan kuota paket Anda otomatis aktif seketika.
+
+![Langkah 4: Konfirmasi pembayaran berhasil dan paket Anticeil aktif instan](/resources/screenshots/payment-guide/step-4-payment-success-activated.jpg)
+
+Anda dapat langsung mengunduh bukti faktur pembayaran resmi (invoice) melalui panel riwayat tagihan.
+
+## 5. Petunjuk Khusus Tiap Metode Pembayaran
+
+### A. Panduan Pembayaran via QRIS (BCA Mobile, Livin, GoPay, OVO, Dana)
+1. Pilih opsi **QRIS** pada modal pembayaran Midtrans.
+2. Buka aplikasi m-Banking Anda (BCA Mobile, Livin' by Mandiri, BRImo) atau e-Wallet (GoPay, OVO, DANA, ShopeePay).
+3. Pilih menu **Bayar / Scan QRIS**.
+4. Arahkan kamera ponsel Anda ke kode QRIS yang tampil di layar.
+5. Pastikan nama merchant yang muncul adalah **Anticeil** dan jumlah tagihan sesuai.
+6. Masukkan PIN transaksi Anda dan klik Konfirmasi.
+7. Sistem Anticeil akan mendeteksi pembayaran berhasil secara otomatis dalam waktu 3–5 detik.
+
+### B. Panduan Pembayaran via BCA Virtual Account
+1. Buka aplikasi **BCA mobile (m-BCA)** dan masukkan kode akses Anda.
+2. Pilih menu **m-Transfer** > **BCA Virtual Account**.
+3. Masukkan atau tempel nomor BCA Virtual Account Anticeil yang tertera di layar (contoh: \`1234 5678 9012 3456\`).
+4. Periksa ringkasan transaksi (Nama Merchant: Anticeil, Total Tagihan: Rp 299.000).
+5. Masukkan PIN m-BCA Anda. Transaksi selesai!
+
+### C. Panduan Pembayaran via Mandiri, BRI, atau BNI Virtual Account
+1. Buka aplikasi mobile banking Anda (Livin' by Mandiri, BRImo, atau BNI Mobile Banking).
+2. Pilih menu **Transfer** / **Bayar** > **Virtual Account** (atau menu **BRIVA** untuk BRI / **Multi Payment** untuk Mandiri).
+3. Masukkan nomor Virtual Account dari Midtrans.
+4. Konfirmasi jumlah tagihan dan selesaikan dengan PIN transaksi Anda.
+
+### D. Panduan Pembayaran via Kartu Kredit / Debit
+1. Pilih metode **Credit Card** pada jendela Midtrans.
+2. Masukkan 16 digit Nomor Kartu Kredit/Debit, Masa Berlaku (Bulan/Tahun), dan 3 digit kode keamanan CVV/CVC di belakang kartu.
+3. Klik tombol **Bayar Sekarang**.
+4. Anda akan diarahkan ke halaman autentikasi perbankan **3D Secure**.
+5. Masukkan kode OTP yang dikirimkan via SMS oleh bank penerbit kartu Anda.
+6. Setelah autentikasi berhasil, paket langganan Anda langsung aktif.
+
+## 6. Kebijakan Pembatalan & Garansi Refund 7 Hari
+
+Kami mengedepankan kenyamanan dan kepuasan penuh bagi setiap pelanggan Anticeil:
+
+- **Pembatalan Kapan Saja (No Lock-In):** Anda dapat membatalkan perpanjangan otomatis langganan kapan saja melalui menu Pengaturan Tagihan tanpa biaya pembatalan. Layanan akan tetap dapat digunakan hingga akhir periode langganan yang telah dibayar.
+- **Garansi 100% Uang Kembali (7-Day Money-Back Guarantee):** Jika Anda mengalami kendala teknis atau merasa Anticeil tidak memenuhi kebutuhan alur kerja Anda, Anda berhak mengajukan pengembalian dana penuh dalam waktu **7 (tujuh) hari kalender** sejak tanggal transaksi pertama.
+- **Prosedur Klaim Refund:** Kirimkan email ke [anticeil.official@gmail.com](mailto:anticeil.official@gmail.com) dengan mencantumkan Order ID dan alasan permohonan. Tim kami akan memproses pengembalian dana ke rekening/metode pembayaran asal dalam waktu 3–7 hari kerja.
+
+## 7. Keamanan Transaksi & Standar PCI-DSS
+
+Keamanan transaksi dan perlindungan data finansial Anda dijamin dengan standar tertinggi:
+- **Tanpa Penyimpanan Data Kartu:** Anticeil sama sekali tidak pernah menyimpan, melihat, atau mencatat nomor kartu kredit, tanggal kedaluwarsa, CVV, maupun password perbankan Anda.
+- **Sertifikasi PCI-DSS Level 1:** Seluruh alur pembayaran diproses secara terenkripsi melalui infrastruktur Midtrans yang tersertifikasi PCI-DSS Level 1 (standar keamanan industri perbankan internasional).
+- **Enkripsi TLS 1.3:** Komunikasi data antara browser Anda, server Anticeil, dan gateway Midtrans dienkripsi dengan standar TLS 1.3 256-bit.
+
+## 8. Bantuan & Layanan Pelanggan Penagihan
+
+Jika Anda membutuhkan bantuan terkait pembayaran, kendala transaksi, atau penagihan khusus perusahaan (enterprise invoice), silakan hubungi tim kami:
+
+- **Email Layanan Pelanggan:** [anticeil.official@gmail.com](mailto:anticeil.official@gmail.com)
+- **Situs Web Resmi:** [https://anticeil.com](https://anticeil.com)
+- **Waktu Respons:** Kurang dari 24 jam (Senin - Minggu, 08:00 - 20:00 WIB)
+- **Lokasi Kantor:** Jakarta, Republik Indonesia`,
+    toc: [
+      { id: '1-gambaran-umum-mata-uang-resmi', title: '1. Gambaran Umum & Mata Uang Resmi', level: 2 },
+      { id: '2-pilihan-paket-langganan-tarif-resmi', title: '2. Pilihan Paket Langganan & Tarif Resmi', level: 2 },
+      { id: '3-saluran-pembayaran-resmi-midtrans', title: '3. Saluran Pembayaran Resmi Midtrans', level: 2 },
+      { id: '4-panduan-langkah-demi-langkah-pembayaran', title: '4. Panduan Langkah Demi Langkah Pembayaran', level: 2 },
+      { id: '5-petunjuk-khusus-tiap-metode-pembayaran', title: '5. Petunjuk Khusus Tiap Metode Pembayaran', level: 2 },
+      { id: '6-kebijakan-pembatalan-garansi-refund-7-hari', title: '6. Kebijakan Pembatalan & Garansi Refund 7 Hari', level: 2 },
+      { id: '7-keamanan-transaksi-standar-pci-dss', title: '7. Keamanan Transaksi & Standar PCI-DSS', level: 2 },
+      { id: '8-bantuan-layanan-pelanggan-penagihan', title: '8. Bantuan & Layanan Pelanggan Penagihan', level: 2 },
     ],
   },
 };

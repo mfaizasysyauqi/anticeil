@@ -231,7 +231,9 @@ export const PieceSetPiecesTab = ({ pieceSet }: PieceSetPiecesTabProps) => {
             />
           ),
           cell: ({ row }) => (
-            <div className="text-left">{row.original.name}</div>
+            <div className="text-left">
+              {row.original.name.replace(/^@activepieces\//, '@anticeil/')}
+            </div>
           ),
         },
         {

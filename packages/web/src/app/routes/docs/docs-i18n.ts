@@ -367,6 +367,8 @@ export const DOCS_PAGE_TITLES_ID: Record<string, string> = {
   "about/license": "Lisensi Perangkat Lunak",
   "legal/terms": "Syarat & Ketentuan Layanan",
   "legal/privacy": "Kebijakan Privasi",
+  "legal/payment": "Tata Cara Pembayaran",
+  "Payment Guide": "Tata Cara Pembayaran",
   "install/overview": "Pilihan Instalasi",
   "install/options/docker-compose": "Self-Host dengan Docker Compose",
   "install/options/helm": "Kubernetes (Helm)",

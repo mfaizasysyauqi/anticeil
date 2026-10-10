@@ -192,6 +192,11 @@
               "slug": "legal/privacy",
               "title": "Privacy Policy",
               "icon": "lock"
+            },
+            {
+              "slug": "legal/payment",
+              "title": "Payment Guide",
+              "icon": "credit-card"
             }
           ]
         }
@@ -11918,6 +11923,9 @@
     "install/guides/rollback": "install/configure-operate/rollback",
     "terms": "legal/terms",
     "privacy": "legal/privacy",
-    "legal": "legal/terms"
+    "legal": "legal/terms",
+    "payment": "legal/payment",
+    "payment-guide": "legal/payment",
+    "tata-cara-pembayaran": "legal/payment"
   }
 }

@@ -33,6 +33,7 @@ import {
   AlertTriangle,
   Lightbulb,
   Hash,
+  CreditCard,
 } from 'lucide-react';
 import { FullLogo } from '@/components/custom/full-logo';
 import { Button } from '@/components/ui/button';
@@ -125,6 +126,10 @@ function getDocIcon(iconName?: string) {
     case 'puzzle-piece':
     case 'plug':
       return Sliders;
+    case 'credit-card':
+    case 'payment':
+    case 'wallet':
+      return CreditCard;
     default:
       return BookOpen;
   }
@@ -560,6 +565,7 @@ export function DocsPage() {
   const getPageTitle = (p: { slug: string; title: string }) => {
     if (p.slug === 'legal/terms') return t('docs.page.terms');
     if (p.slug === 'legal/privacy') return t('docs.page.privacy');
+    if (p.slug === 'legal/payment') return t('docs.page.payment');
     if (isIndonesian) {
       if (DOCS_PAGE_TITLES_ID[p.slug]) return DOCS_PAGE_TITLES_ID[p.slug];
       if (DOCS_PAGE_TITLES_ID[p.title]) return DOCS_PAGE_TITLES_ID[p.title];
