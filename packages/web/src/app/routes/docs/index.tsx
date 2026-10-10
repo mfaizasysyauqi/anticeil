@@ -2370,18 +2370,27 @@ export function DocsPage() {
                   }).slice(0, 35);
 
                   const ITEM_H = 32;
+                  const TRANS_H = 12;
                   const totalH = uniqueToc.length * ITEM_H;
 
                   // Build the single continuous SVG path across all items
-                  let d = 'M 8.5 8';
+                  const startX = uniqueToc[0].level >= 3 ? 20.5 : 8.5;
+                  let d = `M ${startX} 0`;
                   for (let i = 0; i < uniqueToc.length; i++) {
                     const currX = uniqueToc[i].level >= 3 ? 20.5 : 8.5;
-                    const straightEnd = i * ITEM_H + 20;
-                    d += ` L ${currX} ${straightEnd}`;
                     if (i < uniqueToc.length - 1) {
                       const nextX = uniqueToc[i + 1].level >= 3 ? 20.5 : 8.5;
-                      const nextStart = (i + 1) * ITEM_H;
-                      d += ` L ${nextX} ${nextStart}`;
+                      const boundary = (i + 1) * ITEM_H;
+                      const diagStart = boundary - TRANS_H / 2;
+                      const diagEnd = boundary + TRANS_H / 2;
+                      d += ` L ${currX} ${diagStart}`;
+                      if (currX !== nextX) {
+                        d += ` L ${nextX} ${diagEnd}`;
+                      } else {
+                        d += ` L ${currX} ${diagEnd}`;
+                      }
+                    } else {
+                      d += ` L ${currX} ${totalH}`;
                     }
                   }
 
