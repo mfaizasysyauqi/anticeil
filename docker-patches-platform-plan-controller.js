@@ -395,7 +395,8 @@ const platformPlanController = async (app) => {
                 platformId = platforms[0]?.id;
             }
 
-            const orderId = `anticeil-${platformId || 'platform'}-${planKey}-${cycle}-${Date.now()}`;
+            const shortPlatform = String(platformId || 'plat').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);
+            const orderId = `AC-${shortPlatform}-${planKey}-${Date.now()}`;
             let userEmail = 'billing@anticeil.com';
             if (request.principal?.id) {
                 try {
@@ -409,25 +410,49 @@ const platformPlanController = async (app) => {
             const serverKey = process.env.AP_MIDTRANS_SERVER_KEY ?? '';
             const clientKey = process.env.AP_MIDTRANS_CLIENT_KEY ?? '';
             const isProduction = process.env.AP_MIDTRANS_IS_PRODUCTION === 'true';
-            const snapBase = isProduction ? 'https://app.midtrans.com/snap/v1' : 'https://app.sandbox.midtrans.com/snap/v1';
             const auth = Buffer.from(`${serverKey}:`).toString('base64');
 
-            const itemName = `Anticeil ${planKey.charAt(0).toUpperCase() + planKey.slice(1)} Plan (${cycle === 'year' ? 'Annual' : 'Monthly'})`;
+            const itemName = `Anticeil ${planKey.charAt(0).toUpperCase() + planKey.slice(1)} (${cycle === 'year' ? 'Annual' : 'Monthly'})`;
             const snapPayload = {
                 transaction_details: { order_id: orderId, gross_amount: grossAmount },
                 customer_details: { first_name: 'Anticeil User', email: userEmail },
-                item_details: [{ id: orderId, price: grossAmount, quantity: 1, name: itemName }],
+                item_details: [{ id: planKey, price: grossAmount, quantity: 1, name: itemName }],
             };
 
-            const res = await fetch(`${snapBase}/transactions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
-                body: JSON.stringify(snapPayload),
-            });
-            const data = await res.json();
-            if (!data?.token) {
-                request.log.warn({ data, planKey, grossAmount }, '[Midtrans] Failed to get snap token');
-                return reply.status(502).send({ error: data?.error_messages?.[0] || 'Failed to create Midtrans token' });
+            const endpoints = isProduction
+                ? ['https://app.midtrans.com/snap/v1/transactions', 'https://app.sandbox.midtrans.com/snap/v1/transactions']
+                : ['https://app.sandbox.midtrans.com/snap/v1/transactions', 'https://app.midtrans.com/snap/v1/transactions'];
+
+            let snapToken = null;
+            let lastError = null;
+
+            for (const endpoint of endpoints) {
+                try {
+                    const res = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                            Authorization: `Basic ${auth}`,
+                        },
+                        body: JSON.stringify(snapPayload),
+                    });
+                    const data = await res.json();
+                    if (data?.token) {
+                        snapToken = data.token;
+                        break;
+                    }
+                    lastError = data?.error_messages?.[0] || 'Midtrans token missing in response';
+                    request.log.warn({ endpoint, data }, '[Midtrans] Token creation failed on endpoint');
+                } catch (e) {
+                    lastError = e?.message;
+                    request.log.warn({ endpoint, err: e }, '[Midtrans] Fetch error on endpoint');
+                }
+            }
+
+            if (!snapToken) {
+                request.log.error({ lastError, orderId, planKey }, '[Midtrans] All endpoints failed to return snap token');
+                return reply.status(502).send({ error: lastError || 'Failed to create Midtrans token' });
             }
 
             // Store the order metadata so the webhook can resolve platformId + plan
@@ -436,7 +461,7 @@ const platformPlanController = async (app) => {
             }
 
             request.log.info({ orderId, planKey, grossAmount, platformId }, '[Midtrans] Snap token created');
-            return reply.status(200).send({ snapToken: data.token, orderId, clientKey });
+            return reply.status(200).send({ snapToken, orderId, clientKey });
         } catch (err) {
             request.log.error({ err }, '[Midtrans] midtrans-token error');
             return reply.status(500).send({ error: err?.message || 'Internal error creating payment token' });

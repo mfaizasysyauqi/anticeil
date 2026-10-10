@@ -42,7 +42,7 @@ async function createSnapToken({
     customerEmail: string
     itemName: string
 }): Promise<MidtransSnapToken> {
-    const { snapBase, auth } = getConfig()
+    const { isProduction, auth } = getConfig()
 
     const body = {
         transaction_details: {
@@ -55,32 +55,41 @@ async function createSnapToken({
         },
         item_details: [
             {
-                id: orderId,
+                id: 'plan',
                 price: grossAmount,
                 quantity: 1,
                 name: itemName,
             },
         ],
-        callbacks: {
-            // handled via webhook notification
-        },
     }
 
-    const res = await fetch(`${snapBase}/transactions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Basic ${auth}`,
-        },
-        body: JSON.stringify(body),
-    })
+    const endpoints = isProduction
+        ? [MIDTRANS_PROD_BASE, MIDTRANS_SANDBOX_BASE]
+        : [MIDTRANS_SANDBOX_BASE, MIDTRANS_PROD_BASE]
 
-    if (!res.ok) {
-        const text = await res.text()
-        throw new Error(`Midtrans createSnapToken failed: ${res.status} ${text}`)
+    let lastError = ''
+    for (const base of endpoints) {
+        try {
+            const res = await fetch(`${base}/transactions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    Authorization: `Basic ${auth}`,
+                },
+                body: JSON.stringify(body),
+            })
+
+            if (res.ok) {
+                return res.json() as Promise<MidtransSnapToken>
+            }
+            lastError = await res.text()
+        } catch (err: any) {
+            lastError = err?.message || 'fetch failed'
+        }
     }
 
-    return res.json() as Promise<MidtransSnapToken>
+    throw new Error(`Midtrans createSnapToken failed on all endpoints: ${lastError}`)
 }
 
 async function getTransactionStatus(orderId: string): Promise<MidtransTransactionStatus> {
