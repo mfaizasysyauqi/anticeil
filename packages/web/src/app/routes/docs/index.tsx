@@ -2369,187 +2369,119 @@ export function DocsPage() {
                     return true;
                   }).slice(0, 35);
 
-                  return uniqueToc.map((item, idx) => {
-                    const isLevel3 = item.level >= 3;
-                    const prevIsLevel3 = idx > 0 && uniqueToc[idx - 1].level >= 3;
-                    const currDepth = isLevel3 ? 1 : 0;
-                    const prevDepth = prevIsLevel3 ? 1 : 0;
+                  const ITEM_H = 32;
+                  const totalH = uniqueToc.length * ITEM_H;
 
-                    const isActive =
-                      activeHeadingIds.includes(item.id) ||
-                      activeHeadingIds.includes(slugify(item.title)) ||
-                      activeHeadingIds.includes(item.id.replace(/--+/g, '-'));
+                  // Build the single continuous SVG path across all items
+                  let d = 'M 8.5 8';
+                  for (let i = 0; i < uniqueToc.length; i++) {
+                    const currX = uniqueToc[i].level >= 3 ? 20.5 : 8.5;
+                    const straightEnd = i * ITEM_H + 20;
+                    d += ` L ${currX} ${straightEnd}`;
+                    if (i < uniqueToc.length - 1) {
+                      const nextX = uniqueToc[i + 1].level >= 3 ? 20.5 : 8.5;
+                      const nextStart = (i + 1) * ITEM_H;
+                      d += ` L ${nextX} ${nextStart}`;
+                    }
+                  }
 
-                    const itemTitle = cleanMojibake(
-                      isIndonesian && DOCS_HEADING_TRANSLATION_MAP[item.title]
-                        ? DOCS_HEADING_TRANSLATION_MAP[item.title]
-                        : item.title,
-                    );
+                  // Find active indices
+                  const activeIndices = uniqueToc
+                    .map((item, idx) => {
+                      const isActive =
+                        activeHeadingIds.includes(item.id) ||
+                        activeHeadingIds.includes(slugify(item.title)) ||
+                        activeHeadingIds.includes(item.id.replace(/--+/g, '-'));
+                      return isActive ? idx : -1;
+                    })
+                    .filter((idx) => idx !== -1);
 
-                    return (
-                      <a
-                        key={item.id}
-                        href={`#${item.id}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          let target = document.getElementById(item.id);
-                          if (!target) target = document.getElementById(slugify(item.title));
-                          if (!target) target = document.getElementById(item.id.replace(/--+/g, '-'));
+                  const hasActive = activeIndices.length > 0;
+                  const minIdx = hasActive ? Math.min(...activeIndices) : 0;
+                  const maxIdx = hasActive ? Math.max(...activeIndices) : 0;
+                  const activeTop = minIdx * ITEM_H;
+                  const activeBottom = (maxIdx + 1) * ITEM_H;
 
-                          if (target) {
-                            target.scrollIntoView({ behavior: 'smooth' });
-                            window.history.pushState(null, '', `#${item.id}`);
-                            setActiveHeadingIds([item.id]);
-                          }
-                        }}
-                        className={`relative block py-1.5 text-sm transition-colors duration-150 leading-relaxed group ${
-                          currDepth === 1 ? 'pl-8' : 'pl-5'
-                        } ${
-                          isActive
-                            ? 'text-foreground font-medium dark:text-zinc-100'
-                            : 'text-muted-foreground/80 hover:text-foreground font-normal'
-                        }`}
-                        title={itemTitle}
+                  return (
+                    <div className="relative">
+                      {/* Background Inactive Rail */}
+                      <svg
+                        viewBox={`0 0 28.5 ${totalH}`}
+                        className="absolute top-0 left-0 w-[28.5px] pointer-events-none -z-1"
+                        style={{ height: `${totalH}px` }}
+                        aria-hidden="true"
                       >
-                        {/* Tree rail line SVG */}
+                        <path
+                          d={d}
+                          fill="none"
+                          strokeWidth="1"
+                          className="stroke-border/40 dark:stroke-zinc-800"
+                        />
+                      </svg>
+
+                      {/* Active Highlight Rail (clipped smoothly) */}
+                      {hasActive && (
                         <svg
-                          className="absolute inset-y-0 left-0 pointer-events-none -z-1"
-                          style={{ width: currDepth === 1 || prevDepth === 1 ? 29 : 17 }}
+                          viewBox={`0 0 28.5 ${totalH}`}
+                          className="absolute top-0 left-0 w-[28.5px] pointer-events-none z-0 transition-[clip-path] duration-150 ease-out"
+                          style={{
+                            height: `${totalH}px`,
+                            clipPath: `polygon(0 ${activeTop}px, 100% ${activeTop}px, 100% ${activeBottom}px, 0 ${activeBottom}px)`,
+                          }}
                           aria-hidden="true"
                         >
-                          {/* Inactive Base Track */}
-                          {prevDepth === 0 && currDepth === 0 && (
-                            <line
-                              x1="8.5"
-                              y1={idx === 0 ? '8' : '0'}
-                              x2="8.5"
-                              y2="100%"
-                              strokeWidth="1"
-                              className="stroke-border/40 dark:stroke-zinc-800"
-                            />
-                          )}
-
-                          {prevDepth === 0 && currDepth === 1 && (
-                            <>
-                              <path
-                                d="M 8.5 0 L 8.5 0 20.5 12"
-                                fill="none"
-                                strokeWidth="1"
-                                className="stroke-border/40 dark:stroke-zinc-800"
-                              />
-                              <line
-                                x1="20.5"
-                                y1="12"
-                                x2="20.5"
-                                y2="100%"
-                                strokeWidth="1"
-                                className="stroke-border/40 dark:stroke-zinc-800"
-                              />
-                            </>
-                          )}
-
-                          {prevDepth === 1 && currDepth === 1 && (
-                            <line
-                              x1="20.5"
-                              y1="0"
-                              x2="20.5"
-                              y2="100%"
-                              strokeWidth="1"
-                              className="stroke-border/40 dark:stroke-zinc-800"
-                            />
-                          )}
-
-                          {prevDepth === 1 && currDepth === 0 && (
-                            <>
-                              <path
-                                d="M 20.5 0 L 20.5 0 8.5 12"
-                                fill="none"
-                                strokeWidth="1"
-                                className="stroke-border/40 dark:stroke-zinc-800"
-                              />
-                              <line
-                                x1="8.5"
-                                y1="12"
-                                x2="8.5"
-                                y2="100%"
-                                strokeWidth="1"
-                                className="stroke-border/40 dark:stroke-zinc-800"
-                              />
-                            </>
-                          )}
-
-                          {/* Active Highlight Track (White / Foreground) */}
-                          {isActive && (
-                            <>
-                              {prevDepth === 0 && currDepth === 0 && (
-                                <line
-                                  x1="8.5"
-                                  y1={idx === 0 ? '8' : '0'}
-                                  x2="8.5"
-                                  y2="100%"
-                                  strokeWidth="1.5"
-                                  className="stroke-foreground dark:stroke-white"
-                                />
-                              )}
-
-                              {prevDepth === 0 && currDepth === 1 && (
-                                <>
-                                  <path
-                                    d="M 8.5 0 L 8.5 0 20.5 12"
-                                    fill="none"
-                                    strokeWidth="1.5"
-                                    className="stroke-foreground dark:stroke-white"
-                                  />
-                                  <line
-                                    x1="20.5"
-                                    y1="12"
-                                    x2="20.5"
-                                    y2="100%"
-                                    strokeWidth="1.5"
-                                    className="stroke-foreground dark:stroke-white"
-                                  />
-                                </>
-                              )}
-
-                              {prevDepth === 1 && currDepth === 1 && (
-                                <line
-                                  x1="20.5"
-                                  y1="0"
-                                  x2="20.5"
-                                  y2="100%"
-                                  strokeWidth="1.5"
-                                  className="stroke-foreground dark:stroke-white"
-                                />
-                              )}
-
-                              {prevDepth === 1 && currDepth === 0 && (
-                                <>
-                                  <path
-                                    d="M 20.5 0 L 20.5 0 8.5 12"
-                                    fill="none"
-                                    strokeWidth="1.5"
-                                    className="stroke-foreground dark:stroke-white"
-                                  />
-                                  <line
-                                    x1="8.5"
-                                    y1="12"
-                                    x2="8.5"
-                                    y2="100%"
-                                    strokeWidth="1.5"
-                                    className="stroke-foreground dark:stroke-white"
-                                  />
-                                </>
-                              )}
-                            </>
-                          )}
+                          <path
+                            d={d}
+                            fill="none"
+                            strokeWidth="1.5"
+                            className="stroke-foreground dark:stroke-white"
+                          />
                         </svg>
+                      )}
 
-                        <span className="truncate block">
-                          {itemTitle}
-                        </span>
-                      </a>
-                    );
-                  });
+                      {/* Link items */}
+                      {uniqueToc.map((item, idx) => {
+                        const isLevel3 = item.level >= 3;
+                        const isActive = activeIndices.includes(idx);
+                        const itemTitle = cleanMojibake(
+                          isIndonesian && DOCS_HEADING_TRANSLATION_MAP[item.title]
+                            ? DOCS_HEADING_TRANSLATION_MAP[item.title]
+                            : item.title,
+                        );
+
+                        return (
+                          <a
+                            key={item.id}
+                            href={`#${item.id}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              let target = document.getElementById(item.id);
+                              if (!target) target = document.getElementById(slugify(item.title));
+                              if (!target) target = document.getElementById(item.id.replace(/--+/g, '-'));
+
+                              if (target) {
+                                target.scrollIntoView({ behavior: 'smooth' });
+                                window.history.pushState(null, '', `#${item.id}`);
+                                setActiveHeadingIds([item.id]);
+                              }
+                            }}
+                            className={`h-8 flex items-center text-sm transition-colors duration-150 leading-none group truncate ${
+                              isLevel3 ? 'pl-8' : 'pl-5'
+                            } ${
+                              isActive
+                                ? 'text-foreground font-medium dark:text-zinc-100'
+                                : 'text-muted-foreground/80 hover:text-foreground font-normal'
+                            }`}
+                            title={itemTitle}
+                          >
+                            <span className="truncate block">
+                              {itemTitle}
+                            </span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  );
                 })()
               ) : (
                 <span className="text-xs text-muted-foreground/60 italic pl-5 block py-1">
