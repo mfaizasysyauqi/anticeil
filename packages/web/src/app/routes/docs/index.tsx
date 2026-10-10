@@ -976,16 +976,25 @@ export function DocsPage() {
       }
 
       // Break inline headings, numbered items, and bullets into separate lines if they appear together on a single line
-      if (!inCodeBlock && !trimmed.startsWith('<') && !trimmed.startsWith('|')) {
+      if (
+        !inCodeBlock &&
+        !trimmed.startsWith('<') &&
+        !trimmed.startsWith('|') &&
+        !trimmed.startsWith('#')
+      ) {
         let lineExpanded = trimmed;
         if (/([^\n])\s+(#{1,6}\s+)/.test(lineExpanded)) {
           lineExpanded = lineExpanded.replace(/([^\n])\s+(#{1,6}\s+)/g, '$1\n\n$2');
         }
-        if (/([^\n])\s+(\d+\.\s+)/.test(lineExpanded)) {
-          lineExpanded = lineExpanded.replace(/([^\n])\s+(\d+\.\s+)/g, '$1\n$2');
+        if (/([.!?:])\s+(\d+\.\s+)/.test(lineExpanded)) {
+          lineExpanded = lineExpanded.replace(/([.!?:])\s+(\d+\.\s+)/g, '$1\n$2');
         }
-        if (/([^\n])\s+([*-]\s+)/.test(lineExpanded)) {
-          lineExpanded = lineExpanded.replace(/([^\n])\s+([*-]\s+)/g, '$1\n$2');
+        if (
+          !trimmed.startsWith('- ') &&
+          !trimmed.startsWith('* ') &&
+          /([.!?:])\s+([*-]\s+)/.test(lineExpanded)
+        ) {
+          lineExpanded = lineExpanded.replace(/([.!?:])\s+([*-]\s+)/g, '$1\n$2');
         }
         if (lineExpanded !== trimmed) {
           const subLines = lineExpanded.split('\n');
@@ -1161,9 +1170,8 @@ export function DocsPage() {
         const expandedCalloutLines = calloutLines
           .flatMap((l) =>
             l
-              .replace(/([^\n])\s+(#{1,6}\s+)/g, '$1\n$2')
-              .replace(/([^\n])\s+(\d+\.\s+)/g, '$1\n$2')
-              .replace(/([^\n])\s+([*-]\s+)/g, '$1\n$2')
+              .replace(/([.!?:])\s+(#{1,6}\s+)/g, '$1\n$2')
+              .replace(/([.!?:])\s+(\d+\.\s+)/g, '$1\n$2')
               .split('\n'),
           )
           .map((l) => l.trim())

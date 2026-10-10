@@ -548,7 +548,7 @@ Anticeil menyediakan pilihan paket langganan dengan siklus penagihan bulanan mau
 
 Pengguna dapat melakukan pembayaran langganan melalui berbagai saluran pembayaran instan yang disediakan oleh Midtrans:
 
-- **QRIS & Dompet Digital (e-Wallet - Real-Time):**
+- **QRIS & Dompet Digital (e-Wallet / Real-Time):**
   - QRIS (Dapat dipindai dari BCA Mobile, Livin by Mandiri, BRImo, BNI Mobile, CIMB Octo Mobile, GoPay, OVO, ShopeePay, DANA, LinkAja, dan seluruh aplikasi perbankan berstandar QRIS Nasional)
   - GoPay / GoPay Later
 - **Virtual Account Transfer Bank (Verifikasi Otomatis 24/7):**
