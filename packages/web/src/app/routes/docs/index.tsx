@@ -231,6 +231,106 @@ function DocImage({
   );
 }
 
+function PropertyPreview({ name, isIndonesian }: { name: string; isIndonesian: boolean }) {
+  const getPreviewContent = () => {
+    switch (name) {
+      case 'ShortTextPreview':
+        return (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">
+              {isIndonesian ? 'Teks Singkat' : 'Short Text'} <span className="text-primary">*</span>
+            </label>
+            <Input readOnly placeholder={isIndonesian ? 'Masukkan teks singkat...' : 'Enter short text...'} className="h-9 text-xs bg-background" />
+          </div>
+        );
+      case 'LongTextPreview':
+        return (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">
+              {isIndonesian ? 'Teks Panjang / Catatan' : 'Long Text'}
+            </label>
+            <textarea
+              readOnly
+              rows={3}
+              placeholder={isIndonesian ? 'Masukkan teks multi-baris...' : 'Enter multi-line text...'}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
+            />
+          </div>
+        );
+      case 'CheckboxPreview':
+      case 'CheckboxRevealsPreview':
+        return (
+          <div className="flex items-center justify-between p-2 rounded-lg border border-border/50 bg-background/50">
+            <div>
+              <div className="text-xs font-medium text-foreground">{isIndonesian ? 'Aktifkan Opsi' : 'Enable Option'}</div>
+              <div className="text-[11px] text-muted-foreground">{isIndonesian ? 'Alihkan untuk mengaktifkan pengaturan ini' : 'Toggle to enable this setting'}</div>
+            </div>
+            <div className="w-10 h-5 bg-primary/20 rounded-full p-0.5 border border-primary/30 flex items-center justify-end">
+              <div className="w-4 h-4 bg-primary rounded-full shadow-sm" />
+            </div>
+          </div>
+        );
+      case 'NumberPreview':
+      case 'NumberStepperPreview':
+        return (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">{isIndonesian ? 'Angka / Batas' : 'Number'}</label>
+            <Input readOnly type="number" defaultValue="42" className="h-9 text-xs bg-background w-32" />
+          </div>
+        );
+      case 'DropdownPreview':
+      case 'StaticDropdownPreview':
+      case 'CardsPreview':
+        return (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">{isIndonesian ? 'Pilih Opsi' : 'Select Option'}</label>
+            <div className="flex items-center justify-between px-3 py-2 rounded-md border border-input bg-background text-xs text-foreground">
+              <span>{isIndonesian ? 'Pilihan Default (Aktif)' : 'Default Option (Active)'}</span>
+              <ChevronRight className="w-3.5 h-3.5 rotate-90 text-muted-foreground" />
+            </div>
+          </div>
+        );
+      case 'FilePreview':
+        return (
+          <div className="border-2 border-dashed border-border/60 rounded-xl p-4 text-center bg-background/50">
+            <div className="text-xs font-medium text-foreground">{isIndonesian ? 'Tarik & lepas berkas ke sini' : 'Drag & drop file here'}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">{isIndonesian ? 'atau klik untuk memilih dari komputer' : 'or click to browse from device'}</div>
+          </div>
+        );
+      case 'ColorPreview':
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500 border border-border/50 shadow-xs" />
+            <Input readOnly defaultValue="#10B981" className="h-8 text-xs font-mono w-28 bg-background" />
+          </div>
+        );
+      case 'JsonPreview':
+        return (
+          <div className="rounded-lg bg-slate-950 p-3 font-mono text-xs text-emerald-400 border border-slate-800">
+            {`{ "success": true, "count": 1 }`}
+          </div>
+        );
+      default:
+        return (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Sliders className="w-4 h-4 text-primary" />
+            <span>{isIndonesian ? `Pratinjau Bidang: ${name.replace('Preview', '')}` : `Field Preview: ${name.replace('Preview', '')}`}</span>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="my-4 max-w-md rounded-xl border border-border/50 bg-card p-3.5 shadow-xs">
+      <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-border/40 text-[11px] text-muted-foreground">
+        <span className="font-medium text-foreground/80">{name.replace('Preview', '')} Preview</span>
+        <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono text-[10px]">interactive</span>
+      </div>
+      {getPreviewContent()}
+    </div>
+  );
+}
+
 function cleanMojibake(text: string): string {
   if (!text) return text;
   return text
@@ -315,7 +415,7 @@ function renderFormattedText(text: string, currentSlug: string = '', depth = 0):
     );
   }
 
-  const regex = /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*)/g;
+  const regex = /(\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)|!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*|<b>([^<]+)<\/b>|<strong>([^<]+)<\/strong>|<code>([^<]+)<\/code>)/g;
   const nodes: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -325,10 +425,58 @@ function renderFormattedText(text: string, currentSlug: string = '', depth = 0):
       nodes.push(cleanedText.slice(lastIndex, match.index));
     }
 
-    const [, , linkText, linkUrl, boldText, codeText, italicText] = match;
+    const [
+      ,
+      ,
+      linkedImgAlt,
+      linkedImgSrc,
+      linkedImgUrl,
+      imgAlt,
+      imgSrc,
+      linkText,
+      linkUrl,
+      boldText,
+      codeText,
+      italicText,
+      bText,
+      strongText,
+      cText,
+    ] = match;
     const key = `fmt-${depth}-${lastIndex}-${match.index}`;
 
-    if (linkText && linkUrl) {
+    if (linkedImgAlt !== undefined && linkedImgSrc && linkedImgUrl) {
+      const cleanUrl = linkedImgUrl.trim().split(/\s+/)[0];
+      const resolvedLink = resolveDocLink(cleanUrl, currentSlug);
+      const isExternal = resolvedLink.startsWith('http://') || resolvedLink.startsWith('https://');
+      const resolvedImg = resolveDocImgSrc(linkedImgSrc);
+      nodes.push(
+        <a
+          key={key}
+          href={resolvedLink}
+          target={isExternal ? '_blank' : undefined}
+          rel={isExternal ? 'noreferrer' : undefined}
+          className="inline-block my-2 transition-transform hover:opacity-90 active:scale-95"
+        >
+          <img
+            src={resolvedImg}
+            alt={linkedImgAlt || 'Badge button'}
+            loading="lazy"
+            className="h-9 sm:h-10 w-auto rounded-md object-contain inline-block shadow-sm"
+          />
+        </a>,
+      );
+    } else if (imgAlt !== undefined && imgSrc) {
+      const resolvedImg = resolveDocImgSrc(imgSrc);
+      nodes.push(
+        <img
+          key={key}
+          src={resolvedImg}
+          alt={imgAlt || 'Image'}
+          loading="lazy"
+          className="max-h-96 w-auto max-w-full rounded-lg object-contain inline-block my-2 shadow-sm border border-border/40"
+        />,
+      );
+    } else if (linkText && linkUrl) {
       const cleanUrl = linkUrl.trim().split(/\s+/)[0];
       const resolved = resolveDocLink(cleanUrl, currentSlug);
       const isExternal = resolved.startsWith('http://') || resolved.startsWith('https://');
@@ -357,19 +505,21 @@ function renderFormattedText(text: string, currentSlug: string = '', depth = 0):
           </Link>,
         );
       }
-    } else if (boldText !== undefined) {
+    } else if (boldText !== undefined || strongText !== undefined || bText !== undefined) {
+      const bContent = boldText ?? strongText ?? bText ?? '';
       nodes.push(
         <strong key={key} className="font-semibold text-foreground">
-          {renderFormattedText(boldText, currentSlug, depth + 1)}
+          {renderFormattedText(bContent, currentSlug, depth + 1)}
         </strong>,
       );
-    } else if (codeText !== undefined) {
+    } else if (codeText !== undefined || cText !== undefined) {
+      const codeContent = codeText ?? cText ?? '';
       nodes.push(
         <code
           key={key}
           className="px-1.5 py-0.5 mx-0.5 rounded-md bg-muted text-foreground font-medium dark:text-emerald-300 border border-border/60 font-mono text-[12px]"
         >
-          {codeText}
+          {codeContent}
         </code>,
       );
     } else if (italicText !== undefined) {
@@ -1331,6 +1481,82 @@ export function DocsPage() {
         continue;
       }
 
+      // Linked markdown image badge: [![alt](imgSrc)](linkUrl)
+      const linkedMdImgMatch = trimmed.match(/^\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)$/);
+      if (linkedMdImgMatch) {
+        const altText = linkedMdImgMatch[1];
+        const imgSrc = linkedMdImgMatch[2];
+        const linkUrl = linkedMdImgMatch[3];
+        const resolvedLink = resolveDocLink(linkUrl, currentSlug);
+        const isExternal = resolvedLink.startsWith('http://') || resolvedLink.startsWith('https://');
+        elements.push(
+          <div key={`linked-img-${elements.length}`} className="my-5">
+            <a
+              href={resolvedLink}
+              target={isExternal ? '_blank' : undefined}
+              rel={isExternal ? 'noreferrer' : undefined}
+              className="inline-block transition-transform hover:opacity-90 active:scale-95"
+            >
+              <img
+                src={resolveDocImgSrc(imgSrc)}
+                alt={altText || 'Badge button'}
+                className="h-10 w-auto rounded-md object-contain shadow-sm"
+              />
+            </a>
+          </div>,
+        );
+        i++;
+        continue;
+      }
+
+      // HTML <a> with <img> inside (single or multi-line)
+      if (trimmed.startsWith('<a ') && (trimmed.includes('<img') || (i + 1 < lines.length && lines[i + 1].includes('<img')))) {
+        let aBuffer = trimmed;
+        while (i + 1 < lines.length && !aBuffer.includes('</a>')) {
+          i++;
+          aBuffer += ' ' + lines[i].trim();
+        }
+        const hrefMatch = aBuffer.match(/href="([^"]+)"/);
+        const srcMatch = aBuffer.match(/src="([^"]+)"/);
+        const altMatch = aBuffer.match(/alt="([^"]+)"/);
+        if (hrefMatch && srcMatch) {
+          const resolvedLink = resolveDocLink(hrefMatch[1], currentSlug);
+          const isExternal = resolvedLink.startsWith('http://') || resolvedLink.startsWith('https://');
+          elements.push(
+            <div key={`linked-html-img-${elements.length}`} className="my-5">
+              <a
+                href={resolvedLink}
+                target={isExternal ? '_blank' : undefined}
+                rel={isExternal ? 'noreferrer' : undefined}
+                className="inline-block transition-transform hover:opacity-90 active:scale-95"
+              >
+                <img
+                  src={resolveDocImgSrc(srcMatch[1])}
+                  alt={altMatch ? altMatch[1] : 'Badge button'}
+                  className="h-10 w-auto rounded-md object-contain shadow-sm"
+                />
+              </a>
+            </div>,
+          );
+          i++;
+          continue;
+        }
+      }
+
+      // Property Preview Mockups (<ShortTextPreview />, etc.)
+      const previewMatch = trimmed.match(/^<([A-Za-z0-9]+Preview)\s*\/?>$/);
+      if (previewMatch) {
+        elements.push(
+          <PropertyPreview
+            key={`prev-${elements.length}`}
+            name={previewMatch[1]}
+            isIndonesian={isIndonesian}
+          />,
+        );
+        i++;
+        continue;
+      }
+
       // HTML img tags
       if (trimmed.includes('<img')) {
         const srcMatch = trimmed.match(/src="([^"]+)"/);
@@ -1506,8 +1732,12 @@ export function DocsPage() {
         continue;
       }
 
-      // Paragraphs
-      if (trimmed.length > 0 && !trimmed.startsWith('<')) {
+      // Paragraphs & general text
+      if (trimmed.length > 0) {
+        if (/^<\/(div|span|p|a|li|ul|ol|table|tr|td|th)>$/i.test(trimmed)) {
+          i++;
+          continue;
+        }
         elements.push(
           <p
             key={`p-${elements.length}`}
