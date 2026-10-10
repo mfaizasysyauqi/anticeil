@@ -1,4 +1,4 @@
-FROM ghcr.io/activepieces/activepieces:0.92.0
+FROM ghcr.io/activepieces/activepieces:0.92.2
 
 # Layer custom Anticeil backend patches onto official image
 COPY docker-patches-ai-provider-service.js /usr/src/app/packages/server/api/dist/src/app/ai/ai-provider-service.js

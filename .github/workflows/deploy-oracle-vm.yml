@@ -89,6 +89,9 @@ jobs:
             # Recreate containers with new image
             docker compose up -d --force-recreate app worker
 
+            # Restart cloudflared tunnel if present to refresh routes
+            sudo systemctl restart cloudflared 2>/dev/null || docker compose restart cloudflared 2>/dev/null || true
+
             # Cleanup old images
             docker image prune -f
 
@@ -100,4 +103,11 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: bunx wrangler pages deploy ../../dist/packages/web --project-name anticeil --branch feat/content-creator-templates
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          bunx wrangler pages deploy ../../dist/packages/web --project-name anticeil --branch "$BRANCH"
+          if [ "$BRANCH" != "main" ]; then
+            # Also update production alias so anticeil.com receives the latest changes immediately
+            bunx wrangler pages deploy ../../dist/packages/web --project-name anticeil --branch main || true
+          fi
+
