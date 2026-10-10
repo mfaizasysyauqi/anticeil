@@ -676,6 +676,86 @@ export function DocsPage() {
     }
   }, [currentSlug, location.hash]);
 
+  // Dynamic Scroll Spy for Table of Contents ("DI HALAMAN INI") - LibreChat style
+  useEffect(() => {
+    if (!currentPage?.toc || currentPage.toc.length === 0) {
+      setActiveHeadingId('');
+      return;
+    }
+
+    const tocList = currentPage.toc;
+    const tocIds = tocList.map((item) => item.id);
+
+    // Initial check or reset on page navigation
+    const initialHash = window.location.hash.replace('#', '');
+    if (initialHash && tocIds.includes(initialHash)) {
+      setActiveHeadingId(initialHash);
+    } else if (tocIds.length > 0) {
+      setActiveHeadingId(tocIds[0]);
+    }
+
+    let ticking = false;
+
+    const updateActiveHeading = () => {
+      // If user is scrolled near top, highlight first heading
+      if (window.scrollY < 80) {
+        if (tocIds.length > 0) setActiveHeadingId(tocIds[0]);
+        ticking = false;
+        return;
+      }
+
+      // If user is near bottom of page, highlight last heading
+      const scrollBottom = window.innerHeight + window.scrollY;
+      const docHeight = document.documentElement.scrollHeight;
+      if (scrollBottom >= docHeight - 60) {
+        if (tocIds.length > 0) setActiveHeadingId(tocIds[tocIds.length - 1]);
+        ticking = false;
+        return;
+      }
+
+      // Find the heading that is currently nearest to or passed top offset (150px)
+      const topOffset = 150;
+      let currentActive = tocIds[0] || '';
+
+      for (let i = 0; i < tocList.length; i++) {
+        const item = tocList[i];
+        let el = document.getElementById(item.id);
+        if (!el) el = document.getElementById(slugify(item.title));
+        if (!el) el = document.getElementById(item.id.replace(/--+/g, '-'));
+
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= topOffset) {
+            currentActive = item.id;
+          } else {
+            break;
+          }
+        }
+      }
+
+      if (currentActive) {
+        setActiveHeadingId((prev) => (prev !== currentActive ? currentActive : prev));
+      }
+
+      ticking = false;
+    };
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(updateActiveHeading);
+        ticking = true;
+      }
+    };
+
+    const timer = setTimeout(updateActiveHeading, 150);
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [currentSlug, currentPage?.toc]);
+
   // Search Results
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -2229,50 +2309,64 @@ export function DocsPage() {
           </div>
         </main>
 
-        {/* Right Sidebar ("On this page" Table of Contents) */}
+        {/* Right Sidebar ("On this page" Table of Contents - LibreChat style) */}
         <aside className="w-60 shrink-0 py-8 pl-6 border-l border-border/20 sticky top-[6.75rem] h-[calc(100vh-6.75rem)] overflow-y-auto hidden xl:block scrollbar-thin">
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <ListOrdered className="w-3.5 h-3.5" />
               <span>{t('docs.toc.title')}</span>
             </div>
-            <nav className="space-y-1.5">
+            <nav className="relative border-l border-border/40 dark:border-border/30 ml-1 space-y-0.5">
               {currentPage.toc && currentPage.toc.length > 0 ? (
                 (() => {
-                  // Deduplicate by title, keep first occurrence, cap at 25
+                  // Deduplicate by title, keep first occurrence, cap at 30
                   const seen = new Set<string>();
                   const uniqueToc = currentPage.toc.filter((item) => {
                     if (seen.has(item.title)) return false;
                     seen.add(item.title);
                     return true;
-                  }).slice(0, 25);
-                  return uniqueToc.map((item) => (
-                    <a
-                      key={item.id}
-                      href={`#${item.id}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const target = document.getElementById(item.id);
-                        if (target) {
-                          target.scrollIntoView({ behavior: 'smooth' });
-                          window.history.pushState(null, '', `#${item.id}`);
-                          setActiveHeadingId(item.id);
-                        }
-                      }}
-                      className={`block text-xs leading-snug transition-colors ${
-                        item.level === 3 ? 'pl-3' : ''
-                      } ${
-                        activeHeadingId === item.id
-                          ? 'text-primary font-medium'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      {cleanMojibake(isIndonesian && DOCS_HEADING_TRANSLATION_MAP[item.title] ? DOCS_HEADING_TRANSLATION_MAP[item.title] : item.title)}
-                    </a>
-                  ));
+                  }).slice(0, 30);
+
+                  return uniqueToc.map((item) => {
+                    const isActive =
+                      activeHeadingId === item.id ||
+                      activeHeadingId === slugify(item.title) ||
+                      activeHeadingId === item.id.replace(/--+/g, '-');
+
+                    return (
+                      <a
+                        key={item.id}
+                        href={`#${item.id}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          let target = document.getElementById(item.id);
+                          if (!target) target = document.getElementById(slugify(item.title));
+                          if (!target) target = document.getElementById(item.id.replace(/--+/g, '-'));
+
+                          if (target) {
+                            target.scrollIntoView({ behavior: 'smooth' });
+                            window.history.pushState(null, '', `#${item.id}`);
+                            setActiveHeadingId(item.id);
+                          }
+                        }}
+                        className={`group flex items-center text-xs leading-relaxed transition-all duration-150 py-1 ${
+                          item.level === 3 ? 'pl-5 text-[11px]' : 'pl-3'
+                        } ${
+                          isActive
+                            ? '-ml-[1px] border-l-2 border-primary text-primary font-semibold dark:text-emerald-400 bg-primary/5 dark:bg-emerald-500/10 rounded-r-md'
+                            : '-ml-[1px] border-l-2 border-transparent text-muted-foreground/75 hover:text-foreground hover:border-border/60 hover:bg-muted/15 rounded-r-md'
+                        }`}
+                        title={cleanMojibake(isIndonesian && DOCS_HEADING_TRANSLATION_MAP[item.title] ? DOCS_HEADING_TRANSLATION_MAP[item.title] : item.title)}
+                      >
+                        <span className="truncate">
+                          {cleanMojibake(isIndonesian && DOCS_HEADING_TRANSLATION_MAP[item.title] ? DOCS_HEADING_TRANSLATION_MAP[item.title] : item.title)}
+                        </span>
+                      </a>
+                    );
+                  });
                 })()
               ) : (
-                <span className="text-xs text-muted-foreground/60 italic">
+                <span className="text-xs text-muted-foreground/60 italic pl-3 block">
                   {t('docs.toc.overview')}
                 </span>
               )}
