@@ -15,7 +15,7 @@ export type SearchInputProps = Omit<
 };
 
 const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
-  ({ type, placeholder = t('Search'), ...props }, ref) => {
+  ({ type, placeholder = t('Search'), maxLength = 100, ...props }, ref) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
 
     React.useImperativeHandle(ref, () => inputRef.current!);
@@ -31,6 +31,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
         <Input
           {...props}
           type={type}
+          maxLength={maxLength}
           ref={inputRef}
           className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none p-0 bg-transparent dark:bg-transparent"
           placeholder={placeholder}

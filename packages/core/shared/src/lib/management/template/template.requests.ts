@@ -36,7 +36,7 @@ export const ListFlowTemplatesRequestQuery = z.object({
     type: z.nativeEnum(TemplateType).optional(),
     pieces: OptionalArrayFromQuery(z.string()),
     tags: OptionalArrayFromQuery(z.string()),
-    search: z.string().optional(),
+    search: z.string().max(100).optional(),
     category: z.string().optional(),
 })
 export type ListFlowTemplatesRequestQuery = z.infer<typeof ListFlowTemplatesRequestQuery>
