@@ -6654,10 +6654,31 @@
       "group": "Projects",
       "title": "Project Schema",
       "sidebarTitle": "Project Schema",
-      "description": "",
+      "description": "Data model schema definition for project in Anticeil",
       "icon": "cube",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `project` schema defines the data attributes and type specifications of Projects objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n| `id` | `string` | Yes | - |\n| `created` | `string` | Yes | - |\n| `updated` | `string` | Yes | - |\n| `ownerId` | `string` | Yes | - |\n| `displayName` | `string` | Yes | - |\n| `platformId` | `string` | Yes | - |\n| `maxConcurrentJobs` | `number | null` | No | - |\n| `type` | `enum` | Yes | Enum: `TEAM, PERSONAL` |\n| `icon` | `object` | Yes | - |\n| `externalId` | `string | null` | No | - |\n| `releasesEnabled` | `boolean` | Yes | - |\n| `metadata` | `object | null` | No | - |\n| `poolId` | `string | null` | No | - |\n| `plan` | `object` | Yes | - |\n| `analytics` | `object` | Yes | - |\n\n## Example JSON Representation\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"ownerId\": \"sample_ownerId_123\",\n  \"displayName\": \"Sample Displayname\",\n  \"platformId\": \"sample_platformId_123\",\n  \"maxConcurrentJobs\": \"sample_value\",\n  \"type\": \"TEAM\",\n  \"icon\": {},\n  \"externalId\": \"sample_externalId_123\",\n  \"releasesEnabled\": true,\n  \"metadata\": \"sample_value\",\n  \"poolId\": \"sample_poolId_123\",\n  \"plan\": {},\n  \"analytics\": {}\n}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface Project {\n\n  id: string;\n\n  created: string;\n\n  updated: string;\n\n  ownerId: string;\n\n  displayName: string;\n\n  platformId: string;\n\n  maxConcurrentJobs?: any;\n\n  type: 'TEAM' | 'PERSONAL';\n\n  icon: Record<string, any>;\n\n  externalId?: string;\n\n  releasesEnabled: boolean;\n\n  metadata?: any;\n\n  poolId?: string;\n\n  plan: Record<string, any>;\n\n  analytics: Record<string, any>;\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/projects/create": {
       "slug": "endpoints/projects/create",
@@ -6665,10 +6686,61 @@
       "group": "Projects",
       "title": "Create Project",
       "sidebarTitle": "Create Project",
-      "description": "",
+      "description": "Create Project endpoint for Projects in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/projects\n```\n\n## Overview\n\nThe **Create Project** endpoint (`POST /v1/projects`) allows you to manage Projects resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Body\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n| `displayName` | `string` | Yes | - |\n| `externalId` | `string | null` | No | - |\n| `metadata` | `object | null` | No | - |\n| `maxConcurrentJobs` | `number | null` | No | - |\n| `globalConnectionExternalIds` | `string[]` | No | - |\n| `alertReceiverEmail` | `string | null` | No | - |\n\n### Example Payload JSON\n\n```json\n{\n  \"displayName\": \"Sample Displayname\",\n  \"externalId\": \"sample_externalId_123\",\n  \"metadata\": \"sample_value\",\n  \"maxConcurrentJobs\": \"sample_value\",\n  \"globalConnectionExternalIds\": \"sample_globalConnectionExternalIds_123\",\n  \"alertReceiverEmail\": \"user@example.com\"\n}\n```\n\n## Responses\n\n### Status `201` - Default Response\n\nReturns data conforming to the [`project`](/docs/endpoints/projects/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"ownerId\": \"sample_ownerId_123\",\n  \"displayName\": \"Sample Displayname\",\n  \"platformId\": \"sample_platformId_123\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/projects\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n      \"displayName\": \"Sample Displayname\",\n      \"externalId\": \"sample_externalId_123\",\n      \"metadata\": \"sample_value\"\n    }'\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/projects', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n        \"displayName\": \"Sample Displayname\",\n        \"externalId\": \"sample_externalId_123\",\n        \"metadata\": \"sample_value\"\n  }),\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-body",
+          "title": "Request Body",
+          "level": 2
+        },
+        {
+          "id": "example-payload-json",
+          "title": "Example Payload JSON",
+          "level": 3
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-201---default-response",
+          "title": "Status 201 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/projects/update": {
       "slug": "endpoints/projects/update",
@@ -6676,10 +6748,66 @@
       "group": "Projects",
       "title": "Update Project",
       "sidebarTitle": "Update Project",
-      "description": "",
+      "description": "Update Project endpoint for Projects in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/projects/{id}\n```\n\n## Overview\n\nThe **Update Project** endpoint (`POST /v1/projects/{id}`) allows you to manage Projects resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Request Body\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n| `releasesEnabled` | `boolean` | No | - |\n| `displayName` | `string` | No | - |\n| `externalId` | `string` | No | - |\n| `metadata` | `object` | No | - |\n| `icon` | `object` | No | - |\n| `plan` | `object` | No | - |\n| `globalConnectionExternalIds` | `string[]` | No | - |\n| `maxConcurrentJobs` | `integer | null` | No | - |\n\n### Example Payload JSON\n\n```json\n{\n  \"releasesEnabled\": true,\n  \"displayName\": \"Sample Displayname\",\n  \"externalId\": \"sample_externalId_123\",\n  \"metadata\": {},\n  \"icon\": {},\n  \"plan\": {},\n  \"globalConnectionExternalIds\": \"sample_globalConnectionExternalIds_123\",\n  \"maxConcurrentJobs\": \"sample_value\"\n}\n```\n\n## Responses\n\n### Status `200` - Default Response\n\nReturns data conforming to the [`project`](/docs/endpoints/projects/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"ownerId\": \"sample_ownerId_123\",\n  \"displayName\": \"Sample Displayname\",\n  \"platformId\": \"sample_platformId_123\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/projects/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n      \"releasesEnabled\": true,\n      \"displayName\": \"Sample Displayname\",\n      \"externalId\": \"sample_externalId_123\"\n    }'\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/projects/{id}', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n        \"releasesEnabled\": true,\n        \"displayName\": \"Sample Displayname\",\n        \"externalId\": \"sample_externalId_123\"\n  }),\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "request-body",
+          "title": "Request Body",
+          "level": 2
+        },
+        {
+          "id": "example-payload-json",
+          "title": "Example Payload JSON",
+          "level": 3
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/projects/list": {
       "slug": "endpoints/projects/list",
@@ -6687,10 +6815,56 @@
       "group": "Projects",
       "title": "List Projects",
       "sidebarTitle": "List Projects",
-      "description": "",
+      "description": "List Projects endpoint for Projects in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/projects\n```\n\n## Overview\n\nThe **List Projects** endpoint (`GET /v1/projects`) allows you to manage Projects resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `externalId` | `string` | `query` | No | - |\n| `externalUserId` | `string` | `query` | No | - |\n| `limit` | `number` | `query` | No | - |\n| `cursor` | `string` | `query` | No | - |\n| `displayName` | `string` | `query` | No | - |\n| `types` | `array` | `query` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\nReturns data conforming to the [`project`](/docs/endpoints/projects/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"ownerId\": \"sample_ownerId_123\",\n  \"displayName\": \"Sample Displayname\",\n  \"platformId\": \"sample_platformId_123\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/projects\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/projects', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/projects/delete": {
       "slug": "endpoints/projects/delete",
@@ -6698,10 +6872,51 @@
       "group": "Projects",
       "title": "Delete Project",
       "sidebarTitle": "Delete Project",
-      "description": "",
+      "description": "Delete Project endpoint for Projects in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nDELETE /v1/projects/{id}\n```\n\n## Overview\n\nThe **Delete Project** endpoint (`DELETE /v1/projects/{id}`) allows you to manage Projects resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X DELETE \"https://api.anticeil.com/v1/projects/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/projects/{id}', {\n  method: 'DELETE',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/users/schema": {
       "slug": "endpoints/users/schema",
@@ -6709,10 +6924,31 @@
       "group": "Users",
       "title": "User Schema",
       "sidebarTitle": "User Schema",
-      "description": "",
+      "description": "Data model schema definition for user in Anticeil",
       "icon": "user",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `user` schema defines the data attributes and type specifications of Users objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n| `id` | `string` | Yes | - |\n| `email` | `string` | Yes | - |\n| `firstName` | `string` | Yes | - |\n| `status` | `enum` | Yes | Enum: `ACTIVE, INACTIVE` |\n| `externalId` | `string | null` | No | - |\n| `platformId` | `string | null` | No | - |\n| `platformRole` | `enum` | Yes | Enum: `ADMIN, MEMBER, OPERATOR` |\n| `lastName` | `string` | Yes | - |\n| `created` | `string` | Yes | - |\n| `updated` | `string` | Yes | - |\n| `lastActiveDate` | `string | null` | No | - |\n| `imageUrl` | `string | null` | No | - |\n\n## Example JSON Representation\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"email\": \"user@example.com\",\n  \"firstName\": \"Sample Firstname\",\n  \"status\": \"ACTIVE\",\n  \"externalId\": \"sample_externalId_123\",\n  \"platformId\": \"sample_platformId_123\",\n  \"platformRole\": \"ADMIN\",\n  \"lastName\": \"Sample Lastname\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"lastActiveDate\": \"2026-10-10T12:00:00.000Z\",\n  \"imageUrl\": \"https://api.anticeil.com\"\n}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface User {\n\n  id: string;\n\n  email: string;\n\n  firstName: string;\n\n  status: 'ACTIVE' | 'INACTIVE';\n\n  externalId?: string;\n\n  platformId?: string;\n\n  platformRole: 'ADMIN' | 'MEMBER' | 'OPERATOR';\n\n  lastName: string;\n\n  created: string;\n\n  updated: string;\n\n  lastActiveDate?: string;\n\n  imageUrl?: string;\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/users/update": {
       "slug": "endpoints/users/update",
@@ -6720,10 +6956,66 @@
       "group": "Users",
       "title": "Update User",
       "sidebarTitle": "Update User",
-      "description": "",
+      "description": "Update User endpoint for Users in Anticeil Platform API",
       "icon": "user",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/users/{id}\n```\n\n## Overview\n\nThe **Update User** endpoint (`POST /v1/users/{id}`) allows you to manage Users resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Request Body\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n| `status` | `enum` | No | Enum: `ACTIVE, INACTIVE` |\n| `platformRole` | `enum` | No | Enum: `ADMIN, MEMBER, OPERATOR` |\n| `externalId` | `string` | No | - |\n\n### Example Payload JSON\n\n```json\n{\n  \"status\": \"ACTIVE\",\n  \"platformRole\": \"ADMIN\",\n  \"externalId\": \"sample_externalId_123\"\n}\n```\n\n## Responses\n\n### Status `200` - Default Response\n\nReturns data conforming to the [`user`](/docs/endpoints/users/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"email\": \"user@example.com\",\n  \"firstName\": \"Sample Firstname\",\n  \"status\": \"ACTIVE\",\n  \"externalId\": \"sample_externalId_123\",\n  \"platformId\": \"sample_platformId_123\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/users/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n      \"status\": \"ACTIVE\",\n      \"platformRole\": \"ADMIN\",\n      \"externalId\": \"sample_externalId_123\"\n    }'\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/users/{id}', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n        \"status\": \"ACTIVE\",\n        \"platformRole\": \"ADMIN\",\n        \"externalId\": \"sample_externalId_123\"\n  }),\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "request-body",
+          "title": "Request Body",
+          "level": 2
+        },
+        {
+          "id": "example-payload-json",
+          "title": "Example Payload JSON",
+          "level": 3
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/users/list": {
       "slug": "endpoints/users/list",
@@ -6731,10 +7023,56 @@
       "group": "Users",
       "title": "List Users",
       "sidebarTitle": "List Users",
-      "description": "",
+      "description": "List Users endpoint for Users in Anticeil Platform API",
       "icon": "user",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/users\n```\n\n## Overview\n\nThe **List Users** endpoint (`GET /v1/users`) allows you to manage Users resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `cursor` | `string` | `query` | No | - |\n| `limit` | `number` | `query` | No | - |\n| `externalId` | `string` | `query` | No | - |\n\n## Responses\n\n### Status `200` - Default Response\n\nReturns data conforming to the [`user`](/docs/endpoints/users/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"email\": \"user@example.com\",\n  \"firstName\": \"Sample Firstname\",\n  \"status\": \"ACTIVE\",\n  \"externalId\": \"sample_externalId_123\",\n  \"platformId\": \"sample_platformId_123\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/users\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/users', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/users/delete": {
       "slug": "endpoints/users/delete",
@@ -6742,10 +7080,51 @@
       "group": "Users",
       "title": "Delete User",
       "sidebarTitle": "Delete User",
-      "description": "",
+      "description": "Delete User endpoint for Users in Anticeil Platform API",
       "icon": "user",
-      "body": "",
-      "toc": []
+      "body": "```http\nDELETE /v1/users/{id}\n```\n\n## Overview\n\nThe **Delete User** endpoint (`DELETE /v1/users/{id}`) allows you to manage Users resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `204` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X DELETE \"https://api.anticeil.com/v1/users/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/users/{id}', {\n  method: 'DELETE',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-204---default-response",
+          "title": "Status 204 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/user-invitations/schema": {
       "slug": "endpoints/user-invitations/schema",
@@ -6753,10 +7132,31 @@
       "group": "User Invitations",
       "title": "User Invitation Schema",
       "sidebarTitle": "User Invitation Schema",
-      "description": "",
+      "description": "Data model schema definition for user-invitation in Anticeil",
       "icon": "cube",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `user-invitation` schema defines the data attributes and type specifications of User Invitations objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n| `id` | `string` | Yes | - |\n| `created` | `string` | Yes | - |\n| `updated` | `string` | Yes | - |\n| `email` | `string` | Yes | - |\n| `status` | `enum` | Yes | Enum: `PENDING, ACCEPTED` |\n| `type` | `enum` | Yes | Enum: `PLATFORM, PROJECT` |\n| `platformId` | `string` | Yes | - |\n| `platformRole` | `string | null` | No | - |\n| `projectId` | `string | null` | No | - |\n| `projectRoleId` | `string | null` | No | - |\n| `projectRole` | `object | null` | No | - |\n\n## Example JSON Representation\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"email\": \"user@example.com\",\n  \"status\": \"PENDING\",\n  \"type\": \"PLATFORM\",\n  \"platformId\": \"sample_platformId_123\",\n  \"platformRole\": \"sample_platformRole\",\n  \"projectId\": \"sample_projectId_123\",\n  \"projectRoleId\": \"sample_projectRoleId_123\",\n  \"projectRole\": \"sample_value\"\n}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface UserInvitation {\n\n  id: string;\n\n  created: string;\n\n  updated: string;\n\n  email: string;\n\n  status: 'PENDING' | 'ACCEPTED';\n\n  type: 'PLATFORM' | 'PROJECT';\n\n  platformId: string;\n\n  platformRole?: string;\n\n  projectId?: string;\n\n  projectRoleId?: string;\n\n  projectRole?: any;\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/user-invitations/upsert": {
       "slug": "endpoints/user-invitations/upsert",
@@ -6764,10 +7164,51 @@
       "group": "User Invitations",
       "title": "Send User Invitation (Upsert)",
       "sidebarTitle": "Send User Invitation (Upsert)",
-      "description": "",
+      "description": "Send User Invitation (Upsert) endpoint for User Invitations in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/user-invitations\n```\n\n## Overview\n\nThe **Send User Invitation (Upsert)** endpoint (`POST /v1/user-invitations`) allows you to manage User Invitations resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Responses\n\n### Status `201` - Default Response\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"email\": \"user@example.com\",\n  \"status\": \"PENDING\",\n  \"type\": \"PLATFORM\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/user-invitations\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/user-invitations', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-201---default-response",
+          "title": "Status 201 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/user-invitations/list": {
       "slug": "endpoints/user-invitations/list",
@@ -6775,10 +7216,56 @@
       "group": "User Invitations",
       "title": "List User Invitations",
       "sidebarTitle": "List User Invitations",
-      "description": "",
+      "description": "List User Invitations endpoint for User Invitations in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/user-invitations\n```\n\n## Overview\n\nThe **List User Invitations** endpoint (`GET /v1/user-invitations`) allows you to manage User Invitations resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `limit` | `number` | `query` | No | - |\n| `cursor` | `string` | `query` | No | - |\n| `type` | `string` | `query` | Yes | - |\n| `projectId` | `string` | `query` | No | - |\n| `status` | `string` | `query` | No | - |\n\n## Responses\n\n### Status `200` - Default Response\n\nReturns data conforming to the [`user-invitation`](/docs/endpoints/user-invitations/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"email\": \"user@example.com\",\n  \"status\": \"PENDING\",\n  \"type\": \"PLATFORM\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/user-invitations\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/user-invitations', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/user-invitations/delete": {
       "slug": "endpoints/user-invitations/delete",
@@ -6786,10 +7273,51 @@
       "group": "User Invitations",
       "title": "Delete User Invitation",
       "sidebarTitle": "Delete User Invitation",
-      "description": "",
+      "description": "Delete User Invitation endpoint for User Invitations in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nDELETE /v1/user-invitations/{id}\n```\n\n## Overview\n\nThe **Delete User Invitation** endpoint (`DELETE /v1/user-invitations/{id}`) allows you to manage User Invitations resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `204` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X DELETE \"https://api.anticeil.com/v1/user-invitations/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/user-invitations/{id}', {\n  method: 'DELETE',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-204---default-response",
+          "title": "Status 204 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/project-members/schema": {
       "slug": "endpoints/project-members/schema",
@@ -6797,10 +7325,31 @@
       "group": "Project Members",
       "title": "Project Member Schema",
       "sidebarTitle": "Project Member Schema",
-      "description": "",
+      "description": "Data model schema definition for project-member in Anticeil",
       "icon": "cube",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `project-member` schema defines the data attributes and type specifications of Project Members objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n| `id` | `string` | Yes | - |\n| `created` | `string` | Yes | - |\n| `updated` | `string` | Yes | - |\n| `platformId` | `string` | Yes | - |\n| `userId` | `string` | Yes | - |\n| `projectId` | `string` | Yes | - |\n| `projectRoleId` | `string` | Yes | - |\n\n## Example JSON Representation\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"platformId\": \"sample_platformId_123\",\n  \"userId\": \"sample_userId_123\",\n  \"projectId\": \"sample_projectId_123\",\n  \"projectRoleId\": \"sample_projectRoleId_123\"\n}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface ProjectMember {\n\n  id: string;\n\n  created: string;\n\n  updated: string;\n\n  platformId: string;\n\n  userId: string;\n\n  projectId: string;\n\n  projectRoleId: string;\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/project-members/list": {
       "slug": "endpoints/project-members/list",
@@ -6808,10 +7357,56 @@
       "group": "Project Members",
       "title": "List Project Member",
       "sidebarTitle": "List Project Member",
-      "description": "",
+      "description": "List Project Member endpoint for Project Members in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/project-members\n```\n\n## Overview\n\nThe **List Project Member** endpoint (`GET /v1/project-members`) allows you to manage Project Members resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `projectId` | `string` | `query` | Yes | - |\n| `projectRoleId` | `string` | `query` | No | - |\n| `cursor` | `string` | `query` | No | - |\n| `limit` | `number` | `query` | No | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n### Example Response Format\n\n```json\n{\n  \"data\": [],\n  \"next\": \"sample_next\",\n  \"previous\": \"sample_previous\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/project-members\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/project-members', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/project-members/delete": {
       "slug": "endpoints/project-members/delete",
@@ -6819,10 +7414,51 @@
       "group": "Project Members",
       "title": "Delete Project Member",
       "sidebarTitle": "Delete Project Member",
-      "description": "",
+      "description": "Delete Project Member endpoint for Project Members in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nDELETE /v1/project-members/{id}\n```\n\n## Overview\n\nThe **Delete Project Member** endpoint (`DELETE /v1/project-members/{id}`) allows you to manage Project Members resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `204` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X DELETE \"https://api.anticeil.com/v1/project-members/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/project-members/{id}', {\n  method: 'DELETE',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-204---default-response",
+          "title": "Status 204 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/connections/schema": {
       "slug": "endpoints/connections/schema",
@@ -6830,10 +7466,31 @@
       "group": "Connections",
       "title": "Connection Schema",
       "sidebarTitle": "Connection Schema",
-      "description": "",
+      "description": "Data model schema definition for app-connection in Anticeil",
       "icon": "cube",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `app-connection` schema defines the data attributes and type specifications of App Connections objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n| `id` | `string` | Yes | - |\n| `created` | `string` | Yes | - |\n| `updated` | `string` | Yes | - |\n| `externalId` | `string` | Yes | - |\n| `displayName` | `string` | Yes | - |\n| `type` | `enum` | Yes | Enum: `OAUTH2, PLATFORM_OAUTH2, CLOUD_OAUTH2, SECRET_TEXT, BASIC_AUTH, CUSTOM_AUTH, NO_AUTH` |\n| `pieceName` | `string` | Yes | - |\n| `projectIds` | `string[]` | Yes | - |\n| `platformId` | `string | null` | No | - |\n| `scope` | `enum` | Yes | Enum: `PROJECT, PLATFORM` |\n| `status` | `enum` | Yes | Enum: `ACTIVE, MISSING, ERROR` |\n| `ownerId` | `string | null` | No | - |\n| `owner` | `user | null` | No | - |\n| `metadata` | `object | null` | No | - |\n| `flowIds` | `array | null` | No | - |\n| `pieceVersion` | `string` | Yes | - |\n| `preSelectForNewProjects` | `boolean` | Yes | - |\n| `usingSecretManager` | `boolean` | Yes | - |\n\n## Example JSON Representation\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"externalId\": \"sample_externalId_123\",\n  \"displayName\": \"Sample Displayname\",\n  \"type\": \"OAUTH2\",\n  \"pieceName\": \"Sample Piecename\",\n  \"projectIds\": \"sample_projectIds_123\",\n  \"platformId\": \"sample_platformId_123\",\n  \"scope\": \"PROJECT\",\n  \"status\": \"ACTIVE\",\n  \"ownerId\": \"sample_ownerId_123\",\n  \"owner\": \"sample_value\",\n  \"metadata\": \"sample_value\",\n  \"flowIds\": \"sample_flowIds_123\",\n  \"pieceVersion\": \"sample_pieceVersion\",\n  \"preSelectForNewProjects\": true,\n  \"usingSecretManager\": true\n}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface AppConnection {\n\n  id: string;\n\n  created: string;\n\n  updated: string;\n\n  externalId: string;\n\n  displayName: string;\n\n  type: 'OAUTH2' | 'PLATFORM_OAUTH2' | 'CLOUD_OAUTH2' | 'SECRET_TEXT' | 'BASIC_AUTH' | 'CUSTOM_AUTH' | 'NO_AUTH';\n\n  pieceName: string;\n\n  projectIds: string;\n\n  platformId?: string;\n\n  scope: 'PROJECT' | 'PLATFORM';\n\n  status: 'ACTIVE' | 'MISSING' | 'ERROR';\n\n  ownerId?: string;\n\n  owner?: any;\n\n  metadata?: any;\n\n  flowIds?: any;\n\n  pieceVersion: string;\n\n  preSelectForNewProjects: boolean;\n\n  usingSecretManager: boolean;\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/connections/upsert": {
       "slug": "endpoints/connections/upsert",
@@ -6841,10 +7498,46 @@
       "group": "Connections",
       "title": "Upsert Connection",
       "sidebarTitle": "Upsert Connection",
-      "description": "",
+      "description": "Upsert Connection endpoint for App Connections in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/app-connections\n```\n\n## Overview\n\nThe **Upsert Connection** endpoint (`POST /v1/app-connections`) allows you to manage App Connections resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/app-connections\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/app-connections', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/connections/list": {
       "slug": "endpoints/connections/list",
@@ -6852,10 +7545,56 @@
       "group": "Connections",
       "title": "List Connections",
       "sidebarTitle": "List Connections",
-      "description": "",
+      "description": "List Connections endpoint for App Connections in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/app-connections\n```\n\n## Overview\n\nThe **List Connections** endpoint (`GET /v1/app-connections`) allows you to manage App Connections resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `cursor` | `string` | `query` | No | - |\n| `projectId` | `string` | `query` | Yes | - |\n| `scope` | `string` | `query` | No | - |\n| `pieceName` | `string` | `query` | No | - |\n| `displayName` | `string` | `query` | No | - |\n| `status` | `array` | `query` | Yes | - |\n| `limit` | `number` | `query` | No | - |\n\n## Responses\n\n### Status `200` - Default Response\n\nReturns data conforming to the [`app-connection`](/docs/endpoints/connections/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"externalId\": \"sample_externalId_123\",\n  \"displayName\": \"Sample Displayname\",\n  \"type\": \"OAUTH2\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/app-connections\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/app-connections', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/connections/get": {
       "slug": "endpoints/connections/get",
@@ -6863,10 +7602,56 @@
       "group": "Connections",
       "title": "Get Connection",
       "sidebarTitle": "Get Connection",
-      "description": "",
+      "description": "Get Connection endpoint for App Connections in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/app-connections/{id}\n```\n\n## Overview\n\nThe **Get Connection** endpoint (`GET /v1/app-connections/{id}`) allows you to manage App Connections resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\nReturns data conforming to the [`app-connection`](/docs/endpoints/connections/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"externalId\": \"sample_externalId_123\",\n  \"displayName\": \"Sample Displayname\",\n  \"type\": \"OAUTH2\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/app-connections/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/app-connections/{id}', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/connections/delete": {
       "slug": "endpoints/connections/delete",
@@ -6874,10 +7659,51 @@
       "group": "Connections",
       "title": "Delete Connection",
       "sidebarTitle": "Delete Connection",
-      "description": "",
+      "description": "Delete Connection endpoint for App Connections in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nDELETE /v1/app-connections/{id}\n```\n\n## Overview\n\nThe **Delete Connection** endpoint (`DELETE /v1/app-connections/{id}`) allows you to manage App Connections resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `204` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X DELETE \"https://api.anticeil.com/v1/app-connections/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/app-connections/{id}', {\n  method: 'DELETE',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-204---default-response",
+          "title": "Status 204 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/flows/schema": {
       "slug": "endpoints/flows/schema",
@@ -6885,10 +7711,31 @@
       "group": "Flows",
       "title": "Flow Schema",
       "sidebarTitle": "Flow Schema",
-      "description": "",
+      "description": "Data model schema definition for flow in Anticeil",
       "icon": "cube",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `flow` schema defines the data attributes and type specifications of Flows objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n| `id` | `string` | Yes | - |\n| `created` | `string` | Yes | - |\n| `updated` | `string` | Yes | - |\n| `projectId` | `string` | Yes | - |\n| `externalId` | `string` | Yes | - |\n| `ownerId` | `string | null` | No | - |\n| `folderId` | `string | null` | No | - |\n| `status` | `enum` | Yes | Enum: `ENABLED, DISABLED` |\n| `publishedVersionId` | `string | null` | No | - |\n| `metadata` | `object | null` | No | - |\n| `operationStatus` | `enum` | Yes | Enum: `NONE, DELETING, ENABLING, DISABLING` |\n| `timeSavedPerRun` | `number | null` | No | - |\n| `templateId` | `string | null` | No | - |\n\n## Example JSON Representation\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"projectId\": \"sample_projectId_123\",\n  \"externalId\": \"sample_externalId_123\",\n  \"ownerId\": \"sample_ownerId_123\",\n  \"folderId\": \"sample_folderId_123\",\n  \"status\": \"ENABLED\",\n  \"publishedVersionId\": \"sample_publishedVersionId_123\",\n  \"metadata\": \"sample_value\",\n  \"operationStatus\": \"NONE\",\n  \"timeSavedPerRun\": \"2026-10-10T12:00:00.000Z\",\n  \"templateId\": \"sample_templateId_123\"\n}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface Flow {\n\n  id: string;\n\n  created: string;\n\n  updated: string;\n\n  projectId: string;\n\n  externalId: string;\n\n  ownerId?: string;\n\n  folderId?: string;\n\n  status: 'ENABLED' | 'DISABLED';\n\n  publishedVersionId?: string;\n\n  metadata?: any;\n\n  operationStatus: 'NONE' | 'DELETING' | 'ENABLING' | 'DISABLING';\n\n  timeSavedPerRun?: any;\n\n  templateId?: string;\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/flows/create": {
       "slug": "endpoints/flows/create",
@@ -6896,10 +7743,61 @@
       "group": "Flows",
       "title": "Create Flow",
       "sidebarTitle": "Create Flow",
-      "description": "",
+      "description": "Create Flow endpoint for Flows in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/flows\n```\n\n## Overview\n\nThe **Create Flow** endpoint (`POST /v1/flows`) allows you to manage Flows resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Body\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n| `displayName` | `string` | Yes | - |\n| `folderId` | `string` | No | - |\n| `folderName` | `string` | No | - |\n| `projectId` | `string` | Yes | - |\n| `templateId` | `string` | No | - |\n| `metadata` | `object` | No | - |\n\n### Example Payload JSON\n\n```json\n{\n  \"displayName\": \"Sample Displayname\",\n  \"folderId\": \"sample_folderId_123\",\n  \"folderName\": \"Sample Foldername\",\n  \"projectId\": \"sample_projectId_123\",\n  \"templateId\": \"sample_templateId_123\",\n  \"metadata\": {}\n}\n```\n\n## Responses\n\n### Status `201` - Default Response\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"projectId\": \"sample_projectId_123\",\n  \"externalId\": \"sample_externalId_123\",\n  \"ownerId\": \"sample_ownerId_123\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/flows\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n      \"displayName\": \"Sample Displayname\",\n      \"folderId\": \"sample_folderId_123\",\n      \"folderName\": \"Sample Foldername\"\n    }'\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/flows', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n        \"displayName\": \"Sample Displayname\",\n        \"folderId\": \"sample_folderId_123\",\n        \"folderName\": \"Sample Foldername\"\n  }),\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-body",
+          "title": "Request Body",
+          "level": 2
+        },
+        {
+          "id": "example-payload-json",
+          "title": "Example Payload JSON",
+          "level": 3
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-201---default-response",
+          "title": "Status 201 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/flows/update": {
       "slug": "endpoints/flows/update",
@@ -6907,10 +7805,51 @@
       "group": "Flows",
       "title": "Apply Flow Operation",
       "sidebarTitle": "Apply Flow Operation",
-      "description": "",
+      "description": "Apply Flow Operation endpoint for Flows in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/flows/{id}\n```\n\n## Overview\n\nThe **Apply Flow Operation** endpoint (`POST /v1/flows/{id}`) allows you to manage Flows resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/flows/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/flows/{id}', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/flows/get": {
       "slug": "endpoints/flows/get",
@@ -6918,10 +7857,56 @@
       "group": "Flows",
       "title": "Get Flow",
       "sidebarTitle": "Get Flow",
-      "description": "",
+      "description": "Get Flow endpoint for Flows in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/flows/{id}\n```\n\n## Overview\n\nThe **Get Flow** endpoint (`GET /v1/flows/{id}`) allows you to manage Flows resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `versionId` | `string` | `query` | No | - |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"projectId\": \"sample_projectId_123\",\n  \"externalId\": \"sample_externalId_123\",\n  \"ownerId\": \"sample_ownerId_123\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/flows/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/flows/{id}', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/flows/list": {
       "slug": "endpoints/flows/list",
@@ -6929,10 +7914,56 @@
       "group": "Flows",
       "title": "List Flows",
       "sidebarTitle": "List Flows",
-      "description": "",
+      "description": "List Flows endpoint for Flows in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/flows\n```\n\n## Overview\n\nThe **List Flows** endpoint (`GET /v1/flows`) allows you to manage Flows resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `folderId` | `string` | `query` | No | - |\n| `limit` | `number` | `query` | No | - |\n| `cursor` | `string` | `query` | No | - |\n| `status` | `array` | `query` | Yes | - |\n| `projectId` | `string` | `query` | Yes | - |\n| `name` | `string` | `query` | No | - |\n| `agentExternalIds` | `array` | `query` | Yes | - |\n| `versionState` | `string` | `query` | No | - |\n| `connectionExternalIds` | `array` | `query` | Yes | - |\n| `externalIds` | `array` | `query` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n### Example Response Format\n\n```json\n{\n  \"data\": [],\n  \"next\": \"sample_next\",\n  \"previous\": \"sample_previous\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/flows\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/flows', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/flows/delete": {
       "slug": "endpoints/flows/delete",
@@ -6940,10 +7971,51 @@
       "group": "Flows",
       "title": "Delete Flow",
       "sidebarTitle": "Delete Flow",
-      "description": "",
+      "description": "Delete Flow endpoint for Flows in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nDELETE /v1/flows/{id}\n```\n\n## Overview\n\nThe **Delete Flow** endpoint (`DELETE /v1/flows/{id}`) allows you to manage Flows resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `204` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X DELETE \"https://api.anticeil.com/v1/flows/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/flows/{id}', {\n  method: 'DELETE',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-204---default-response",
+          "title": "Status 204 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/flow-runs/schema": {
       "slug": "endpoints/flow-runs/schema",
@@ -6951,10 +8023,31 @@
       "group": "Flow Runs",
       "title": "Flow Run Schema",
       "sidebarTitle": "Flow Run Schema",
-      "description": "",
+      "description": "Data model schema definition for flow-run in Anticeil",
       "icon": "cube",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `flow-run` schema defines the data attributes and type specifications of Flow Runs objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n| `id` | `string` | Yes | - |\n| `created` | `string` | Yes | - |\n| `updated` | `string` | Yes | - |\n| `projectId` | `string` | Yes | - |\n| `flowId` | `string` | Yes | - |\n| `parentRunId` | `string` | No | - |\n| `failParentOnFailure` | `boolean` | Yes | - |\n| `triggeredBy` | `string` | No | - |\n| `tags` | `string[]` | No | - |\n| `flowVersionId` | `string` | Yes | - |\n| `flowVersion` | `object` | No | - |\n| `logsFileId` | `string | null` | No | - |\n| `status` | `enum` | Yes | Enum: `FAILED, QUOTA_EXCEEDED, INTERNAL_ERROR, PAUSED, QUEUED, RUNNING, SUCCEEDED, MEMORY_LIMIT_EXCEEDED, TIMEOUT, CANCELED, LOG_SIZE_EXCEEDED` |\n| `startTime` | `string | null` | No | - |\n| `finishTime` | `string | null` | No | - |\n| `environment` | `enum` | Yes | Enum: `PRODUCTION, TESTING` |\n| `steps` | `object | null` | No | - |\n| `failedStep` | `object` | No | - |\n| `stepNameToTest` | `string` | No | - |\n| `archivedAt` | `string | null` | No | - |\n| `stepsCount` | `number` | No | - |\n\n## Example JSON Representation\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"projectId\": \"sample_projectId_123\",\n  \"flowId\": \"sample_flowId_123\",\n  \"parentRunId\": \"sample_parentRunId_123\",\n  \"failParentOnFailure\": true,\n  \"triggeredBy\": \"sample_triggeredBy\",\n  \"tags\": \"sample_tags\",\n  \"flowVersionId\": \"sample_flowVersionId_123\",\n  \"flowVersion\": {},\n  \"logsFileId\": \"sample_logsFileId_123\",\n  \"status\": \"FAILED\",\n  \"startTime\": \"2026-10-10T12:00:00.000Z\",\n  \"finishTime\": \"2026-10-10T12:00:00.000Z\",\n  \"environment\": \"PRODUCTION\",\n  \"steps\": \"sample_value\",\n  \"failedStep\": {},\n  \"stepNameToTest\": \"Sample Stepnametotest\",\n  \"archivedAt\": \"sample_archivedAt\",\n  \"stepsCount\": 1\n}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface FlowRun {\n\n  id: string;\n\n  created: string;\n\n  updated: string;\n\n  projectId: string;\n\n  flowId: string;\n\n  parentRunId?: string;\n\n  failParentOnFailure: boolean;\n\n  triggeredBy?: string;\n\n  tags?: string;\n\n  flowVersionId: string;\n\n  flowVersion?: Record<string, any>;\n\n  logsFileId?: string;\n\n  status: 'FAILED' | 'QUOTA_EXCEEDED' | 'INTERNAL_ERROR' | 'PAUSED' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'MEMORY_LIMIT_EXCEEDED' | 'TIMEOUT' | 'CANCELED' | 'LOG_SIZE_EXCEEDED';\n\n  startTime?: string;\n\n  finishTime?: string;\n\n  environment: 'PRODUCTION' | 'TESTING';\n\n  steps?: any;\n\n  failedStep?: Record<string, any>;\n\n  stepNameToTest?: string;\n\n  archivedAt?: string;\n\n  stepsCount?: number;\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/flow-runs/get": {
       "slug": "endpoints/flow-runs/get",
@@ -6962,10 +8055,56 @@
       "group": "Flow Runs",
       "title": "Get Flow Run",
       "sidebarTitle": "Get Flow Run",
-      "description": "",
+      "description": "Get Flow Run endpoint for Flow Runs in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/flow-runs/{id}\n```\n\n## Overview\n\nThe **Get Flow Run** endpoint (`GET /v1/flow-runs/{id}`) allows you to manage Flow Runs resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\nReturns data conforming to the [`flow-run`](/docs/endpoints/flow-runs/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"projectId\": \"sample_projectId_123\",\n  \"flowId\": \"sample_flowId_123\",\n  \"parentRunId\": \"sample_parentRunId_123\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/flow-runs/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/flow-runs/{id}', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/flow-runs/list": {
       "slug": "endpoints/flow-runs/list",
@@ -6973,10 +8112,56 @@
       "group": "Flow Runs",
       "title": "List Flows Runs",
       "sidebarTitle": "List Flows Runs",
-      "description": "",
+      "description": "List Flows Runs endpoint for Flow Runs in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/flow-runs\n```\n\n## Overview\n\nThe **List Flows Runs** endpoint (`GET /v1/flow-runs`) allows you to manage Flow Runs resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `flowId` | `array` | `query` | Yes | - |\n| `tags` | `array` | `query` | Yes | - |\n| `status` | `array` | `query` | Yes | - |\n| `limit` | `number` | `query` | No | - |\n| `cursor` | `string` | `query` | No | - |\n| `createdAfter` | `string` | `query` | No | - |\n| `createdBefore` | `string` | `query` | No | - |\n| `projectId` | `string` | `query` | Yes | - |\n| `failedStepName` | `string` | `query` | No | - |\n| `flowRunIds` | `array` | `query` | Yes | - |\n| `includeArchived` | `boolean` | `query` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n### Example Response Format\n\n```json\n{\n  \"data\": [],\n  \"next\": \"sample_next\",\n  \"previous\": \"sample_previous\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/flow-runs\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/flow-runs', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/sample-data/get": {
       "slug": "endpoints/sample-data/get",
@@ -6984,10 +8169,51 @@
       "group": "Sample Data",
       "title": "Get Sample Data",
       "sidebarTitle": "Get Sample Data",
-      "description": "",
+      "description": "Get Sample Data endpoint for Sample Data in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/sample-data\n```\n\n## Overview\n\nThe **Get Sample Data** endpoint (`GET /v1/sample-data`) allows you to manage Sample Data resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `flowId` | `string` | `query` | Yes | - |\n| `flowVersionId` | `string` | `query` | Yes | - |\n| `stepName` | `string` | `query` | Yes | - |\n| `projectId` | `string` | `query` | Yes | - |\n| `type` | `string` | `query` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/sample-data\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/sample-data', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/pieces/schema": {
       "slug": "endpoints/pieces/schema",
@@ -6995,10 +8221,31 @@
       "group": "Pieces",
       "title": "Piece Schema",
       "sidebarTitle": "Piece Schema",
-      "description": "",
+      "description": "Data model schema definition for piece in Anticeil",
       "icon": "cube",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `piece` schema defines the data attributes and type specifications of Pieces objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n| `id` | `string` | No | - |\n| `name` | `string` | Yes | - |\n| `displayName` | `string` | Yes | - |\n| `logoUrl` | `string` | Yes | - |\n| `description` | `string` | Yes | - |\n| `authors` | `string[]` | Yes | - |\n| `platformId` | `string` | No | - |\n| `directoryPath` | `string` | No | - |\n| `auth` | `array` | No | - |\n| `version` | `string` | Yes | - |\n| `categories` | `string[]` | No | - |\n| `minimumSupportedRelease` | `string` | No | - |\n| `maximumSupportedRelease` | `string` | No | - |\n| `i18n` | `object` | No | - |\n| `actions` | `object` | Yes | - |\n| `triggers` | `object` | Yes | - |\n\n## Example JSON Representation\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"name\": \"Sample Name\",\n  \"displayName\": \"Sample Displayname\",\n  \"logoUrl\": \"https://api.anticeil.com\",\n  \"description\": \"sample_description\",\n  \"authors\": \"sample_authors\",\n  \"platformId\": \"sample_platformId_123\",\n  \"directoryPath\": \"sample_directoryPath\",\n  \"auth\": \"sample_value\",\n  \"version\": \"sample_version\",\n  \"categories\": \"sample_categories\",\n  \"minimumSupportedRelease\": \"sample_minimumSupportedRelease\",\n  \"maximumSupportedRelease\": \"sample_maximumSupportedRelease\",\n  \"i18n\": {},\n  \"actions\": {},\n  \"triggers\": {}\n}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface Piece {\n\n  id?: string;\n\n  name: string;\n\n  displayName: string;\n\n  logoUrl: string;\n\n  description: string;\n\n  authors: string;\n\n  platformId?: string;\n\n  directoryPath?: string;\n\n  auth?: any;\n\n  version: string;\n\n  categories?: string;\n\n  minimumSupportedRelease?: string;\n\n  maximumSupportedRelease?: string;\n\n  i18n?: Record<string, any>;\n\n  actions: Record<string, any>;\n\n  triggers: Record<string, any>;\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/pieces/install": {
       "slug": "endpoints/pieces/install",
@@ -7006,10 +8253,46 @@
       "group": "Pieces",
       "title": "Install Piece",
       "sidebarTitle": "Install Piece",
-      "description": "",
+      "description": "Install Piece endpoint for Pieces in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/pieces\n```\n\n## Overview\n\nThe **Install Piece** endpoint (`POST /v1/pieces`) allows you to manage Pieces resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Responses\n\n### Status `201` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/pieces\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/pieces', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-201---default-response",
+          "title": "Status 201 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/project-releases/schema": {
       "slug": "endpoints/project-releases/schema",
@@ -7017,10 +8300,31 @@
       "group": "Project Releases",
       "title": "Project Release Schema",
       "sidebarTitle": "Project Release Schema",
-      "description": "",
+      "description": "Data model schema definition for project-release in Anticeil",
       "icon": "cube",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `project-release` schema defines the data attributes and type specifications of Project Releases objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n| `id` | `string` | Yes | - |\n| `created` | `string` | Yes | - |\n| `updated` | `string` | Yes | - |\n| `projectId` | `string` | Yes | - |\n| `name` | `string` | Yes | - |\n| `description` | `string | null` | No | - |\n| `importedBy` | `string | null` | No | - |\n| `fileId` | `string` | Yes | - |\n| `type` | `enum` | Yes | Enum: `GIT, PROJECT, ROLLBACK` |\n| `importedByUser` | `user` | No | - |\n\n## Example JSON Representation\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"projectId\": \"sample_projectId_123\",\n  \"name\": \"Sample Name\",\n  \"description\": \"sample_description\",\n  \"importedBy\": \"sample_importedBy\",\n  \"fileId\": \"sample_fileId_123\",\n  \"type\": \"GIT\",\n  \"importedByUser\": \"sample_value\"\n}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface ProjectRelease {\n\n  id: string;\n\n  created: string;\n\n  updated: string;\n\n  projectId: string;\n\n  name: string;\n\n  description?: string;\n\n  importedBy?: string;\n\n  fileId: string;\n\n  type: 'GIT' | 'PROJECT' | 'ROLLBACK';\n\n  importedByUser?: any;\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/project-releases/create": {
       "slug": "endpoints/project-releases/create",
@@ -7028,10 +8332,51 @@
       "group": "Project Releases",
       "title": "Create Project Release",
       "sidebarTitle": "Create Project Release",
-      "description": "",
+      "description": "Create Project Release endpoint for Project Releases in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/project-releases\n```\n\n## Overview\n\nThe **Create Project Release** endpoint (`POST /v1/project-releases`) allows you to manage Project Releases resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Responses\n\n### Status `201` - Default Response\n\nReturns data conforming to the [`project-release`](/docs/endpoints/project-releases/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"projectId\": \"sample_projectId_123\",\n  \"name\": \"Sample Name\",\n  \"description\": \"sample_description\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/project-releases\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/project-releases', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-201---default-response",
+          "title": "Status 201 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/global-connections/schema": {
       "slug": "endpoints/global-connections/schema",
@@ -7039,10 +8384,31 @@
       "group": "Global Connections",
       "title": "Global Connection Schema",
       "sidebarTitle": "Global Connection Schema",
-      "description": "",
+      "description": "Data model schema definition for global-connection in Anticeil",
       "icon": "cube",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `global-connection` schema defines the data attributes and type specifications of Global Connections objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n\n## Example JSON Representation\n\n```json\n{}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface GlobalConnection {\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/global-connections/upsert": {
       "slug": "endpoints/global-connections/upsert",
@@ -7050,10 +8416,51 @@
       "group": "Global Connections",
       "title": "Upsert Global Connection",
       "sidebarTitle": "Upsert Global Connection",
-      "description": "",
+      "description": "Upsert Global Connection endpoint for Global Connections in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/global-connections\n```\n\n## Overview\n\nThe **Upsert Global Connection** endpoint (`POST /v1/global-connections`) allows you to manage Global Connections resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Responses\n\n### Status `201` - Default Response\n\nReturns data conforming to the [`app-connection`](/docs/endpoints/global-connections/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"externalId\": \"sample_externalId_123\",\n  \"displayName\": \"Sample Displayname\",\n  \"type\": \"OAUTH2\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/global-connections\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/global-connections', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-201---default-response",
+          "title": "Status 201 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/global-connections/update": {
       "slug": "endpoints/global-connections/update",
@@ -7061,10 +8468,61 @@
       "group": "Global Connections",
       "title": "Update Global Connection",
       "sidebarTitle": "Update Global Connection",
-      "description": "",
+      "description": "Update Global Connection endpoint for Global Connections in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/global-connections/{id}\n```\n\n## Overview\n\nThe **Update Global Connection** endpoint (`POST /v1/global-connections/{id}`) allows you to manage Global Connections resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Request Body\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n| `displayName` | `string` | Yes | - |\n| `projectIds` | `string[]` | No | - |\n| `metadata` | `object` | No | - |\n| `preSelectForNewProjects` | `boolean` | No | - |\n\n### Example Payload JSON\n\n```json\n{\n  \"displayName\": \"Sample Displayname\",\n  \"projectIds\": \"sample_projectIds_123\",\n  \"metadata\": {},\n  \"preSelectForNewProjects\": true\n}\n```\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/global-connections/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n      \"displayName\": \"Sample Displayname\",\n      \"projectIds\": \"sample_projectIds_123\",\n      \"metadata\": {}\n    }'\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/global-connections/{id}', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n        \"displayName\": \"Sample Displayname\",\n        \"projectIds\": \"sample_projectIds_123\",\n        \"metadata\": {}\n  }),\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "request-body",
+          "title": "Request Body",
+          "level": 2
+        },
+        {
+          "id": "example-payload-json",
+          "title": "Example Payload JSON",
+          "level": 3
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/global-connections/list": {
       "slug": "endpoints/global-connections/list",
@@ -7072,10 +8530,56 @@
       "group": "Global Connections",
       "title": "List Global Connections",
       "sidebarTitle": "List Global Connections",
-      "description": "",
+      "description": "List Global Connections endpoint for Global Connections in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/global-connections\n```\n\n## Overview\n\nThe **List Global Connections** endpoint (`GET /v1/global-connections`) allows you to manage Global Connections resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `cursor` | `string` | `query` | No | - |\n| `scope` | `string` | `query` | No | - |\n| `pieceName` | `string` | `query` | No | - |\n| `displayName` | `string` | `query` | No | - |\n| `status` | `array` | `query` | Yes | - |\n| `limit` | `number` | `query` | No | - |\n\n## Responses\n\n### Status `200` - Default Response\n\nReturns data conforming to the [`app-connection`](/docs/endpoints/global-connections/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"externalId\": \"sample_externalId_123\",\n  \"displayName\": \"Sample Displayname\",\n  \"type\": \"OAUTH2\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/global-connections\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/global-connections', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/global-connections/delete": {
       "slug": "endpoints/global-connections/delete",
@@ -7083,10 +8587,51 @@
       "group": "Global Connections",
       "title": "Delete Global Connection",
       "sidebarTitle": "Delete Global Connection",
-      "description": "",
+      "description": "Delete Global Connection endpoint for Global Connections in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nDELETE /v1/global-connections/{id}\n```\n\n## Overview\n\nThe **Delete Global Connection** endpoint (`DELETE /v1/global-connections/{id}`) allows you to manage Global Connections resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `204` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X DELETE \"https://api.anticeil.com/v1/global-connections/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/global-connections/{id}', {\n  method: 'DELETE',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-204---default-response",
+          "title": "Status 204 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/git-repos/schema": {
       "slug": "endpoints/git-repos/schema",
@@ -7094,10 +8639,31 @@
       "group": "Git Sync",
       "title": "Git Repos Schema",
       "sidebarTitle": "Git Repos Schema",
-      "description": "",
+      "description": "Data model schema definition for git-repo in Anticeil",
       "icon": "cube",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `git-repo` schema defines the data attributes and type specifications of Git Repositories objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n| `id` | `string` | Yes | - |\n| `created` | `string` | Yes | - |\n| `updated` | `string` | Yes | - |\n| `remoteUrl` | `string` | Yes | - |\n| `branch` | `string` | Yes | - |\n| `branchType` | `enum` | Yes | Enum: `PRODUCTION, DEVELOPMENT` |\n| `projectId` | `string` | Yes | - |\n| `slug` | `string` | Yes | - |\n\n## Example JSON Representation\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"remoteUrl\": \"https://api.anticeil.com\",\n  \"branch\": \"sample_branch\",\n  \"branchType\": \"PRODUCTION\",\n  \"projectId\": \"sample_projectId_123\",\n  \"slug\": \"sample_slug\"\n}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface GitRepo {\n\n  id: string;\n\n  created: string;\n\n  updated: string;\n\n  remoteUrl: string;\n\n  branch: string;\n\n  branchType: 'PRODUCTION' | 'DEVELOPMENT';\n\n  projectId: string;\n\n  slug: string;\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/git-repos/configure": {
       "slug": "endpoints/git-repos/configure",
@@ -7105,10 +8671,61 @@
       "group": "Git Sync",
       "title": "Configure",
       "sidebarTitle": "Configure",
-      "description": "",
+      "description": "Configure endpoint for Git Repositories in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/git-repos\n```\n\n## Overview\n\nThe **Configure** endpoint (`POST /v1/git-repos`) allows you to manage Git Repositories resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Body\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n| `projectId` | `string` | Yes | - |\n| `remoteUrl` | `string` | Yes | - |\n| `branch` | `string` | Yes | - |\n| `branchType` | `enum` | Yes | Enum: `PRODUCTION, DEVELOPMENT` |\n| `sshPrivateKey` | `string` | Yes | - |\n| `slug` | `string` | Yes | - |\n\n### Example Payload JSON\n\n```json\n{\n  \"projectId\": \"sample_projectId_123\",\n  \"remoteUrl\": \"https://api.anticeil.com\",\n  \"branch\": \"sample_branch\",\n  \"branchType\": \"PRODUCTION\",\n  \"sshPrivateKey\": \"sample_sshPrivateKey\",\n  \"slug\": \"sample_slug\"\n}\n```\n\n## Responses\n\n### Status `201` - Default Response\n\nReturns data conforming to the [`git-repo`](/docs/endpoints/git-repos/schema) schema.\n\n### Example Response Format\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"remoteUrl\": \"https://api.anticeil.com\",\n  \"branch\": \"sample_branch\",\n  \"branchType\": \"PRODUCTION\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/git-repos\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n      \"projectId\": \"sample_projectId_123\",\n      \"remoteUrl\": \"https://api.anticeil.com\",\n      \"branch\": \"sample_branch\"\n    }'\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/git-repos', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n        \"projectId\": \"sample_projectId_123\",\n        \"remoteUrl\": \"https://api.anticeil.com\",\n        \"branch\": \"sample_branch\"\n  }),\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-body",
+          "title": "Request Body",
+          "level": 2
+        },
+        {
+          "id": "example-payload-json",
+          "title": "Example Payload JSON",
+          "level": 3
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-201---default-response",
+          "title": "Status 201 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/folders/schema": {
       "slug": "endpoints/folders/schema",
@@ -7116,10 +8733,31 @@
       "group": "Folders",
       "title": "Folder Schema",
       "sidebarTitle": "Folder Schema",
-      "description": "",
+      "description": "Data model schema definition for folder in Anticeil",
       "icon": "cube",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `folder` schema defines the data attributes and type specifications of Folders objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n| `id` | `string` | Yes | - |\n| `created` | `string` | Yes | - |\n| `updated` | `string` | Yes | - |\n| `projectId` | `string` | Yes | - |\n| `displayName` | `string` | Yes | - |\n| `displayOrder` | `number` | Yes | - |\n\n## Example JSON Representation\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"projectId\": \"sample_projectId_123\",\n  \"displayName\": \"Sample Displayname\",\n  \"displayOrder\": 1\n}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface Folder {\n\n  id: string;\n\n  created: string;\n\n  updated: string;\n\n  projectId: string;\n\n  displayName: string;\n\n  displayOrder: number;\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/folders/create": {
       "slug": "endpoints/folders/create",
@@ -7127,10 +8765,56 @@
       "group": "Folders",
       "title": "Create Folder",
       "sidebarTitle": "Create Folder",
-      "description": "",
+      "description": "Create Folder endpoint for Folders in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/folders\n```\n\n## Overview\n\nThe **Create Folder** endpoint (`POST /v1/folders`) allows you to manage Folders resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Body\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n| `displayName` | `string` | Yes | - |\n| `projectId` | `string` | Yes | - |\n\n### Example Payload JSON\n\n```json\n{\n  \"displayName\": \"Sample Displayname\",\n  \"projectId\": \"sample_projectId_123\"\n}\n```\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/folders\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n      \"displayName\": \"Sample Displayname\",\n      \"projectId\": \"sample_projectId_123\"\n    }'\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/folders', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n        \"displayName\": \"Sample Displayname\",\n        \"projectId\": \"sample_projectId_123\"\n  }),\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-body",
+          "title": "Request Body",
+          "level": 2
+        },
+        {
+          "id": "example-payload-json",
+          "title": "Example Payload JSON",
+          "level": 3
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/folders/update": {
       "slug": "endpoints/folders/update",
@@ -7138,10 +8822,61 @@
       "group": "Folders",
       "title": "Update Folder",
       "sidebarTitle": "Update Folder",
-      "description": "",
+      "description": "Update Folder endpoint for Folders in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/folders/{id}\n```\n\n## Overview\n\nThe **Update Folder** endpoint (`POST /v1/folders/{id}`) allows you to manage Folders resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Request Body\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n| `displayName` | `string` | Yes | - |\n\n### Example Payload JSON\n\n```json\n{\n  \"displayName\": \"Sample Displayname\"\n}\n```\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/folders/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n      \"displayName\": \"Sample Displayname\"\n    }'\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/folders/{id}', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n        \"displayName\": \"Sample Displayname\"\n  }),\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "request-body",
+          "title": "Request Body",
+          "level": 2
+        },
+        {
+          "id": "example-payload-json",
+          "title": "Example Payload JSON",
+          "level": 3
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/folders/get": {
       "slug": "endpoints/folders/get",
@@ -7149,10 +8884,51 @@
       "group": "Folders",
       "title": "Get Folder",
       "sidebarTitle": "Get Folder",
-      "description": "",
+      "description": "Get Folder endpoint for Folders in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/folders/{id}\n```\n\n## Overview\n\nThe **Get Folder** endpoint (`GET /v1/folders/{id}`) allows you to manage Folders resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/folders/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/folders/{id}', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/folders/list": {
       "slug": "endpoints/folders/list",
@@ -7160,10 +8936,51 @@
       "group": "Folders",
       "title": "List Folders",
       "sidebarTitle": "List Folders",
-      "description": "",
+      "description": "List Folders endpoint for Folders in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/folders\n```\n\n## Overview\n\nThe **List Folders** endpoint (`GET /v1/folders`) allows you to manage Folders resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `limit` | `number` | `query` | No | - |\n| `cursor` | `string` | `query` | No | - |\n| `projectId` | `string` | `query` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/folders\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/folders', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/folders/delete": {
       "slug": "endpoints/folders/delete",
@@ -7171,10 +8988,51 @@
       "group": "Folders",
       "title": "Delete Folder",
       "sidebarTitle": "Delete Folder",
-      "description": "",
+      "description": "Delete Folder endpoint for Folders in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nDELETE /v1/folders/{id}\n```\n\n## Overview\n\nThe **Delete Folder** endpoint (`DELETE /v1/folders/{id}`) allows you to manage Folders resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X DELETE \"https://api.anticeil.com/v1/folders/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/folders/{id}', {\n  method: 'DELETE',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/templates/schema": {
       "slug": "endpoints/templates/schema",
@@ -7182,10 +9040,31 @@
       "group": "Templates",
       "title": "Template Schema",
       "sidebarTitle": "Template Schema",
-      "description": "",
+      "description": "Data model schema definition for template in Anticeil",
       "icon": "cube",
-      "body": "",
-      "toc": []
+      "body": "## Overview\n\nThe `template` schema defines the data attributes and type specifications of Templates objects returned or processed by the Anticeil Platform API.\n\n## Object Properties\n\n| Property | Type | Required | Description / Enum Values |\n| --- | --- | --- | --- |\n| `id` | `string` | Yes | - |\n| `created` | `string` | Yes | - |\n| `updated` | `string` | Yes | - |\n| `name` | `string` | Yes | - |\n| `type` | `enum` | Yes | Enum: `OFFICIAL, SHARED, CUSTOM` |\n| `summary` | `string` | Yes | - |\n| `description` | `string` | Yes | - |\n| `tags` | `object[]` | Yes | - |\n| `blogUrl` | `string | null` | No | - |\n| `metadata` | `object | null` | No | - |\n| `author` | `string` | Yes | - |\n| `categories` | `string[]` | Yes | - |\n| `pieces` | `string[]` | Yes | - |\n| `platformId` | `string | null` | No | - |\n| `flows` | `object[]` | No | - |\n| `tables` | `object[]` | No | - |\n| `status` | `enum` | Yes | Enum: `PUBLISHED, ARCHIVED` |\n\n## Example JSON Representation\n\n```json\n{\n  \"id\": \"sample_id_123\",\n  \"created\": \"2026-10-10T12:00:00.000Z\",\n  \"updated\": \"2026-10-10T12:00:00.000Z\",\n  \"name\": \"Sample Name\",\n  \"type\": \"OFFICIAL\",\n  \"summary\": \"sample_summary\",\n  \"description\": \"sample_description\",\n  \"tags\": [],\n  \"blogUrl\": \"https://api.anticeil.com\",\n  \"metadata\": \"sample_value\",\n  \"author\": \"sample_author\",\n  \"categories\": \"sample_categories\",\n  \"pieces\": \"sample_pieces\",\n  \"platformId\": \"sample_platformId_123\",\n  \"flows\": [],\n  \"tables\": [],\n  \"status\": \"PUBLISHED\"\n}\n```\n\n## TypeScript Interface Definition\n\n```typescript\nexport interface Template {\n\n  id: string;\n\n  created: string;\n\n  updated: string;\n\n  name: string;\n\n  type: 'OFFICIAL' | 'SHARED' | 'CUSTOM';\n\n  summary: string;\n\n  description: string;\n\n  tags: any[];\n\n  blogUrl?: string;\n\n  metadata?: any;\n\n  author: string;\n\n  categories: string;\n\n  pieces: string;\n\n  platformId?: string;\n\n  flows?: any[];\n\n  tables?: any[];\n\n  status: 'PUBLISHED' | 'ARCHIVED';\n\n}\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "object-properties",
+          "title": "Object Properties",
+          "level": 2
+        },
+        {
+          "id": "example-json-representation",
+          "title": "Example JSON Representation",
+          "level": 2
+        },
+        {
+          "id": "typescript-interface-definition",
+          "title": "TypeScript Interface Definition",
+          "level": 2
+        }
+      ]
     },
     "endpoints/templates/create": {
       "slug": "endpoints/templates/create",
@@ -7193,10 +9072,56 @@
       "group": "Templates",
       "title": "Create Template",
       "sidebarTitle": "Create Template",
-      "description": "",
+      "description": "Create Template endpoint for Templates in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/templates\n```\n\n## Overview\n\nThe **Create Template** endpoint (`POST /v1/templates`) allows you to manage Templates resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Body\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n| `name` | `string` | Yes | - |\n| `summary` | `string` | Yes | - |\n| `description` | `string` | Yes | - |\n| `tags` | `object[]` | No | - |\n| `blogUrl` | `string` | No | - |\n| `metadata` | `object | null` | No | - |\n| `author` | `string` | Yes | - |\n| `categories` | `string[]` | Yes | - |\n| `type` | `enum` | Yes | Enum: `OFFICIAL, SHARED, CUSTOM` |\n| `flows` | `object[]` | No | - |\n\n### Example Payload JSON\n\n```json\n{\n  \"name\": \"Sample Name\",\n  \"summary\": \"sample_summary\",\n  \"description\": \"sample_description\",\n  \"tags\": [],\n  \"blogUrl\": \"https://api.anticeil.com\",\n  \"metadata\": \"sample_value\",\n  \"author\": \"sample_author\",\n  \"categories\": \"sample_categories\",\n  \"type\": \"OFFICIAL\",\n  \"flows\": []\n}\n```\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/templates\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n      \"name\": \"Sample Name\",\n      \"summary\": \"sample_summary\",\n      \"description\": \"sample_description\"\n    }'\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/templates', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n        \"name\": \"Sample Name\",\n        \"summary\": \"sample_summary\",\n        \"description\": \"sample_description\"\n  }),\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-body",
+          "title": "Request Body",
+          "level": 2
+        },
+        {
+          "id": "example-payload-json",
+          "title": "Example Payload JSON",
+          "level": 3
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/templates/delete": {
       "slug": "endpoints/templates/delete",
@@ -7204,10 +9129,51 @@
       "group": "Templates",
       "title": "Delete Template",
       "sidebarTitle": "Delete Template",
-      "description": "",
+      "description": "Delete Template endpoint for Templates in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nDELETE /v1/templates/{id}\n```\n\n## Overview\n\nThe **Delete Template** endpoint (`DELETE /v1/templates/{id}`) allows you to manage Templates resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X DELETE \"https://api.anticeil.com/v1/templates/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/templates/{id}', {\n  method: 'DELETE',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/templates/get": {
       "slug": "endpoints/templates/get",
@@ -7215,10 +9181,51 @@
       "group": "Templates",
       "title": "Get Template",
       "sidebarTitle": "Get Template",
-      "description": "",
+      "description": "Get Template endpoint for Templates in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/templates/{id}\n```\n\n## Overview\n\nThe **Get Template** endpoint (`GET /v1/templates/{id}`) allows you to manage Templates resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `id` | `string` | `path` | Yes | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/templates/{id}\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/templates/{id}', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/templates/list": {
       "slug": "endpoints/templates/list",
@@ -7226,10 +9233,51 @@
       "group": "Templates",
       "title": "List Templates",
       "sidebarTitle": "List Templates",
-      "description": "",
+      "description": "List Templates endpoint for Templates in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/templates\n```\n\n## Overview\n\nThe **List Templates** endpoint (`GET /v1/templates`) allows you to manage Templates resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Parameters\n\n| Parameter | Type | In | Required | Description |\n| --- | --- | --- | --- | --- |\n| `type` | `string` | `query` | No | - |\n| `pieces` | `array` | `query` | Yes | - |\n| `tags` | `array` | `query` | Yes | - |\n| `search` | `string` | `query` | No | - |\n| `category` | `string` | `query` | No | - |\n\n## Responses\n\n### Status `200` - Default Response\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/templates\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/templates', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-parameters",
+          "title": "Request Parameters",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/worker-machines/queue-metrics": {
       "slug": "endpoints/worker-machines/queue-metrics",
@@ -7237,10 +9285,51 @@
       "group": "Worker Machines",
       "title": "Queue Metrics",
       "sidebarTitle": "Queue Metrics",
-      "description": "",
+      "description": "Queue Metrics endpoint for Worker Machines in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nGET /v1/worker-machines/queue-metrics\n```\n\n## Overview\n\nThe **Queue Metrics** endpoint (`GET /v1/worker-machines/queue-metrics`) allows you to manage Worker Machines resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Responses\n\n### Status `200` - Default Response\n\n### Example Response Format\n\n```json\n{\n  \"queues\": []\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X GET \"https://api.anticeil.com/v1/worker-machines/queue-metrics\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\"\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/worker-machines/queue-metrics', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n  },\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "endpoints/embedding/add-allowed-embed-origins": {
       "slug": "endpoints/embedding/add-allowed-embed-origins",
@@ -7248,10 +9337,61 @@
       "group": "Embedding",
       "title": "Add allowed embed origins",
       "sidebarTitle": "Add allowed embed origins",
-      "description": "",
+      "description": "Add allowed embed origins endpoint for Embedding in Anticeil Platform API",
       "icon": "",
-      "body": "",
-      "toc": []
+      "body": "```http\nPOST /v1/embed-subdomain/allowed-embed-origins\n```\n\n## Overview\n\nThe **Add allowed embed origins** endpoint (`POST /v1/embed-subdomain/allowed-embed-origins`) allows you to manage Embedding resources programmatically via the Anticeil Platform API.\n\n## Authentication\n\nInclude your API Key in the `Authorization` request header using the Bearer scheme:\n\n```bash\nAuthorization: Bearer <YOUR_API_KEY>\n```\n\n## Request Body\n\n| Field | Type | Required | Description |\n| --- | --- | --- | --- |\n| `allowedEmbedOrigins` | `string[]` | Yes | - |\n\n### Example Payload JSON\n\n```json\n{\n  \"allowedEmbedOrigins\": \"sample_allowedEmbedOrigins\"\n}\n```\n\n## Responses\n\n### Status `200` - Default Response\n\n### Example Response Format\n\n```json\n{\n  \"allowedEmbedOrigins\": \"sample_allowedEmbedOrigins\"\n}\n```\n\n## Code Examples\n\n### cURL\n\n```bash\ncurl -X POST \"https://api.anticeil.com/v1/embed-subdomain/allowed-embed-origins\" \\\n  -H \"Authorization: Bearer $ANTICEIL_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n      \"allowedEmbedOrigins\": \"sample_allowedEmbedOrigins\"\n    }'\n```\n\n### JavaScript (Fetch)\n\n```javascript\nconst response = await fetch('https://api.anticeil.com/v1/embed-subdomain/allowed-embed-origins', {\n  method: 'POST',\n  headers: {\n    'Authorization': `Bearer ${process.env.ANTICEIL_API_KEY}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n        \"allowedEmbedOrigins\": \"sample_allowedEmbedOrigins\"\n  }),\n});\nconst data = await response.json();\nconsole.log(data);\n```\n",
+      "toc": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2
+        },
+        {
+          "id": "authentication",
+          "title": "Authentication",
+          "level": 2
+        },
+        {
+          "id": "request-body",
+          "title": "Request Body",
+          "level": 2
+        },
+        {
+          "id": "example-payload-json",
+          "title": "Example Payload JSON",
+          "level": 3
+        },
+        {
+          "id": "responses",
+          "title": "Responses",
+          "level": 2
+        },
+        {
+          "id": "status-200---default-response",
+          "title": "Status 200 - Default Response",
+          "level": 3
+        },
+        {
+          "id": "example-response-format",
+          "title": "Example Response Format",
+          "level": 3
+        },
+        {
+          "id": "code-examples",
+          "title": "Code Examples",
+          "level": 2
+        },
+        {
+          "id": "curl",
+          "title": "cURL",
+          "level": 3
+        },
+        {
+          "id": "javascript-fetch",
+          "title": "JavaScript (Fetch)",
+          "level": 3
+        }
+      ]
     },
     "admin-guide/guides/scim/overview": {
       "slug": "admin-guide/guides/scim/overview",
