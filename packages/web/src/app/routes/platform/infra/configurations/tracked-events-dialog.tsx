@@ -18,7 +18,7 @@ import {
 } from './tracked-events-catalog';
 
 const TELEMETRY_DOCS_URL =
-  'https://www.activepieces.com/docs/install/configure-operate/telemetry';
+  '/docs/install/configure-operate/telemetry';
 
 export const TrackedEventsDialog = () => {
   const groups = trackedEventsCatalog.buildGroups();

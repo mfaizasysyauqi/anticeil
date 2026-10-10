@@ -33,7 +33,7 @@ import { PageBand } from '../page-band';
 
 import { buildGrantsColumns } from './grants-columns';
 
-const DOCS_URL = 'https://www.activepieces.com/docs/mcp/overview';
+const DOCS_URL = '/docs/mcp/overview';
 const DEFAULT_PAGE_SIZE = 10;
 
 export function GrantsTab() {

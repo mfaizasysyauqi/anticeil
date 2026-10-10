@@ -15,7 +15,7 @@ import { platformHooks } from '@/hooks/platform-hooks';
 import { LockedFeatureGuard } from './locked-feature-guard';
 
 const LOCK_DOCUMENTATION_URL =
-  'https://www.activepieces.com/docs/install/configuration/overview#enterprise-edition-optional';
+  '/docs/install/configuration/overview#enterprise-edition-optional';
 
 export function BillingPageShell({
   lockTitle,

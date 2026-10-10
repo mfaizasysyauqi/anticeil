@@ -28,6 +28,12 @@ export const LockedFeatureGuard = ({
     return <>{children}</>;
   }
 
+  const resolvedDocsUrl = lockDocumentationUrl
+    ? lockDocumentationUrl.includes('activepieces.com/docs/')
+      ? `/docs/${lockDocumentationUrl.split('activepieces.com/docs/')[1].replace(/\/$/, '')}`
+      : lockDocumentationUrl
+    : undefined;
+
   return (
     <div className="flex flex-1 h-full w-full flex-col items-center justify-center p-6 text-center my-auto">
       <div className="flex flex-col gap-3 justify-center items-center max-w-xl text-center">
@@ -39,11 +45,11 @@ export const LockedFeatureGuard = ({
         {lockDescription && (
           <p className="text-base text-muted-foreground max-w-md text-center leading-relaxed">
             {lockDescription}
-            {lockDocumentationUrl && (
+            {resolvedDocsUrl && (
               <>
                 {' '}
                 <a
-                  href={lockDocumentationUrl}
+                  href={resolvedDocsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary underline"

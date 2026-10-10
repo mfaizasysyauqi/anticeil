@@ -83,7 +83,7 @@ export default function WorkersPage() {
         lockDescription={t(
           'Reserve dedicated worker capacity for specific projects so a busy project never slows down the rest',
         )}
-        lockDocumentationUrl="https://www.activepieces.com/docs/install/configure-operate/worker-groups"
+        lockDocumentationUrl="/docs/install/configure-operate/worker-groups"
       >
         <div className="flex flex-col flex-1 h-full w-full gap-4 px-4">
           <DashboardPageHeader
