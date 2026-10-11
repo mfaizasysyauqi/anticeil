@@ -180,15 +180,7 @@ export function PrimaryRail() {
                 isActive={({ pathname }) => pathname.startsWith('/impact')}
               />
             )}
-            {isPlatformAdmin && (
-              <RailNavButton
-                collapsed={collapsed}
-                to="/platform/projects"
-                icon={ShieldCheck}
-                label={t('Platform Admin')}
-                isActive={({ pathname }) => pathname.startsWith('/platform')}
-              />
-            )}
+
           </div>
           {authenticationSession.isLoggedIn() && (
             <RailPinnedProjects collapsed={collapsed} />
@@ -299,16 +291,7 @@ export function MobilePrimaryRailSheet({
                   onClick={handleNavigate}
                 />
               )}
-              {isPlatformAdmin && (
-                <RailNavButton
-                  collapsed={false}
-                  to="/platform/projects"
-                  icon={ShieldCheck}
-                  label={t('Platform Admin')}
-                  isActive={({ pathname }) => pathname.startsWith('/platform')}
-                  onClick={handleNavigate}
-                />
-              )}
+
             </div>
             <RailPinnedProjects collapsed={false} />
           </div>
@@ -863,11 +846,7 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
                       disableTooltip={true}
                     />
                   </div>
-                  {isPlatformAdmin && (
-                    <span className="absolute -bottom-0.5 -right-0.5 flex size-[10px] items-center justify-center rounded-full bg-primary text-primary-foreground">
-                      <ShieldCheck className="size-[7px]" />
-                    </span>
-                  )}
+
                 </div>
                 {!collapsed && (
                   <span className="min-w-0 flex-1 truncate text-left text-sm">
@@ -913,11 +892,8 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
           <DropdownMenuGroup>
             {isPlatformAdmin && (
               <DropdownMenuItem onClick={() => navigate('/platform/projects')}>
-                <ShieldCheck className="w-4 h-4 mr-2 text-primary" />
+                <ShieldCheck className="w-4 h-4 mr-2" />
                 <span className="flex-1">{t('Platform Admin')}</span>
-                <span className="ml-auto text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                  Admin
-                </span>
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onClick={() => setAccountSettingsOpen(true)}>
