@@ -299,7 +299,7 @@ export const midtransBillingProvider = (log: FastifyBaseLogger): BillingProvider
         return
     },
     isBillingEnforced: async () => {
-        return false
+        return true
     },
     shouldBlockOnCredits: async () => {
         return false

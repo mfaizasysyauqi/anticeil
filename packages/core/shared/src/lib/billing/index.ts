@@ -72,6 +72,7 @@ export type CancelSubscriptionRequest = z.infer<typeof CancelSubscriptionRequest
 
 export const AUTUMN_FREE_PLAN: PlatformPlanWithOnlyLimits = {
     plan: 'free',
+    usersLimit: 1,
     tablesEnabled: true,
     eventStreamingEnabled: false,
     includedCredits: 1000,
@@ -104,6 +105,7 @@ export const AUTUMN_FREE_PLAN: PlatformPlanWithOnlyLimits = {
 
 export const OPEN_SOURCE_PLAN: PlatformPlanWithOnlyLimits = {
     plan: 'free',
+    usersLimit: 1,
     tablesEnabled: true,
     embeddingEnabled: false,
     aiProvidersEnabled: false,

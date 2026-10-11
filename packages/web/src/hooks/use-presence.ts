@@ -6,15 +6,20 @@ import {
 } from '@activepieces/shared';
 import { useEffect, useState } from 'react';
 
-import { useSocket } from '@/components/providers/socket-provider';
+import { useRealtimeCollaboration } from '@/components/providers/socket-provider';
 import { authenticationSession } from '@/lib/authentication-session';
 
 function usePresence({ resourceId }: { resourceId: string }): PresenceUser[] {
-  const socket = useSocket();
+  const { socket, isPlanPlusOrAbove } = useRealtimeCollaboration();
   const currentUserId = authenticationSession.getCurrentUserId();
   const [activeUsers, setActiveUsers] = useState<PresenceUser[]>([]);
 
   useEffect(() => {
+    if (!isPlanPlusOrAbove || !resourceId) {
+      setActiveUsers([]);
+      return;
+    }
+
     const handlePresenceUpdated = (event: PresenceUpdatedEvent) => {
       if (event.resourceId === resourceId) {
         setActiveUsers(event.users.filter((u) => u.userId !== currentUserId));
@@ -26,28 +31,38 @@ function usePresence({ resourceId }: { resourceId: string }): PresenceUser[] {
     return () => {
       socket.off(WebsocketClientEvent.PRESENCE_UPDATED, handlePresenceUpdated);
     };
-  }, [resourceId, socket, currentUserId]);
+  }, [resourceId, socket, currentUserId, isPlanPlusOrAbove]);
 
   useEffect(() => {
+    if (!isPlanPlusOrAbove || !resourceId || !socket.connected) {
+      return;
+    }
+
     socket.emit(
       WebsocketServerEvent.JOIN_PRESENCE,
       { resourceId },
       (response: { users: PresenceUser[] }) => {
-        setActiveUsers(
-          response.users.filter((u) => u.userId !== currentUserId),
-        );
+        if (response?.users) {
+          setActiveUsers(
+            response.users.filter((u) => u.userId !== currentUserId),
+          );
+        }
       },
     );
 
     const heartbeat = setInterval(() => {
-      socket.emit(WebsocketServerEvent.JOIN_PRESENCE, { resourceId });
+      if (socket.connected) {
+        socket.emit(WebsocketServerEvent.JOIN_PRESENCE, { resourceId });
+      }
     }, 30_000);
 
     return () => {
       clearInterval(heartbeat);
-      socket.emit(WebsocketServerEvent.LEAVE_PRESENCE, { resourceId });
+      if (socket.connected) {
+        socket.emit(WebsocketServerEvent.LEAVE_PRESENCE, { resourceId });
+      }
     };
-  }, [resourceId, socket, currentUserId]);
+  }, [resourceId, socket, currentUserId, isPlanPlusOrAbove]);
 
   return activeUsers;
 }

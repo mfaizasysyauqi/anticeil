@@ -1,8 +1,10 @@
 import { isNil } from '@activepieces/core-utils'
-import { PresenceRequest, PrincipalType, WebsocketClientEvent, WebsocketServerEvent } from '@activepieces/shared'
+import { CursorMoveRequest, PresenceRequest, PrincipalType, WebsocketClientEvent, WebsocketServerEvent } from '@activepieces/shared'
 import { FastifyInstance } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { userService } from '../../../user/user-service'
+import { projectService } from '../../../project/project-service'
+import { platformPlanService } from '../../../billing/platform-plan.service'
 import { websocketService } from '../../websockets.service'
 import { collaborativeResource } from '../collaborative-resource'
 import { presenceService } from './presence.service'
@@ -73,9 +75,55 @@ export const presenceModule: FastifyPluginAsyncZod = async (app) => {
                     resourceId,
                     users,
                 })
+
+                // Also clear cursor when leaving resource
+                socket.to(projectId).emit(WebsocketClientEvent.CURSOR_UPDATED, {
+                    resourceId,
+                    userId: principal.id,
+                    userDisplayName: '',
+                    x: null,
+                    y: null,
+                })
             }
             catch (error) {
                 app.log.error({ error }, '[LEAVE_PRESENCE] Failed to leave presence')
+            }
+        }
+    })
+
+    websocketService.addListener(PrincipalType.USER, WebsocketServerEvent.MOVE_CURSOR, (socket) => {
+        return async (data: unknown, principal, projectId) => {
+            const request = CursorMoveRequest.safeParse(data)
+            if (!request.success) {
+                return
+            }
+            const { resourceId, x, y, selectedStep } = request.data
+            try {
+                // Ensure project's platform is on Plan Plus or above
+                const project = await projectService(app.log).getOneOrThrow(projectId)
+                const platformPlan = await platformPlanService(app.log).getOrCreateForPlatform(project.platformId)
+                const isPlanPlusOrAbove = platformPlan.plan && platformPlan.plan !== 'free' && platformPlan.plan !== 'free_legacy'
+                if (!isPlanPlusOrAbove) {
+                    return
+                }
+
+                const user = await userService(app.log).getMetaInformation({ id: principal.id })
+                const displayName = `${user.firstName} ${user.lastName}`
+
+                // Broadcast cursor position and selected step to other collaborators in the project room
+                socket.to(projectId).emit(WebsocketClientEvent.CURSOR_UPDATED, {
+                    resourceId,
+                    userId: principal.id,
+                    userDisplayName: displayName,
+                    userEmail: user.email,
+                    userImageUrl: user.imageUrl ?? null,
+                    x,
+                    y,
+                    selectedStep: selectedStep ?? null,
+                })
+            }
+            catch (error) {
+                app.log.error({ error }, '[MOVE_CURSOR] Failed to broadcast cursor')
             }
         }
     })
@@ -98,6 +146,14 @@ function registerPresenceDisconnectHandler({ socket, userId, projectId, app }: R
             websocketService.to(projectId).emit(WebsocketClientEvent.PRESENCE_UPDATED, {
                 resourceId: presenceResourceId,
                 users,
+            })
+            // Clear cursor position for disconnected user
+            websocketService.to(projectId).emit(WebsocketClientEvent.CURSOR_UPDATED, {
+                resourceId: presenceResourceId,
+                userId,
+                userDisplayName: '',
+                x: null,
+                y: null,
             })
         }
     })

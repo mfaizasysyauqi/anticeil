@@ -138,8 +138,28 @@ export const platformPlanService = (log: FastifyBaseLogger) => ({
     checkActiveFlowsExceededLimit: async (_platformId: string): Promise<void> => {
         return
     },
-    checkUsersExceededLimit: async (_params: CheckUsersExceededLimitParams): Promise<void> => {
-        return
+    checkUsersExceededLimit: async ({ platformId, entityManager, additionalSeatsNeeded = 1 }: CheckUsersExceededLimitParams): Promise<void> => {
+        const platformPlan = await platformPlanRepo().findOneBy({ platformId })
+        const planName = (platformPlan?.plan || 'free').toLowerCase()
+        const isEnterprise = planName.includes('enterprise')
+        const isTeam = planName.includes('team')
+        const isPlus = planName.includes('plus')
+        const effectiveLimit = platformPlan?.usersLimit ?? (isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)))
+
+        if (isNil(effectiveLimit)) {
+            return
+        }
+
+        const { usedSeats } = await countUsedSeats({ platformId, log, entityManager })
+        if (usedSeats + additionalSeatsNeeded > effectiveLimit) {
+            throw new ActivepiecesError({
+                code: ErrorCode.QUOTA_EXCEEDED,
+                params: {
+                    metric: PlatformUsageMetric.USERS,
+                    message: `Plan seat limit exceeded (${usedSeats}/${effectiveLimit}). Upgrade your plan to add more members.`,
+                },
+            })
+        }
     },
     async getAutumnCredentials(platformId: string): Promise<AutumnCredentials> {
         const platformPlan = await platformPlanRepo().findOneByOrFail({ platformId })

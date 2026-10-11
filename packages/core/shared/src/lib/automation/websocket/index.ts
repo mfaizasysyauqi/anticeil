@@ -12,6 +12,7 @@ export enum WebsocketClientEvent {
     RESOURCE_LOCKED = 'RESOURCE_LOCKED',
     RESOURCE_UNLOCKED = 'RESOURCE_UNLOCKED',
     PRESENCE_UPDATED = 'PRESENCE_UPDATED',
+    CURSOR_UPDATED = 'CURSOR_UPDATED',
     CHAT_MESSAGE_CHUNK = 'CHAT_MESSAGE_CHUNK',
     CHAT_PERSONALIZATION_PROGRESS = 'CHAT_PERSONALIZATION_PROGRESS',
 }
@@ -30,6 +31,7 @@ export enum WebsocketServerEvent {
     UNLOCK_RESOURCE = 'UNLOCK_RESOURCE',
     JOIN_PRESENCE = 'JOIN_PRESENCE',
     LEAVE_PRESENCE = 'LEAVE_PRESENCE',
+    MOVE_CURSOR = 'MOVE_CURSOR',
 }
 
 export const LockResourceRequest = z.object({
@@ -71,6 +73,24 @@ export const PresenceUpdatedEvent = z.object({
     users: z.array(PresenceUser),
 })
 
+export const CursorMoveRequest = z.object({
+    resourceId: z.string(),
+    x: z.number().nullable(),
+    y: z.number().nullable(),
+    selectedStep: z.string().nullable().optional(),
+})
+
+export const CursorUpdatedEvent = z.object({
+    resourceId: z.string(),
+    userId: z.string(),
+    userDisplayName: z.string(),
+    userEmail: z.string().optional(),
+    userImageUrl: z.string().nullable().optional(),
+    x: z.number().nullable(),
+    y: z.number().nullable(),
+    selectedStep: z.string().nullable().optional(),
+})
+
 export type LockResourceRequest = z.infer<typeof LockResourceRequest>
 export type LockResourceResponse = z.infer<typeof LockResourceResponse>
 export type ResourceLockedEvent = z.infer<typeof ResourceLockedEvent>
@@ -80,3 +100,5 @@ export type TestStepProgressEvent = UpdateStepProgressRequest | EmitTestStepProg
 export type PresenceRequest = z.infer<typeof PresenceRequest>
 export type PresenceUser = z.infer<typeof PresenceUser>
 export type PresenceUpdatedEvent = z.infer<typeof PresenceUpdatedEvent>
+export type CursorMoveRequest = z.infer<typeof CursorMoveRequest>
+export type CursorUpdatedEvent = z.infer<typeof CursorUpdatedEvent>

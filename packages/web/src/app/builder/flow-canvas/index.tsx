@@ -38,6 +38,7 @@ import { flowCanvasUtils } from './utils/flow-canvas-utils';
 import { AboveFlowWidgets } from './widgets';
 import Minimap from './widgets/minimap';
 import { useShowChevronNextToSelection } from './widgets/selection-chevron-button';
+import { RealtimeCanvasCursors } from './realtime-cursors';
 
 export const FlowCanvas = React.memo(
   ({
@@ -248,6 +249,11 @@ export const FlowCanvas = React.memo(
               onSelectionEnd={onSelectionEnd}
             >
               <AboveFlowWidgets></AboveFlowWidgets>
+              <RealtimeCanvasCursors
+                resourceId={flowVersion.id}
+                selectedStep={selectedStep}
+                containerRef={containerRef}
+              />
               <Background
                 gap={10}
                 size={1}
