@@ -62,6 +62,7 @@ const COMPARISON_ROWS: {
   { label: 'MCP Tools & Integration', values: [false, true, true, true] },
   { label: 'BYOK (Bring Your Own Key)', values: [false, true, true, true] },
   { label: 'Team Projects', values: [false, '1 project', 'Unlimited', 'Unlimited'] },
+  { label: 'Real-time Live Cursors & Presence', values: [false, true, true, true] },
   { label: 'Custom Appearance & Branding', values: [false, true, true, true] },
   { label: 'Anticeil Audit Logs', values: [false, true, true, true] },
   { label: 'API Keys & Developers', values: [false, true, true, true] },
