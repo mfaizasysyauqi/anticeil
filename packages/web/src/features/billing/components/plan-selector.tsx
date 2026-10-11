@@ -62,14 +62,15 @@ const COMPARISON_ROWS: {
   { label: 'MCP Tools & Integration', values: [false, true, true, true] },
   { label: 'BYOK (Bring Your Own Key)', values: [false, true, true, true] },
   { label: 'Team Projects', values: [false, '1 project', 'Unlimited', 'Unlimited'] },
-  { label: 'Custom Appearance & Theme', values: [false, true, true, true] },
+  { label: 'Custom Appearance & Branding', values: [false, true, true, true] },
   { label: 'Anticeil Audit Logs', values: [false, true, true, true] },
   { label: 'API Keys & Developers', values: [false, true, true, true] },
   { label: 'Webhooks & Triggers', values: [true, true, true, true] },
   { label: 'Priority Queue Execution', values: [false, false, true, true] },
+  { label: 'Custom Invoicing & B2B Tax Invoice', values: [false, false, false, true] },
   {
     label: 'Support & SLA',
-    values: ['Community', 'Priority Email', '24/7 Dedicated', '24/7 Dedicated + SLA'],
+    values: ['Community', 'Priority Email', 'Priority Support', '24/7 Dedicated VIP + SLA'],
   },
 ];
 

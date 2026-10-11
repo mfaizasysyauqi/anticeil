@@ -62,6 +62,7 @@ function resolvePlanLimitsAndFeatures(planName = 'free') {
         eventStreamingEnabled: false,
         workerGroupsEnabled: false,
         customDomainsEnabled: false,
+        priorityQueueEnabled: isEnterprise,
         dedicatedWorkers: null,
         canary: false,
     };
