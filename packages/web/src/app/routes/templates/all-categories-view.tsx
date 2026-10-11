@@ -98,9 +98,24 @@ export const AllCategoriesView = ({
     return <AllCategoriesViewSkeleton hideHeader={hideHeader} />;
   }
 
+  const featuredTemplates = templatesByCategory['Featured'];
+  const otherCategories = categories.filter(
+    (category) => category !== 'Featured' && category !== 'Content Creator',
+  );
+
   return (
     <div className="space-y-6">
-      {/* Pinned: Content Creator section always at the top */}
+      {/* 1. Featured (Pilihan Utama) section at the top */}
+      {featuredTemplates && featuredTemplates.length > 0 && (
+        <CategorySection
+          category="Featured"
+          templates={featuredTemplates}
+          onCategorySelect={stableOnCategorySelect}
+          onTemplateSelect={stableOnTemplateSelect}
+        />
+      )}
+
+      {/* 2. Content Creator (Kreator Konten) section placed under Pilihan Utama */}
       {contentCreatorTemplates.length > 0 && (
         <CategorySection
           category="Content Creator"
@@ -110,7 +125,8 @@ export const AllCategoriesView = ({
         />
       )}
 
-      {categories.map((category) => {
+      {/* 3. Remaining categories */}
+      {otherCategories.map((category) => {
         const categoryTemplates = templatesByCategory[category];
 
         return (

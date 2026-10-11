@@ -95,10 +95,21 @@ const TemplatesPage = () => {
   }, [allOfficialTemplates, isShowingOfficialTemplates]);
 
   const categories = useMemo(() => {
-    const cats = templateCategories || [];
-    const hasContentCreator = cats.includes('Content Creator');
-    const base = hasContentCreator ? cats : ['Content Creator', ...cats];
-    return ['All', ...base];
+    const cats = (templateCategories || []).filter(
+      (c) => c !== 'Content Creator',
+    );
+    const featuredIndex = cats.indexOf('Featured');
+    let orderedCats: string[];
+    if (featuredIndex !== -1) {
+      orderedCats = [
+        ...cats.slice(0, featuredIndex + 1),
+        'Content Creator',
+        ...cats.slice(featuredIndex + 1),
+      ];
+    } else {
+      orderedCats = ['Featured', 'Content Creator', ...cats];
+    }
+    return ['All', ...orderedCats];
   }, [templateCategories]);
 
   const selectedCategoryTemplates = useMemo(() => {
