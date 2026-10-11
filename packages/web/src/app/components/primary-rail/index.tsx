@@ -338,7 +338,7 @@ function RailHeader({
   const { embedState } = useEmbedding();
   const { data: edition } = flagsHooks.useFlag<ApEdition>(ApFlagId.EDITION);
   const { platform: currentPlatform } = platformHooks.useCurrentPlatform();
-  const showSwitcher = edition === ApEdition.CLOUD && !embedState.isEmbedded;
+  const showSwitcher = !embedState.isEmbedded;
 
   if (collapsed) {
     return (
