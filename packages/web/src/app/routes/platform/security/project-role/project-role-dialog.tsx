@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getProjectRoleDisplayName } from '@/features/members';
 import { projectRoleMutations } from '@/features/platform-admin';
 
 const initialPermissions = [
@@ -228,7 +229,9 @@ export const ProjectRoleDialog = ({
             {mode === 'create'
               ? t('Create Role')
               : projectRole?.type === RoleType.DEFAULT
-              ? t('View Role: {name}', { name: projectRole?.name })
+              ? t('View Role: {name}', {
+                  name: getProjectRoleDisplayName(projectRole?.name || ''),
+                })
               : t('Edit Role: {name}', { name: projectRole?.name })}
           </DialogTitle>
           <DialogDescription>

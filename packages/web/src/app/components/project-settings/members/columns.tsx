@@ -1,5 +1,6 @@
 import { Permission } from '@activepieces/core-utils';
 import {
+  PlatformRole,
   ProjectMemberWithUser,
   UserInvitation,
   UserWithMetaInformation,
@@ -27,6 +28,7 @@ import {
   projectMembersApi,
   userInvitationApi,
   RoleSelector,
+  getProjectRoleDisplayName,
   projectMembersMutations,
 } from '@/features/members';
 import { projectRoleQueries } from '@/features/platform-admin';
@@ -107,10 +109,14 @@ const RoleCell = ({
 
   const roleName =
     row.original.type === 'member'
-      ? row.original.data.projectRole.name
+      ? getProjectRoleDisplayName(row.original.data.projectRole.name)
       : row.original.type === 'platform-admin-operator'
-      ? formatUtils.convertEnumToHumanReadable(row.original.data.platformRole)
-      : row.original.data.projectRole?.name ?? '';
+      ? row.original.data.platformRole === PlatformRole.ADMIN
+        ? t('Admin Platform')
+        : t('Operator Platform')
+      : row.original.data.projectRole?.name
+      ? getProjectRoleDisplayName(row.original.data.projectRole.name)
+      : '';
 
   if (isOwner || isPlatformAdminOrOperator) {
     return <span className="text-sm">{roleName}</span>;

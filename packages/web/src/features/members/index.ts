@@ -4,7 +4,11 @@ export { AcceptInvitation } from './components/accept-invitation';
 export { InviteUserDialog } from './components/invite-user/invite-user-dialog';
 export { PlatformRoleSelect } from './components/platform-role-select';
 export { ProjectRoleSelect } from './components/project-role-select';
-export { RoleSelector } from './components/role-selector';
+export {
+  RoleSelector,
+  getProjectRoleDisplayName,
+  getPlatformRoles,
+} from './components/role-selector';
 export {
   projectMembersHooks,
   projectMembersMutations,

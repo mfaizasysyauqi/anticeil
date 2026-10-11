@@ -118,10 +118,10 @@ export const createUsersTableColumns = (): ColumnDefWithAccessorKey[] => [
       return (
         <div className="text-left">
           {platformRole === PlatformRole.ADMIN
-            ? t('Admin')
+            ? t('Admin Platform')
             : platformRole === PlatformRole.OPERATOR
-            ? t('Operator')
-            : t('Member')}
+            ? t('Operator Platform')
+            : t('Anggota Platform')}
         </div>
       );
     },

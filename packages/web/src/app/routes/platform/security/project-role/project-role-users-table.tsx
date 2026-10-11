@@ -19,6 +19,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { VirtualizedScrollArea } from '@/components/ui/virtualized-scroll-area';
+import { getProjectRoleDisplayName } from '@/features/members';
 import { projectRoleQueries } from '@/features/platform-admin';
 
 export const ProjectRoleUsersSheet = ({
@@ -38,7 +39,12 @@ export const ProjectRoleUsersSheet = ({
       <SheetContent className="w-[600px] sm:max-w-[600px] flex flex-col p-0">
         <SheetHeader className="px-6 py-4 border-b shrink-0">
           <SheetTitle className="text-base">
-            {projectRole?.name} {t('Role')} {t('Users')}
+            {t('Users with Role {name}', {
+              name: getProjectRoleDisplayName(projectRole?.name || ''),
+              defaultValue: `${getProjectRoleDisplayName(
+                projectRole?.name || '',
+              )} Users`,
+            })}
           </SheetTitle>
           <SheetDescription>
             {t('View the users assigned to this role')}

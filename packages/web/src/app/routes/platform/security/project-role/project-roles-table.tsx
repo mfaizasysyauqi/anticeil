@@ -29,6 +29,7 @@ import { platformHooks } from '@/hooks/platform-hooks';
 
 import { ProjectRoleDialog } from './project-role-dialog';
 import { ProjectRoleUsersSheet } from './project-role-users-table';
+import { getProjectRoleDisplayName } from '@/features/members';
 
 interface ProjectRolesListProps {
   projectRoles: SeekPage<ProjectRole> | undefined;
@@ -87,7 +88,7 @@ export const ProjectRolesTable = ({
           <Item key={role.id} variant="outline" size="sm">
             <ItemMedia variant="icon">{getRoleIcon(role.name)}</ItemMedia>
             <ItemContent>
-              <ItemTitle>{role.name}</ItemTitle>
+              <ItemTitle>{getProjectRoleDisplayName(role.name)}</ItemTitle>
               <ItemDescription>
                 <Badge
                   variant={

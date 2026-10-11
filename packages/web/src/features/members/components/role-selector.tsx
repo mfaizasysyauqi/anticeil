@@ -18,22 +18,22 @@ type RoleConfig<T = string> = {
   description: string;
 };
 
-const PLATFORM_ROLES: RoleConfig<PlatformRole>[] = [
+export const getPlatformRoles = (): RoleConfig<PlatformRole>[] => [
   {
     value: PlatformRole.ADMIN,
-    label: t('Admin'),
+    label: t('Admin Platform'),
     description: t('Full access to all projects and platform settings'),
   },
   {
     value: PlatformRole.OPERATOR,
-    label: t('Operator'),
+    label: t('Operator Platform'),
     description: t(
       'Access and edit flows in all projects, no platform settings',
     ),
   },
   {
     value: PlatformRole.MEMBER,
-    label: t('Member'),
+    label: t('Anggota Platform'),
     description: t(
       "Access to personal project and any team projects they're invited to",
     ),
@@ -44,6 +44,19 @@ const PROJECT_ROLE_DESCRIPTIONS: Record<string, string> = {
   Admin: t('Manage project settings, members, connections, and git sync'),
   Editor: t('Build, publish, and manage flows'),
   Viewer: t('View flows and monitor run history'),
+};
+
+export const getProjectRoleDisplayName = (roleName: string): string => {
+  switch (roleName) {
+    case 'Admin':
+      return t('Admin Proyek');
+    case 'Editor':
+      return t('Editor Proyek');
+    case 'Viewer':
+      return t('Viewer Proyek');
+    default:
+      return roleName;
+  }
 };
 
 export const getProjectRoleDescription = (roleName: string): string => {
@@ -80,14 +93,14 @@ export const RoleSelector = ({
   const label = isPlatform ? t('Platform Roles') : t('Project Roles');
 
   const options = isPlatform
-    ? PLATFORM_ROLES.map((role) => ({
+    ? getPlatformRoles().map((role) => ({
         value: role.value,
         label: role.label,
         description: role.description,
       }))
     : roles.map((role) => ({
         value: role.name,
-        label: role.name,
+        label: getProjectRoleDisplayName(role.name),
         description: getProjectRoleDescription(role.name),
       }));
 
