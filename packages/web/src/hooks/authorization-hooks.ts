@@ -42,20 +42,22 @@ export const useAuthorization = (projectId?: string) => {
 };
 
 export const useIsPlatformAdmin = () => {
+  const { data: edition } = flagsHooks.useFlag(ApFlagId.EDITION);
   const platformRole = userHooks.getCurrentUserPlatformRole();
-  return (
-    platformRole === PlatformRole.ADMIN ||
-    platformRole === undefined ||
-    isNil(platformRole)
-  );
+  if (edition === ApEdition.COMMUNITY) {
+    return true;
+  }
+  return platformRole === PlatformRole.ADMIN;
 };
 
 export const useIsPlatformPrivileged = () => {
+  const { data: edition } = flagsHooks.useFlag(ApFlagId.EDITION);
   const platformRole = userHooks.getCurrentUserPlatformRole();
+  if (edition === ApEdition.COMMUNITY) {
+    return true;
+  }
   return (
     platformRole === PlatformRole.ADMIN ||
-    platformRole === PlatformRole.OPERATOR ||
-    platformRole === undefined ||
-    isNil(platformRole)
+    platformRole === PlatformRole.OPERATOR
   );
 };

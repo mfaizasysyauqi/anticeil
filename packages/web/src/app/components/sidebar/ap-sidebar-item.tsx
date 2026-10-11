@@ -1,4 +1,4 @@
-import { Crown, LockKeyhole } from 'lucide-react';
+import { Crown, LockKeyhole, ShieldCheck } from 'lucide-react';
 import React, { ComponentType, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -18,6 +18,7 @@ export type SidebarItemType = {
   notification?: boolean;
   locked?: boolean;
   isCrown?: boolean;
+  isAdmin?: boolean;
   newWindow?: boolean;
   isActive?: (pathname: string) => boolean;
   isSubItem?: boolean;
@@ -69,12 +70,15 @@ export const ApSidebarItem = (item: SidebarItemType) => {
       {!isCollapsed && item.isCrown && (
         <Crown className="size-3.5! ml-auto shrink-0 text-foreground opacity-80" />
       )}
-      {!isCollapsed && item.badge && !item.isCrown && (
+      {!isCollapsed && item.isAdmin && !item.isCrown && (
+        <ShieldCheck className="size-3.5! ml-auto shrink-0 text-primary" />
+      )}
+      {!isCollapsed && item.badge && !item.isCrown && !item.isAdmin && (
         <span className="ml-auto text-[10px] font-medium text-primary">
           {item.badge}
         </span>
       )}
-      {!isCollapsed && item.locked && !item.badge && !item.isCrown && (
+      {!isCollapsed && item.locked && !item.badge && !item.isCrown && !item.isAdmin && (
         <LockKeyhole className="size-3.5! ml-auto" />
       )}
       {item.notification && !item.locked && (

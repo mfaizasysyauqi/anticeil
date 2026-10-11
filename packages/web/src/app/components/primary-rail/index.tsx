@@ -89,6 +89,7 @@ export function PrimaryRail() {
   const collapsed = railIsCollapsed({ preference, pathname, openedOn });
   const showAgents = useAgentsNavVisible();
   const { checkAccess } = useAuthorization();
+  const isPlatformAdmin = useIsPlatformAdmin();
 
   if (embedState.isEmbedded || embedState.hideSideNav) {
     return null;
@@ -179,6 +180,15 @@ export function PrimaryRail() {
                 isActive={({ pathname }) => pathname.startsWith('/impact')}
               />
             )}
+            {isPlatformAdmin && (
+              <RailNavButton
+                collapsed={collapsed}
+                to="/platform/projects"
+                icon={ShieldCheck}
+                label={t('Platform Admin')}
+                isActive={({ pathname }) => pathname.startsWith('/platform')}
+              />
+            )}
           </div>
           {authenticationSession.isLoggedIn() && (
             <RailPinnedProjects collapsed={collapsed} />
@@ -210,6 +220,7 @@ export function MobilePrimaryRailSheet({
   const { data: currentUser } = userHooks.useCurrentUser();
   const showAgents = useAgentsNavVisible();
   const { checkAccess } = useAuthorization();
+  const isPlatformAdmin = useIsPlatformAdmin();
 
   if (embedState.isEmbedded || embedState.hideSideNav) {
     return null;
@@ -285,6 +296,16 @@ export function MobilePrimaryRailSheet({
                   icon={ChartLine}
                   label={t('Impact')}
                   isActive={({ pathname }) => pathname.startsWith('/impact')}
+                  onClick={handleNavigate}
+                />
+              )}
+              {isPlatformAdmin && (
+                <RailNavButton
+                  collapsed={false}
+                  to="/platform/projects"
+                  icon={ShieldCheck}
+                  label={t('Platform Admin')}
+                  isActive={({ pathname }) => pathname.startsWith('/platform')}
                   onClick={handleNavigate}
                 />
               )}
@@ -891,9 +912,12 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             {isPlatformAdmin && (
-              <DropdownMenuItem onClick={() => navigate('/platform/setup/ai')}>
-                <ShieldCheck className="w-4 h-4 mr-2" />
-                {t('Platform Admin')}
+              <DropdownMenuItem onClick={() => navigate('/platform/projects')}>
+                <ShieldCheck className="w-4 h-4 mr-2 text-primary" />
+                <span className="flex-1">{t('Platform Admin')}</span>
+                <span className="ml-auto text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                  Admin
+                </span>
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onClick={() => setAccountSettingsOpen(true)}>

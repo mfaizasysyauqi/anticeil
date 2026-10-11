@@ -1,7 +1,7 @@
 import { isNil } from '@activepieces/core-utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { t } from 'i18next';
-import { ChevronsUpDown, LogOut, UserCogIcon } from 'lucide-react';
+import { ChevronsUpDown, LogOut, ShieldCheck, UserCogIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import { UserAvatar } from '@/components/custom/user-avatar';
@@ -21,6 +21,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar-shadcn';
+import { useIsPlatformAdmin } from '@/hooks/authorization-hooks';
 import { userHooks } from '@/hooks/user-hooks';
 import { authenticationSession } from '@/lib/authentication-session';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ export function SidebarUser() {
   const { embedState } = useEmbedding();
   const { data: user } = userHooks.useCurrentUser();
   const queryClient = useQueryClient();
+  const isPlatformAdmin = useIsPlatformAdmin();
   const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
   if (!user || embedState.isEmbedded) {
@@ -55,17 +57,24 @@ export function SidebarUser() {
         <DropdownMenu modal>
           <DropdownMenuTrigger asChild className="w-full">
             <SidebarMenuButton className="h-10! pl-2! group-data-[collapsible=icon]:h-10! group-data-[collapsible=icon]:pl-2!">
-              <div className="size-[22px] shrink-0 overflow-hidden flex items-center justify-center rounded-full">
-                <UserAvatar
-                  className={cn('size-full object-cover', {
-                    'scale-150': isNil(user.imageUrl),
-                  })}
-                  name={displayName}
-                  email={user.email}
-                  imageUrl={user.imageUrl}
-                  size={22}
-                  disableTooltip={true}
-                />
+              <div className="relative size-[22px] shrink-0">
+                <div className="size-full overflow-hidden flex items-center justify-center rounded-full">
+                  <UserAvatar
+                    className={cn('size-full object-cover', {
+                      'scale-150': isNil(user.imageUrl),
+                    })}
+                    name={displayName}
+                    email={user.email}
+                    imageUrl={user.imageUrl}
+                    size={22}
+                    disableTooltip={true}
+                  />
+                </div>
+                {isPlatformAdmin && (
+                  <span className="absolute -bottom-0.5 -right-0.5 flex size-[10px] items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <ShieldCheck className="size-[7px]" />
+                  </span>
+                )}
               </div>
 
               {!isCollapsed && (
@@ -102,6 +111,14 @@ export function SidebarUser() {
                     {displayName}
                   </span>
                   <span className="truncate text-xs">{user.email}</span>
+                  {isPlatformAdmin && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                        <ShieldCheck className="size-2.5" />
+                        {t('Platform Admin')}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </DropdownMenuLabel>

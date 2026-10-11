@@ -1,10 +1,12 @@
 import { ApEdition, ApFlagId } from '@activepieces/shared';
 import { Menu, Search } from 'lucide-react';
 import React, { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { SidebarProvider } from '@/components/ui/sidebar-shadcn';
 import { ManagePlanDialog } from '@/features/billing';
+import { useIsPlatformAdmin } from '@/hooks/authorization-hooks';
 import { flagsHooks } from '@/hooks/flags-hooks';
 
 import { AllowOnlyLoggedInUserOnlyGuard } from './allow-logged-in-user-only-guard';
@@ -35,9 +37,14 @@ function PlatformLayoutInner({
   edition: ApEdition | null | undefined;
   children: React.ReactNode;
 }) {
+  const isPlatformAdmin = useIsPlatformAdmin();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { setOpen: setSearchOpen } = useGlobalSearch();
   const branding = flagsHooks.useWebsiteBranding();
+
+  if (!isPlatformAdmin) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="flex flex-col lg:flex-row h-svh w-full overflow-hidden">
