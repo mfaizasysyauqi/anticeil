@@ -55,7 +55,13 @@ export const platformUserHooks = {
 };
 
 export const platformUserMutations = {
-  useDeleteUser: ({ onSuccess }: { onSuccess: () => void }) => {
+  useDeleteUser: ({
+    onSuccess,
+    onError,
+  }: {
+    onSuccess: () => void;
+    onError?: (error: unknown) => void;
+  }) => {
     return useMutation({
       mutationKey: ['delete-user'],
       mutationFn: async (userId: string) => {
@@ -64,6 +70,29 @@ export const platformUserMutations = {
       onSuccess: () => {
         onSuccess();
         toast.success(t('User deleted successfully'), { duration: 3000 });
+      },
+      onError: (error: any) => {
+        if (onError) {
+          onError(error);
+          return;
+        }
+        const errorData = error?.response?.data;
+        const rawMessage =
+          errorData?.params?.message || errorData?.message;
+        let errorMessage = rawMessage;
+        if (rawMessage === 'Platform owner cannot be deleted') {
+          errorMessage = t('Pemilik platform tidak dapat dihapus');
+        } else if (error?.response?.status === 409) {
+          errorMessage = t(
+            rawMessage ||
+              'Pengguna ini tidak dapat dihapus karena konflik dependensi atau merupakan pemilik platform.',
+          );
+        } else if (!errorMessage) {
+          errorMessage = t('Gagal menghapus pengguna. Silakan coba lagi.');
+        } else {
+          errorMessage = t(errorMessage);
+        }
+        toast.error(errorMessage, { duration: 4000 });
       },
     });
   },

@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { RequiredActionGroupHeader } from '@/features/piece-sets';
+import { PieceIcon } from '@/features/pieces';
 
 import {
   RequiredActionGroup,
@@ -116,6 +116,27 @@ function RequiredActionsList({
           ))}
         </div>
       ))}
+    </div>
+  );
+}
+
+function RequiredActionGroupHeader({
+  displayName,
+  logoUrl,
+}: {
+  displayName: string;
+  logoUrl?: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <PieceIcon
+        size="sm"
+        border={true}
+        displayName={displayName}
+        logoUrl={logoUrl}
+        showTooltip={false}
+      />
+      <span className="text-sm font-semibold">{displayName}</span>
     </div>
   );
 }

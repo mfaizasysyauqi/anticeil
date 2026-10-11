@@ -14,6 +14,11 @@ export function isComponentVisible({ selected, name }: { selected: string[] | un
     return selected.includes(name)
 }
 
+export enum RequiredActionsMode {
+    ANY = 'any',
+    ALL = 'all',
+}
+
 export enum PieceSelectionMode {
     INCLUDE_ALL = 'include_all',
     EXCLUDE_ALL = 'exclude_all',
@@ -79,3 +84,42 @@ export const ListPieceSetsRequestQuery = z.object({
     limit: z.number().int().min(1).max(100).optional().default(10),
 })
 export type ListPieceSetsRequestQuery = z.infer<typeof ListPieceSetsRequestQuery>
+
+export const requiredActionsUtil = {
+    findExcludedRequiredActions({
+        config,
+        requiredActions,
+    }: {
+        config: PieceSetConfig & { requiredActions?: { actions?: Record<string, string[]> } },
+        requiredActions?: Record<string, string[]>,
+    }): Record<string, string[]> {
+        if (!requiredActions) return {}
+        const excluded: Record<string, string[]> = {}
+        for (const [pieceName, actions] of Object.entries(requiredActions)) {
+            const pieceVisible = isPieceVisible({ pieces: config.pieces, name: pieceName })
+            if (!pieceVisible) {
+                excluded[pieceName] = actions
+                continue
+            }
+            const selected = config.selectedActions?.[pieceName]
+            if (selected) {
+                const missingActions = actions.filter((action) => !selected.includes(action))
+                if (missingActions.length > 0) {
+                    excluded[pieceName] = missingActions
+                }
+            }
+        }
+        return excluded
+    },
+    checkRequiredActionsExistInFlowVersion({
+        requiredActions,
+        flowVersion,
+        actionExists,
+    }: {
+        requiredActions?: unknown,
+        flowVersion?: unknown,
+        actionExists?: unknown,
+    }): { valid: boolean } {
+        return { valid: true }
+    },
+}

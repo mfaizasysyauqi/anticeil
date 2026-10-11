@@ -17,6 +17,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { platformHooks } from '@/hooks/platform-hooks';
+import { authenticationSession } from '@/lib/authentication-session';
 
 import { UserRowData } from '../index';
 
@@ -25,7 +27,7 @@ import { UpdateUserDialog } from './update-user-dialog';
 type UserActionsProps = {
   row: UserRowData;
   isUpdatingStatus: boolean;
-  onDelete: (id: string, isInvitation: boolean) => void;
+  onDelete: (id: string, isInvitation: boolean) => Promise<void> | void;
   onToggleStatus: (userId: string, currentStatus: UserStatus) => void;
   onUpdate: () => void;
 };
@@ -38,9 +40,14 @@ export const UserActions = ({
   onUpdate,
 }: UserActionsProps) => {
   const [open, setOpen] = useState(false);
+  const { platform } = platformHooks.useCurrentPlatform();
+  const currentUserId = authenticationSession.getCurrentUserId();
   const isInvitation = row.type === 'invitation';
   const isAdmin = !isInvitation && row.data.platformRole === PlatformRole.ADMIN;
   const isActive = !isInvitation && row.data.status === UserStatus.ACTIVE;
+  const isPlatformOwner = !isInvitation && platform?.ownerId === row.data.id;
+  const isCurrentUser = !isInvitation && currentUserId === row.data.id;
+  const cannotDelete = isPlatformOwner || isCurrentUser;
 
   return (
     <div className="flex justify-end">
@@ -80,28 +87,42 @@ export const UserActions = ({
               {isActive ? t('Deactivate') : t('Activate')}
             </DropdownMenuItem>
           )}
-          <ConfirmationDeleteDialog
-            title={isInvitation ? t('Delete Invitation') : t('Delete User')}
-            message={
-              isInvitation
-                ? t('This invitation will be permanently deleted.')
-                : t('This user and all their data will be permanently deleted.')
-            }
-            entityName={`${isInvitation ? t('Invitation') : t('User')} ${
-              row.data.email
-            }`}
-            mutationFn={async () => {
-              onDelete(isInvitation ? row.id : row.data.id, isInvitation);
-            }}
-          >
+          {cannotDelete ? (
             <DropdownMenuItem
-              variant="destructive"
-              onSelect={(e) => e.preventDefault()}
+              disabled={true}
+              className="text-muted-foreground opacity-50 cursor-not-allowed flex items-center gap-2"
             >
               <Trash className="h-4 w-4" />
-              {t('Delete')}
+              <span>
+                {isPlatformOwner
+                  ? t('Owner Platform (Tidak dapat dihapus)')
+                  : t('Akun Anda (Tidak dapat dihapus)')}
+              </span>
             </DropdownMenuItem>
-          </ConfirmationDeleteDialog>
+          ) : (
+            <ConfirmationDeleteDialog
+              title={isInvitation ? t('Delete Invitation') : t('Delete User')}
+              message={
+                isInvitation
+                  ? t('This invitation will be permanently deleted.')
+                  : t('This user and all their data will be permanently deleted.')
+              }
+              entityName={`${isInvitation ? t('Invitation') : t('User')} ${
+                row.data.email
+              }`}
+              mutationFn={async () => {
+                await onDelete(isInvitation ? row.id : row.data.id, isInvitation);
+              }}
+            >
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={(e) => e.preventDefault()}
+              >
+                <Trash className="h-4 w-4" />
+                {t('Delete')}
+              </DropdownMenuItem>
+            </ConfirmationDeleteDialog>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
