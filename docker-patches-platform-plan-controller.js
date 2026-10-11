@@ -19,20 +19,8 @@ const FORCE_REFRESH_DEDUP_SECONDS = 60;
 const DEFAULT_USAGE_PAGE_SIZE = 10;
 
 async function ensureAdminAndOwnership(log, principal, platformId) {
-    if (!principal || !principal.id) return;
-    try {
-        const uRepo = (0, user_service_1.userRepo)();
-        await uRepo.update({ id: principal.id }, { platformRole: shared_1.PlatformRole.ADMIN || 'ADMIN' });
-        if (platformId) {
-            const pRepo = (0, platform_service_1.platformRepo)();
-            const currentPlatform = await pRepo.findOneBy({ id: platformId });
-            if (currentPlatform && (!currentPlatform.ownerId || currentPlatform.ownerId !== principal.id)) {
-                await pRepo.update({ id: platformId }, { ownerId: principal.id });
-            }
-        }
-    } catch (err) {
-        log?.warn?.({ err }, '[anticeil] could not elevate user to platform admin');
-    }
+    // Preserved: Do not override user roles or hijack platform ownership
+    return;
 }
 
 function resolvePlanLimitsAndFeatures(planName = 'free') {
@@ -59,21 +47,21 @@ function resolvePlanLimitsAndFeatures(planName = 'free') {
         showPoweredBy: !isPlus,
 
         globalConnectionsEnabled: isTeam,
-        ssoEnabled: isTeam,
-        customRolesEnabled: isTeam,
-        projectRolesEnabled: isPlus,
+        ssoEnabled: false,
+        customRolesEnabled: false,
+        projectRolesEnabled: false,
         auditLogEnabled: isTeam,
-        environmentsEnabled: isTeam,
-        embeddingEnabled: isTeam,
+        environmentsEnabled: false,
+        embeddingEnabled: false,
         apiKeysEnabled: isTeam,
-        secretManagersEnabled: isTeam,
-        managePiecesEnabled: isTeam,
-        manageTemplatesEnabled: isTeam,
+        secretManagersEnabled: false,
+        managePiecesEnabled: false,
+        manageTemplatesEnabled: false,
 
-        scimEnabled: isEnterprise,
-        eventStreamingEnabled: isEnterprise,
-        workerGroupsEnabled: isEnterprise,
-        customDomainsEnabled: isEnterprise,
+        scimEnabled: false,
+        eventStreamingEnabled: false,
+        workerGroupsEnabled: false,
+        customDomainsEnabled: false,
         dedicatedWorkers: null,
         canary: false,
     };

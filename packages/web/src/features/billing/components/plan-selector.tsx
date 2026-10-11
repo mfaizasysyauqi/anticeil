@@ -39,7 +39,7 @@ import {
   type PlanPricing,
 } from './plan-selector-utils';
 
-// Chatwoot-style comparison table: feature rows with ✓ / — per plan
+// Anticeil Native feature comparison table: feature rows with ✓ / — per plan
 const COMPARISON_ROWS: {
   label: string;
   tooltip?: string;
@@ -50,36 +50,26 @@ const COMPARISON_ROWS: {
     values: ['1,000/mo', '10,000/mo', '50,000/mo', 'From 1M'],
   },
   {
-    label: 'Team members',
+    label: 'Automation Tasks',
+    values: ['1,000/mo', '10,000/mo', '50,000/mo', 'Custom'],
+  },
+  {
+    label: 'Team Members',
     values: ['1 seat', '5 seats', '25 seats', 'Unlimited'],
   },
-  { label: 'Automation flows', values: ['5 flows', '100 flows', 'Unlimited', 'Unlimited'] },
-  { label: 'Agents', values: [false, true, true, true] },
-  { label: 'MCPs', values: [false, true, true, true] },
+  { label: 'Automation Flows', values: ['5 flows', '100 flows', 'Unlimited', 'Unlimited'] },
+  { label: 'AI Agents Builder', values: [false, true, true, true] },
+  { label: 'MCP Tools & Integration', values: [false, true, true, true] },
   { label: 'BYOK (Bring Your Own Key)', values: [false, true, true, true] },
-  { label: 'Team analytics', values: [false, true, true, true] },
-  { label: 'Team projects', values: [false, '1 project', 'Unlimited', 'Unlimited'] },
-  { label: 'Custom appearance', values: [false, true, true, true] },
-  { label: 'Global connections', values: [false, false, true, true] },
-  { label: 'Piece management', values: [false, false, true, true] },
-  { label: 'Piece Sets', values: [false, false, true, true] },
-  { label: 'Templates', values: [false, false, true, true] },
-  { label: 'Project Roles', values: [false, false, true, true] },
-  { label: 'Custom RBAC', values: [false, false, true, true] },
-  { label: 'SSO / SAML', values: [false, false, true, true] },
-  { label: 'Audit logs', values: [false, false, true, true] },
-  { label: 'Secret Managers', values: [false, false, true, true] },
-  { label: 'Environments', values: [false, false, true, true] },
-  { label: 'Embedding', values: [false, false, true, true] },
-  { label: 'API Keys', values: [false, false, true, true] },
-  { label: 'SCIM provisioning', values: [false, false, false, true] },
-  { label: 'Event streaming', values: [false, false, false, true] },
-  { label: 'Worker Groups', values: [false, false, false, true] },
-  { label: 'Custom Domains', values: [false, false, false, true] },
-  { label: 'Priority execution', values: [false, false, false, true] },
+  { label: 'Team Projects', values: [false, '1 project', 'Unlimited', 'Unlimited'] },
+  { label: 'Custom Appearance & Theme', values: [false, true, true, true] },
+  { label: 'Anticeil Audit Logs', values: [false, true, true, true] },
+  { label: 'API Keys & Developers', values: [false, true, true, true] },
+  { label: 'Webhooks & Triggers', values: [true, true, true, true] },
+  { label: 'Priority Queue Execution', values: [false, false, true, true] },
   {
-    label: 'Support',
-    values: ['Community', 'Community', 'Email', 'Dedicated'],
+    label: 'Support & SLA',
+    values: ['Community', 'Priority Email', '24/7 Dedicated', '24/7 Dedicated + SLA'],
   },
 ];
 

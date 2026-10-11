@@ -161,29 +161,10 @@ export function PlatformSidebar() {
       label: t('Security'),
       items: [
         {
-          to: '/platform/security/sso',
-          label: t('Single Sign On'),
-          icon: LogIn,
-          isCrown: !platform.plan.ssoEnabled,
-        },
-        {
-          to: '/platform/security/secret-managers',
-          label: t('Secret Managers'),
-          icon: Key,
-          isCrown: !platform.plan.secretManagersEnabled,
-        },
-        {
           to: '/platform/security/audit-logs',
           label: t('Audit Logs'),
           icon: ShieldCheck,
           isCrown: !platform.plan.auditLogEnabled,
-          subItems: [
-            { to: '/platform/security/audit-logs', label: t('Events') },
-            {
-              to: '/platform/infrastructure/event-destinations',
-              label: t('Event Streaming'),
-            },
-          ],
         },
       ],
     },
@@ -220,14 +201,6 @@ export function PlatformSidebar() {
           to: '/platform/infrastructure/workers',
           label: t('Workers'),
           icon: ServerIcon,
-          subItems: [
-            { to: '/platform/infrastructure/workers', label: t('Health') },
-            {
-              to: '/platform/infrastructure/workers?tab=worker-groups',
-              label: t('Worker groups'),
-              isCrown: !platform.plan.workerGroupsEnabled,
-            },
-          ],
         },
         {
           to: '/platform/infrastructure/health',
@@ -253,15 +226,6 @@ export function PlatformSidebar() {
           label: t('Triggers'),
           icon: MousePointerClickIcon,
         },
-        ...(edition === ApEdition.CLOUD
-          ? []
-          : [
-              {
-                to: '/platform/infrastructure/configurations',
-                label: t('Configurations'),
-                icon: Settings2Icon,
-              },
-            ]),
       ],
     },
     {
