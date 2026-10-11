@@ -37,11 +37,11 @@ function resolvePlanLimitsAndFeatures(planName = 'free') {
         projectsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? null : 1)),
         billedTeamProjectsLimit: isTeam ? null : (isPlus ? 1 : 0),
 
-        agentsEnabled: isPlus,
-        aiProvidersEnabled: isPlus,
+        agentsEnabled: true,         // free: Agents unlocked (matches activepieces)
+        aiProvidersEnabled: true,     // free: MCP/AI Providers unlocked
         chatEnabled: true,
         tablesEnabled: true,
-        analyticsEnabled: isPlus,
+        analyticsEnabled: true,       // free: Impact/Analytics unlocked
 
         customAppearanceEnabled: isPlus,
         showPoweredBy: !isPlus,
@@ -532,11 +532,11 @@ function resolvePlanLimitsAndFeatures(planName = 'free') {
         projectsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? null : 1)),
         billedTeamProjectsLimit: isTeam ? null : (isPlus ? 1 : 0),
 
-        agentsEnabled: isPlus,
-        aiProvidersEnabled: isPlus,
+        agentsEnabled: true,         // free: Agents unlocked (matches activepieces)
+        aiProvidersEnabled: true,     // free: MCP/AI Providers unlocked
         chatEnabled: true,
         tablesEnabled: true,
-        analyticsEnabled: isPlus,
+        analyticsEnabled: true,       // free: Impact/Analytics unlocked
 
         customAppearanceEnabled: isPlus,
         showPoweredBy: !isPlus,
