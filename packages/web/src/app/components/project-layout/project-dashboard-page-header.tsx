@@ -76,9 +76,7 @@ export const ProjectDashboardPageHeader = ({
     userHasPermissionToInviteUser &&
     project.type === ProjectType.TEAM &&
     platform.plan.projectRolesEnabled;
-  const userCanInviteToPlatform = user?.platformRole === PlatformRole.ADMIN;
-  const showInviteUserButton =
-    userCanInviteToProject || userCanInviteToPlatform;
+  const showInviteUserButton = userCanInviteToProject;
   const isProjectPage = location.pathname.includes('/projects/');
 
   const hasGeneralSettings =
