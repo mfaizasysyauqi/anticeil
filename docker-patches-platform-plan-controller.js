@@ -54,7 +54,7 @@ function resolvePlanLimitsAndFeatures(planName = 'free') {
         environmentsEnabled: false,
         embeddingEnabled: false,
         apiKeysEnabled: isTeam,
-        secretManagersEnabled: false,
+        secretManagersEnabled: isTeam,
         managePiecesEnabled: false,
         manageTemplatesEnabled: false,
 

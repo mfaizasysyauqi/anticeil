@@ -142,6 +142,13 @@ export const STATIC_PAGES: StaticPage[] = [
     requiresPlatformAdmin: true,
   },
   {
+    id: 'page-platform-secret-managers',
+    label: 'Platform Admin — Secret Managers',
+    href: '/platform/security/secret-managers',
+    icon: KeyRoundIcon,
+    requiresPlatformAdmin: true,
+  },
+  {
     id: 'page-platform-workers',
     label: 'Platform Admin — Workers',
     href: '/platform/infrastructure/workers',

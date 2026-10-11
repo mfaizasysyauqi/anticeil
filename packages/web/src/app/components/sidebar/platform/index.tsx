@@ -161,6 +161,12 @@ export function PlatformSidebar() {
       label: t('Security'),
       items: [
         {
+          to: '/platform/security/secret-managers',
+          label: t('Secret Managers'),
+          icon: Key,
+          isCrown: !platform.plan.secretManagersEnabled,
+        },
+        {
           to: '/platform/security/audit-logs',
           label: t('Audit Logs'),
           icon: ShieldCheck,

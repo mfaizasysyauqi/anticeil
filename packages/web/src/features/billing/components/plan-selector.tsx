@@ -67,6 +67,7 @@ const COMPARISON_ROWS: {
   { label: 'Custom Appearance & Branding', values: [false, true, true, true] },
   { label: 'Anticeil Audit Logs', values: [false, true, true, true] },
   { label: 'API Keys & Developers', values: [false, true, true, true] },
+  { label: 'Secret Managers (Vault / AWS / 1Password)', values: [false, false, true, true] },
   { label: 'Google & GitHub SSO', values: [true, true, true, true] },
   { label: 'Priority Queue Execution', values: [false, false, true, true] },
   { label: 'Custom Invoicing & Corporate PO', values: [false, false, false, true] },
