@@ -258,7 +258,7 @@ export function PlatformSidebar() {
 
   return (
     <Sidebar collapsible="none" className="border-r-0! w-full h-full bg-sidebar flex flex-col">
-      <SidebarHeader className="pb-0 gap-1.5">
+      <SidebarHeader className="pb-2">
         <Link
           to={defaultRoute}
           className={cn(
@@ -271,21 +271,14 @@ export function PlatformSidebar() {
           <ChevronLeftIcon ref={chevronRef} className="size-4" size={16} />
           <span className="truncate text-sm">{t('Back to app')}</span>
         </Link>
-        <div className="flex items-center gap-2 px-2.5 py-1.5 mx-1 rounded-lg bg-primary/10 text-primary border border-primary/20 select-none">
-          <ShieldCheck className="size-4 shrink-0 text-primary" />
-          <span className="text-xs font-semibold uppercase tracking-wider truncate">
-            {t('Platform Admin')}
-          </span>
-        </div>
       </SidebarHeader>
       <div className="flex-1 overflow-y-auto">
         <SidebarContent className="gap-0">
           {groups.map((group, idx) => (
             <SidebarGroup key={group.label} className="cursor-default shrink-0">
               {idx > 0 && <SidebarSeparator className="mb-3" />}
-              <SidebarGroupLabel className="flex items-center gap-1.5">
-                {idx === 0 && <ShieldCheck className="size-3.5 text-primary shrink-0" />}
-                <span>{group.label}</span>
+              <SidebarGroupLabel>
+                {group.label}
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
