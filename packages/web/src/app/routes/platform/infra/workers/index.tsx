@@ -18,10 +18,8 @@ import {
 } from 'lucide-react';
 import prettyBytes from 'pretty-bytes';
 import React from 'react';
-import { useSearchParams } from 'react-router-dom';
 
 import { DashboardPageHeader } from '@/app/components/dashboard-page-header';
-import { LockedFeatureGuard } from '@/app/components/locked-feature-guard';
 import { RequestTrial } from '@/app/components/request-trial';
 import {
   Alert,
@@ -48,53 +46,13 @@ import { useTimeAgo } from '@/hooks/use-time-ago';
 import { cn } from '@/lib/utils';
 
 import { SandboxesPopover } from './sandboxes-popover';
-import { WorkerAssignmentsTab } from './worker-assignments-tab';
 import { WorkerConfigsPopover } from './worker-configs-popover';
-
-type TabValue = 'health' | 'worker-groups';
 
 export default function WorkersPage() {
   const { data: edition } = flagsHooks.useFlag<ApEdition>(ApFlagId.EDITION);
-  const { platform } = platformHooks.useCurrentPlatform();
   const isCloud = edition === ApEdition.CLOUD;
   const { data: workersData, isLoading } = workersQueries.useWorkerMachines();
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const activeTab = (searchParams.get('tab') as TabValue) || 'health';
-
-  const setTab = (tab: TabValue) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (tab === 'health') {
-      newParams.delete('tab');
-    } else {
-      newParams.set('tab', tab);
-    }
-    setSearchParams(newParams, { replace: true });
-  };
-
   const fleetType = workersData?.[0]?.type;
-
-  if (activeTab === 'worker-groups') {
-    return (
-      <LockedFeatureGuard
-        featureKey="DEDICATED_WORKERS"
-        locked={!platform.plan.workerGroupsEnabled}
-        lockTitle={t('Unlock Worker Groups')}
-        lockDescription={t(
-          'Reserve dedicated worker capacity for specific projects so a busy project never slows down the rest',
-        )}
-        lockDocumentationUrl="/docs/install/configure-operate/worker-groups"
-      >
-        <div className="flex flex-col flex-1 h-full w-full gap-4 px-4">
-          <DashboardPageHeader
-            description={t('Check the health of your workers')}
-            title={t('Workers')}
-          />
-          <WorkerAssignmentsTab />
-        </div>
-      </LockedFeatureGuard>
-    );
-  }
 
   return (
     <div className="flex flex-col flex-1 h-full w-full gap-4 px-4">

@@ -128,13 +128,6 @@ export const STATIC_PAGES: StaticPage[] = [
     requiresPlatformAdmin: true,
   },
   {
-    id: 'page-platform-sso',
-    label: 'Platform Admin — Single Sign On',
-    href: '/platform/security/sso',
-    icon: LogInIcon,
-    requiresPlatformAdmin: true,
-  },
-  {
     id: 'page-platform-project-roles',
     label: 'Platform Admin — Project Roles',
     href: '/platform/security/project-roles',
@@ -146,13 +139,6 @@ export const STATIC_PAGES: StaticPage[] = [
     label: 'Platform Admin — API Keys',
     href: '/platform/security/api-keys',
     icon: FileJson2Icon,
-    requiresPlatformAdmin: true,
-  },
-  {
-    id: 'page-platform-secret-managers',
-    label: 'Platform Admin — Secret Managers',
-    href: '/platform/security/secret-managers',
-    icon: KeyRoundIcon,
     requiresPlatformAdmin: true,
   },
   {
@@ -174,13 +160,6 @@ export const STATIC_PAGES: StaticPage[] = [
     label: 'Platform Admin — Triggers',
     href: '/platform/infrastructure/triggers',
     icon: MousePointerClickIcon,
-    requiresPlatformAdmin: true,
-  },
-  {
-    id: 'page-platform-event-streaming',
-    label: 'Platform Admin — Event Streaming',
-    href: '/platform/infrastructure/event-destinations',
-    icon: WebhookIcon,
     requiresPlatformAdmin: true,
   },
   {

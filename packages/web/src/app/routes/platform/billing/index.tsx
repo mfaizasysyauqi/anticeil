@@ -24,7 +24,6 @@ import {
   CancelSubscriptionDialog,
   KeepPlanDialog,
   planSelectorUtils,
-  LicenseKey,
   UsersCard,
   billingMutations,
   billingUtils,
@@ -81,10 +80,6 @@ function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
   const isCompedLifetimePlan =
     info.plan.plan === PlanName.APPSUMO ||
     info.plan.plan === PlanName.FREE_LEGACY;
-  const hasLicenseKey = !isNil(platform.plan.licenseKey);
-  const isTrialKeySection = isCloud && !hasLicenseKey;
-  const licenseKeyCopy = licenseKeySectionCopy({ hasLicenseKey, isCloud });
-
   return (
     <div className="flex w-full flex-col gap-4 p-6">
       <div className="flex items-start justify-between gap-4">
@@ -92,7 +87,7 @@ function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
           <h1 className="text-xl font-medium">{t('Billing & subscription')}</h1>
           <div className="text-sm text-muted-foreground">
             {t(
-              'For questions about billing contact us at support@activepieces.com',
+              'For questions about billing contact us at support@anticeil.com',
             )}
           </div>
         </div>
@@ -236,17 +231,6 @@ function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
           </>
         )}
 
-        <Separator />
-        <BillingSection
-          title={licenseKeyCopy.title}
-          description={licenseKeyCopy.description}
-        >
-          <LicenseKey
-            platform={platform}
-            isSelfHosted={edition === ApEdition.ENTERPRISE}
-            isTrialKey={isTrialKeySection}
-          />
-        </BillingSection>
 
         <Separator />
         <div className="pt-2 pb-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
@@ -285,34 +269,6 @@ function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
   );
 }
 
-function licenseKeySectionCopy({
-  hasLicenseKey,
-  isCloud,
-}: {
-  hasLicenseKey: boolean;
-  isCloud: boolean;
-}): { title: string; description: string } {
-  if (hasLicenseKey) {
-    return {
-      title: t('License key'),
-      description: t(
-        'Your custom plan is active. Enter a new license key here if we sent you an updated one.',
-      ),
-    };
-  }
-  if (isCloud) {
-    return {
-      title: t('Trial Keys'),
-      description: t('Got a trial key from our team? Activate it here.'),
-    };
-  }
-  return {
-    title: t('Have a custom plan?'),
-    description: t(
-      'For custom enterprise plans, activate it with the license key we sent you. If you subscribed here, you can ignore this.',
-    ),
-  };
-}
 
 const BillingSection = ({
   title,
