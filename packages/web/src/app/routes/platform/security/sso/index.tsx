@@ -74,7 +74,7 @@ const SSOPage = () => {
               </ItemDescription>
               {(platform?.allowedAuthDomains ?? []).length > 0 && (
                 <div className="mt-1 gap-2 flex">
-                  {(platform?.allowedAuthDomains ?? []).map((text, index) => (
+                  {(platform?.allowedAuthDomains ?? []).map((text: string, index: number) => (
                     <Badge key={index} variant={'outline'}>
                       {text}
                     </Badge>

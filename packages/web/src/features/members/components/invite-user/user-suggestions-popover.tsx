@@ -17,6 +17,7 @@ function UserSuggestionsPopover({
   placeholder,
   invitationType,
   onOpenChange,
+  onCurrentInputChange,
 }: UserSuggestionsPopoverProps) {
   const [inputValue, setInputValue] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -65,6 +66,7 @@ function UserSuggestionsPopover({
     onChange([...value, email]);
     setInputValue('');
     setSelectedValue('');
+    onCurrentInputChange?.('');
     setTagInputKey((prev) => prev + 1);
     requestAnimationFrame(() => inputRef.current?.focus());
   };
@@ -96,6 +98,7 @@ function UserSuggestionsPopover({
   const handleInputChange = (v: string) => {
     setInputValue(v);
     setSelectedValue('');
+    onCurrentInputChange?.(v);
   };
 
   const isOpen = showSuggestions && hasSuggestions;
@@ -173,6 +176,7 @@ type UserSuggestionsPopoverProps = {
   placeholder?: string;
   invitationType: InvitationType;
   onOpenChange?: (open: boolean) => void;
+  onCurrentInputChange?: (value: string) => void;
 };
 
 export { UserSuggestionsPopover };

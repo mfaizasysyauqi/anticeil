@@ -121,6 +121,7 @@ const InviteUserDialogInternal = ({
     UserInvitationWithLink[]
   >([]);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [typedEmail, setTypedEmail] = useState('');
   const { platform } = platformHooks.useCurrentPlatform();
   const { handleSeatLimitError, ensureSeatsAvailable, seatLimitDialog } =
     useSeatLimitGuard();
@@ -227,11 +228,32 @@ const InviteUserDialogInternal = ({
 
   const handleEmailsChange = useCallback(
     (emails: ReadonlyArray<string>) => {
+      const alreadyMembers: string[] = [];
       const filtered = emails.filter((e) => {
-        const lower = e.toLowerCase();
-        if (isPlatformInvite) return !platformUserEmails.has(lower);
-        return !projectMemberEmails.has(lower);
+        const lower = e.toLowerCase().trim();
+        const exists = isPlatformInvite
+          ? platformUserEmails.has(lower)
+          : projectMemberEmails.has(lower);
+        if (exists) {
+          alreadyMembers.push(lower);
+          return false;
+        }
+        return true;
       });
+
+      if (alreadyMembers.length > 0) {
+        toast.error(
+          isPlatformInvite
+            ? t('User {email} is already a member of this platform', {
+                email: alreadyMembers.join(', '),
+              })
+            : t('User {email} is already a member of this project', {
+                email: alreadyMembers.join(', '),
+              }),
+          { duration: 4000 },
+        );
+      }
+
       form.setValue('emails', [...filtered]);
       form.trigger('emails');
     },
@@ -239,7 +261,44 @@ const InviteUserDialogInternal = ({
   );
 
   const onSubmit = (data: FormSchema) => {
-    if (data.emails.length === 0) {
+    let finalEmails = [...data.emails];
+    if (typedEmail.trim()) {
+      const pending = typedEmail.trim().toLowerCase();
+      if (!finalEmails.map((e) => e.toLowerCase()).includes(pending)) {
+        finalEmails.push(pending);
+      }
+    }
+
+    const alreadyMembers: string[] = [];
+    finalEmails = finalEmails.filter((e) => {
+      const lower = e.toLowerCase().trim();
+      const exists = isPlatformInvite
+        ? platformUserEmails.has(lower)
+        : projectMemberEmails.has(lower);
+      if (exists) {
+        alreadyMembers.push(lower);
+        return false;
+      }
+      return true;
+    });
+
+    if (alreadyMembers.length > 0) {
+      toast.error(
+        isPlatformInvite
+          ? t('User {email} is already a member of this platform', {
+              email: alreadyMembers.join(', '),
+            })
+          : t('User {email} is already a member of this project', {
+              email: alreadyMembers.join(', '),
+            }),
+        { duration: 4000 },
+      );
+      if (finalEmails.length === 0) {
+        return;
+      }
+    }
+
+    if (finalEmails.length === 0) {
       form.setError('emails', {
         type: 'required',
         message: t('Please enter at least one email address'),
@@ -255,11 +314,14 @@ const InviteUserDialogInternal = ({
       return;
     }
 
-    if (!ensureSeatsAvailable(data.emails.length)) {
+    if (!ensureSeatsAvailable(finalEmails.length)) {
       return;
     }
 
-    mutate(data);
+    mutate({
+      ...data,
+      emails: finalEmails,
+    });
   };
 
   const copyAllLinks = () => {
@@ -316,6 +378,7 @@ const InviteUserDialogInternal = ({
           onOpenChange={(open) => {
             setOpen(open);
             form.reset();
+            setTypedEmail('');
             setInvitationResults([]);
             setSuggestionsOpen(false);
           }}
@@ -349,6 +412,7 @@ const InviteUserDialogInternal = ({
                           placeholder={t('Invite users by email')}
                           invitationType={invitationType}
                           onOpenChange={setSuggestionsOpen}
+                          onCurrentInputChange={setTypedEmail}
                         />
                         <FormMessage />
                       </FormItem>

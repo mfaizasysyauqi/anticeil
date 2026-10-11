@@ -1358,11 +1358,6 @@ export const TEMPLATE_NAME_TRANSLATIONS_ID: Record<
     summary:
       'Berjalan setiap hari kerja untuk menemukan pull request terbuka yang tidak aktif lebih dari 15 hari dan mengirim komentar pengingat otomatis pada PR.',
   },
-  '"Stale PR" Auto-Pinger': {
-    name: 'Auto-Pinger PR yang Terabaikan',
-    summary:
-      'Berjalan setiap hari kerja untuk menemukan pull request terbuka yang tidak aktif lebih dari 15 hari dan mengirim komentar pengingat otomatis pada PR.',
-  },
   'Create Invoice Ninja Tasks From Trello': {
     name: 'Buat Tugas Invoice Ninja dari Trello',
     summary:
