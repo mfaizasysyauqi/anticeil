@@ -21,6 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useSeatLimitGuard } from '@/features/billing';
 import { InviteUserDialog, projectMembersHooks } from '@/features/members';
 import { getProjectName, projectCollectionUtils } from '@/features/projects';
 import { ApProjectDisplay } from '@/features/projects/components/ap-project-display';
@@ -40,6 +41,7 @@ export const ProjectDashboardPageHeader = ({
 }) => {
   const { project } = projectCollectionUtils.useCurrentProject();
   const { platform } = platformHooks.useCurrentPlatform();
+  const { ensureSeatsAvailable, seatLimitDialog } = useSeatLimitGuard();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<
@@ -153,7 +155,12 @@ export const ProjectDashboardPageHeader = ({
           iconSize={16}
           variant="ghost"
           size="sm"
-          onClick={() => setInviteOpen(true)}
+          onClick={() => {
+            if (!ensureSeatsAvailable(1)) {
+              return;
+            }
+            setInviteOpen(true);
+          }}
         >
           <span className="text-sm font-medium">{t('Add Members')}</span>
         </AnimatedIconButton>
@@ -183,6 +190,7 @@ export const ProjectDashboardPageHeader = ({
         className="min-w-full"
       />
       <InviteUserDialog open={inviteOpen} setOpen={setInviteOpen} />
+      {seatLimitDialog}
       <ProjectSettingsDialog
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

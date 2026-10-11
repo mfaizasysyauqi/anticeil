@@ -609,7 +609,7 @@ function getUnlimitedBillingInfo(requestedPlan = 'free') {
         appSumoCreditsFeature: null,
         seatsFeature: null,
         billingPortalAvailable: false,
-        billingEnforced: false,
+        billingEnforced: true,
         billingUnavailable: false,
         includedSeats: limits.usersLimit,
         additionalSeats: null,
@@ -630,6 +630,17 @@ async function getBillingInformation(log, platformId) {
 
     const currentPlanKey = (platformPlan?.plan || 'free').toLowerCase();
     const planLimits = resolvePlanLimitsAndFeatures(currentPlanKey);
+    // Ensure DB platform_plan row has usersLimit synced so core checkUsersExceededLimit triggers
+    if (platformPlan && platformPlan.usersLimit !== planLimits.usersLimit) {
+        try {
+            await (0, platform_plan_service_1.platformPlanRepo)().update({ platformId: platform.id }, {
+                usersLimit: planLimits.usersLimit,
+                activeFlowsLimit: planLimits.activeFlowsLimit,
+            });
+        } catch (dbErr) {
+            log.warn({ err: dbErr }, '[anticeil] could not sync platform_plan limits');
+        }
+    }
     const effectivePlan = {
         ...platformPlan,
         ...planLimits,
@@ -668,7 +679,7 @@ async function getBillingInformation(log, platformId) {
         appSumoCreditsFeature,
         seatsFeature,
         billingPortalAvailable,
-        billingEnforced,
+        billingEnforced: true,
         billingUnavailable: false,
         includedSeats: includedSeats ?? effectivePlan.usersLimit,
         additionalSeats,

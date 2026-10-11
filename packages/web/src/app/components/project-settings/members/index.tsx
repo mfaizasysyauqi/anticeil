@@ -8,6 +8,7 @@ import { AnimatedIconButton } from '@/components/custom/animated-icon-button';
 import { DataTable } from '@/components/custom/data-table';
 import { DataTableInputPopover } from '@/components/custom/data-table/data-table-input-popover';
 import { UserRoundPlusIcon } from '@/components/icons/user-round-plus';
+import { useSeatLimitGuard } from '@/features/billing';
 import {
   InviteUserDialog,
   projectMembersHooks,
@@ -20,6 +21,7 @@ import { authenticationSession } from '@/lib/authentication-session';
 import { membersTableColumns, MemberRowData } from './columns';
 
 export const MembersSettings = () => {
+  const { ensureSeatsAvailable, seatLimitDialog } = useSeatLimitGuard();
   const {
     projectMembers,
     isLoading: projectMembersIsPending,
@@ -141,7 +143,12 @@ export const MembersSettings = () => {
           <AnimatedIconButton
             icon={UserRoundPlusIcon}
             iconSize={16}
-            onClick={() => setInviteOpen(true)}
+            onClick={() => {
+              if (!ensureSeatsAvailable(1)) {
+                return;
+              }
+              setInviteOpen(true);
+            }}
           >
             {t('Add Members')}
           </AnimatedIconButton>
@@ -172,6 +179,7 @@ export const MembersSettings = () => {
         emptyStateIcon={<Users className="size-14" />}
       />
       <InviteUserDialog open={inviteOpen} setOpen={setInviteOpen} />
+      {seatLimitDialog}
     </div>
   );
 };

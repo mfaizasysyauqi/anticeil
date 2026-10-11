@@ -53,12 +53,24 @@ export const useSeatLimitGuard = () => {
   };
 
   const ensureSeatsAvailable = (additionalSeats: number): boolean => {
-    if (isNil(info) || !info.billingEnforced || isNil(info.plan.usersLimit)) {
-      return true;
-    }
-    if (additionalSeats > info.plan.usersLimit - info.usage.users) {
-      openSeatLimit();
-      return false;
+    const rawPlan = (info?.plan?.plan || platform?.plan?.plan || 'free').toLowerCase();
+    const limit =
+      info?.plan?.usersLimit ??
+      platform?.plan?.usersLimit ??
+      (rawPlan === 'free'
+        ? 1
+        : rawPlan === 'plus'
+        ? 5
+        : rawPlan === 'team'
+        ? 25
+        : null);
+    const currentUsers = info?.usage?.users ?? 1;
+
+    if (!isNil(limit)) {
+      if (currentUsers + additionalSeats > limit) {
+        openSeatLimit();
+        return false;
+      }
     }
     return true;
   };

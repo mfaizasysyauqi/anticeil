@@ -37,7 +37,8 @@ export type UserRowData =
 
 export default function UsersPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
-  const { handleSeatLimitError, seatLimitDialog } = useSeatLimitGuard();
+  const { handleSeatLimitError, ensureSeatsAvailable, seatLimitDialog } =
+    useSeatLimitGuard();
 
   const {
     data: usersData,
@@ -150,7 +151,12 @@ export default function UsersPage() {
               key="invite"
               className="gap-2"
               size="sm"
-              onClick={() => setInviteOpen(true)}
+              onClick={() => {
+                if (!ensureSeatsAvailable(1)) {
+                  return;
+                }
+                setInviteOpen(true);
+              }}
             >
               <UserRoundPlusIcon size={16} />
               <span className="text-sm font-medium">{t('Invite')}</span>
