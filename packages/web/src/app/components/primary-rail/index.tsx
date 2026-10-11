@@ -20,11 +20,11 @@ import {
   LogOut,
   PanelLeftClose,
   Search,
+  ShieldCheck,
   SlidersHorizontal,
   SquarePen,
   Unplug,
   UserCogIcon,
-  Sparkles,
 } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { ComponentType, useState } from 'react';
@@ -784,6 +784,7 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
   const { data: user } = userHooks.useCurrentUser();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const isPlatformAdmin = useIsPlatformAdmin();
 
   const isLoggedIn = authenticationSession.isLoggedIn();
   if (!user && !isLoggedIn) {
@@ -828,17 +829,24 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
                     : 'h-10 min-w-0 flex-1 px-2 w-full',
                 )}
               >
-                <div className="size-[22px] shrink-0 overflow-hidden rounded-full">
-                  <UserAvatar
-                    className={cn('size-full object-cover', {
-                      'scale-150': isNil(user?.imageUrl),
-                    })}
-                    name={displayName}
-                    email={userEmail}
-                    imageUrl={user?.imageUrl}
-                    size={22}
-                    disableTooltip={true}
-                  />
+                <div className="relative size-[22px] shrink-0">
+                  <div className="size-full overflow-hidden rounded-full">
+                    <UserAvatar
+                      className={cn('size-full object-cover', {
+                        'scale-150': isNil(user?.imageUrl),
+                      })}
+                      name={displayName}
+                      email={userEmail}
+                      imageUrl={user?.imageUrl}
+                      size={22}
+                      disableTooltip={true}
+                    />
+                  </div>
+                  {isPlatformAdmin && (
+                    <span className="absolute -bottom-0.5 -right-0.5 flex size-[10px] items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      <ShieldCheck className="size-[7px]" />
+                    </span>
+                  )}
                 </div>
                 {!collapsed && (
                   <span className="min-w-0 flex-1 truncate text-left text-sm">
@@ -882,10 +890,12 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => navigate('/platform/setup/ai')}>
-              <Sparkles className="w-4 h-4 mr-2" />
-              {t('AI Center / Platform Setup')}
-            </DropdownMenuItem>
+            {isPlatformAdmin && (
+              <DropdownMenuItem onClick={() => navigate('/platform/setup/ai')}>
+                <ShieldCheck className="w-4 h-4 mr-2" />
+                {t('Platform Admin')}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => setAccountSettingsOpen(true)}>
               <UserCogIcon className="w-4 h-4 mr-2" />
               {t('Account Settings')}
