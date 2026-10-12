@@ -38,7 +38,6 @@ import { youtubeListPlaylistVideosAction } from './lib/actions/list-playlist-vid
 import { youtubeListCommentThreadsAction } from './lib/actions/list-comment-threads';
 import { youtubeListCaptionTracksAction } from './lib/actions/list-caption-tracks';
 import { youtubeDownloadCaptionTrackAction } from './lib/actions/download-caption-track';
-import { youtubeUploadVideoAction } from './lib/actions/upload-video';
 
 export const youtube = createPiece({
   displayName: 'YouTube',
@@ -89,7 +88,6 @@ export const youtube = createPiece({
     youtubeListCommentThreadsAction,
     youtubeListCaptionTracksAction,
     youtubeDownloadCaptionTrackAction,
-    youtubeUploadVideoAction,
     createCustomApiCallAction({
       baseUrl: () => 'https://www.googleapis.com/youtube/v3',
       auth: youtubeAuth,

@@ -834,7 +834,7 @@ const engineValidateAuth = async (
         throw new ActivepiecesError({
             code: ErrorCode.INVALID_APP_CONNECTION,
             params: {
-                error: validateAuthResult.error,
+                error: (validateAuthResult as { error: string }).error,
             },
         })
     }

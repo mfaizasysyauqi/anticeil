@@ -119,11 +119,12 @@ export const appConnectionHandler = (log: FastifyBaseLogger) => ({
                     }
                 }
                 else {
-                    log.info({ pieceName: connection.pieceName, expiresIn: refreshResult.expires_in }, '[custom-auth-refresh] token refreshed successfully')
+                    const successResult = refreshResult as { access_token: string, expires_in: number }
+                    log.info({ pieceName: connection.pieceName, expiresIn: successResult.expires_in }, '[custom-auth-refresh] token refreshed successfully')
                     connection.value = {
                         ...connection.value,
-                        access_token: refreshResult.access_token,
-                        token_refresh_at: computeTokenRefreshAt(refreshResult.expires_in),
+                        access_token: successResult.access_token,
+                        token_refresh_at: computeTokenRefreshAt(successResult.expires_in),
                     }
                 }
                 break

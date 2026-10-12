@@ -111,7 +111,7 @@ function migrateImageai(step: PieceAction): FlowAction {
                 ...migrateModel(input.provider as string, extractModelFromInput(input)),
                 resolution: undefined,
                 advancedOptions: {
-                    ...(input?.advancedOptions ?? {}),
+                    ...((input?.advancedOptions as Record<string, unknown>) ?? {}),
                     size: input?.resolution ?? input?.size,
                 },
             },

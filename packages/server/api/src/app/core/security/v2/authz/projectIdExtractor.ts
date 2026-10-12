@@ -40,7 +40,8 @@ export const projectIdExtractor = {
                 },
             })
         }
-        return entity.projectId ?? entity.projectIds?.[0] ?? undefined
+        const entityRecord = entity as Record<string, any>
+        return entityRecord.projectId ?? entityRecord.projectIds?.[0] ?? undefined
     },
 
     fromBody(request: FastifyRequest, projectBodyResource: ProjectBodyResource): string | undefined {

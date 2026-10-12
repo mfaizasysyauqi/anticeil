@@ -38,7 +38,7 @@ export class AddKnowledgeBaseChunkTable1773627989515 implements MigrationInterfa
         const vectorAvailable = await queryRunner.query(`
             SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') AS available
         `)
-        log.info('[AddKnowledgeBaseChunkTable1773627989515] vectorAvailable', vectorAvailable)
+        log.info({ vectorAvailable }, '[AddKnowledgeBaseChunkTable1773627989515] vectorAvailable')
         if (!vectorAvailable[0]?.available) {
             log.warn('[Migration] Skipping knowledge_base_chunk table creation — pgvector extension is not installed. This migration will be marked as applied. If you install pgvector later, you must run a new migration to create the knowledge_base_chunk table.')
             return

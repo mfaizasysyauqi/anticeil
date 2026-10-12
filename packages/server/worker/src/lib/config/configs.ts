@@ -53,6 +53,7 @@ export enum WorkerSystemProp {
     REUSE_SANDBOX = 'AP_REUSE_SANDBOX',
     CACHE_BASE_PATH = 'AP_CACHE_BASE_PATH',
     PREWARM_CACHE_ON_STARTUP = 'AP_PREWARM_CACHE_ON_STARTUP',
+    SANDBOX_MEMORY_LIMIT = 'AP_SANDBOX_MEMORY_LIMIT',
 }
 
 const defaultValues: Partial<Record<WorkerSystemProp, string>> = {

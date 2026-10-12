@@ -78,7 +78,7 @@ export type ExecuteResolveConnectionIdentifierOperation = Omit<BaseEngineOperati
 export type ExecuteRefreshTokenAuthOperation = ExecuteValidateAuthOperation
 
 export type ExecuteRefreshTokenAuthResponse =
-    | { skipped: true }
+    | { skipped: true, access_token?: never, expires_in?: never }
     | { skipped: false, access_token: string, expires_in: number }
 
 export type ExecuteExtractPieceMetadata = PiecePackage & { platformId: PlatformId }
@@ -299,7 +299,9 @@ type BaseExecuteValidateAuthResponseOutput<Valid extends boolean> = {
     valid: Valid
 }
 
-type ValidExecuteValidateAuthResponseOutput = BaseExecuteValidateAuthResponseOutput<true>
+type ValidExecuteValidateAuthResponseOutput = BaseExecuteValidateAuthResponseOutput<true> & {
+    error?: never
+}
 
 type InvalidExecuteValidateAuthResponseOutput = BaseExecuteValidateAuthResponseOutput<false> & {
     error: string

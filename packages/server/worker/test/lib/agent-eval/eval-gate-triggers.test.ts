@@ -11,7 +11,7 @@ const GATED_FILTERS = [
     'packages/server/worker/test/lib/agent-eval/**',
     'packages/server/api/src/app/agent/**',
     'packages/server/api/src/assets/prompts/**',
-    'packages/core/shared/src/lib/ee/agent/**',
+    'packages/core/shared/src/lib/agent/**',
     'packages/server/utils/src/agent-ai-utils.ts',
     'packages/server/utils/src/agent-provider-options.ts',
     'packages/core/piece-types/src/lib/ai-providers.ts',

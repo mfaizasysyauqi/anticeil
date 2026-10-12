@@ -511,7 +511,7 @@ const PLATFORM_ADMIN_ONLY = {
 
 const InfoRequest = {
     config: {
-        allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+        security: securityAccess.publicPlatform([PrincipalType.USER, PrincipalType.SERVICE]),
     },
     schema: {
         response: {
@@ -522,7 +522,7 @@ const InfoRequest = {
 
 const RefreshRequest = {
     config: {
-        allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+        security: securityAccess.publicPlatform([PrincipalType.USER, PrincipalType.SERVICE]),
     },
     schema: {
         response: {
@@ -553,7 +553,7 @@ const ListPlansRequest = {
         },
     },
     config: {
-        allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+        security: securityAccess.publicPlatform([PrincipalType.USER, PrincipalType.SERVICE]),
     },
 }
 
@@ -648,10 +648,16 @@ const MidtransTokenRequest = {
                 orderId: z.string(),
                 clientKey: z.string(),
             }),
+            [StatusCodes.BAD_REQUEST]: z.object({
+                error: z.string(),
+            }),
+            [StatusCodes.INTERNAL_SERVER_ERROR]: z.object({
+                error: z.string(),
+            }),
         },
     },
     config: {
-        allowedPrincipals: [PrincipalType.USER, PrincipalType.SERVICE],
+        security: securityAccess.publicPlatform([PrincipalType.USER, PrincipalType.SERVICE]),
     },
 }
 
@@ -664,5 +670,8 @@ const MidtransNotificationRequest = {
         response: {
             [StatusCodes.OK]: z.object({ received: z.boolean() }),
         },
+    },
+    config: {
+        security: securityAccess.public(),
     },
 }

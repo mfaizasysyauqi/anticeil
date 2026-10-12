@@ -20,4 +20,5 @@ type RecordTriggerRunParams = {
     flowVersion: FlowVersion
     platformId: string
     status: EngineResponseStatus
+    error?: unknown
 }

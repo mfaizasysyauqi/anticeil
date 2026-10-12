@@ -156,7 +156,8 @@ export const platformPlanService = (log: FastifyBaseLogger) => ({
                 code: ErrorCode.QUOTA_EXCEEDED,
                 params: {
                     metric: PlatformUsageMetric.USERS,
-                    message: `Plan seat limit exceeded (${usedSeats}/${effectiveLimit}). Upgrade your plan to add more members.`,
+                    usage: usedSeats + additionalSeatsNeeded,
+                    limit: effectiveLimit,
                 },
             })
         }

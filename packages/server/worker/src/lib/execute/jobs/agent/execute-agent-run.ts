@@ -2,7 +2,7 @@ import { ActivepiecesAiBilling, ActivepiecesAiConsumerSource, AIProviderName, Er
 import { agentAiUtils, aiUtils } from '@activepieces/server-utils'
 import { AgentEvent, AgentEventType, AgentKnowledgeBaseTool, AgentMcpTool, AgentOutputField, AgentPhase, AgentPieceTool, AgentResult, AgentRunSource, AgentTool, AgentToolType, EngineResponseStatus, ExecuteAgentRunJobData, MAX_AGENT_TURN_WALL_CLOCK_MS, PersistedAgentMessage, PersistedAgentPart, PersistedAgentRole, ResolvedAgentFlowTool, WorkerJobType } from '@activepieces/shared'
 import { createUIMessageStream, generateText, ModelMessage, streamText, ToolSet, toUIMessageStream } from 'ai'
-import { FireAndForgetJobResult, JobContext, JobHandler, JobResultKind } from '../../../types'
+import { FireAndForgetJobResult, JobContext, JobHandler, JobResultKind } from '../../types'
 import { agentMcpClient, McpConnection } from './agent-mcp-client'
 import { stepResultFrom } from './agent-step-result'
 import { agentToolPolicy } from './agent-tool-policy'
@@ -169,7 +169,7 @@ export const executeAgentRunJob: JobHandler<ExecuteAgentRunJobData, FireAndForge
                 const { data: response } = await tryCatch(() => ctx.apiClient.executeAgentTool({
                     toolName: '__cancel_check', toolInput: { conversationId, runId }, platformId, userId, source,
                 }))
-                if (response?.result === true) {
+                if ((response as any)?.result === true) {
                     abortController.abort()
                 }
             }
@@ -641,7 +641,7 @@ function buildToolSet({ ctx, eventEmitter, log, phaseState, taintState, mcpToolS
                 toolInput: { pieceName },
                 platformId, userId, source, conversationId,
             }))
-            const selected = stored?.result
+            const selected = (stored as any)?.result
             if (!isObject(selected) || typeof selected['externalId'] !== 'string') {
                 return null
             }
@@ -684,12 +684,12 @@ function buildToolSet({ ctx, eventEmitter, log, phaseState, taintState, mcpToolS
                     platformId, conversationId, data: Buffer.from(json, 'utf8'), mediaType: 'application/json',
                     ...spreadIfDefined('projectId', projectState.projectId ?? undefined), fileName,
                 }))
-                return saved?.fileId ?? null
+                return (saved as any)?.fileId ?? null
             },
         }),
         checkFlowWrites: async (flowId) => {
             const response = await ctx.apiClient.executeAgentTool({ toolName: '__flow_write_check', toolInput: { flowId }, platformId, userId, source, conversationId })
-            return response.result
+            return (response as any)?.result
         },
         waitForApproval,
         storePendingGate,

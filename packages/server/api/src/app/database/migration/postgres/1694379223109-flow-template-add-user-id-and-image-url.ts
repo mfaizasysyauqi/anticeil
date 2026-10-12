@@ -1,7 +1,7 @@
 import { ApEdition } from '@activepieces/shared'
 import { MigrationInterface, QueryRunner } from 'typeorm'
-import { isNotOneOfTheseEditions } from '../../../../database/database-common'
-import { system } from '../../../../helper/system/system'
+import { isNotOneOfTheseEditions } from '../../database-common'
+import { system } from '../../../helper/system/system'
 
 export class FlowTemplateAddUserIdAndImageUrl1694379223109
 implements MigrationInterface {

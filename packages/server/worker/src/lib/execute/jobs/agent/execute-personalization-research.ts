@@ -1,7 +1,7 @@
 import { isNil, tryCatch } from '@activepieces/core-utils'
 import { aiUtils } from '@activepieces/server-utils'
 import { EngineResponseStatus, ExecutePersonalizationResearchJobData, WorkerJobType } from '@activepieces/shared'
-import { FireAndForgetJobResult, JobContext, JobHandler, JobResultKind } from '../../../types'
+import { FireAndForgetJobResult, JobContext, JobHandler, JobResultKind } from '../../types'
 import { runPrefillLookup } from './personalization-enrichment'
 import { curateCards, fallbackResearch, generateCards, generateProfile } from './personalization-generate'
 import { PersonalizationUseCaseResult } from './personalization-research-shared'

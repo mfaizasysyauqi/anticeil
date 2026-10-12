@@ -1,6 +1,6 @@
 import { isNil, tryCatch } from '@activepieces/core-utils'
 import { safeHttp } from '@activepieces/server-utils'
-import { JobContext } from '../../../types'
+import { JobContext } from '../../types'
 
 export async function readHomepage({ domain, log }: { domain: string, log: JobContext['log'] }): Promise<HomepageExtract | null> {
     const client = safeHttp.createAxios({

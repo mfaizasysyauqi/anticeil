@@ -533,8 +533,8 @@ type SessionCommandBody =
     | { kind: 'run', script: string }
 
 type SessionReply =
-    | { id: string, success: true, result: unknown }
-    | { id: string, success: false, error: SandboxErrorPayload }
+    | { id: string, success: true, result: unknown, error?: never }
+    | { id: string, success: false, error: SandboxErrorPayload, result?: never }
 
 type PendingSessionCommand = {
     resolve(value: unknown): void
@@ -561,8 +561,10 @@ type NodeApis = {
 type DenoResultMessage = {
     success: true
     result: unknown
+    error?: never
 } | {
     success: false
     error: SandboxErrorPayload
+    result?: never
 }
 

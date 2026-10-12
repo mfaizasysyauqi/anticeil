@@ -1,7 +1,7 @@
 import { isNil, tryCatch } from '@activepieces/core-utils'
 import { safeHttp } from '@activepieces/server-utils'
 import { ExecutePersonalizationResearchJobData } from '@activepieces/shared'
-import { JobContext } from '../../../types'
+import { JobContext } from '../../types'
 import { asRecord } from './personalization-shaping'
 
 export async function runPrefillLookup({ data, apiClient, log }: {

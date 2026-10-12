@@ -1,6 +1,6 @@
 import { ApEdition } from '@activepieces/shared'
 import { MigrationInterface, QueryRunner } from 'typeorm'
-import { isNotOneOfTheseEditions } from '../../../../database/database-common'
+import { isNotOneOfTheseEditions } from '../../database-common'
 
 export class AddMetadataFieldToFlowTemplates1744780800000 implements MigrationInterface {
     name = 'AddMetadataFieldToFlowTemplates1744780800000'

@@ -1,6 +1,6 @@
 import { ApEdition } from '@activepieces/shared'
 import { MigrationInterface, QueryRunner } from 'typeorm'
-import { isNotOneOfTheseEditions } from '../../../../database/database-common'
+import { isNotOneOfTheseEditions } from '../../database-common'
 
 export class AddFeaturedDescriptionAndFlagToTemplates1694604120205
 implements MigrationInterface {
