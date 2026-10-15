@@ -1,5 +1,6 @@
 import { isNil, Permission } from '@activepieces/core-utils';
 import { t } from 'i18next';
+import { CalendarDays } from 'lucide-react';
 import { useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -98,6 +99,13 @@ export const ProjectDashboardLayoutHeader = () => {
       label: t('Runs'),
       icon: HistoryIcon,
       hasPermission: checkAccess(Permission.READ_RUN),
+      show: true,
+    },
+    {
+      to: authenticationSession.appendProjectRoutePrefix('/calendar'),
+      label: t('Calendar'),
+      icon: CalendarDays,
+      hasPermission: checkAccess(Permission.READ_FLOW),
       show: true,
     },
     {

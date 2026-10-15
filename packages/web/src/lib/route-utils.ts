@@ -19,6 +19,7 @@ export const routesThatRequireProjectId = {
   releases: '/releases',
   singleRelease: '/releases/:releaseId',
   approvals: '/approvals',
+  calendar: '/calendar',
 };
 
 export const CHAT_ROUTE = '/chat';

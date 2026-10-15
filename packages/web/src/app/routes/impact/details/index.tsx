@@ -79,7 +79,9 @@ export function FlowsDetails({
       {
         accessorKey: 'flowName',
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title={t('Flow Name')} />
+          <div className={DASHBOARD_CONTENT_PADDING_X}>
+            <DataTableColumnHeader column={column} title={t('Flow Name')} />
+          </div>
         ),
         cell: ({ row }) => (
           <div
@@ -256,7 +258,11 @@ export function FlowsDetails({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3 flex-wrap">
+      <div
+        className={cn(
+          'flex items-center gap-3 flex-wrap px-4 sm:px-6 pt-1',
+        )}
+      >
         <div className="relative w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -297,7 +303,7 @@ export function FlowsDetails({
       </div>
 
       {flowsMissingTimeSaved > 0 && (
-        <div className="flex mx-3 items-start justify-between gap-3 p-4 rounded-lg border border-warning/50 bg-warning/10">
+        <div className="flex mx-4 sm:mx-6 items-start justify-between gap-3 p-4 rounded-lg border border-warning/50 bg-warning/10">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
             <div className="flex flex-col gap-1">
@@ -350,8 +356,8 @@ function TimeSavedFilter({ filters }: { filters: FiltersReturn }) {
       onOpenChange={filters.handleTimeSavedPopoverOpen}
     >
       <PopoverTrigger asChild>
-        <Button variant="outline" className="gap-2 font-normal border-dashed">
-          <Clock className="h-4 w-4" />
+        <Button variant="outline" className="gap-2.5 font-normal border-dashed">
+          <Clock className="h-4 w-4 shrink-0 mr-1.5" />
           <span>{t('Total Time Saved')}</span>
           {filters.timeSavedLabel && (
             <span className="rounded bg-accent px-1.5 py-0.5 text-xs font-medium">
@@ -385,8 +391,8 @@ function OwnerFilter({ filters }: { filters: FiltersReturn }) {
       onOpenChange={(open) => filters.updateOwnerFilter({ popoverOpen: open })}
     >
       <PopoverTrigger asChild>
-        <Button variant="outline" className="gap-2 font-normal border-dashed">
-          <Filter className="h-4 w-4" />
+        <Button variant="outline" className="gap-2.5 font-normal border-dashed">
+          <Filter className="h-4 w-4 shrink-0 mr-1.5" />
           <span>{t('Owner')}</span>
           {filters.selectedOwners.length > 0 && (
             <span className="flex items-center gap-1">

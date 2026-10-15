@@ -61,6 +61,10 @@ const ApTableEditorPage = lazyWithRetry(
   () => import('./tables/id').then((m) => ({ default: m.ApTableEditorPage })),
   'table-editor',
 );
+const CalendarPage = lazyWithRetry(
+  () => import('./calendar'),
+  'calendar',
+);
 
 const SettingsRerouter = () => {
   const { hash } = useLocation();
@@ -261,6 +265,20 @@ export const projectRoutes = [
           <PageTitle title="Pending approvals">
             <SuspenseWrapper>
               <ApprovalsPage />
+            </SuspenseWrapper>
+          </PageTitle>
+        </RoutePermissionGuard>
+      </ProjectDashboardLayout>
+    ),
+  }),
+  ...ProjectRouterWrapper({
+    path: routesThatRequireProjectId.calendar,
+    element: (
+      <ProjectDashboardLayout>
+        <RoutePermissionGuard requiredPermissions={Permission.READ_FLOW}>
+          <PageTitle title="Calendar">
+            <SuspenseWrapper>
+              <CalendarPage />
             </SuspenseWrapper>
           </PageTitle>
         </RoutePermissionGuard>
