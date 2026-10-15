@@ -30,12 +30,14 @@ export const UpdateUserDialog = ({
   userId,
   role,
   externalId,
+  isPlatformOwner = false,
 }: {
   children: React.ReactNode;
   onUpdate: (role: PlatformRole) => void;
   userId: string;
   role: PlatformRole;
   externalId?: string;
+  isPlatformOwner?: boolean;
 }) => {
   const [open, setOpen] = useState(false);
   const form = useForm<{ role: PlatformRole; externalId?: string }>({
@@ -83,7 +85,13 @@ export const UpdateUserDialog = ({
                     type="platform"
                     value={field.value}
                     onValueChange={field.onChange}
+                    disabled={isPlatformOwner}
                   />
+                  {isPlatformOwner && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('Peran pemilik platform tidak dapat diubah dari Admin.')}
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

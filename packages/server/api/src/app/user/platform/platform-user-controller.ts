@@ -1,10 +1,11 @@
-import { ApId, assertNotNullOrUndefined, SeekPage } from '@activepieces/core-utils'
-import { ApEdition, ListUsersRequestBody, PrincipalType, SERVICE_KEY_SECURITY_OPENAPI, UpdateUserRequestBody, UserWithMetaInformation } from '@activepieces/shared'
+import { ActivepiecesError, ApId, assertNotNullOrUndefined, ErrorCode, SeekPage } from '@activepieces/core-utils'
+import { ApEdition, ListUsersRequestBody, PlatformRole, PrincipalType, SERVICE_KEY_SECURITY_OPENAPI, UpdateUserRequestBody, UserWithMetaInformation } from '@activepieces/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
 import { system } from '../../helper/system/system'
+import { platformService } from '../../platform/platform.service'
 import { userService } from '../user-service'
 
 export const platformUserController: FastifyPluginAsyncZod = async (app) => {
@@ -25,6 +26,24 @@ export const platformUserController: FastifyPluginAsyncZod = async (app) => {
         const platformId = req.principal.platform.id
         assertNotNullOrUndefined(platformId, 'platformId')
 
+        const platform = await platformService(req.log).getOneOrThrow(platformId)
+        if (platform.ownerId === req.params.id && req.principal.id !== platform.ownerId) {
+            throw new ActivepiecesError({
+                code: ErrorCode.AUTHORIZATION,
+                params: {
+                    message: 'Platform owner role cannot be modified by other admins',
+                },
+            })
+        }
+        if (platform.ownerId === req.params.id && req.body.platformRole && req.body.platformRole !== PlatformRole.ADMIN) {
+            throw new ActivepiecesError({
+                code: ErrorCode.VALIDATION,
+                params: {
+                    message: 'Platform owner must be an Admin',
+                },
+            })
+        }
+
         return userService(req.log).update({
             id: req.params.id,
             platformId,
@@ -37,6 +56,16 @@ export const platformUserController: FastifyPluginAsyncZod = async (app) => {
     app.delete('/:id', DeleteUserRequest, async (req, res) => {
         const platformId = req.principal.platform.id
         assertNotNullOrUndefined(platformId, 'platformId')
+
+        const platform = await platformService(req.log).getOneOrThrow(platformId)
+        if (platform.ownerId === req.params.id) {
+            throw new ActivepiecesError({
+                code: ErrorCode.VALIDATION,
+                params: {
+                    message: 'Platform owner cannot be deleted',
+                },
+            })
+        }
 
         const edition = system.getEdition()
         if (edition === ApEdition.CLOUD) {

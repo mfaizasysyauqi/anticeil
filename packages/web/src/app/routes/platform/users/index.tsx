@@ -20,6 +20,8 @@ import {
   platformUserMutations,
 } from '@/features/platform-admin/hooks/platform-user-hooks';
 
+import { platformHooks } from '@/hooks/platform-hooks';
+
 import { UserActions } from './actions/user-actions';
 import { createUsersTableColumns } from './columns';
 
@@ -115,7 +117,8 @@ export default function UsersPage() {
     });
   };
 
-  const columns = createUsersTableColumns();
+  const { platform } = platformHooks.useCurrentPlatform();
+  const columns = useMemo(() => createUsersTableColumns(platform?.ownerId), [platform?.ownerId]);
 
   return (
     <LockedFeatureGuard

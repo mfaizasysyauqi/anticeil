@@ -28,7 +28,7 @@ type ColumnDefWithAccessorKey = ColumnDef<RowDataWithActions<UserRowData>> & {
   accessorKey: string;
 };
 
-export const createUsersTableColumns = (): ColumnDefWithAccessorKey[] => [
+export const createUsersTableColumns = (platformOwnerId?: string): ColumnDefWithAccessorKey[] => [
   {
     accessorKey: 'identity',
     size: 320,
@@ -109,19 +109,28 @@ export const createUsersTableColumns = (): ColumnDefWithAccessorKey[] => [
   },
   {
     accessorKey: 'role',
-    size: 90,
+    size: 130,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title={t('Role')} icon={Shield} />
     ),
     cell: ({ row }) => {
+      const isInvitation = row.original.type === 'invitation';
+      const isOwner = !isInvitation && !!platformOwnerId && row.original.data.id === platformOwnerId;
       const platformRole = row.original.data.platformRole;
       return (
-        <div className="text-left">
-          {platformRole === PlatformRole.ADMIN
-            ? t('Admin Platform')
-            : platformRole === PlatformRole.OPERATOR
-            ? t('Operator Platform')
-            : t('Anggota Platform')}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span>
+            {platformRole === PlatformRole.ADMIN
+              ? t('Platform Admin')
+              : platformRole === PlatformRole.OPERATOR
+              ? t('Platform Operator')
+              : t('Platform Member')}
+          </span>
+          {isOwner && (
+            <span className="inline-flex items-center rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500 border border-amber-500/30">
+              {t('Owner')}
+            </span>
+          )}
         </div>
       );
     },

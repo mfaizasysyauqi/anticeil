@@ -218,21 +218,32 @@ export const platformProjectService = (log: FastifyBaseLogger) => ({
         return (await enrichProjects([project], log))[0]
     },
     async deletePersonalProjectForUser({ userId, platformId }: DeletePersonalProjectForUserParams): Promise<void> {
-        const personalProject = await projectRepo().findOneBy({
-            platformId,
-            ownerId: userId,
-            type: ProjectType.PERSONAL,
-        })
-        if (isNil(personalProject)) {
-            return
-        }
-        
         const platform = await platformService(log).getOneOrThrow(platformId)
-        await transaction(async (entityManager) => {
-            await projectRepo(entityManager).update({ id: personalProject.id, platformId }, { ownerId: platform.ownerId })
-            await projectRepo(entityManager).softDelete({ id: personalProject.id, platformId })
+        const personalProjects = await projectRepo().find({
+            where: {
+                platformId,
+                ownerId: userId,
+                type: ProjectType.PERSONAL,
+            },
+            withDeleted: true,
         })
-        await scheduleHardDeleteProjectJob({ id: personalProject.id, platformId, log })
+
+        await transaction(async (entityManager) => {
+            for (const p of personalProjects) {
+                if (!p.deleted) {
+                    await projectRepo(entityManager).softDelete({ id: p.id, platformId })
+                }
+            }
+            await projectRepo(entityManager).createQueryBuilder()
+                .update()
+                .set({ ownerId: platform.ownerId })
+                .where('"ownerId" = :userId', { userId })
+                .execute()
+        })
+
+        for (const p of personalProjects) {
+            await scheduleHardDeleteProjectJob({ id: p.id, platformId, log })
+        }
     },
 
     async markForDeletion({ id, platformId }: DeleteProjectParams): Promise<void> {

@@ -76,13 +76,23 @@ export const userService = (log: FastifyBaseLogger) => ({
         }
 
         const platform = await platformService(log).getOneOrThrow(user.platformId)
-        if (platform.ownerId === user.id && status === UserStatus.INACTIVE) {
-            throw new ActivepiecesError({
-                code: ErrorCode.VALIDATION,
-                params: {
-                    message: 'Admin cannot be deactivated',
-                },
-            })
+        if (platform.ownerId === user.id) {
+            if (status === UserStatus.INACTIVE) {
+                throw new ActivepiecesError({
+                    code: ErrorCode.VALIDATION,
+                    params: {
+                        message: 'Admin cannot be deactivated',
+                    },
+                })
+            }
+            if (platformRole && platformRole !== PlatformRole.ADMIN) {
+                throw new ActivepiecesError({
+                    code: ErrorCode.VALIDATION,
+                    params: {
+                        message: 'Platform owner role cannot be changed from Admin',
+                    },
+                })
+            }
         }
 
         const applyUpdate = (entityManager?: EntityManager): Promise<unknown> => userRepo(entityManager).update({

@@ -59,17 +59,28 @@ export const UserActions = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent>
           {!isInvitation && (
-            <UpdateUserDialog
-              userId={row.data.id}
-              role={row.data.platformRole}
-              externalId={row.data.externalId ?? undefined}
-              onUpdate={onUpdate}
-            >
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+            isPlatformOwner && !isCurrentUser ? (
+              <DropdownMenuItem
+                disabled={true}
+                className="text-muted-foreground opacity-50 cursor-not-allowed flex items-center gap-2"
+              >
                 <Pencil className="h-4 w-4" />
-                {t('Edit')}
+                <span>{t('Owner Platform (Tidak dapat diubah)')}</span>
               </DropdownMenuItem>
-            </UpdateUserDialog>
+            ) : (
+              <UpdateUserDialog
+                userId={row.data.id}
+                role={row.data.platformRole}
+                externalId={row.data.externalId ?? undefined}
+                isPlatformOwner={isPlatformOwner}
+                onUpdate={onUpdate}
+              >
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <Pencil className="h-4 w-4" />
+                  {t('Edit')}
+                </DropdownMenuItem>
+              </UpdateUserDialog>
+            )
           )}
           {!isInvitation && (
             <DropdownMenuItem
