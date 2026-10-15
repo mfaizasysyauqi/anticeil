@@ -52,8 +52,8 @@ const AnimatedTab = ({
       className="pb-3"
       onClick={onClick}
       data-state={isActive ? 'active' : 'inactive'}
-      onMouseEnter={() => iconRef.current?.startAnimation()}
-      onMouseLeave={() => iconRef.current?.stopAnimation()}
+      onMouseEnter={() => iconRef.current?.startAnimation?.()}
+      onMouseLeave={() => iconRef.current?.stopAnimation?.()}
     >
       <IconComponent ref={iconRef} size={16} className="mr-2" />
       {tab.label}

@@ -105,18 +105,16 @@ function getCronOccurrencesInWindow(
   const results: Dayjs[] = [];
   let curr = startWindow.startOf('hour');
 
-  // Step hour by hour to find matches
   while (curr.isBefore(endWindow) && results.length < limit) {
     const hour = curr.hour();
     const dom = curr.date();
-    const dow = curr.day(); // 0 is Sunday
+    const dow = curr.day();
 
     if (
       matches(hour, hourPart) &&
       matches(dom, domPart) &&
       matches(dow, dowPart)
     ) {
-      // Check minutes in this hour
       for (let m = 0; m < 60; m += 5) {
         if (matches(m, minPart)) {
           const occ = curr.minute(m).second(0);
@@ -137,7 +135,15 @@ export default function AutomationCalendarPage() {
   const navigate = useNavigate();
   const projectId = authenticationSession.getProjectId()!;
   const [currentDate, setCurrentDate] = useState<Dayjs>(dayjs());
-  const [view, setView] = useState<CalendarViewType>('week');
+  
+  // Responsive default view: on mobile screen (< 768px), default to 'day' or 'agenda'
+  const [view, setView] = useState<CalendarViewType>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return 'day';
+    }
+    return 'week';
+  });
+
   const [selectedFlowId, setSelectedFlowId] = useState<string>('all');
   const [showScheduled, setShowScheduled] = useState(true);
   const [showRuns, setShowRuns] = useState(true);
@@ -177,7 +183,7 @@ export default function AutomationCalendarPage() {
     return Array.from({ length: 7 }, (_, i) => windowStart.add(i, 'day'));
   }, [windowStart]);
 
-  // Process events (historical runs + projected schedules)
+  // Process events
   const events = useMemo(() => {
     const list: CalendarEvent[] = [];
 
@@ -263,7 +269,7 @@ export default function AutomationCalendarPage() {
 
   const formattedPeriodLabel = useMemo(() => {
     if (view === 'day') {
-      return currentDate.format('dddd, DD MMMM YYYY');
+      return currentDate.format('ddd, DD MMM YYYY');
     }
     if (view === 'week') {
       const start = windowStart.format('DD MMM');
@@ -276,7 +282,7 @@ export default function AutomationCalendarPage() {
   const renderStatusBadge = (event: CalendarEvent) => {
     if (event.isScheduled) {
       return (
-        <Badge variant="outline" className="gap-1 border-blue-500/40 text-blue-500 bg-blue-500/10">
+        <Badge variant="outline" className="gap-1 border-blue-500/40 text-blue-500 bg-blue-500/10 text-[11px]">
           <Clock className="w-3 h-3" />
           {t('Scheduled')}
         </Badge>
@@ -285,28 +291,28 @@ export default function AutomationCalendarPage() {
     switch (event.status) {
       case FlowRunStatus.SUCCEEDED:
         return (
-          <Badge variant="outline" className="gap-1 border-emerald-500/40 text-emerald-500 bg-emerald-500/10">
+          <Badge variant="outline" className="gap-1 border-emerald-500/40 text-emerald-500 bg-emerald-500/10 text-[11px]">
             <CheckCircle2 className="w-3 h-3" />
             {t('Success')}
           </Badge>
         );
       case FlowRunStatus.FAILED:
         return (
-          <Badge variant="outline" className="gap-1 border-rose-500/40 text-rose-500 bg-rose-500/10">
+          <Badge variant="outline" className="gap-1 border-rose-500/40 text-rose-500 bg-rose-500/10 text-[11px]">
             <XCircle className="w-3 h-3" />
             {t('Failed')}
           </Badge>
         );
       case FlowRunStatus.RUNNING:
         return (
-          <Badge variant="outline" className="gap-1 border-amber-500/40 text-amber-500 bg-amber-500/10">
+          <Badge variant="outline" className="gap-1 border-amber-500/40 text-amber-500 bg-amber-500/10 text-[11px]">
             <RotateCw className="w-3 h-3 animate-spin" />
             {t('Running')}
           </Badge>
         );
       default:
         return (
-          <Badge variant="outline" className="gap-1 text-muted-foreground">
+          <Badge variant="outline" className="gap-1 text-muted-foreground text-[11px]">
             <AlertCircle className="w-3 h-3" />
             {event.status || t('Unknown')}
           </Badge>
@@ -314,15 +320,17 @@ export default function AutomationCalendarPage() {
     }
   };
 
+  const displayedDays = view === 'day' ? [currentDate] : weekDays;
+
   return (
-    <div className="flex flex-col h-full w-full bg-background overflow-hidden">
+    <div className="flex flex-col h-full w-full bg-background overflow-hidden min-w-0">
       {/* Top Page Header */}
       <PageHeader
         title={
-          <div className="flex items-center gap-2">
-            <CalendarIcon className="h-5 w-5 text-primary" />
-            <span className="text-base font-semibold">{t('Automation Calendar')}</span>
-            <Badge variant="secondary" className="text-xs font-normal">
+          <div className="flex items-center gap-2 min-w-0">
+            <CalendarIcon className="h-5 w-5 text-primary shrink-0" />
+            <span className="text-base font-semibold truncate">{t('Automation Calendar')}</span>
+            <Badge variant="secondary" className="text-xs font-normal shrink-0">
               {events.length} {t('events')}
             </Badge>
           </div>
@@ -344,33 +352,35 @@ export default function AutomationCalendarPage() {
         }
       />
 
-      {/* Calendar Controls & Filters Toolbar */}
+      {/* Calendar Controls & Filters Toolbar (Fully Responsive) */}
       <div
         className={cn(
-          'flex flex-wrap items-center justify-between gap-3 py-3 border-b bg-card/40 shrink-0',
-          DASHBOARD_CONTENT_PADDING_X,
+          'flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 py-2.5 border-b bg-card/40 shrink-0 min-w-0',
+          'px-4 sm:px-6',
         )}
       >
         {/* Navigation & Period */}
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleToday} className="h-8">
-            {t('Today')}
-          </Button>
-          <div className="flex items-center border rounded-md">
-            <Button variant="ghost" size="icon" onClick={handlePrev} className="h-8 w-8">
-              <ChevronLeft className="h-4 w-4" />
+        <div className="flex items-center justify-between sm:justify-start gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button variant="outline" size="sm" onClick={handleToday} className="h-8 px-2.5 text-xs">
+              {t('Today')}
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleNext} className="h-8 w-8">
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center border rounded-md">
+              <Button variant="ghost" size="icon" onClick={handlePrev} className="h-8 w-7">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleNext} className="h-8 w-7">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-          <span className="text-sm font-semibold ml-2">{formattedPeriodLabel}</span>
+          <span className="text-xs sm:text-sm font-semibold truncate ml-1">{formattedPeriodLabel}</span>
         </div>
 
         {/* View Switcher & Filters */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 min-w-0">
           {/* Flow Filter */}
-          <div className="w-[180px]">
+          <div className="w-[140px] sm:w-[170px]">
             <Select value={selectedFlowId} onValueChange={setSelectedFlowId}>
               <SelectTrigger className="h-8 text-xs">
                 <SelectValue placeholder={t('Filter flow')} />
@@ -387,41 +397,41 @@ export default function AutomationCalendarPage() {
           </div>
 
           {/* Toggle Type Filters */}
-          <div className="flex items-center gap-1 border rounded-md p-0.5 bg-muted/40 text-xs">
+          <div className="flex items-center gap-0.5 border rounded-md p-0.5 bg-muted/40 text-xs shrink-0">
             <button
               type="button"
               onClick={() => setShowRuns((v) => !v)}
               className={cn(
-                'px-2 py-1 rounded transition-colors flex items-center gap-1.5',
+                'px-2 py-1 rounded transition-colors flex items-center gap-1 text-[11px]',
                 showRuns ? 'bg-background shadow-xs text-foreground font-medium' : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               {t('Runs')}
             </button>
             <button
               type="button"
               onClick={() => setShowScheduled((v) => !v)}
               className={cn(
-                'px-2 py-1 rounded transition-colors flex items-center gap-1.5',
+                'px-2 py-1 rounded transition-colors flex items-center gap-1 text-[11px]',
                 showScheduled ? 'bg-background shadow-xs text-foreground font-medium' : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
               {t('Scheduled')}
             </button>
           </div>
 
-          {/* View Mode Tabs */}
-          <Tabs value={view} onValueChange={(v) => setView(v as CalendarViewType)}>
+          {/* View Mode Tabs (Week, Day, Agenda) */}
+          <Tabs value={view} onValueChange={(v) => setView(v as CalendarViewType)} className="shrink-0">
             <TabsList className="h-8 p-0.5 bg-muted">
-              <TabsTrigger value="week" className="h-7 text-xs px-2.5">
+              <TabsTrigger value="week" className="h-7 text-xs px-2 sm:px-2.5">
                 {t('Week')}
               </TabsTrigger>
-              <TabsTrigger value="day" className="h-7 text-xs px-2.5">
+              <TabsTrigger value="day" className="h-7 text-xs px-2 sm:px-2.5">
                 {t('Day')}
               </TabsTrigger>
-              <TabsTrigger value="agenda" className="h-7 text-xs px-2.5">
+              <TabsTrigger value="agenda" className="h-7 text-xs px-2 sm:px-2.5">
                 {t('Agenda')}
               </TabsTrigger>
             </TabsList>
@@ -430,10 +440,10 @@ export default function AutomationCalendarPage() {
       </div>
 
       {/* Main Calendar Viewport */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative min-w-0">
         {view === 'agenda' ? (
           /* AGENDA LIST VIEW */
-          <div className={cn('flex-1 overflow-auto py-4 space-y-4', DASHBOARD_CONTENT_PADDING_X)}>
+          <div className={cn('flex-1 overflow-auto py-4 space-y-3', 'px-4 sm:px-6')}>
             {events.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
                 <CalendarIcon className="h-10 w-10 stroke-1 mb-2 opacity-50" />
@@ -451,11 +461,11 @@ export default function AutomationCalendarPage() {
                     onClick={() => setActiveEvent(event)}
                     className="cursor-pointer hover:border-primary/50 transition-all hover:shadow-xs"
                   >
-                    <CardContent className="p-3.5 flex items-center justify-between gap-4">
+                    <CardContent className="p-3 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div
                           className={cn(
-                            'w-2.5 h-10 rounded-full shrink-0',
+                            'w-2 h-9 rounded-full shrink-0',
                             event.isScheduled
                               ? 'bg-blue-500'
                               : event.status === FlowRunStatus.SUCCEEDED
@@ -466,11 +476,11 @@ export default function AutomationCalendarPage() {
                           )}
                         />
                         <div className="flex flex-col min-w-0">
-                          <span className="font-medium text-sm truncate">{event.title}</span>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                            <Clock className="w-3 h-3" />
-                            <span>
-                              {event.startTime.format('DD MMM YYYY, HH:mm')} - {event.endTime.format('HH:mm')}
+                          <span className="font-medium text-xs sm:text-sm truncate">{event.title}</span>
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5 flex-wrap">
+                            <span className="flex items-center gap-1 font-mono">
+                              <Clock className="w-3 h-3 shrink-0" />
+                              {event.startTime.format('DD MMM, HH:mm')} - {event.endTime.format('HH:mm')}
                             </span>
                             {event.cronExpression && (
                               <span className="bg-muted px-1.5 py-0.2 rounded font-mono text-[10px]">
@@ -490,138 +500,141 @@ export default function AutomationCalendarPage() {
             )}
           </div>
         ) : (
-          /* WEEK / DAY TIMEGRID VIEW (Google Calendar Style) */
-          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            {/* Header Columns (Days) */}
-            <div className="flex border-b bg-card/60 shrink-0">
-              {/* Time Column Placeholder */}
-              <div className="w-16 shrink-0 border-r py-2.5 px-2 text-right text-xs text-muted-foreground font-mono">
-                GMT{dayjs().format('Z')}
-              </div>
-              {/* Day Columns */}
-              <div className="flex-1 grid grid-flow-col auto-cols-fr divide-x">
-                {(view === 'day' ? [currentDate] : weekDays).map((day, idx) => {
-                  const isToday = day.isSame(dayjs(), 'day');
-                  return (
-                    <div
-                      key={idx}
-                      className={cn(
-                        'py-2.5 px-3 flex flex-col items-center justify-center text-center',
-                        isToday && 'bg-primary/5',
-                      )}
-                    >
-                      <span className="text-[11px] font-medium text-muted-foreground uppercase">
-                        {day.format('ddd')}
-                      </span>
+          /* WEEK / DAY TIMEGRID VIEW (Responsive with Horizontal Scroll on Mobile/Tablet) */
+          <div className="flex-1 min-h-0 flex flex-col overflow-x-auto overflow-y-hidden select-none">
+            {/* Inner responsive wrapper: has min-width on week view so days don't get squished */}
+            <div className={cn('flex flex-col flex-1 min-h-0', view === 'week' ? 'min-w-[720px] md:min-w-full' : 'min-w-full')}>
+              {/* Header Columns (Days) */}
+              <div className="flex border-b bg-card/70 shrink-0 sticky top-0 z-30">
+                {/* Time Column Placeholder */}
+                <div className="w-14 sm:w-16 shrink-0 border-r py-2 px-1 text-right text-[10px] sm:text-xs text-muted-foreground font-mono">
+                  GMT{dayjs().format('Z')}
+                </div>
+                {/* Day Columns */}
+                <div className="flex-1 grid grid-flow-col auto-cols-fr divide-x">
+                  {displayedDays.map((day, idx) => {
+                    const isToday = day.isSame(dayjs(), 'day');
+                    return (
                       <div
+                        key={idx}
                         className={cn(
-                          'w-7 h-7 flex items-center justify-center rounded-full text-sm font-semibold mt-0.5',
-                          isToday && 'bg-primary text-primary-foreground',
+                          'py-2 px-1 sm:px-2 flex flex-col items-center justify-center text-center',
+                          isToday && 'bg-primary/5',
                         )}
                       >
-                        {day.format('D')}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Scrollable Hours Grid */}
-            <div ref={gridContainerRef} className="flex-1 overflow-y-auto relative flex">
-              {/* Time Labels (Left Column) */}
-              <div className="w-16 shrink-0 border-r select-none">
-                {HOURS.map((hour) => (
-                  <div
-                    key={hour}
-                    style={{ height: `${HOUR_HEIGHT_PX}px` }}
-                    className="border-b text-[11px] font-mono text-muted-foreground text-right pr-2 pt-1"
-                  >
-                    {String(hour).padStart(2, '0')}:00
-                  </div>
-                ))}
-              </div>
-
-              {/* Day Grid Columns */}
-              <div className="flex-1 grid grid-flow-col auto-cols-fr divide-x relative">
-                {(view === 'day' ? [currentDate] : weekDays).map((day, dayIdx) => {
-                  const isToday = day.isSame(dayjs(), 'day');
-                  const dayStart = day.startOf('day');
-                  const dayEnd = day.endOf('day');
-
-                  // Filter events falling on this day
-                  const dayEvents = events.filter(
-                    (e) => e.startTime.isSame(day, 'day') || (e.startTime.isBefore(dayEnd) && e.endTime.isAfter(dayStart)),
-                  );
-
-                  return (
-                    <div key={dayIdx} className="relative">
-                      {/* Hour Grid Lines */}
-                      {HOURS.map((hour) => (
+                        <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase">
+                          {day.format('ddd')}
+                        </span>
                         <div
-                          key={hour}
-                          style={{ height: `${HOUR_HEIGHT_PX}px` }}
-                          className="border-b border-border/30 hover:bg-muted/10 transition-colors"
-                        />
-                      ))}
-
-                      {/* Current Time Red Line Marker */}
-                      {isToday && (
-                        <div
-                          className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
-                          style={{
-                            top: `${(dayjs().hour() * 60 + dayjs().minute()) * (HOUR_HEIGHT_PX / 60)}px`,
-                          }}
+                          className={cn(
+                            'w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-xs sm:text-sm font-semibold mt-0.5',
+                            isToday && 'bg-primary text-primary-foreground',
+                          )}
                         >
-                          <div className="w-2.5 h-2.5 rounded-full bg-rose-500 -ml-1.25" />
-                          <div className="flex-1 border-t-2 border-rose-500" />
+                          {day.format('D')}
                         </div>
-                      )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
-                      {/* Event Cards inside column */}
-                      {dayEvents.map((event) => {
-                        const topMinutes = event.startTime.hour() * 60 + event.startTime.minute();
-                        const topPx = topMinutes * (HOUR_HEIGHT_PX / 60);
-                        const durMin = Math.max(18, event.endTime.diff(event.startTime, 'minute'));
-                        const heightPx = Math.max(24, durMin * (HOUR_HEIGHT_PX / 60));
-
-                        return (
-                          <div
-                            key={event.id}
-                            onClick={() => setActiveEvent(event)}
-                            style={{
-                              top: `${topPx}px`,
-                              height: `${heightPx}px`,
-                            }}
-                            className={cn(
-                              'absolute left-1 right-1 z-10 rounded-md p-1.5 text-xs cursor-pointer border shadow-xs transition-all hover:scale-[1.01] hover:z-30 overflow-hidden',
-                              event.isScheduled
-                                ? 'bg-blue-500/15 border-blue-500/40 text-blue-400 hover:bg-blue-500/25'
-                                : event.status === FlowRunStatus.SUCCEEDED
-                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25'
-                                : event.status === FlowRunStatus.FAILED
-                                ? 'bg-rose-500/15 border-rose-500/40 text-rose-400 hover:bg-rose-500/25'
-                                : 'bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25',
-                            )}
-                          >
-                            <div className="font-semibold truncate flex items-center gap-1 leading-tight">
-                              {event.isScheduled ? (
-                                <Clock className="w-3 h-3 shrink-0" />
-                              ) : (
-                                <PlayCircle className="w-3 h-3 shrink-0" />
-                              )}
-                              <span className="truncate">{event.title}</span>
-                            </div>
-                            <div className="text-[10px] opacity-80 mt-0.5 font-mono">
-                              {event.startTime.format('HH:mm')}
-                              {durMin > 20 && ` - ${event.endTime.format('HH:mm')}`}
-                            </div>
-                          </div>
-                        );
-                      })}
+              {/* Scrollable Hours Grid */}
+              <div ref={gridContainerRef} className="flex-1 overflow-y-auto relative flex">
+                {/* Time Labels (Left Column) */}
+                <div className="w-14 sm:w-16 shrink-0 border-r bg-background/95 sticky left-0 z-20">
+                  {HOURS.map((hour) => (
+                    <div
+                      key={hour}
+                      style={{ height: `${HOUR_HEIGHT_PX}px` }}
+                      className="border-b text-[10px] sm:text-[11px] font-mono text-muted-foreground text-right pr-1.5 sm:pr-2 pt-1"
+                    >
+                      {String(hour).padStart(2, '0')}:00
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
+
+                {/* Day Grid Columns */}
+                <div className="flex-1 grid grid-flow-col auto-cols-fr divide-x relative">
+                  {displayedDays.map((day, dayIdx) => {
+                    const isToday = day.isSame(dayjs(), 'day');
+                    const dayStart = day.startOf('day');
+                    const dayEnd = day.endOf('day');
+
+                    // Filter events falling on this day
+                    const dayEvents = events.filter(
+                      (e) => e.startTime.isSame(day, 'day') || (e.startTime.isBefore(dayEnd) && e.endTime.isAfter(dayStart)),
+                    );
+
+                    return (
+                      <div key={dayIdx} className="relative">
+                        {/* Hour Grid Lines */}
+                        {HOURS.map((hour) => (
+                          <div
+                            key={hour}
+                            style={{ height: `${HOUR_HEIGHT_PX}px` }}
+                            className="border-b border-border/30 hover:bg-muted/10 transition-colors"
+                          />
+                        ))}
+
+                        {/* Current Time Red Line Marker */}
+                        {isToday && (
+                          <div
+                            className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
+                            style={{
+                              top: `${(dayjs().hour() * 60 + dayjs().minute()) * (HOUR_HEIGHT_PX / 60)}px`,
+                            }}
+                          >
+                            <div className="w-2 h-2 rounded-full bg-rose-500 -ml-1" />
+                            <div className="flex-1 border-t-2 border-rose-500" />
+                          </div>
+                        )}
+
+                        {/* Event Cards inside column */}
+                        {dayEvents.map((event) => {
+                          const topMinutes = event.startTime.hour() * 60 + event.startTime.minute();
+                          const topPx = topMinutes * (HOUR_HEIGHT_PX / 60);
+                          const durMin = Math.max(18, event.endTime.diff(event.startTime, 'minute'));
+                          const heightPx = Math.max(24, durMin * (HOUR_HEIGHT_PX / 60));
+
+                          return (
+                            <div
+                              key={event.id}
+                              onClick={() => setActiveEvent(event)}
+                              style={{
+                                top: `${topPx}px`,
+                                height: `${heightPx}px`,
+                              }}
+                              className={cn(
+                                'absolute left-0.5 right-0.5 sm:left-1 sm:right-1 z-10 rounded-md p-1 sm:p-1.5 text-xs cursor-pointer border shadow-xs transition-all hover:scale-[1.01] hover:z-30 overflow-hidden',
+                                event.isScheduled
+                                  ? 'bg-blue-500/15 border-blue-500/40 text-blue-400 hover:bg-blue-500/25'
+                                  : event.status === FlowRunStatus.SUCCEEDED
+                                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25'
+                                  : event.status === FlowRunStatus.FAILED
+                                  ? 'bg-rose-500/15 border-rose-500/40 text-rose-400 hover:bg-rose-500/25'
+                                  : 'bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25',
+                              )}
+                            >
+                              <div className="font-semibold truncate flex items-center gap-1 leading-tight text-[11px] sm:text-xs">
+                                {event.isScheduled ? (
+                                  <Clock className="w-3 h-3 shrink-0" />
+                                ) : (
+                                  <PlayCircle className="w-3 h-3 shrink-0" />
+                                )}
+                                <span className="truncate">{event.title}</span>
+                              </div>
+                              <div className="text-[9px] sm:text-[10px] opacity-80 mt-0.5 font-mono">
+                                {event.startTime.format('HH:mm')}
+                                {durMin > 20 && ` - ${event.endTime.format('HH:mm')}`}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -667,7 +680,7 @@ export default function AutomationCalendarPage() {
               {activeEvent.cronExpression && (
                 <div className="flex flex-col gap-1 border-b pb-2">
                   <span className="text-muted-foreground">{t('Schedule Expression')}</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono bg-muted px-2 py-0.5 rounded text-[11px]">
                       {activeEvent.cronExpression}
                     </span>
