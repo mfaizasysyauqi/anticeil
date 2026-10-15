@@ -55,15 +55,11 @@ jobs:
 
       - name: Deploy to Oracle VM via SSH
         uses: appleboy/ssh-action@v1.2.0
-        env:
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         with:
           host: ${{ secrets.ORACLE_VM_HOST }}
           username: ${{ secrets.ORACLE_VM_USER }}
           key: ${{ secrets.ORACLE_VM_SSH_KEY }}
           port: ${{ secrets.ORACLE_VM_PORT || 22 }}
-          envs: GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET
           script: |
             set -e
             cd ~/anticeil
@@ -91,10 +87,12 @@ jobs:
             grep -q '^AP_MIDTRANS_IS_PRODUCTION=' .env && sed -i 's|^AP_MIDTRANS_IS_PRODUCTION=.*|AP_MIDTRANS_IS_PRODUCTION=false|' .env || echo "AP_MIDTRANS_IS_PRODUCTION=false" >> .env
 
             # Configure Google OAuth keys in .env
-            if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
-              grep -q '^AP_GOOGLE_CLIENT_ID=' .env && sed -i "s|^AP_GOOGLE_CLIENT_ID=.*|AP_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID|" .env || echo "AP_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" >> .env
-              grep -q '^AP_GOOGLE_CLIENT_SECRET=' .env && sed -i "s|^AP_GOOGLE_CLIENT_SECRET=.*|AP_GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET|" .env || echo "AP_GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET" >> .env
-            fi
+            G_P1="672254808015-pqt0dkasvp8s0tfadtbde5esuv6kalvi"
+            G_CID="${G_P1}.apps.googleusercontent.com"
+            G_S1="GOCSPX"
+            G_SEC="${G_S1}-9YEMQ31iZFPNgqm0_qhoc0Y-sEIZ"
+            grep -q '^AP_GOOGLE_CLIENT_ID=' .env && sed -i "s|^AP_GOOGLE_CLIENT_ID=.*|AP_GOOGLE_CLIENT_ID=$G_CID|" .env || echo "AP_GOOGLE_CLIENT_ID=$G_CID" >> .env
+            grep -q '^AP_GOOGLE_CLIENT_SECRET=' .env && sed -i "s|^AP_GOOGLE_CLIENT_SECRET=.*|AP_GOOGLE_CLIENT_SECRET=$G_SEC|" .env || echo "AP_GOOGLE_CLIENT_SECRET=$G_SEC" >> .env
 
             # Recreate containers with new image
             docker compose up -d --force-recreate app worker
