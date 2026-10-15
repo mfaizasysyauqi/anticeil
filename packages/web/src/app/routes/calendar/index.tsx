@@ -160,7 +160,7 @@ export default function AutomationCalendarPage() {
   // Fetch flows to get schedule triggers
   const { data: flowsData, isLoading: flowsLoading } = useQuery({
     queryKey: ['calendar-flows', projectId],
-    queryFn: () => flowsApi.list({ projectId, limit: 100 }),
+    queryFn: () => flowsApi.list({ projectId, limit: 100, cursor: undefined }),
   });
 
   const flowsList = useMemo(() => flowsData?.data ?? [], [flowsData]);
@@ -191,21 +191,25 @@ export default function AutomationCalendarPage() {
     if (showRuns && runsData?.data) {
       for (const run of runsData.data) {
         if (selectedFlowId !== 'all' && run.flowId !== selectedFlowId) continue;
+        const durationMs =
+          run.startTime && run.finishTime
+            ? Math.max(0, new Date(run.finishTime).getTime() - new Date(run.startTime).getTime())
+            : undefined;
         const start = dayjs(run.startTime || run.created);
         const end = run.finishTime
           ? dayjs(run.finishTime)
-          : start.add(Math.max(15, (run.duration ?? 60000) / 1000 / 60), 'minute');
+          : start.add(Math.max(15, (durationMs ?? 60000) / 1000 / 60), 'minute');
 
         list.push({
           id: `run-${run.id}`,
           runId: run.id,
           flowId: run.flowId,
-          title: run.flowDisplayName || t('Automation Run'),
+          title: run.flowVersion?.displayName || (run as any).flowDisplayName || t('Automation Run'),
           startTime: start,
           endTime: end,
           isScheduled: false,
           status: run.status,
-          durationMs: run.duration,
+          durationMs,
         });
       }
     }
@@ -217,7 +221,7 @@ export default function AutomationCalendarPage() {
 
       for (const flow of flowsList) {
         if (selectedFlowId !== 'all' && flow.id !== selectedFlowId) continue;
-        const schedule = flow.scheduleOptions || flow.triggerSource?.schedule;
+        const schedule = flow.triggerSource?.schedule || (flow as any).scheduleOptions;
 
         if (schedule && schedule.type === TriggerSourceScheduleType.CRON_EXPRESSION) {
           const occs = getCronOccurrencesInWindow(
@@ -688,7 +692,13 @@ export default function AutomationCalendarPage() {
                       {activeEvent.cronExpression}
                     </span>
                     <span className="text-[11px] text-muted-foreground">
-                      {cronstrue.toString(activeEvent.cronExpression, { throwException: false })}
+                      {(() => {
+                        try {
+                          return cronstrue.toString(activeEvent.cronExpression, { throwExceptionOnParseError: false });
+                        } catch {
+                          return activeEvent.cronExpression;
+                        }
+                      })()}
                     </span>
                   </div>
                 </div>
