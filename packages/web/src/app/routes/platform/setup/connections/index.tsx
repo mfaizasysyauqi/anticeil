@@ -20,6 +20,7 @@ import { useLocation } from 'react-router-dom';
 
 import { DashboardPageHeader } from '@/app/components/dashboard-page-header';
 import { LockedFeatureGuard } from '@/app/components/locked-feature-guard';
+import { sampleData } from '../../sample-data';
 import { NewConnectionDialog } from '@/app/connections/new-connection-dialog';
 import { ReconnectButtonDialog } from '@/app/connections/reconnect-button-dialog';
 import { AnimatedIconButton } from '@/components/custom/animated-icon-button';
@@ -329,9 +330,9 @@ const GlobalConnectionsTable = () => {
           )}
           emptyStateIcon={<Globe className="size-14" />}
           columns={columns}
-          page={globalConnections}
-          isLoading={isLoadingGlobalConnections}
-          isError={isGlobalConnectionsError}
+          page={!platform.plan.globalConnectionsEnabled ? sampleData.globalConnectionsPage() : globalConnections}
+          isLoading={!platform.plan.globalConnectionsEnabled ? false : isLoadingGlobalConnections}
+          isError={!platform.plan.globalConnectionsEnabled ? false : isGlobalConnectionsError}
           errorStateEntity={t('connections')}
           onRetry={refetchGlobalConnections}
           filters={filters}

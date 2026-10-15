@@ -30,26 +30,31 @@ import { apiKeyApi, apiKeyQueries } from '@/features/platform-admin';
 import { platformHooks } from '@/hooks/platform-hooks';
 import { formatUtils } from '@/lib/format-utils';
 
+import { sampleData } from '../../sample-data';
+
 const ApiKeysPage = () => {
   const { platform } = platformHooks.useCurrentPlatform();
+  const isEnabled = platform.plan.apiKeysEnabled;
 
   const { data, isLoading, refetch } = apiKeyQueries.useApiKeys();
 
-  const keys: ApiKeyResponseWithoutValue[] = data?.data ?? [];
+  const keys: ApiKeyResponseWithoutValue[] = !isEnabled
+    ? sampleData.apiKeysPage().data
+    : (data?.data ?? []);
 
   return (
     <LockedFeatureGuard
       featureKey="API"
-      locked={!platform.plan.apiKeysEnabled}
+      locked={!isEnabled}
       lockTitle={t('Enable API Keys')}
       lockDescription={t(
-        'Create and manage API keys to access Activepieces APIs.',
+        'Create and manage API keys to access Anticeil APIs.',
       )}
       lockVideoUrl="https://cdn.activepieces.com/videos/showcase/api-keys.mp4"
     >
       <CenteredPage
         title={t('API Keys')}
-        description={t('Manage API keys to access Activepieces APIs.')}
+        description={t('Manage API keys to access Anticeil APIs.')}
         actions={
           <NewApiKeyDialog onCreate={() => refetch()}>
             <AnimatedIconButton icon={PlusIcon} iconSize={16} size="sm">

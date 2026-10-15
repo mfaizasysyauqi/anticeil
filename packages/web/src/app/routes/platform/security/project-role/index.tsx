@@ -14,12 +14,14 @@ import { platformHooks } from '@/hooks/platform-hooks';
 
 import { ProjectRoleDialog } from './project-role-dialog';
 import { ProjectRolesTable } from './project-roles-table';
+import { sampleData } from '../../sample-data';
 
 const ProjectRolePage = () => {
   const { platform } = platformHooks.useCurrentPlatform();
+  const isEnabled = platform.plan.projectRolesEnabled;
 
   const { data, isLoading, refetch } = projectRoleQueries.useProjectRoles(
-    platform.plan.projectRolesEnabled,
+    isEnabled,
   );
 
   const newRoleButton = !platform.plan.customRolesEnabled ? (
@@ -47,8 +49,8 @@ const ProjectRolePage = () => {
 
   return (
     <LockedFeatureGuard
-      featureKey="TEAM"
-      locked={!platform.plan.projectRolesEnabled}
+      featureKey="CUSTOM_ROLES"
+      locked={!isEnabled}
       lockTitle={t('Project Role Management')}
       lockDescription={t(
         'Define custom roles and permissions to control what your team members can access and modify',
@@ -63,8 +65,8 @@ const ProjectRolePage = () => {
         actions={newRoleButton}
       >
         <ProjectRolesTable
-          projectRoles={data}
-          isLoading={isLoading}
+          projectRoles={!isEnabled ? sampleData.projectRolesPage() : data}
+          isLoading={!isEnabled ? false : isLoading}
           refetch={refetch}
         />
       </CenteredPage>

@@ -32,6 +32,7 @@ import { Link } from 'react-router-dom';
 import { DashboardPageHeader } from '@/app/components/dashboard-page-header';
 import { LockedFeatureGuard } from '@/app/components/locked-feature-guard';
 import { DataTable, DataTableFilters } from '@/components/custom/data-table';
+import { sampleData } from '../../sample-data';
 import { DataTableColumnHeader } from '@/components/custom/data-table/data-table-column-header';
 import { FormattedDate } from '@/components/custom/formatted-date';
 import { SimpleJsonViewer } from '@/components/custom/simple-json-viewer';
@@ -254,9 +255,9 @@ export default function AuditLogsPage() {
               ),
             },
           ]}
-          page={auditLogsData}
-          isLoading={isLoading}
-          isError={isError}
+          page={!isEnabled ? sampleData.auditEventsPage() : auditLogsData}
+          isLoading={!isEnabled ? false : isLoading}
+          isError={!isEnabled ? false : isError}
           errorStateEntity={t('audit logs')}
           onRetry={refetch}
         />

@@ -34,10 +34,13 @@ import { PieceIcon } from '@/features/pieces';
 import { secretManagersHooks } from '@/features/secret-managers';
 import { platformHooks } from '@/hooks/platform-hooks';
 
+import { sampleData } from '../../sample-data';
+
 import AddEditSecretManagerConnectionDialog from './connect-secret-manager-dialog';
 
 const SecretManagersPage = () => {
   const { platform } = platformHooks.useCurrentPlatform();
+  const isEnabled = platform.plan.secretManagersEnabled;
   const {
     data: connections,
     isLoading: isLoadingConnections,
@@ -193,7 +196,7 @@ const SecretManagersPage = () => {
   return (
     <LockedFeatureGuard
       featureKey="SECRET_MANAGERS"
-      locked={!platform.plan.secretManagersEnabled}
+      locked={!isEnabled}
       lockTitle={t('Enable Secret Managers')}
       lockDescription={t('Manage your secrets from a single and secure place')}
     >
@@ -215,9 +218,9 @@ const SecretManagersPage = () => {
           )}
           emptyStateIcon={<KeyRound className="size-14" />}
           columns={columns}
-          page={page}
-          isLoading={isLoading}
-          isError={isConnectionsError}
+          page={!isEnabled ? { data: sampleData.secretManagers(), next: null, previous: null } : page}
+          isLoading={!isEnabled ? false : isLoading}
+          isError={!isEnabled ? false : isConnectionsError}
           errorStateEntity={t('secret managers')}
           onRetry={refetchConnections}
           hidePagination={true}

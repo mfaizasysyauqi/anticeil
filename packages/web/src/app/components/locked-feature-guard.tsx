@@ -1,4 +1,5 @@
 import { t } from 'i18next';
+import { ExternalLink, Lock } from 'lucide-react';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,27 @@ export type LockedFeatureGuardProps = {
   lockVideoUrl?: string;
   lockDocumentationUrl?: string;
   featureKey?: string;
+  lockTier?: string;
   showContactSales?: boolean;
+};
+
+const getTierFromKey = (key?: string): string => {
+  switch (key) {
+    case 'UNIVERSAL_AI':
+      return 'Plus';
+    case 'API':
+    case 'GLOBAL_CONNECTIONS':
+      return 'Team';
+    case 'TEMPLATES':
+    case 'AUDIT_LOGS':
+    case 'SSO':
+    case 'CUSTOM_ROLES':
+    case 'SECRET_MANAGERS':
+    case 'EVENT_DESTINATIONS':
+    case 'SIGNING_KEYS':
+    default:
+      return 'Enterprise';
+  }
 };
 
 export const LockedFeatureGuard = ({
@@ -21,6 +42,8 @@ export const LockedFeatureGuard = ({
   lockTitle,
   lockDescription,
   lockDocumentationUrl,
+  featureKey,
+  lockTier,
 }: LockedFeatureGuardProps) => {
   const { openDialog: openManagePlanDialog } = useManagePlanDialogStore();
 
@@ -34,39 +57,69 @@ export const LockedFeatureGuard = ({
       : lockDocumentationUrl
     : undefined;
 
-  return (
-    <div className="flex flex-1 h-full w-full flex-col items-center justify-center p-6 text-center my-auto">
-      <div className="flex flex-col gap-3 justify-center items-center max-w-xl text-center">
-        {lockTitle && (
-          <h1 className="text-3xl font-bold tracking-tight text-center">
-            {lockTitle}
-          </h1>
-        )}
-        {lockDescription && (
-          <p className="text-base text-muted-foreground max-w-md text-center leading-relaxed">
-            {lockDescription}
-            {resolvedDocsUrl && (
-              <>
-                {' '}
-                <a
-                  href={resolvedDocsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline"
-                >
-                  {t('Learn more')}
-                </a>
-              </>
-            )}
-          </p>
-        )}
+  const tier = lockTier ?? getTierFromKey(featureKey);
 
-        <div className="mt-4 flex justify-center items-center">
-          <Button onClick={() => openManagePlanDialog()}>
-            {t('Upgrade plan')}
-          </Button>
+  return (
+    <div className="relative flex flex-1 min-h-0 min-w-0 w-full h-full flex-col overflow-hidden">
+      {/* Background Sneak Peek: Children rendered dimly in background */}
+      <div
+        inert
+        aria-hidden="true"
+        className="flex flex-1 min-h-0 min-w-0 w-full flex-col pointer-events-none select-none opacity-25 filter blur-[0.2px]"
+      >
+        {children}
+      </div>
+
+      {/* Foreground Floating Unlock Dialog Card */}
+      <div className="absolute inset-0 grid place-items-center overflow-auto p-6 z-20">
+        <div className="pointer-events-auto flex w-full max-w-md flex-col items-center text-center gap-4 p-8 rounded-2xl border border-border/80 bg-card/95 backdrop-blur-md shadow-2xl">
+          {/* Lock Icon inside purple square */}
+          <div className="grid size-12 place-items-center rounded-xl bg-purple-950/70 border border-purple-800/60 text-purple-400 mb-1 shadow-inner">
+            <Lock className="size-6 text-purple-300" />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {lockTitle && (
+              <h2 className="text-xl font-bold tracking-tight text-foreground">
+                {lockTitle}
+              </h2>
+            )}
+            {lockDescription && (
+              <p className="text-sm leading-relaxed text-muted-foreground max-w-sm">
+                {lockDescription}
+              </p>
+            )}
+          </div>
+
+          <div className="w-full flex flex-col gap-3 mt-2">
+            <Button
+              className="w-full bg-[#6c47ff] hover:bg-[#5936e8] text-white font-medium py-2.5 rounded-lg shadow-lg shadow-purple-900/25 transition-all"
+              onClick={() => openManagePlanDialog()}
+            >
+              {t('Upgrade to {tier}', { tier })}
+            </Button>
+
+            {resolvedDocsUrl && (
+              <a
+                href={resolvedDocsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span>{t('Read the docs')}</span>
+                <ExternalLink className="size-3" />
+              </a>
+            )}
+
+            <div className="h-px w-full bg-border/60 my-0.5" />
+
+            <span className="text-xs text-muted-foreground/80">
+              {t('Included with the {tier} plan and above.', { tier })}
+            </span>
+          </div>
         </div>
       </div>
     </div>
   );
 };
+export default LockedFeatureGuard;

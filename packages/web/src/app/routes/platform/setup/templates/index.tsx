@@ -30,16 +30,20 @@ import { PieceIconList } from '@/features/pieces';
 import { templatesApi, templatesMutations } from '@/features/templates';
 import { platformHooks } from '@/hooks/platform-hooks';
 
+import { sampleData } from '../../sample-data';
+
 import { CreateTemplateDialog } from './create-template-dialog';
 import { UpdateTemplateDialog } from './update-template-dialog';
 
 const PlatformTemplatesPage = () => {
   const { platform } = platformHooks.useCurrentPlatform();
+  const isEnabled = platform.plan.manageTemplatesEnabled;
 
   const [searchParams] = useSearchParams();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['templates', searchParams.toString()],
     staleTime: 0,
+    enabled: isEnabled,
     queryFn: () => {
       return templatesApi.list({
         type: TemplateType.CUSTOM,
@@ -204,7 +208,6 @@ const PlatformTemplatesPage = () => {
     [refetch],
   );
 
-  const isEnabled = platform.plan.manageTemplatesEnabled;
   return (
     <LockedFeatureGuard
       featureKey="TEMPLATES"
@@ -229,10 +232,10 @@ const PlatformTemplatesPage = () => {
           )}
           emptyStateIcon={<FileText className="size-14" />}
           columns={columnsWithCheckbox}
-          page={data}
+          page={!isEnabled ? sampleData.templatesPage() : data}
           hidePagination={true}
-          isLoading={isLoading}
-          isError={isError}
+          isLoading={!isEnabled ? false : isLoading}
+          isError={!isEnabled ? false : isError}
           errorStateEntity={t('templates')}
           onRetry={refetch}
           bulkActions={bulkActions}
