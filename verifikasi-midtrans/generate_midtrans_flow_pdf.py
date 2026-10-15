@@ -8,13 +8,15 @@ OUTPUT_PDF = os.path.join(DIR, "Dokumen-Alur-Transaksi-Midtrans-Anticeil.pdf")
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 
 files = [
-    ("1. klik tombol tagihan.png", "Langkah 1: Akses Menu Tagihan / Billing", "Pengguna masuk ke dashboard aplikasi Anticeil (anticeil.com) lalu menavigasi ke menu 'Tagihan' (Billing) pada panel navigasi kiri bawah untuk mengelola langganan akun."),
-    ("2. klik tombol tingkatkan.png", "Langkah 2: Membuka Opsi Peningkatan Paket", "Pada halaman 'Penagihan & Langganan', sistem menampilkan informasi paket aktif (Paket Gratis). Pengguna mengklik tombol 'Tingkatkan' untuk melihat katalog paket berbayar."),
-    ("3. pilih paket.png", "Langkah 3: Pemilihan Paket Langganan & Harga", "Sistem menampilkan dialog 'Jelajahi Paket' yang memuat spesifikasi kuota alur kerja, AI credits, dan harga resmi dalam IDR. Pengguna memilih paket 'Plus' (Rp 299.000/bln) dan menekan tombol 'Beli Sekarang'."),
-    ("4. pilih pembayaran via shopepay QRIS.png", "Langkah 4: Antarmuka Midtrans Snap & Pemilihan Metode ShopeePay / QRIS", "Antarmuka resmi Midtrans Snap Checkout terbuka secara aman dalam bentuk popup modal. Sistem menampilkan nama merchant (Anticeil), rincian tagihan (Rp 299.000), nomor unik Order ID, serta daftar kanal pembayaran resmi. Pengguna memilih metode pembayaran 'ShopeePay / Lainnya (QRIS)'."),
-    ("5. scan qr shopepay.png", "Langkah 5: Tampilan Kode QR ShopeePay & Proses Transaksi", "Antarmuka Midtrans Snap secara otomatis menghasilkan kode QR resmi ShopeePay / QRIS dengan batas waktu pembayaran (countdown timer) dan panduan tata cara pembayaran. Pengguna membuka aplikasi Shopee (atau e-wallet/mobile banking lain) lalu memindai kode QRIS untuk menyelesaikan pembayaran Rp 299.000."),
-    ("6. selesai pembayaran dan tunggu halaman berubah.png", "Langkah 6: Notifikasi Pelunasan Sukses & Redirect Kembali", "Setelah pembayaran diselesaikan pada channel pembayaran Midtrans, sistem menampilkan layar konfirmasi pelunasan sukses (Payment Successful) dan secara otomatis mengarahkan kembali (callback redirect) ke dashboard Anticeil."),
-    ("7. paket sudah berhasil dibeli.png", "Langkah 7: Paket Berlangganan Aktif & Kuota Diperbarui", "Sistem Anticeil menerima notifikasi webhook resmi Midtrans dan memverifikasi status pembayaran secara realtime. Status langganan pengguna otomatis berhasil ditingkatkan ke 'Paket Plus' dengan kuota penuh (10.000 AI Credits, 100 Alur Aktif, 5 Anggota Tim) dan tanda centang hijau konfirmasi aktif.")
+    ("0,1 user masuk halaman awal lalu klik masuk dipojok kiri bawah.png", "Langkah 1: Mengakses Halaman Utama (Homepage) & Menuju Tombol Masuk", "Customer mengakses landing page resmi Anticeil (anticeil.com) untuk melihat ringkasan solusi automasi alur kerja digital. Untuk masuk ke dashboard sistem, pengguna mengklik tombol 'Masuk' yang terletak di panel kiri bawah."),
+    ("0.2 klik lanjutkan dengan google untuk melakukan sign in oauth dengan google.png", "Langkah 2: Proses Login Aman Menggunakan Google OAuth", "Sistem menampilkan dialog popup otorisasi masuk. Pengguna mengklik tombol 'Lanjutkan dengan Google' untuk masuk secara instan dan aman menggunakan kredensial akun Google tanpa perlu memasukkan kata sandi secara manual."),
+    ("1. klik tombol tagihan.png", "Langkah 3: Akses Menu Tagihan / Billing", "Setelah berhasil masuk ke dashboard aplikasi Anticeil, pengguna menavigasi ke menu 'Tagihan' (Billing) pada panel navigasi kiri untuk melihat status kuota dan langganan akun yang sedang aktif (Paket Gratis)."),
+    ("2. klik tombol tingkatkan.png", "Langkah 4: Membuka Opsi Peningkatan Paket", "Pada halaman 'Penagihan & Langganan', sistem menampilkan rincian penggunaan kuota akun. Pengguna mengklik tombol 'Tingkatkan' untuk membuka katalog pilihan paket langganan berbayar."),
+    ("3. pilih paket.png", "Langkah 5: Pemilihan Paket Langganan & Harga Resmi (IDR)", "Sistem menampilkan dialog 'Jelajahi Paket' yang memuat spesifikasi kuota alur kerja, AI credits, dan harga resmi dalam IDR. Pengguna memilih paket 'Plus' (Rp 299.000/bln) dan menekan tombol 'Beli Sekarang'."),
+    ("4. pilih pembayaran via shopepay QRIS.png", "Langkah 6: Antarmuka Midtrans Snap & Pemilihan Metode ShopeePay / QRIS", "Antarmuka resmi Midtrans Snap Checkout terbuka secara aman dalam bentuk modal popup. Sistem menampilkan nama merchant (Anticeil), rincian tagihan (Rp 299.000), nomor unik Order ID, serta daftar kanal pembayaran resmi. Pengguna memilih metode pembayaran 'ShopeePay / Lainnya (QRIS)'."),
+    ("5. scan qr shopepay.png", "Langkah 7: Tampilan Kode QR ShopeePay & Proses Transaksi", "Antarmuka Midtrans Snap secara otomatis menghasilkan kode QR resmi ShopeePay / QRIS dengan countdown timer dan instruksi pembayaran. Pengguna membuka aplikasi Shopee (atau aplikasi e-wallet/mobile banking lain) dan memindai kode QRIS untuk menyelesaikan pelunasan Rp 299.000."),
+    ("6. selesai pembayaran dan tunggu halaman berubah.png", "Langkah 8: Notifikasi Pelunasan Sukses & Redirect Otomatis", "Setelah pembayaran diselesaikan pada aplikasi e-wallet, sistem Midtrans menampilkan konfirmasi pelunasan sukses (Payment Successful) dan secara otomatis mengarahkan kembali (callback redirect) ke dashboard Anticeil."),
+    ("7. paket sudah berhasil dibeli.png", "Langkah 9: Paket Berlangganan Aktif & Kuota Diperbarui", "Sistem Anticeil menerima notifikasi webhook resmi Midtrans dan memverifikasi status pembayaran secara realtime. Status langganan pengguna otomatis berhasil ditingkatkan ke 'Paket Plus' dengan kuota penuh (10.000 AI Credits, 100 Alur Aktif, 5 Anggota Tim) dan konfirmasi centang hijau.")
 ]
 
 def encode_img(filename):
@@ -432,6 +434,9 @@ html_content = f"""<!DOCTYPE html>
     <strong>Metode Pembayaran Resmi:</strong> QRIS (Semua E-Wallet / Mobile Banking), GoPay, DANA, ShopeePay, OVO, Virtual Account (BCA, Mandiri, BNI, BRI, Permata), Kartu Kredit/Debit (Visa, Mastercard, JCB), serta Gerai Ritel (Indomaret, Alfamart).
   </div>
 
+  <div class="page-break"></div>
+
+  <!-- SECTION: CUSTOMER JOURNEY & ALUR TRANSAKSI -->
   <!-- LANGKAH 1 -->
   <div class="step-container">
     <div class="step-header">
@@ -445,8 +450,6 @@ html_content = f"""<!DOCTYPE html>
       </div>
     </div>
   </div>
-
-  <div class="page-break"></div>
 
   <!-- LANGKAH 2 -->
   <div class="step-container">
@@ -462,6 +465,8 @@ html_content = f"""<!DOCTYPE html>
     </div>
   </div>
 
+  <div class="page-break"></div>
+
   <!-- LANGKAH 3 -->
   <div class="step-container">
     <div class="step-header">
@@ -475,8 +480,6 @@ html_content = f"""<!DOCTYPE html>
       </div>
     </div>
   </div>
-
-  <div class="page-break"></div>
 
   <!-- LANGKAH 4 -->
   <div class="step-container">
@@ -492,6 +495,8 @@ html_content = f"""<!DOCTYPE html>
     </div>
   </div>
 
+  <div class="page-break"></div>
+
   <!-- LANGKAH 5 -->
   <div class="step-container">
     <div class="step-header">
@@ -505,8 +510,6 @@ html_content = f"""<!DOCTYPE html>
       </div>
     </div>
   </div>
-
-  <div class="page-break"></div>
 
   <!-- LANGKAH 6 -->
   <div class="step-container">
@@ -522,6 +525,8 @@ html_content = f"""<!DOCTYPE html>
     </div>
   </div>
 
+  <div class="page-break"></div>
+
   <!-- LANGKAH 7 -->
   <div class="step-container">
     <div class="step-header">
@@ -532,6 +537,36 @@ html_content = f"""<!DOCTYPE html>
       <div class="step-desc">{encoded[6]['desc']}</div>
       <div class="img-wrapper">
         <img class="step-img" src="{encoded[6]['data']}" alt="Langkah 7">
+      </div>
+    </div>
+  </div>
+
+  <!-- LANGKAH 8 -->
+  <div class="step-container">
+    <div class="step-header">
+      <span class="step-number">Langkah 8</span>
+      <span class="step-title">{encoded[7]['title']}</span>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">{encoded[7]['desc']}</div>
+      <div class="img-wrapper">
+        <img class="step-img" src="{encoded[7]['data']}" alt="Langkah 8">
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- LANGKAH 9 -->
+  <div class="step-container">
+    <div class="step-header">
+      <span class="step-number">Langkah 9</span>
+      <span class="step-title">{encoded[8]['title']}</span>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">{encoded[8]['desc']}</div>
+      <div class="img-wrapper">
+        <img class="step-img" src="{encoded[8]['data']}" alt="Langkah 9">
       </div>
     </div>
   </div>
