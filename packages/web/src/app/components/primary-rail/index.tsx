@@ -13,6 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { t } from 'i18next';
 import {
   Bot,
+  Calendar,
   ChartLine,
   ChevronsUpDown,
   Compass,
@@ -176,6 +177,13 @@ export function PrimaryRail() {
               label={t('Impact')}
               isActive={({ pathname }) => pathname.startsWith('/impact')}
             />
+            <RailNavButton
+              collapsed={collapsed}
+              to="/calendar"
+              icon={Calendar}
+              label={t('Calendar')}
+              isActive={({ pathname }) => pathname.startsWith('/calendar')}
+            />
 
           </div>
           {authenticationSession.isLoggedIn() && (
@@ -281,6 +289,14 @@ export function MobilePrimaryRailSheet({
                 icon={ChartLine}
                 label={t('Impact')}
                 isActive={({ pathname }) => pathname.startsWith('/impact')}
+                onClick={handleNavigate}
+              />
+              <RailNavButton
+                collapsed={false}
+                to="/calendar"
+                icon={Calendar}
+                label={t('Calendar')}
+                isActive={({ pathname }) => pathname.startsWith('/calendar')}
                 onClick={handleNavigate}
               />
 
