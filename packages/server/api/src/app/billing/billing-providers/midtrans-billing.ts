@@ -150,8 +150,8 @@ export const midtransBillingProvider = (log: FastifyBaseLogger): BillingProvider
         if (price === 0) {
             await platformPlanRepo().update({ platformId }, {
                 plan: 'free',
-                agentsEnabled: false,
-                aiProvidersEnabled: false,
+                agentsEnabled: true,
+                aiProvidersEnabled: true,
                 chatEnabled: true,
                 tablesEnabled: true,
                 apiKeysEnabled: false,
@@ -160,7 +160,7 @@ export const midtransBillingProvider = (log: FastifyBaseLogger): BillingProvider
                 usersLimit: 1,
                 projectsLimit: 1,
                 activeFlowsLimit: 5,
-                analyticsEnabled: false,
+                analyticsEnabled: true,
                 customRolesEnabled: false,
                 projectRolesEnabled: false,
                 ssoEnabled: false,

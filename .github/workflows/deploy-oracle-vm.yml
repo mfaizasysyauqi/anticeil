@@ -104,6 +104,9 @@ jobs:
             echo "=== Activepieces App Logs ==="
             docker logs activepieces-app --tail 50 || true
 
+            # Unlock agents, MCP, and analytics across all existing platform plans
+            docker exec $(docker ps -q -f name=postgres || docker ps -q -f name=db) psql -U activepieces -d activepieces -c 'UPDATE platform_plan SET "agentsEnabled" = true, "aiProvidersEnabled" = true, "analyticsEnabled" = true;' 2>/dev/null || true
+
             # Restart cloudflared tunnel if present to refresh routes
             sudo systemctl restart cloudflared 2>/dev/null || docker compose restart cloudflared 2>/dev/null || true
 

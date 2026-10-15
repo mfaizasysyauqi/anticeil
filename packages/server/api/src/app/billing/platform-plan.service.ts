@@ -33,6 +33,16 @@ export const platformPlanService = (log: FastifyBaseLogger) => ({
     async getOrCreateForPlatform(platformId: string): Promise<PlatformPlan> {
         const existingPlatformPlan = await platformPlanRepo().findOneBy({ platformId })
         if (!isNil(existingPlatformPlan)) {
+            if (!existingPlatformPlan.agentsEnabled || !existingPlatformPlan.aiProvidersEnabled || !existingPlatformPlan.analyticsEnabled) {
+                await platformPlanRepo().update({ platformId }, {
+                    agentsEnabled: true,
+                    aiProvidersEnabled: true,
+                    analyticsEnabled: true,
+                })
+                existingPlatformPlan.agentsEnabled = true
+                existingPlatformPlan.aiProvidersEnabled = true
+                existingPlatformPlan.analyticsEnabled = true
+            }
             triggerLazyBillingProviderSync({
                 platformId,
                 autumnCustomerId: existingPlatformPlan.autumnCustomerId,
@@ -47,7 +57,19 @@ export const platformPlanService = (log: FastifyBaseLogger) => ({
             timeoutInSeconds: 60,
             fn: async () => {
                 const platformPlan = await platformPlanRepo().findOneBy({ platformId })
-                if (!isNil(platformPlan)) return platformPlan
+                if (!isNil(platformPlan)) {
+                    if (!platformPlan.agentsEnabled || !platformPlan.aiProvidersEnabled || !platformPlan.analyticsEnabled) {
+                        await platformPlanRepo().update({ platformId }, {
+                            agentsEnabled: true,
+                            aiProvidersEnabled: true,
+                            analyticsEnabled: true,
+                        })
+                        platformPlan.agentsEnabled = true
+                        platformPlan.aiProvidersEnabled = true
+                        platformPlan.analyticsEnabled = true
+                    }
+                    return platformPlan
+                }
                 return createInitialBilling(platformId)
             },
         })

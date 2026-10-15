@@ -16,7 +16,7 @@ import { PiecesTab } from './pieces/pieces-tab';
 
 export default function McpServerPage() {
   const { platform } = platformHooks.useCurrentPlatform();
-  const mcpAvailable = platform?.plan?.aiProvidersEnabled || platform?.plan?.agentsEnabled;
+  const mcpAvailable = platform?.plan?.aiProvidersEnabled !== false || platform?.plan?.agentsEnabled !== false;
   const { serverUrl, isReachableFromInternet } = useMcpServerUrl();
   const nav = useMcpNav();
   piecesHooks.usePrefetchPieces({ skipProjectFilter: true });

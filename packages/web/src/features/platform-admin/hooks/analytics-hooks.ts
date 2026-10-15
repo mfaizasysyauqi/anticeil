@@ -21,7 +21,7 @@ export const platformAnalyticsHooks = {
     const { data, isLoading } = useQuery({
       queryKey: analyticsQueryKey,
       queryFn: () => analyticsApi.get(),
-      enabled: platform?.plan?.analyticsEnabled,
+      enabled: platform?.plan?.analyticsEnabled !== false,
     });
     return { data, isLoading };
   },
@@ -59,7 +59,7 @@ export const platformAnalyticsHooks = {
       queryKey: [...analyticsQueryKey, timePeriod],
       queryFn: () => analyticsApi.get(timePeriod),
       select: selectFilteredByProject,
-      enabled: platform?.plan?.analyticsEnabled,
+      enabled: platform?.plan?.analyticsEnabled !== false,
     });
 
     return {

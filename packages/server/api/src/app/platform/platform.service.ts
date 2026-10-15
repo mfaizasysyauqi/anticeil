@@ -379,11 +379,20 @@ async function getBillingEnforced(log: FastifyBaseLogger, platformId: PlatformId
 
 async function getPlan(log: FastifyBaseLogger, platform: PlatformWithoutFederatedAuth): Promise<PlatformPlanLimits> {
     try {
-        return await platformPlanService(log).getOrCreateForPlatform(platform.id)
+        const plan = await platformPlanService(log).getOrCreateForPlatform(platform.id)
+        return {
+            ...plan,
+            agentsEnabled: true,
+            aiProvidersEnabled: true,
+            analyticsEnabled: true,
+        }
     } catch (e) {
         log.warn({ error: e, platformId: platform.id }, 'Fallback to default plan')
         return {
             ...OPEN_SOURCE_PLAN,
+            agentsEnabled: true,
+            aiProvidersEnabled: true,
+            analyticsEnabled: true,
         }
     }
 }

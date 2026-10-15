@@ -30,12 +30,12 @@ const AGENTS_KEY = 'agents';
 
 export const useAgentsAvailable = (): boolean => {
   const { platform } = platformHooks.useCurrentPlatform();
-  return platform?.plan?.agentsEnabled === true;
+  return platform?.plan?.agentsEnabled !== false;
 };
 
 export const useAgentsNavVisible = (): boolean => {
   const { platform } = platformHooks.useCurrentPlatform();
-  return platform?.plan?.agentsEnabled === true;
+  return platform?.plan?.agentsEnabled !== false;
 };
 
 const AGENTS_PAGE_SIZE = 100;

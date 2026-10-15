@@ -217,6 +217,8 @@ const PLAN_CATALOG: PlanCatalogEntry[] = [
       { metric: 'credits' },
       { metric: 'seats' },
       { label: 'Automation flows' },
+      { label: 'Agents & MCP' },
+      { label: 'Impact analytics' },
       { label: 'Personal project only' },
       { label: 'Tables' },
       { label: 'Chat' },
@@ -231,10 +233,10 @@ const PLAN_CATALOG: PlanCatalogEntry[] = [
     features: [
       { metric: 'credits' },
       { metric: 'seats' },
-      { label: 'Agents' },
-      { label: '1 team project, MCPs' },
+      { label: '1 team project' },
       { label: 'BYOK' },
-      { label: 'Team analytics' },
+      { label: 'Custom appearance' },
+      { label: 'Anticeil audit logs' },
     ],
   },
   {

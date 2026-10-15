@@ -140,7 +140,7 @@ export function PrimaryRail() {
                 }
               />
             )}
-            {checkAccess(Permission.READ_MCP) && (platform?.plan?.aiProvidersEnabled || platform?.plan?.agentsEnabled) && (
+            {checkAccess(Permission.READ_MCP) && (platform?.plan?.aiProvidersEnabled !== false || platform?.plan?.agentsEnabled !== false) && (
               <RailNavButton
                 collapsed={collapsed}
                 to="/mcp-server"
@@ -171,7 +171,7 @@ export function PrimaryRail() {
                 })
               }
             />
-            {(platform?.plan?.analyticsEnabled ?? false) && (
+            {(platform?.plan?.analyticsEnabled !== false) && (
               <RailNavButton
                 collapsed={collapsed}
                 to="/impact"
@@ -247,7 +247,7 @@ export function MobilePrimaryRailSheet({
                   }}
                 />
               )}
-              {checkAccess(Permission.READ_MCP) && (platform?.plan?.aiProvidersEnabled || platform?.plan?.agentsEnabled) && (
+              {checkAccess(Permission.READ_MCP) && (platform?.plan?.aiProvidersEnabled !== false || platform?.plan?.agentsEnabled !== false) && (
                 <RailNavButton
                   collapsed={false}
                   to="/mcp-server"
@@ -281,7 +281,7 @@ export function MobilePrimaryRailSheet({
                   });
                 }}
               />
-              {(platform?.plan?.analyticsEnabled ?? false) && (
+              {(platform?.plan?.analyticsEnabled !== false) && (
                 <RailNavButton
                   collapsed={false}
                   to="/impact"
