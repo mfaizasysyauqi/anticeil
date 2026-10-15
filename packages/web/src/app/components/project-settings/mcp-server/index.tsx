@@ -6,7 +6,7 @@ import { authenticationSession } from '@/lib/authentication-session';
 
 import { McpCredentials } from './mcp-credentials';
 import { McpFlows } from './mcp-flows';
-import { McpTools } from './mcp-tools';
+import { McpToolTierList } from './tool-tiers/mcp-tool-tier-list';
 import { mcpHooks } from './utils/mcp-hooks';
 
 export const McpServerSettings = () => {
@@ -52,11 +52,12 @@ export const McpServerSettings = () => {
                   'Control which built-in Activepieces tools are available to agents via this MCP server.',
                 )}
               </p>
-              <McpTools
+              <McpToolTierList
                 disabledTools={mcpServer.disabledTools}
-                isPending={isUpdating}
-                onUpdateDisabledTools={(tools) =>
-                  updateMcpServer({ disabledTools: tools })
+                platformDisabledTools={mcpServer.platformDisabledTools}
+                scope="project"
+                onUpdateDisabledTools={({ tools, onSettled }) =>
+                  updateMcpServer({ disabledTools: tools }, { onSettled })
                 }
               />
             </div>

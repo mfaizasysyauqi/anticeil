@@ -3,7 +3,7 @@ import { t } from 'i18next';
 import { useSearchParams } from 'react-router-dom';
 
 import { CenteredPage } from '@/app/components/centered-page';
-import { McpTools } from '@/app/components/project-settings/mcp-server/mcp-tools';
+import { McpToolTierList } from '@/app/components/project-settings/mcp-server/tool-tiers/mcp-tool-tier-list';
 import { ActivityFeed } from '@/app/routes/mcp-server/activity/activity-feed';
 import { CopyToClipboardInput } from '@/components/custom/clipboard/copy-to-clipboard';
 import { CollapsibleJson } from '@/components/custom/collapsible-json';
@@ -114,11 +114,11 @@ export default function PlatformMcpPage() {
                       'Control which built-in tools are available to the AI Chat and external agents via the platform MCP server.',
                     )}
                   </p>
-                  <McpTools
+                  <McpToolTierList
                     disabledTools={mcpServer.disabledTools}
-                    isPending={isToolsUpdating}
-                    onUpdateDisabledTools={(tools) =>
-                      updateTools({ disabledTools: tools })
+                    scope="platform"
+                    onUpdateDisabledTools={({ tools, onSettled }) =>
+                      updateTools({ disabledTools: tools }, { onSettled })
                     }
                   />
                 </div>
