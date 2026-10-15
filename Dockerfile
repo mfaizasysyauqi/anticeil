@@ -6,8 +6,6 @@ COPY docker-patches-agent-model-resolution.js /usr/src/app/packages/server/api/d
 COPY docker-patches-autumn-billing.js /usr/src/app/packages/server/api/dist/src/app/ee/platform/platform-plan/billing-providers/autumn-billing.js
 COPY docker-patches-autumn-utils.js /usr/src/app/packages/server/api/dist/src/app/ee/platform/platform-plan/billing-providers/autumn-utils.js
 COPY docker-patches-platform-plan-controller.js /usr/src/app/packages/server/api/dist/src/app/ee/platform/platform-plan/platform-plan.controller.js
-COPY docker-patches-platform-plan-controller.js /usr/src/app/packages/server/api/dist/src/app/billing/platform-plan.controller.js
-COPY docker-patches-platform-service.js /usr/src/app/packages/server/api/dist/src/app/platform/platform.service.js
 COPY docker-patches-machine-service.js /usr/src/app/packages/server/api/dist/src/app/workers/machine/machine-service.js
 COPY docker-patches-ai-providers-index.js /usr/src/app/packages/server/api/dist/src/app/ai/providers/index.js
 COPY docker-patches-federated-authn-service.js /usr/src/app/packages/server/api/dist/src/app/ee/authentication/federated-authn/federated-authn-service.js
@@ -20,7 +18,6 @@ COPY docker-patches-piece-set-controller.js /usr/src/app/packages/server/api/dis
 COPY docker-patches-signing-key-controller.js /usr/src/app/packages/server/api/dist/src/app/signing-key/signing-key-controller.js
 COPY docker-patches-signing-key-module.js /usr/src/app/packages/server/api/dist/src/app/signing-key/signing-key-module.js
 COPY docker-patches-ee-authorization.js /usr/src/app/packages/server/api/dist/src/app/authentication/ee-authorization.js
-COPY docker-patches-ee-authorization.js /usr/src/app/packages/server/api/dist/src/app/ee/authentication/ee-authorization.js
 # Layer custom Anticeil frontend build onto official stable Activepieces image
 COPY dist/packages/web/ /usr/src/app/dist/packages/web/
 
