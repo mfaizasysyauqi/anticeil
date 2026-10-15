@@ -104,13 +104,6 @@ jobs:
             echo "=== Activepieces App Logs ==="
             docker logs activepieces-app --tail 50 || true
 
-            # Wait for app readiness and test federated login
-            sleep 5
-            echo "=== Test Federated Google Login on localhost ==="
-            curl -i "http://127.0.0.1:8080/api/v1/authn/federated/login?providerName=google" || true
-            echo "=== App Logs after test request ==="
-            docker logs activepieces-app --tail 40 || true
-
             # Restart cloudflared tunnel if present to refresh routes
             sudo systemctl restart cloudflared 2>/dev/null || docker compose restart cloudflared 2>/dev/null || true
 
