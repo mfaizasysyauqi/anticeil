@@ -3,14 +3,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.federatedAuthnService = void 0;
 const crypto = require("crypto");
 const shared_1 = require("@activepieces/shared");
-const authentication_service_1 = require("../../../authentication/authentication.service");
-const authentication_utils_1 = require("../../../authentication/authentication-utils");
-const user_identity_service_1 = require("../../../authentication/user-identity/user-identity-service");
-const platform_service_1 = require("../../../platform/platform.service");
-const user_invitation_service_1 = require("../../../user-invitations/user-invitation.service");
-const domain_helper_1 = require("../../../helper/domain-helper");
-const system_1 = require("../../../helper/system/system");
-const system_props_1 = require("../../../helper/system/system-props");
+
+function safeRequire(paths) {
+    for (const p of paths) {
+        try {
+            return require(p);
+        } catch (e) {}
+    }
+    throw new Error('Could not resolve module from: ' + paths.join(', '));
+}
+
+const authentication_service_1 = safeRequire(["../../../authentication/authentication.service", "../authentication.service"]);
+const authentication_utils_1 = safeRequire(["../../../authentication/authentication-utils", "../authentication-utils"]);
+const user_identity_service_1 = safeRequire(["../../../authentication/user-identity/user-identity-service", "../user-identity/user-identity-service"]);
+const platform_service_1 = safeRequire(["../../../platform/platform.service", "../../platform/platform.service"]);
+const user_invitation_service_1 = safeRequire(["../../../user-invitations/user-invitation.service", "../../user-invitations/user-invitation.service"]);
+const domain_helper_1 = safeRequire(["../../../helper/domain-helper", "../../helper/domain-helper"]);
+const system_1 = safeRequire(["../../../helper/system/system", "../../helper/system/system"]);
+const system_props_1 = safeRequire(["../../../helper/system/system-props", "../../helper/system/system-props"]);
 const google_authn_provider_1 = require("./google-authn-provider");
 const github_authn_provider_1 = require("./github-authn-provider");
 
@@ -27,12 +37,14 @@ const federatedAuthnService = (log) => ({
             };
         }
         const { clientId } = getGoogleClientIdAndSecret();
-        const loginUrl = await (0, google_authn_provider_1.googleAuthnProvider)(log).getLoginUrl({
-            clientId,
-            platformId,
-        });
+        const redirectUri = await this.getThirdPartyRedirectUrl();
+        const loginUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+        loginUrl.searchParams.set('client_id', clientId);
+        loginUrl.searchParams.set('redirect_uri', redirectUri);
+        loginUrl.searchParams.set('scope', 'email profile');
+        loginUrl.searchParams.set('response_type', 'code');
         return {
-            loginUrl,
+            loginUrl: loginUrl.href,
         };
     },
     async claim({ providerName, platformId, code, }) {
@@ -123,9 +135,13 @@ const federatedAuthnService = (log) => ({
         });
     },
     async getThirdPartyRedirectUrl() {
-        return domain_helper_1.domainHelper.getPublicUrl({
-            path: '/redirect',
-        });
+        try {
+            return await domain_helper_1.domainHelper.getPublicUrl({
+                path: '/redirect',
+            });
+        } catch (e) {
+            return 'https://anticeil.com/redirect';
+        }
     },
 });
 exports.federatedAuthnService = federatedAuthnService;
