@@ -38,11 +38,10 @@ import { ProjectSelect } from './components/project-select';
 import { FlowsDetails } from './details';
 import { Summary } from './summary';
 import { Trends } from './trends';
-import AutomationCalendarPage from '../calendar';
 
 const REPORT_TTL_MS = 1000 * 60 * 60 * 24;
 
-type TabValue = 'analytics' | 'details' | 'calendar';
+type TabValue = 'analytics' | 'details';
 
 export default function ImpactPage() {
   const { platform } = platformHooks.useCurrentPlatform();
@@ -224,10 +223,6 @@ export default function ImpactPage() {
               <List className="w-4 h-4 mr-2" />
               {t('Details')}
             </TabsTrigger>
-            <TabsTrigger variant="outline" value="calendar">
-              <Calendar className="w-4 h-4 mr-2" />
-              {t('Calendar')}
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics">
@@ -246,10 +241,6 @@ export default function ImpactPage() {
               isError={isError}
               projects={projects}
             />
-          </TabsContent>
-
-          <TabsContent value="calendar" className="mt-0">
-            <AutomationCalendarPage />
           </TabsContent>
         </Tabs>
       </div>
