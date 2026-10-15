@@ -513,8 +513,9 @@ export default function AutomationCalendarPage() {
                 {/* Header Columns (Days) - Sticky at Top of Scroll Container */}
                 <div className="flex border-b bg-card shrink-0 sticky top-0 z-30">
                   {/* Time Column Placeholder */}
-                  <div className="w-14 sm:w-16 shrink-0 border-r py-2 px-1 text-right text-[10px] sm:text-xs text-muted-foreground font-mono sticky left-0 bg-card z-40">
-                    GMT{dayjs().format('Z')}
+                  <div className="w-14 sm:w-16 shrink-0 border-r py-2 pr-1.5 sm:pr-2 flex flex-col items-end justify-center text-right text-[10px] sm:text-[11px] text-muted-foreground font-mono sticky left-0 bg-card z-40 leading-tight">
+                    <span>GMT</span>
+                    <span>{dayjs().format('Z')}</span>
                   </div>
                   {/* Day Columns */}
                   <div className="flex-1 grid grid-flow-col auto-cols-fr divide-x">
