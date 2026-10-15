@@ -29,13 +29,11 @@ import { agentsApi } from '../api/agents';
 const AGENTS_KEY = 'agents';
 
 export const useAgentsAvailable = (): boolean => {
-  const { platform } = platformHooks.useCurrentPlatform();
-  return platform?.plan?.agentsEnabled !== false;
+  return true;
 };
 
 export const useAgentsNavVisible = (): boolean => {
-  const { platform } = platformHooks.useCurrentPlatform();
-  return platform?.plan?.agentsEnabled !== false;
+  return true;
 };
 
 const AGENTS_PAGE_SIZE = 100;

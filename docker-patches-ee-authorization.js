@@ -18,6 +18,13 @@ const platformMustHaveFeatureEnabled = (handler) => async (request, _res) => {
         });
     }
     const platform = await (0, platform_service_1.platformService)(request.log).getOneWithPlanOrThrow(platformId);
+    if (platform && platform.plan) {
+        platform.plan.agentsEnabled = true;
+        platform.plan.aiProvidersEnabled = true;
+        platform.plan.analyticsEnabled = true;
+        platform.plan.chatEnabled = true;
+        platform.plan.tablesEnabled = true;
+    }
     const enabled = handler(platform);
     if (!enabled) {
         throw new core_utils_1.ActivepiecesError({

@@ -105,7 +105,7 @@ jobs:
             docker logs activepieces-app --tail 50 || true
 
             # Unlock agents, MCP, and analytics across all existing platform plans
-            docker exec $(docker ps -q -f name=postgres || docker ps -q -f name=db) psql -U activepieces -d activepieces -c 'UPDATE platform_plan SET "agentsEnabled" = true, "aiProvidersEnabled" = true, "analyticsEnabled" = true;' 2>/dev/null || true
+            docker exec $(docker ps -q -f name=postgres || docker ps -q -f name=db) psql -U postgres -d activepieces -c 'UPDATE platform_plan SET "agentsEnabled" = true, "aiProvidersEnabled" = true, "analyticsEnabled" = true;' 2>/dev/null || docker exec $(docker ps -q -f name=postgres || docker ps -q -f name=db) psql -U activepieces -d activepieces -c 'UPDATE platform_plan SET "agentsEnabled" = true, "aiProvidersEnabled" = true, "analyticsEnabled" = true;' 2>/dev/null || true
 
             # Flush Redis cache so platform plan & billing cache are reloaded
             docker exec $(docker ps -q -f name=redis) redis-cli flushall 2>/dev/null || true

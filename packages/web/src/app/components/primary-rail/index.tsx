@@ -140,7 +140,7 @@ export function PrimaryRail() {
                 }
               />
             )}
-            {checkAccess(Permission.READ_MCP) && (platform?.plan?.aiProvidersEnabled !== false || platform?.plan?.agentsEnabled !== false) && (
+            {checkAccess(Permission.READ_MCP) && (
               <RailNavButton
                 collapsed={collapsed}
                 to="/mcp-server"
@@ -149,15 +149,13 @@ export function PrimaryRail() {
                 isActive={({ pathname }) => pathname.startsWith('/mcp-server')}
               />
             )}
-            {showAgents && (
-              <RailNavButton
-                collapsed={collapsed}
-                to="/agents"
-                icon={Bot}
-                label={t('Agents')}
-                isActive={({ pathname }) => pathname.startsWith('/agents')}
-              />
-            )}
+            <RailNavButton
+              collapsed={collapsed}
+              to="/agents"
+              icon={Bot}
+              label={t('Agents')}
+              isActive={({ pathname }) => pathname.startsWith('/agents')}
+            />
             <RailNavButton
               collapsed={collapsed}
               to="/templates"
@@ -171,15 +169,13 @@ export function PrimaryRail() {
                 })
               }
             />
-            {(platform?.plan?.analyticsEnabled !== false) && (
-              <RailNavButton
-                collapsed={collapsed}
-                to="/impact"
-                icon={ChartLine}
-                label={t('Impact')}
-                isActive={({ pathname }) => pathname.startsWith('/impact')}
-              />
-            )}
+            <RailNavButton
+              collapsed={collapsed}
+              to="/impact"
+              icon={ChartLine}
+              label={t('Impact')}
+              isActive={({ pathname }) => pathname.startsWith('/impact')}
+            />
 
           </div>
           {authenticationSession.isLoggedIn() && (
@@ -247,7 +243,7 @@ export function MobilePrimaryRailSheet({
                   }}
                 />
               )}
-              {checkAccess(Permission.READ_MCP) && (platform?.plan?.aiProvidersEnabled !== false || platform?.plan?.agentsEnabled !== false) && (
+              {checkAccess(Permission.READ_MCP) && (
                 <RailNavButton
                   collapsed={false}
                   to="/mcp-server"
@@ -257,16 +253,14 @@ export function MobilePrimaryRailSheet({
                   onClick={handleNavigate}
                 />
               )}
-              {showAgents && (
-                <RailNavButton
-                  collapsed={false}
-                  to="/agents"
-                  icon={Bot}
-                  label={t('Agents')}
-                  isActive={({ pathname }) => pathname.startsWith('/agents')}
-                  onClick={handleNavigate}
-                />
-              )}
+              <RailNavButton
+                collapsed={false}
+                to="/agents"
+                icon={Bot}
+                label={t('Agents')}
+                isActive={({ pathname }) => pathname.startsWith('/agents')}
+                onClick={handleNavigate}
+              />
               <RailNavButton
                 collapsed={false}
                 to="/templates"
@@ -281,16 +275,14 @@ export function MobilePrimaryRailSheet({
                   });
                 }}
               />
-              {(platform?.plan?.analyticsEnabled !== false) && (
-                <RailNavButton
-                  collapsed={false}
-                  to="/impact"
-                  icon={ChartLine}
-                  label={t('Impact')}
-                  isActive={({ pathname }) => pathname.startsWith('/impact')}
-                  onClick={handleNavigate}
-                />
-              )}
+              <RailNavButton
+                collapsed={false}
+                to="/impact"
+                icon={ChartLine}
+                label={t('Impact')}
+                isActive={({ pathname }) => pathname.startsWith('/impact')}
+                onClick={handleNavigate}
+              />
 
             </div>
             <RailPinnedProjects collapsed={false} />
