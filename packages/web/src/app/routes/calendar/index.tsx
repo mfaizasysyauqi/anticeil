@@ -504,136 +504,139 @@ export default function AutomationCalendarPage() {
           <div className="flex-1 min-h-0 flex flex-col overflow-x-auto overflow-y-hidden select-none">
             {/* Inner responsive wrapper: has min-width on week view so days don't get squished */}
             <div className={cn('flex flex-col flex-1 min-h-0', view === 'week' ? 'min-w-[720px] md:min-w-full' : 'min-w-full')}>
-              {/* Header Columns (Days) */}
-              <div className="flex border-b bg-card/70 shrink-0 sticky top-0 z-30">
-                {/* Time Column Placeholder */}
-                <div className="w-14 sm:w-16 shrink-0 border-r py-2 px-1 text-right text-[10px] sm:text-xs text-muted-foreground font-mono">
-                  GMT{dayjs().format('Z')}
-                </div>
-                {/* Day Columns */}
-                <div className="flex-1 grid grid-flow-col auto-cols-fr divide-x">
-                  {displayedDays.map((day, idx) => {
-                    const isToday = day.isSame(dayjs(), 'day');
-                    return (
-                      <div
-                        key={idx}
-                        className={cn(
-                          'py-2 px-1 sm:px-2 flex flex-col items-center justify-center text-center',
-                          isToday && 'bg-primary/5',
-                        )}
-                      >
-                        <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase">
-                          {day.format('ddd')}
-                        </span>
+              {/* Scrollable Hours Grid (Header is sticky inside so scrollbar applies to both and columns align 100% symmetrically) */}
+              <div ref={gridContainerRef} className="flex-1 overflow-y-auto relative flex flex-col">
+                {/* Header Columns (Days) - Sticky at Top of Scroll Container */}
+                <div className="flex border-b bg-card shrink-0 sticky top-0 z-30">
+                  {/* Time Column Placeholder */}
+                  <div className="w-14 sm:w-16 shrink-0 border-r py-2 px-1 text-right text-[10px] sm:text-xs text-muted-foreground font-mono sticky left-0 bg-card z-40">
+                    GMT{dayjs().format('Z')}
+                  </div>
+                  {/* Day Columns */}
+                  <div className="flex-1 grid grid-flow-col auto-cols-fr divide-x">
+                    {displayedDays.map((day, idx) => {
+                      const isToday = day.isSame(dayjs(), 'day');
+                      return (
                         <div
+                          key={idx}
                           className={cn(
-                            'w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-xs sm:text-sm font-semibold mt-0.5',
-                            isToday && 'bg-primary text-primary-foreground',
+                            'py-2 px-1 sm:px-2 flex flex-col items-center justify-center text-center',
+                            isToday && 'bg-primary/5',
                           )}
                         >
-                          {day.format('D')}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Scrollable Hours Grid */}
-              <div ref={gridContainerRef} className="flex-1 overflow-y-auto relative flex">
-                {/* Time Labels (Left Column) */}
-                <div className="w-14 sm:w-16 shrink-0 border-r bg-background/95 sticky left-0 z-20">
-                  {HOURS.map((hour) => (
-                    <div
-                      key={hour}
-                      style={{ height: `${HOUR_HEIGHT_PX}px` }}
-                      className="border-b text-[10px] sm:text-[11px] font-mono text-muted-foreground text-right pr-1.5 sm:pr-2 pt-1"
-                    >
-                      {String(hour).padStart(2, '0')}:00
-                    </div>
-                  ))}
-                </div>
-
-                {/* Day Grid Columns */}
-                <div className="flex-1 grid grid-flow-col auto-cols-fr divide-x relative">
-                  {displayedDays.map((day, dayIdx) => {
-                    const isToday = day.isSame(dayjs(), 'day');
-                    const dayStart = day.startOf('day');
-                    const dayEnd = day.endOf('day');
-
-                    // Filter events falling on this day
-                    const dayEvents = events.filter(
-                      (e) => e.startTime.isSame(day, 'day') || (e.startTime.isBefore(dayEnd) && e.endTime.isAfter(dayStart)),
-                    );
-
-                    return (
-                      <div key={dayIdx} className="relative">
-                        {/* Hour Grid Lines */}
-                        {HOURS.map((hour) => (
+                          <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase">
+                            {day.format('ddd')}
+                          </span>
                           <div
-                            key={hour}
-                            style={{ height: `${HOUR_HEIGHT_PX}px` }}
-                            className="border-b border-border/30 hover:bg-muted/10 transition-colors"
-                          />
-                        ))}
-
-                        {/* Current Time Red Line Marker */}
-                        {isToday && (
-                          <div
-                            className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
-                            style={{
-                              top: `${(dayjs().hour() * 60 + dayjs().minute()) * (HOUR_HEIGHT_PX / 60)}px`,
-                            }}
+                            className={cn(
+                              'w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-xs sm:text-sm font-semibold mt-0.5',
+                              isToday && 'bg-primary text-primary-foreground',
+                            )}
                           >
-                            <div className="w-2 h-2 rounded-full bg-rose-500 -ml-1" />
-                            <div className="flex-1 border-t-2 border-rose-500" />
+                            {day.format('D')}
                           </div>
-                        )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                        {/* Event Cards inside column */}
-                        {dayEvents.map((event) => {
-                          const topMinutes = event.startTime.hour() * 60 + event.startTime.minute();
-                          const topPx = topMinutes * (HOUR_HEIGHT_PX / 60);
-                          const durMin = Math.max(18, event.endTime.diff(event.startTime, 'minute'));
-                          const heightPx = Math.max(24, durMin * (HOUR_HEIGHT_PX / 60));
-
-                          return (
-                            <div
-                              key={event.id}
-                              onClick={() => setActiveEvent(event)}
-                              style={{
-                                top: `${topPx}px`,
-                                height: `${heightPx}px`,
-                              }}
-                              className={cn(
-                                'absolute left-0.5 right-0.5 sm:left-1 sm:right-1 z-10 rounded-md p-1 sm:p-1.5 text-xs cursor-pointer border shadow-xs transition-all hover:scale-[1.01] hover:z-30 overflow-hidden',
-                                event.isScheduled
-                                  ? 'bg-blue-500/15 border-blue-500/40 text-blue-400 hover:bg-blue-500/25'
-                                  : event.status === FlowRunStatus.SUCCEEDED
-                                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25'
-                                  : event.status === FlowRunStatus.FAILED
-                                  ? 'bg-rose-500/15 border-rose-500/40 text-rose-400 hover:bg-rose-500/25'
-                                  : 'bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25',
-                              )}
-                            >
-                              <div className="font-semibold truncate flex items-center gap-1 leading-tight text-[11px] sm:text-xs">
-                                {event.isScheduled ? (
-                                  <Clock className="w-3 h-3 shrink-0" />
-                                ) : (
-                                  <PlayCircle className="w-3 h-3 shrink-0" />
-                                )}
-                                <span className="truncate">{event.title}</span>
-                              </div>
-                              <div className="text-[9px] sm:text-[10px] opacity-80 mt-0.5 font-mono">
-                                {event.startTime.format('HH:mm')}
-                                {durMin > 20 && ` - ${event.endTime.format('HH:mm')}`}
-                              </div>
-                            </div>
-                          );
-                        })}
+                {/* Grid Body */}
+                <div className="flex flex-1 relative">
+                  {/* Time Labels (Left Column) */}
+                  <div className="w-14 sm:w-16 shrink-0 border-r bg-background sticky left-0 z-20">
+                    {HOURS.map((hour) => (
+                      <div
+                        key={hour}
+                        style={{ height: `${HOUR_HEIGHT_PX}px` }}
+                        className="border-b text-[10px] sm:text-[11px] font-mono text-muted-foreground text-right pr-1.5 sm:pr-2 pt-1"
+                      >
+                        {String(hour).padStart(2, '0')}:00
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+
+                  {/* Day Grid Columns */}
+                  <div className="flex-1 grid grid-flow-col auto-cols-fr divide-x relative">
+                    {displayedDays.map((day, dayIdx) => {
+                      const isToday = day.isSame(dayjs(), 'day');
+                      const dayStart = day.startOf('day');
+                      const dayEnd = day.endOf('day');
+
+                      // Filter events falling on this day
+                      const dayEvents = events.filter(
+                        (e) => e.startTime.isSame(day, 'day') || (e.startTime.isBefore(dayEnd) && e.endTime.isAfter(dayStart)),
+                      );
+
+                      return (
+                        <div key={dayIdx} className="relative">
+                          {/* Hour Grid Lines */}
+                          {HOURS.map((hour) => (
+                            <div
+                              key={hour}
+                              style={{ height: `${HOUR_HEIGHT_PX}px` }}
+                              className="border-b border-border/30 hover:bg-muted/10 transition-colors"
+                            />
+                          ))}
+
+                          {/* Current Time Red Line Marker */}
+                          {isToday && (
+                            <div
+                              className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
+                              style={{
+                                top: `${(dayjs().hour() * 60 + dayjs().minute()) * (HOUR_HEIGHT_PX / 60)}px`,
+                              }}
+                            >
+                              <div className="w-2 h-2 rounded-full bg-rose-500 -ml-1" />
+                              <div className="flex-1 border-t-2 border-rose-500" />
+                            </div>
+                          )}
+
+                          {/* Event Cards inside column */}
+                          {dayEvents.map((event) => {
+                            const topMinutes = event.startTime.hour() * 60 + event.startTime.minute();
+                            const topPx = topMinutes * (HOUR_HEIGHT_PX / 60);
+                            const durMin = Math.max(18, event.endTime.diff(event.startTime, 'minute'));
+                            const heightPx = Math.max(24, durMin * (HOUR_HEIGHT_PX / 60));
+
+                            return (
+                              <div
+                                key={event.id}
+                                onClick={() => setActiveEvent(event)}
+                                style={{
+                                  top: `${topPx}px`,
+                                  height: `${heightPx}px`,
+                                }}
+                                className={cn(
+                                  'absolute left-0.5 right-0.5 sm:left-1 sm:right-1 z-10 rounded-md p-1 sm:p-1.5 text-xs cursor-pointer border shadow-xs transition-all hover:scale-[1.01] hover:z-30 overflow-hidden',
+                                  event.isScheduled
+                                    ? 'bg-blue-500/15 border-blue-500/40 text-blue-400 hover:bg-blue-500/25'
+                                    : event.status === FlowRunStatus.SUCCEEDED
+                                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25'
+                                    : event.status === FlowRunStatus.FAILED
+                                    ? 'bg-rose-500/15 border-rose-500/40 text-rose-400 hover:bg-rose-500/25'
+                                    : 'bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25',
+                                )}
+                              >
+                                <div className="font-semibold truncate flex items-center gap-1 leading-tight text-[11px] sm:text-xs">
+                                  {event.isScheduled ? (
+                                    <Clock className="w-3 h-3 shrink-0" />
+                                  ) : (
+                                    <PlayCircle className="w-3 h-3 shrink-0" />
+                                  )}
+                                  <span className="truncate">{event.title}</span>
+                                </div>
+                                <div className="text-[9px] sm:text-[10px] opacity-80 mt-0.5 font-mono">
+                                  {event.startTime.format('HH:mm')}
+                                  {durMin > 20 && ` - ${event.endTime.format('HH:mm')}`}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
