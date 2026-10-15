@@ -26,7 +26,7 @@ const github_authn_provider_1 = require("./github-authn-provider");
 
 const federatedAuthnService = (log) => ({
     async login({ providerName, platformId, }) {
-        if (providerName === shared_1.ThirdPartyAuthnProviderEnum.GITHUB) {
+        if (providerName && providerName === 'github') {
             const { clientId } = getGithubClientIdAndSecret();
             const loginUrl = await (0, github_authn_provider_1.githubAuthnProvider)(log).getLoginUrl({
                 clientId,
@@ -50,7 +50,7 @@ const federatedAuthnService = (log) => ({
     async claim({ providerName, platformId, code, }) {
         let profile;
         let provider;
-        if (providerName === shared_1.ThirdPartyAuthnProviderEnum.GITHUB) {
+        if (providerName && providerName === 'github') {
             const { clientId, clientSecret } = getGithubClientIdAndSecret();
             profile = await (0, github_authn_provider_1.githubAuthnProvider)(log).authenticate({
                 clientId,
@@ -155,8 +155,8 @@ function getGoogleClientIdAndSecret() {
 }
 function getGithubClientIdAndSecret() {
     return {
-        clientId: system_1.system.getOrThrow(system_props_1.AppSystemProp.GITHUB_CLIENT_ID),
-        clientSecret: system_1.system.getOrThrow(system_props_1.AppSystemProp.GITHUB_CLIENT_SECRET),
+        clientId: (system_props_1.AppSystemProp.GITHUB_CLIENT_ID && system_1.system.get(system_props_1.AppSystemProp.GITHUB_CLIENT_ID)) || '',
+        clientSecret: (system_props_1.AppSystemProp.GITHUB_CLIENT_SECRET && system_1.system.get(system_props_1.AppSystemProp.GITHUB_CLIENT_SECRET)) || '',
     };
 }
 //# sourceMappingURL=federated-authn-service.js.map
