@@ -65,9 +65,9 @@ export const AppearanceSection = ({
     ApFlagId.MAX_FILE_SIZE_MB,
   );
   const upgradeClick = () => {};
-  const brandingLocked = !platform.plan.customAppearanceEnabled;
+  const brandingLocked = false;
   const initialColor =
-    !brandingLocked && HEX_COLOR_PATTERN.test(platform.primaryColor)
+    HEX_COLOR_PATTERN.test(platform.primaryColor)
       ? platform.primaryColor
       : branding.colors.primary.default;
 
@@ -332,21 +332,26 @@ export const AppearanceSection = ({
               )
             }
           >
-            {BRAND_IMAGES.map((image) => (
-              <BrandImageField
-                key={`${image.kind}-${imageFieldsKey}`}
-                id={`brand-${image.kind}`}
-                label={image.title()}
-                hint={image.hint()}
-                wide={image.kind === 'logo'}
-                currentUrl={platform[image.urlKey]}
-                file={images[image.kind]}
-                maxSizeMb={maxFileSizeMb ?? DEFAULT_MAX_FILE_SIZE_MB}
-                onFileChange={(file) =>
-                  setImages((previous) => ({ ...previous, [image.kind]: file }))
-                }
-              />
-            ))}
+            {BRAND_IMAGES.map((image) => {
+              const defaultUrl = image.kind === 'favicon' ? 'https://anticeil.com/favicon.ico' : 'https://anticeil.com/logo.png';
+              const rawUrl = platform[image.urlKey];
+              const sanitizedUrl = !rawUrl || rawUrl.includes('activepieces.com') ? defaultUrl : rawUrl;
+              return (
+                <BrandImageField
+                  key={`${image.kind}-${imageFieldsKey}`}
+                  id={`brand-${image.kind}`}
+                  label={image.title()}
+                  hint={image.hint()}
+                  wide={image.kind === 'logo'}
+                  currentUrl={sanitizedUrl}
+                  file={images[image.kind]}
+                  maxSizeMb={maxFileSizeMb ?? DEFAULT_MAX_FILE_SIZE_MB}
+                  onFileChange={(file) =>
+                    setImages((previous) => ({ ...previous, [image.kind]: file }))
+                  }
+                />
+              );
+            })}
             <div className="flex flex-col gap-4 border-t border-gray-6 pt-4">
               <div className="flex flex-col gap-1">
                 <span className="text-sm font-medium text-gray-12">
