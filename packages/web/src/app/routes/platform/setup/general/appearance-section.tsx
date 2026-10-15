@@ -18,10 +18,12 @@ import { ReactNode, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { Link } from 'react-router-dom';
 
 import { platformApi } from '@/api/platforms-api';
 import {
   AdminPage,
+  LockedCallout,
   SaveBar,
   SaveBarLock,
   SettingsPanel,
@@ -65,9 +67,9 @@ export const AppearanceSection = ({
     ApFlagId.MAX_FILE_SIZE_MB,
   );
   const upgradeClick = () => {};
-  const brandingLocked = false;
+  const brandingLocked = !platform.plan.customAppearanceEnabled;
   const initialColor =
-    HEX_COLOR_PATTERN.test(platform.primaryColor)
+    !brandingLocked && HEX_COLOR_PATTERN.test(platform.primaryColor)
       ? platform.primaryColor
       : branding.colors.primary.default;
 
@@ -313,25 +315,37 @@ export const AppearanceSection = ({
                   )
             }
             action={
-              !brandingLocked ? undefined : edition === ApEdition.COMMUNITY ? (
-                <Badge variant="info">
-                  <Gem />
-                  {t('{tier} plan', { tier: tierLabel })}
-                </Badge>
-              ) : (
+              !brandingLocked ? undefined : (
                 <Button
                   {...adminControl(AdminControl.GENERAL_BRANDING_UPGRADE_OPEN)}
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => upgradeClick()}
+                  asChild
                 >
-                  <Gem />
-                  {t('Upgrade to {tier}', { tier: tierLabel })}
+                  <Link to="/platform/billing">
+                    <Gem />
+                    {t('Upgrade to {tier}', { tier: tierLabel })}
+                  </Link>
                 </Button>
               )
             }
           >
+            {brandingLocked && (
+              <LockedCallout
+                variant="inline"
+                title={t('Your logo, colors and favicon are part of custom branding.')}
+              >
+                <Button
+                  size="sm"
+                  variant="link"
+                  className="h-auto p-0 text-accent-11 underline underline-offset-4"
+                  asChild
+                >
+                  <Link to="/platform/billing">{t('Upgrade plan')}</Link>
+                </Button>
+              </LockedCallout>
+            )}
             {BRAND_IMAGES.map((image) => {
               const defaultUrl = image.kind === 'favicon' ? 'https://anticeil.com/favicon.ico' : 'https://anticeil.com/logo.png';
               const rawUrl = platform[image.urlKey];
