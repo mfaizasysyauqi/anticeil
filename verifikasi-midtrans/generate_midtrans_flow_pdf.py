@@ -13,7 +13,8 @@ files = [
     ("3. pilih paket.png", "Langkah 3: Pemilihan Paket Langganan & Harga", "Sistem menampilkan dialog 'Jelajahi Paket' yang memuat spesifikasi kuota alur kerja, AI credits, dan harga resmi dalam IDR. Pengguna memilih paket 'Plus' (Rp 299.000/bln) dan menekan tombol 'Beli Sekarang'."),
     ("4. pilih pembayaran.png", "Langkah 4: Antarmuka Midtrans Snap Checkout", "Antarmuka resmi Midtrans Snap Checkout terbuka secara aman dalam bentuk popup modal. Sistem menampilkan nama merchant (Anticeil), nomor unik Order ID (contoh: #AC-ocEsv6o3-plus-1792063983139), rincian tagihan (Rp 299.000), serta daftar kanal pembayaran resmi. Pengguna memilih metode pembayaran yang diinginkan (contoh: DANA)."),
     ("5. masukan pin dan confirm.png", "Langkah 5: Otorisasi & Penyelesaian Pembayaran", "Pengguna dialihkan ke halaman otorisasi pembayaran Midtrans yang aman. Pengguna memasukkan nomor PIN transaksi pada simulator/aplikasi pembayaran e-wallet dan menekan tombol 'Confirm' untuk menyelesaikan pelunasan."),
-    ("6. selesai pembayaran dan tunggu halaman berubah.png", "Langkah 6: Konfirmasi Pembayaran Berhasil & Paket Aktif", "Setelah pembayaran terkonfirmasi lunas oleh sistem Midtrans (settlement/capture), sistem otomatis mengarahkan pengguna kembali ke aplikasi Anticeil dengan status 'Berhasil Ditingkatkan!' (Subscription updated Berhasil) dan kuota paket Plus langsung aktif secara instan.")
+    ("6. selesai pembayaran dan tunggu halaman berubah.png", "Langkah 6: Notifikasi Pelunasan Sukses & Redirect Kembali", "Setelah pembayaran diselesaikan pada channel pembayaran Midtrans, sistem menampilkan layar konfirmasi pelunasan sukses (Payment Successful) dan secara otomatis mengarahkan kembali (callback redirect) ke dashboard Anticeil."),
+    ("7. paket sudah berhasil dibeli.png", "Langkah 7: Paket Berlangganan Aktif & Kuota Diperbarui", "Sistem Anticeil menerima notifikasi webhook resmi Midtrans dan memverifikasi status pembayaran secara realtime. Status langganan pengguna otomatis berhasil ditingkatkan ke 'Paket Plus' dengan kuota penuh (10.000 AI Credits, 100 Alur Aktif, 5 Anggota Tim) dan tanda centang hijau konfirmasi aktif.")
 ]
 
 def encode_img(filename):
@@ -229,7 +230,7 @@ html_content = f"""<!DOCTYPE html>
 
   .step-container {{
     page-break-inside: avoid;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     overflow: hidden;
@@ -284,7 +285,7 @@ html_content = f"""<!DOCTYPE html>
 
   .step-img {{
     width: 100%;
-    max-height: 290px;
+    max-height: 255px;
     object-fit: contain;
     border-radius: 4px;
     display: block;
@@ -517,6 +518,20 @@ html_content = f"""<!DOCTYPE html>
       <div class="step-desc">{encoded[5]['desc']}</div>
       <div class="img-wrapper">
         <img class="step-img" src="{encoded[5]['data']}" alt="Langkah 6">
+      </div>
+    </div>
+  </div>
+
+  <!-- LANGKAH 7 -->
+  <div class="step-container">
+    <div class="step-header">
+      <span class="step-number">Langkah 7</span>
+      <span class="step-title">{encoded[6]['title']}</span>
+    </div>
+    <div class="step-body">
+      <div class="step-desc">{encoded[6]['desc']}</div>
+      <div class="img-wrapper">
+        <img class="step-img" src="{encoded[6]['data']}" alt="Langkah 7">
       </div>
     </div>
   </div>
