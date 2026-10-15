@@ -1,6 +1,6 @@
 const ACHROMATIC_CHROMA = 0.02
 const MAX_CHROMA_RATIO = 1.25
-const DEFAULT_ACCENT_SOLID = '#6e41e2'
+const DEFAULT_ACCENT_SOLID = '#0d9488'
 const WHITE = '#ffffff'
 const BLACK = '#000000'
 const TEXT_CONTRAST = 4.5
@@ -24,7 +24,7 @@ const DARK_SURFACES: Partial<Record<RampStep, { lightness: number, chromaShare: 
     8: { lightness: 47, chromaShare: 0.8 },
 }
 const SCALE_ANCHORS: Record<RampScale, { family: ColorFamily, shade: number }> = {
-    accent: { family: 'violet', shade: 600 },
+    accent: { family: 'teal', shade: 600 },
     danger: { family: 'red', shade: 600 },
     warning: { family: 'amber', shade: 500 },
     success: { family: 'green', shade: 600 },

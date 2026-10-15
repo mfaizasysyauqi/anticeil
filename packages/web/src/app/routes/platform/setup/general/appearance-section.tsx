@@ -388,8 +388,8 @@ export const AppearanceSection = ({
                         color={field.value}
                         defaultColor={brandColors.defaultPrimaryColor()}
                         isDefault={
-                          field.value.toLowerCase() ===
-                          brandColors.defaultPrimaryColor()
+                          field.value?.toLowerCase() ===
+                          brandColors.defaultPrimaryColor().toLowerCase()
                         }
                         onChange={field.onChange}
                         onReset={() =>
