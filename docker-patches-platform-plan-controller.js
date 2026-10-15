@@ -291,7 +291,13 @@ const platformPlanController = async (app) => {
     });
     app.post('/switch-plan', { config: { allowedPrincipals: [shared_1.PrincipalType.USER, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
         try {
-            let platformId = request.principal?.platform?.id;
+            let platformId = request.principal?.platform?.id || request.principal?.platformId;
+            if (!platformId && request.principal?.id) {
+                try {
+                    const user = await (0, user_service_1.userService)(request.log).getMetaInformation({ id: request.principal.id });
+                    platformId = user?.platformId;
+                } catch (e) {}
+            }
             if (!platformId) {
                 const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
                 platformId = platforms[0]?.id;
@@ -345,13 +351,7 @@ const platformPlanController = async (app) => {
             return reply.status(500).send({ statusCode: 500, error: 'Internal Server Error', message: err?.message || 'Failed to switch plan' });
         }
     });
-    app.get('/midtrans-webhook', { config: { allowedPrincipals: [shared_1.PrincipalType.UNKNOWN, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
-        return reply.status(200).send({ status: 'OK' });
-    });
-    app.all('/midtrans-webhcook', { config: { allowedPrincipals: [shared_1.PrincipalType.UNKNOWN, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
-        return reply.status(200).send({ status: 'OK' });
-    });
-    app.post('/midtrans-webhook', { config: { allowedPrincipals: [shared_1.PrincipalType.UNKNOWN, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
+    const handleMidtransWebhook = async (request, reply) => {
         const body = request.body;
         const orderId = body?.order_id;
         const transactionStatus = body?.transaction_status;
@@ -371,14 +371,35 @@ const platformPlanController = async (app) => {
                     platformId = orderMeta.platformId;
                     planName = orderMeta.planKey;
                 } else {
-                    // Fallback: determine plan from gross amount
-                    const grossAmount = Number(body?.gross_amount);
-                    const isTeam = grossAmount >= 2000000;
-                    const isPlus = grossAmount >= 200000 && !isTeam;
-                    planName = isTeam ? 'team' : (isPlus ? 'plus' : 'free');
+                    const lowerOrder = (orderId || '').toLowerCase();
+                    if (lowerOrder.includes('enterprise')) {
+                        planName = 'enterprise';
+                    } else if (lowerOrder.includes('team')) {
+                        planName = 'team';
+                    } else if (lowerOrder.includes('plus')) {
+                        planName = 'plus';
+                    } else {
+                        const grossAmount = Number(body?.gross_amount);
+                        const isTeam = grossAmount >= 2000000;
+                        const isPlus = grossAmount >= 200000 && !isTeam;
+                        planName = isTeam ? 'team' : (isPlus ? 'plus' : 'free');
+                    }
 
-                    const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
-                    platformId = platforms[0]?.id;
+                    if (orderId) {
+                        const match = orderId.match(/^AC-([a-zA-Z0-9]+)-/);
+                        if (match) {
+                            const short = match[1];
+                            const allPlatforms = await (0, platform_service_1.platformService)(request.log).getAll();
+                            const matched = allPlatforms.find(p => p.id.replace(/[^a-zA-Z0-9]/g, '').startsWith(short) || p.id.startsWith(short));
+                            if (matched) {
+                                platformId = matched.id;
+                            }
+                        }
+                    }
+                    if (!platformId) {
+                        const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
+                        platformId = platforms[0]?.id;
+                    }
                 }
 
                 if (platformId) {
@@ -389,6 +410,7 @@ const platformPlanController = async (app) => {
                     await redis_connections_1.distributedStore.delete((0, keys_1.getCreditsBalanceKey)(platformId));
                     await redis_connections_1.distributedStore.delete((0, keys_1.getCustomerStateMissKey)(platformId));
                     if (orderId) await redis_connections_1.distributedStore.delete(`anticeil:midtrans:order:${orderId}`);
+                    await redis_connections_1.distributedStore.delete(`anticeil:midtrans:platform_latest_order:${platformId}`);
 
                     const currentMonth = (0, server_utils_1.apDayjs)().format('YYYY-MM');
                     const usageKey = `anticeil:credits_usage:${platformId}:${currentMonth}`;
@@ -418,7 +440,166 @@ const platformPlanController = async (app) => {
             }
         }
         return reply.status(200).send({ status: 'OK' });
+    };
+
+    app.get('/midtrans-webhook', { config: { allowedPrincipals: [shared_1.PrincipalType.UNKNOWN, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
+        return reply.status(200).send({ status: 'OK' });
     });
+    app.all('/midtrans-webhcook', { config: { allowedPrincipals: [shared_1.PrincipalType.UNKNOWN, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
+        return reply.status(200).send({ status: 'OK' });
+    });
+    app.post('/midtrans-webhook', { config: { allowedPrincipals: [shared_1.PrincipalType.UNKNOWN, shared_1.PrincipalType.SERVICE] } }, handleMidtransWebhook);
+    app.all('/midtrans-notification', { config: { allowedPrincipals: [shared_1.PrincipalType.UNKNOWN, shared_1.PrincipalType.SERVICE] } }, handleMidtransWebhook);
+
+    // POST /midtrans-verify — verifies an order directly with Midtrans and activates plan immediately
+    app.post('/midtrans-verify', { config: { allowedPrincipals: [shared_1.PrincipalType.USER, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
+        try {
+            const body = request.body || {};
+            let orderId = body.orderId || body.order_id;
+
+            let platformId = request.principal?.platform?.id || request.principal?.platformId;
+            if (!platformId && request.principal?.id) {
+                try {
+                    const user = await (0, user_service_1.userService)(request.log).getMetaInformation({ id: request.principal.id });
+                    platformId = user?.platformId;
+                } catch (e) {}
+            }
+            if (!platformId && orderId) {
+                const match = orderId.match(/^AC-([a-zA-Z0-9]+)-/);
+                if (match) {
+                    const short = match[1];
+                    const allPlatforms = await (0, platform_service_1.platformService)(request.log).getAll();
+                    const matched = allPlatforms.find(p => p.id.replace(/[^a-zA-Z0-9]/g, '').startsWith(short) || p.id.startsWith(short));
+                    if (matched) {
+                        platformId = matched.id;
+                    }
+                }
+            }
+            if (!platformId) {
+                const platforms = await (0, platform_service_1.platformService)(request.log).getAll();
+                platformId = platforms[0]?.id;
+            }
+
+            if (!orderId && platformId) {
+                orderId = await redis_connections_1.distributedStore.get(`anticeil:midtrans:platform_latest_order:${platformId}`);
+            }
+
+            if (!orderId) {
+                return reply.status(400).send({
+                    success: false,
+                    message: 'Nomor Order ID tidak ditemukan. Masukkan Order ID bukti pembayaran Anda.',
+                });
+            }
+
+            const serverKey = process.env.AP_MIDTRANS_SERVER_KEY ?? '';
+            const isProduction = process.env.AP_MIDTRANS_IS_PRODUCTION === 'true';
+            const coreBase = isProduction ? 'https://api.midtrans.com/v2' : 'https://api.sandbox.midtrans.com/v2';
+            const auth = Buffer.from(`${serverKey}:`).toString('base64');
+
+            request.log.info({ orderId, coreBase }, '[Midtrans verify] Checking transaction status with Midtrans API');
+
+            let statusData = null;
+            try {
+                const midtransRes = await fetch(`${coreBase}/${orderId}/status`, {
+                    headers: {
+                        Authorization: `Basic ${auth}`,
+                        Accept: 'application/json',
+                    },
+                });
+
+                if (midtransRes.ok) {
+                    statusData = await midtransRes.json();
+                } else {
+                    const errBody = await midtransRes.text();
+                    request.log.warn({ orderId, status: midtransRes.status, errBody }, '[Midtrans verify] query failed');
+                }
+            } catch (fetchErr) {
+                request.log.error({ orderId, err: fetchErr }, '[Midtrans verify] fetch error');
+            }
+
+            const txStatus = statusData?.transaction_status;
+            const fraudStatus = statusData?.fraud_status;
+            const isSuccess = statusData && ((txStatus === 'capture' && (fraudStatus === 'accept' || !fraudStatus)) || txStatus === 'settlement');
+
+            if (!isSuccess) {
+                return reply.status(200).send({
+                    success: false,
+                    status: txStatus || 'not_found',
+                    message: txStatus
+                        ? `Status pembayaran masih '${txStatus}'. Jika baru saja transfer, mohon tunggu 1-2 menit lalu klik Verifikasi lagi.`
+                        : 'Transaksi belum ditemukan di Midtrans. Pastikan pembayaran sudah diselesaikan.',
+                });
+            }
+
+            // Determine plan
+            let planName = 'plus';
+            const orderMeta = await redis_connections_1.distributedStore.get(`anticeil:midtrans:order:${orderId}`);
+            if (orderMeta && orderMeta.planKey) {
+                planName = orderMeta.planKey;
+            } else {
+                const lowerOrder = (orderId || '').toLowerCase();
+                if (lowerOrder.includes('enterprise')) {
+                    planName = 'enterprise';
+                } else if (lowerOrder.includes('team')) {
+                    planName = 'team';
+                } else if (lowerOrder.includes('plus')) {
+                    planName = 'plus';
+                } else {
+                    const gross = Number(statusData.gross_amount);
+                    if (gross >= 2000000) planName = 'team';
+                    else if (gross >= 200000) planName = 'plus';
+                }
+            }
+
+            const planData = resolvePlanLimitsAndFeatures(planName);
+            const planRepo = (0, platform_plan_service_1.platformPlanRepo)();
+            const existing = await planRepo.findOneBy({ platformId });
+            if (existing) {
+                await planRepo.update({ platformId }, planData);
+            } else {
+                await planRepo.save({
+                    id: (0, core_utils_1.apId)(),
+                    platformId,
+                    ...planData,
+                });
+            }
+
+            await Promise.all([
+                redis_connections_1.distributedStore.delete((0, keys_1.getBillingOverviewKey)(platformId)),
+                redis_connections_1.distributedStore.delete((0, keys_1.getPlatformPlanNameKey)(platformId)),
+                redis_connections_1.distributedStore.delete((0, keys_1.getCreditsBalanceKey)(platformId)),
+                redis_connections_1.distributedStore.delete((0, keys_1.getCustomerStateMissKey)(platformId)),
+                redis_connections_1.distributedStore.delete(`anticeil:midtrans:order:${orderId}`),
+                redis_connections_1.distributedStore.delete(`anticeil:midtrans:platform_latest_order:${platformId}`),
+            ]);
+
+            const currentMonth = (0, server_utils_1.apDayjs)().format('YYYY-MM');
+            const usageKey = `anticeil:credits_usage:${platformId}:${currentMonth}`;
+            const currentUsage = (await redis_connections_1.distributedStore.get(usageKey)) ?? 0;
+            const newBalance = {
+                featureId: shared_1.ConsumableFeatureId.AP_CREDITS,
+                granted: planData.includedCredits,
+                usage: currentUsage,
+                remaining: Math.max(0, planData.includedCredits - currentUsage),
+                unlimited: false,
+                syncedAt: Date.now(),
+                nextResetAt: (0, server_utils_1.apDayjs)().endOf('month').valueOf(),
+            };
+            await redis_connections_1.distributedStore.put((0, keys_1.getCreditsBalanceKey)(platformId), newBalance, 60 * 60);
+
+            request.log.info({ orderId, platformId, planName: planData.plan }, 'Midtrans payment verified manually — plan applied');
+
+            return reply.status(200).send({
+                success: true,
+                plan: planData.plan,
+                message: `Pembayaran berhasil diverifikasi! Paket ${planData.plan.toUpperCase()} telah aktif.`,
+            });
+        } catch (err) {
+            request.log.error({ err }, '[Midtrans verify] error');
+            return reply.status(500).send({ success: false, message: err?.message || 'Gagal memverifikasi pembayaran' });
+        }
+    });
+
     // POST /midtrans-token — generates a Snap token so the frontend can open the payment popup
     app.post('/midtrans-token', { config: { allowedPrincipals: [shared_1.PrincipalType.USER, shared_1.PrincipalType.SERVICE] } }, async (request, reply) => {
         try {
@@ -505,7 +686,8 @@ const platformPlanController = async (app) => {
 
             // Store the order metadata so the webhook can resolve platformId + plan
             if (platformId) {
-                await redis_connections_1.distributedStore.put(`anticeil:midtrans:order:${orderId}`, { platformId, planKey, cycle, userId: request.principal?.id }, 60 * 60 * 24);
+                await redis_connections_1.distributedStore.put(`anticeil:midtrans:order:${orderId}`, { platformId, planKey, cycle, userId: request.principal?.id }, 60 * 60 * 24 * 7);
+                await redis_connections_1.distributedStore.put(`anticeil:midtrans:platform_latest_order:${platformId}`, orderId, 60 * 60 * 24 * 7);
             }
 
             request.log.info({ orderId, planKey, grossAmount, platformId }, '[Midtrans] Snap token created');

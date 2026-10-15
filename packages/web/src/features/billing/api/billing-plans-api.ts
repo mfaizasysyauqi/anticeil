@@ -84,4 +84,10 @@ export const platformBillingApi = {
       params,
     );
   },
+  verifyMidtransPayment(params?: { orderId?: string }) {
+    return api.post<{ success: boolean; plan?: string; message: string; status?: string }>(
+      '/v1/platform-billing/midtrans-verify',
+      params || {},
+    );
+  },
 };

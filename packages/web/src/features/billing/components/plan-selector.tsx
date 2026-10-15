@@ -30,6 +30,7 @@ import { usePlanSwitchSuccessDialogStore } from '../stores/plan-switch-success-d
 import {
   billingKeys,
   PLATFORM_BILLING_SUBSCRIPTION_KEY,
+  refreshBillingCaches,
 } from '../hooks/billing-hooks';
 import {
   planSelectorUtils,
@@ -364,17 +365,62 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
         cycle: billingCycle,
       });
 
+      try {
+        localStorage.setItem(
+          'anticeil_pending_order',
+          JSON.stringify({ orderId, plan: targetPlanKey, timestamp: Date.now() }),
+        );
+      } catch (e) {
+        // ignore storage error
+      }
+
       await loadSnapScript(clientKey);
 
       (window as any).snap.pay(snapToken, {
-        onSuccess: () => {
+        onSuccess: async () => {
           toast.success(t('Pembayaran berhasil! Plan {plan} sedang diaktifkan...', { plan: targetPlanKey.toUpperCase() }));
-          switchPlan(targetPlanKey);
+          try {
+            await platformBillingApi.verifyMidtransPayment({ orderId });
+            refreshBillingCaches(queryClient);
+          } catch (e) {
+            switchPlan(targetPlanKey);
+          }
+          try {
+            localStorage.removeItem('anticeil_pending_order');
+          } catch (e) {
+            // ignore
+          }
           navigate(`/platform/billing/success?action=upgrade&order_id=${orderId || ''}&plan=${targetPlanKey}&transaction_status=settlement`);
           onSelected?.();
         },
         onPending: () => {
-          toast.info(t('Pembayaran pending. Plan akan diaktifkan setelah konfirmasi bank.'));
+          toast.info(t('Pembayaran sedang diproses / menunggu transfer. Paket akan aktif otomatis setelah Anda menyelesaikan pembayaran.'));
+          // Start polling in background to detect settlement
+          let pollCount = 0;
+          const pollInterval = window.setInterval(async () => {
+            pollCount++;
+            if (pollCount > 36) { // 3 minutes timeout
+              window.clearInterval(pollInterval);
+              return;
+            }
+            try {
+              const res = await platformBillingApi.verifyMidtransPayment({ orderId });
+              if (res.success) {
+                window.clearInterval(pollInterval);
+                try {
+                  localStorage.removeItem('anticeil_pending_order');
+                } catch (e) {
+                  // ignore
+                }
+                toast.success(t('Pembayaran berhasil terverifikasi! Paket {plan} telah aktif.', { plan: (res.plan || targetPlanKey).toUpperCase() }));
+                refreshBillingCaches(queryClient);
+                await queryClient.invalidateQueries();
+                usePlanSwitchSuccessDialogStore.getState().openDialog(res.plan || targetPlanKey);
+              }
+            } catch (e) {
+              // ignore polling error
+            }
+          }, 5000);
           onSelected?.();
         },
         onError: () => {
@@ -382,7 +428,9 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
           navigate('/platform/billing/error');
         },
         onClose: () => {
-          // User closed popup without completing
+          toast.info(t('Jika sudah transfer via bank/e-wallet, klik tombol "Verifikasi Pembayaran" di halaman Billing untuk mengaktifkan paket.'), {
+            duration: 8000,
+          });
         },
       });
     } catch (err) {

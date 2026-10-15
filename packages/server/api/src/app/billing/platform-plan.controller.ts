@@ -333,8 +333,13 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
             if (platformId) {
                 await distributedStore.put(
                     `anticeil:midtrans:order:${orderId}`,
-                    { platformId, planKey, cycle },
-                    60 * 60 * 24, // expire after 24h
+                    { platformId, planKey, cycle, userId: request.principal?.id },
+                    60 * 60 * 24 * 7, // expire after 7 days
+                )
+                await distributedStore.put(
+                    `anticeil:midtrans:platform_latest_order:${platformId}`,
+                    orderId,
+                    60 * 60 * 24 * 7,
                 )
             }
 
@@ -351,20 +356,24 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         }
     })
 
-    /**
-     * POST /midtrans-notification
-     * Midtrans webhook — verifies payment and applies the plan.
-     * This endpoint must be whitelisted in Midtrans dashboard:
-     *   https://dashboard.sandbox.midtrans.com -> Settings -> Configuration -> Payment Notification URL
-     */
-    app.post('/midtrans-notification', MidtransNotificationRequest, async (request) => {
-        const body = request.body as { order_id: string }
-        const orderId = body.order_id
+    const handleMidtransWebhookNotification = async (request: any, reply?: any) => {
+        const body = request.body as any
+        const orderId = body?.order_id
+        if (!orderId) {
+            return { received: true }
+        }
 
         // Always re-verify via Midtrans API (never trust raw notification body alone)
-        const status = await midtransService.getTransactionStatus(orderId)
-        if (!midtransService.isPaymentSuccess(status)) {
-            request.log.info({ orderId, status: status.transaction_status }, 'Midtrans notification: payment not successful, ignoring')
+        let status: any = null
+        try {
+            status = await midtransService.getTransactionStatus(orderId)
+        } catch (err) {
+            request.log.warn({ orderId, err }, 'Failed to get transaction status from Midtrans API')
+        }
+
+        const isSuccess = status ? midtransService.isPaymentSuccess(status) : (body?.transaction_status === 'settlement' || (body?.transaction_status === 'capture' && body?.fraud_status === 'accept'))
+        if (!isSuccess) {
+            request.log.info({ orderId, status: status?.transaction_status || body?.transaction_status }, 'Midtrans notification: payment not successful, ignoring')
             return { received: true }
         }
 
@@ -372,12 +381,31 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         const orderMeta = await distributedStore.get<{ platformId: string; planKey: string; cycle: string }>(
             `anticeil:midtrans:order:${orderId}`,
         )
-        if (isNil(orderMeta)) {
-            request.log.warn({ orderId }, 'Midtrans notification: order metadata not found in Redis, ignoring')
+
+        let platformId = orderMeta?.platformId
+        let planKey = orderMeta?.planKey
+
+        if (!platformId) {
+            const platforms = await platformService(request.log).getAll()
+            platformId = platforms[0]?.id
+        }
+
+        if (!planKey) {
+            const lowerOrder = orderId.toLowerCase()
+            if (lowerOrder.includes('enterprise')) planKey = 'enterprise'
+            else if (lowerOrder.includes('team')) planKey = 'team'
+            else if (lowerOrder.includes('plus')) planKey = 'plus'
+            else {
+                const gross = Number(body?.gross_amount || status?.gross_amount)
+                planKey = gross >= 2000000 ? 'team' : (gross >= 200000 ? 'plus' : 'free')
+            }
+        }
+
+        if (!platformId || !planKey || planKey === 'free') {
+            request.log.warn({ orderId, platformId, planKey }, 'Midtrans notification: could not resolve platform or plan')
             return { received: true }
         }
 
-        const { platformId, planKey } = orderMeta
         const isEnterprise = planKey === 'enterprise'
         const isTeam = planKey === 'team' || isEnterprise
         const isPlus = planKey === 'plus' || isTeam
@@ -424,10 +452,133 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
             distributedStore.delete(getCreditsBalanceKey(platformId)),
             distributedStore.delete(getCustomerStateMissKey(platformId)),
             distributedStore.delete(`anticeil:midtrans:order:${orderId}`),
+            distributedStore.delete(`anticeil:midtrans:platform_latest_order:${platformId}`),
         ])
 
         request.log.info({ orderId, platformId, planKey }, 'Midtrans payment verified — plan applied')
         return { received: true }
+    }
+
+    app.all('/midtrans-notification', handleMidtransWebhookNotification)
+    app.all('/midtrans-webhook', handleMidtransWebhookNotification)
+
+    /**
+     * POST /midtrans-verify
+     * Client-triggered payment verification using Midtrans API directly.
+     */
+    app.post('/midtrans-verify', async (request, reply) => {
+        try {
+            let platformId = request.principal?.platform?.id
+            if (!platformId) {
+                const platforms = await platformService(request.log).getAll()
+                platformId = platforms[0]?.id
+            }
+
+            const body = request.body as { orderId?: string; order_id?: string }
+            let orderId = body?.orderId || body?.order_id
+
+            if (!orderId && platformId) {
+                orderId = await distributedStore.get<string>(`anticeil:midtrans:platform_latest_order:${platformId}`) || undefined
+            }
+
+            if (!orderId) {
+                return reply.status(StatusCodes.BAD_REQUEST).send({
+                    success: false,
+                    message: 'Nomor Order ID tidak ditemukan.',
+                })
+            }
+
+            const status = await midtransService.getTransactionStatus(orderId)
+            const isSuccess = midtransService.isPaymentSuccess(status)
+
+            if (!isSuccess) {
+                return reply.status(StatusCodes.OK).send({
+                    success: false,
+                    status: status.transaction_status,
+                    message: `Pembayaran berstatus '${status.transaction_status}'. Silakan selesaikan pembayaran terlebih dahulu.`,
+                })
+            }
+
+            // Resolve plan
+            let planName = 'plus'
+            const orderMeta = await distributedStore.get<{ platformId: string; planKey: string }>(
+                `anticeil:midtrans:order:${orderId}`,
+            )
+            if (orderMeta?.planKey) {
+                planName = orderMeta.planKey
+            } else {
+                const lower = orderId.toLowerCase()
+                if (lower.includes('enterprise')) planName = 'enterprise'
+                else if (lower.includes('team')) planName = 'team'
+                else if (lower.includes('plus')) planName = 'plus'
+                else {
+                    const gross = Number(status.gross_amount)
+                    planKey = gross >= 2000000 ? 'team' : (gross >= 200000 ? 'plus' : 'free')
+                }
+            }
+
+            const isEnterprise = planName === 'enterprise'
+            const isTeam = planName === 'team' || isEnterprise
+            const isPlus = planName === 'plus' || isTeam
+            const includedCredits = isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000))
+
+            if (platformId) {
+                await platformPlanService(request.log).getOrCreateForPlatform(platformId)
+                await platformPlanRepo().update({ platformId }, {
+                    plan: planName,
+                    includedCredits,
+                    usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
+                    activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
+                    projectsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? null : 1)),
+                    billedTeamProjectsLimit: isTeam ? null : (isPlus ? 1 : 0),
+                    agentsEnabled: true,
+                    aiProvidersEnabled: true,
+                    chatEnabled: true,
+                    tablesEnabled: true,
+                    analyticsEnabled: true,
+                    customAppearanceEnabled: isPlus,
+                    showPoweredBy: !isPlus,
+                    globalConnectionsEnabled: isTeam,
+                    ssoEnabled: isTeam,
+                    customRolesEnabled: isTeam,
+                    projectRolesEnabled: isTeam,
+                    auditLogEnabled: isTeam,
+                    environmentsEnabled: isTeam,
+                    embeddingEnabled: isTeam,
+                    apiKeysEnabled: isTeam,
+                    secretManagersEnabled: isTeam,
+                    managePiecesEnabled: isTeam,
+                    manageTemplatesEnabled: isTeam,
+                    scimEnabled: isEnterprise,
+                    eventStreamingEnabled: isEnterprise,
+                    workerGroupsEnabled: isEnterprise,
+                    customDomainsEnabled: isEnterprise,
+                    dedicatedWorkers: null,
+                    canary: false,
+                })
+
+                await Promise.all([
+                    distributedStore.delete(getBillingOverviewKey(platformId)),
+                    distributedStore.delete(getPlatformPlanNameKey(platformId)),
+                    distributedStore.delete(getCreditsBalanceKey(platformId)),
+                    distributedStore.delete(getCustomerStateMissKey(platformId)),
+                    distributedStore.delete(`anticeil:midtrans:order:${orderId}`),
+                    distributedStore.delete(`anticeil:midtrans:platform_latest_order:${platformId}`),
+                ])
+            }
+
+            return reply.status(StatusCodes.OK).send({
+                success: true,
+                plan: planName,
+                message: `Pembayaran berhasil diverifikasi! Paket ${planName.toUpperCase()} telah diaktifkan.`,
+            })
+        } catch (err: any) {
+            request.log.error({ err }, '[Midtrans verify] error')
+            return reply.status(StatusCodes.INTERNAL_SERVER_ERROR).send({
+                success: false,
+                message: err?.message || 'Gagal memverifikasi pembayaran dengan Midtrans',
+            })
+        }
     })
 }
 

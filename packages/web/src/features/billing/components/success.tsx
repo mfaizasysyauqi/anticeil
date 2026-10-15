@@ -30,22 +30,39 @@ export const Success = () => {
 
   useEffect(() => {
     const rawPlan = searchParams.get('plan');
-    const orderId = searchParams.get('order_id');
-    const planFromOrder = rawPlan || (orderId ? orderId.split('-')[2] : null);
+    const orderId = searchParams.get('order_id') || undefined;
 
-    if (planFromOrder && ['plus', 'team', 'enterprise'].includes(planFromOrder.toLowerCase())) {
-      platformBillingApi
-        .switchPlan({ plan: planFromOrder.toLowerCase() })
-        .then(() => {
-          refreshBillingCaches(queryClient);
-          finalize();
-        })
-        .catch(() => {
-          finalize();
-        });
-    } else {
-      finalize();
+    let planFromOrder = rawPlan;
+    if (!planFromOrder && orderId) {
+      const match = orderId.toLowerCase().match(/(plus|team|enterprise)/);
+      if (match) planFromOrder = match[1];
     }
+
+    const verifyAndActivate = async () => {
+      try {
+        if (orderId) {
+          const res = await platformBillingApi.verifyMidtransPayment({ orderId });
+          if (res.success) {
+            try { localStorage.removeItem('anticeil_pending_order'); } catch (e) {}
+            refreshBillingCaches(queryClient);
+            finalize();
+            return;
+          }
+        }
+
+        if (planFromOrder && ['plus', 'team', 'enterprise'].includes(planFromOrder.toLowerCase())) {
+          await platformBillingApi.switchPlan({ plan: planFromOrder.toLowerCase() });
+          try { localStorage.removeItem('anticeil_pending_order'); } catch (e) {}
+          refreshBillingCaches(queryClient);
+        }
+      } catch (e) {
+        // Fallback: still try to refresh subscription
+      } finally {
+        finalize();
+      }
+    };
+
+    verifyAndActivate();
   }, []);
 
   function leave(path: string) {

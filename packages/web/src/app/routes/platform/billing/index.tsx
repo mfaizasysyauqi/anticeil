@@ -5,9 +5,10 @@ import {
   PlanName,
   PlatformBillingInformation,
 } from '@activepieces/shared';
+import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { t } from 'i18next';
-import { ArrowUpRight, ExternalLink, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, BadgeCheck, ExternalLink, RefreshCw } from 'lucide-react';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -15,6 +16,15 @@ import { toast } from 'sonner';
 import { BillingPageShell } from '@/app/components/billing-page-shell';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import {
   CurrentSubscriptionCard,
@@ -27,9 +37,11 @@ import {
   UsersCard,
   billingMutations,
   billingUtils,
+  refreshBillingCaches,
   useCancelSubscriptionGuard,
   useManagePlanDialogStore,
 } from '@/features/billing';
+import { platformBillingApi } from '@/features/billing/api/billing-plans-api';
 import { flagsHooks } from '@/hooks/flags-hooks';
 import { platformHooks } from '@/hooks/platform-hooks';
 
@@ -47,6 +59,7 @@ export default function Billing() {
 }
 
 function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
+  const queryClient = useQueryClient();
   const { openDialog } = useManagePlanDialogStore();
   const { data: edition } = flagsHooks.useFlag<ApEdition>(ApFlagId.EDITION);
   const isCommunity = edition === ApEdition.COMMUNITY;
@@ -54,10 +67,70 @@ function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
     billingMutations.usePortalLink();
   const [isKeepPlanOpen, setIsKeepPlanOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [isVerifyOpen, setIsVerifyOpen] = useState(false);
+  const [verifyOrderId, setVerifyOrderId] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+
   const { cancelWithSeatCheck, deactivateUsersDialog } =
     useCancelSubscriptionGuard();
   const { mutate: refreshBilling, isPending: isRefreshing } =
     billingMutations.useRefreshSubscription();
+
+  // Auto-check pending order from localStorage on mount
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem('anticeil_pending_order');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.orderId) {
+          setVerifyOrderId(parsed.orderId);
+          platformBillingApi
+            .verifyMidtransPayment({ orderId: parsed.orderId })
+            .then((res) => {
+              if (res.success) {
+                try { localStorage.removeItem('anticeil_pending_order'); } catch (e) {}
+                toast.success(
+                  t('Pembayaran berhasil diverifikasi! Paket {plan} telah aktif.', {
+                    plan: (res.plan || 'Plus').toUpperCase(),
+                  }),
+                );
+                refreshBilling(undefined);
+                refreshBillingCaches(queryClient);
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    } catch (e) {}
+  }, []);
+
+  const handleVerify = async (idToVerify?: string) => {
+    const targetId = (idToVerify || verifyOrderId).trim();
+    setIsVerifying(true);
+    try {
+      const res = await platformBillingApi.verifyMidtransPayment(
+        targetId ? { orderId: targetId } : {},
+      );
+      if (res.success) {
+        try { localStorage.removeItem('anticeil_pending_order'); } catch (e) {}
+        toast.success(res.message || t('Pembayaran berhasil diverifikasi! Paket telah aktif.'));
+        setIsVerifyOpen(false);
+        refreshBilling(undefined);
+        refreshBillingCaches(queryClient);
+        await queryClient.invalidateQueries();
+      } else {
+        toast.info(res.message || t('Pembayaran belum terkonfirmasi oleh Midtrans.'));
+      }
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          t('Gagal memverifikasi pembayaran. Pastikan Order ID benar.'),
+      );
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   const isCloud = edition === ApEdition.CLOUD;
 
@@ -92,24 +165,58 @@ function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
           </div>
         </div>
         {!isCommunity && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0"
-            loading={isRefreshing}
-            onClick={() =>
-              refreshBilling(undefined, {
-                onSuccess: () =>
-                  toast.success(t('Billing information refreshed')),
-              })
-            }
-          >
-            <RefreshCw className="size-4 mr-2" />
-            {t('Refresh')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 text-teal-600 dark:text-teal-400 border-teal-500/30 hover:bg-teal-500/10"
+              onClick={() => setIsVerifyOpen(true)}
+            >
+              <BadgeCheck className="size-4 mr-2 text-teal-600 dark:text-teal-400" />
+              {t('Verifikasi Pembayaran')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              loading={isRefreshing}
+              onClick={() =>
+                refreshBilling(undefined, {
+                  onSuccess: () =>
+                    toast.success(t('Billing information refreshed')),
+                })
+              }
+            >
+              <RefreshCw className="size-4 mr-2" />
+              {t('Refresh')}
+            </Button>
+          </div>
         )}
       </div>
       <Separator />
+      {!isPaid && (
+        <Alert className="border-teal-500/30 bg-teal-500/5 text-foreground flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <BadgeCheck className="size-5 text-teal-600 dark:text-teal-400 shrink-0" />
+            <div>
+              <div className="font-medium text-sm">
+                {t('Sudah bayar via Midtrans tapi status masih Free?')}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {t('Klik tombol di samping untuk sinkronisasi otomatis status pembayaran Anda dengan Midtrans.')}
+              </div>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="shrink-0 bg-teal-600 hover:bg-teal-700 text-white"
+            onClick={() => setIsVerifyOpen(true)}
+          >
+            <BadgeCheck className="size-4 mr-2" />
+            {t('Verifikasi Sekarang')}
+          </Button>
+        </Alert>
+      )}
       {info.billingUnavailable && (
         <Alert variant="warning">
           <AlertDescription>
@@ -265,6 +372,47 @@ function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
         onOpenChange={setIsKeepPlanOpen}
         info={info}
       />
+      <Dialog open={isVerifyOpen} onOpenChange={setIsVerifyOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BadgeCheck className="size-5 text-teal-600" />
+              {t('Verifikasi Pembayaran Midtrans')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('Sinkronisasi transaksi Midtrans Anda untuk mengaktifkan paket secara instan.')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <div className="text-sm font-medium">{t('Nomor Order ID')}</div>
+            <Input
+              placeholder="AC-xxx / anticeil-xxx (opsional jika otomatis)"
+              value={verifyOrderId}
+              onChange={(e) => setVerifyOrderId(e.target.value)}
+            />
+            <div className="text-xs text-muted-foreground leading-relaxed">
+              {t('Order ID dapat ditemukan pada struk transfer, QRIS, atau email konfirmasi Midtrans Anda. Kosongkan untuk memeriksa pesanan terakhir secara otomatis.')}
+            </div>
+          </div>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => setIsVerifyOpen(false)}
+              disabled={isVerifying}
+            >
+              {t('Batal')}
+            </Button>
+            <Button
+              className="bg-teal-600 hover:bg-teal-700 text-white"
+              loading={isVerifying}
+              onClick={() => handleVerify()}
+            >
+              <BadgeCheck className="size-4 mr-2" />
+              {t('Cek & Aktifkan Paket')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
