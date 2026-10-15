@@ -307,7 +307,7 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
             const orderId = `anticeil-${platformId || 'platform'}-${planKey}-${cycle}-${Date.now()}`
 
             // Resolve user email for Midtrans customer_details
-            let customerEmail = 'billing@anticeil.com'
+            let customerEmail = 'anticeil.official@gmail.com'
             let customerName = 'Anticeil User'
             if (request.principal?.id) {
                 try {

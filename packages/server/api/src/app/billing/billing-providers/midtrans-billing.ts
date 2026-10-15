@@ -206,7 +206,7 @@ export const midtransBillingProvider = (log: FastifyBaseLogger): BillingProvider
                 },
             ],
             customer_details: {
-                email: 'billing@anticeil.com',
+                email: 'anticeil.official@gmail.com',
                 first_name: 'Pelanggan Anticeil',
             },
             callbacks: {

@@ -637,7 +637,7 @@ const platformPlanController = async (app) => {
 
             const shortPlatform = String(platformId || 'plat').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);
             const orderId = `AC-${shortPlatform}-${planKey}-${Date.now()}`;
-            let userEmail = 'billing@anticeil.com';
+            let userEmail = 'anticeil.official@gmail.com';
             if (request.principal?.id) {
                 try {
                     const resolved = await resolveActorEmail(request.log, request.principal.id);
@@ -1021,7 +1021,7 @@ async function createMidtransSnapSession({ log, platformId, planId, successUrl, 
     const snapPayload = {
         transaction_details: { order_id: orderId, gross_amount: price },
         item_details: [{ id: rawPlan, price, quantity: 1, name: `Anticeil Paket ${planName}` }],
-        customer_details: { email: userEmail || 'billing@anticeil.com', first_name: 'Pelanggan Anticeil' },
+        customer_details: { email: userEmail || 'anticeil.official@gmail.com', first_name: 'Pelanggan Anticeil' },
         callbacks: { finish: finishUrl }
     };
 

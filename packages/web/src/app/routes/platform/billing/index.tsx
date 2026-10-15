@@ -160,7 +160,7 @@ function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
           <h1 className="text-xl font-medium">{t('Billing & subscription')}</h1>
           <div className="text-sm text-muted-foreground">
             {t(
-              'For questions about billing contact us at support@anticeil.com',
+              'For questions about billing contact us at anticeil.official@gmail.com',
             )}
           </div>
         </div>
