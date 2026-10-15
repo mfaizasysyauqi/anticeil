@@ -1,4 +1,7 @@
-import { AnalyticsTimePeriod } from '@activepieces/shared';
+import {
+  AnalyticsTimePeriod,
+  PlatformAnalyticsReport,
+} from '@activepieces/shared';
 import dayjs from 'dayjs';
 import { t } from 'i18next';
 import { Calendar, Info, LineChart, List, RefreshCcw } from 'lucide-react';
@@ -95,7 +98,19 @@ export default function ImpactPage() {
     }
   });
 
-  const report = isLoading ? undefined : data ?? undefined;
+  const emptyReport: PlatformAnalyticsReport = {
+    id: 'empty',
+    platformId: platform?.id ?? '',
+    cachedAt: new Date().toISOString(),
+    runs: [],
+    outdated: false,
+    flows: [],
+    users: [],
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+  };
+
+  const report = isLoading ? undefined : (data ?? emptyReport);
 
   return (
     <LockedFeatureGuard
