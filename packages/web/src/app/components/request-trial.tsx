@@ -41,20 +41,11 @@ function buildSalesUrl({
   currentUser: UserWithMetaInformation | null | undefined;
   featureKey: FeatureKey;
 }): string {
-  const url = new URL(SALES_URL);
-  url.searchParams.set('email', currentUser?.email ?? '');
-  url.searchParams.set('firstName', currentUser?.firstName ?? '');
-  url.searchParams.set('lastName', currentUser?.lastName ?? '');
-  url.searchParams.set('featureKey', featureKey);
-  url.searchParams.set('ap_cta', `app_${featureKey.toLowerCase()}`);
-  const sessionId = telemetryUtils.getSessionId();
-  if (!isNil(sessionId)) {
-    url.searchParams.set('ap_sid', sessionId);
-  }
-  return url.toString();
+  const message = `Halo Anticeil, saya tertarik untuk beralih ke paket Enterprise (${featureKey}). Email: ${currentUser?.email ?? ''}`;
+  return `https://wa.me/62882000221551?text=${encodeURIComponent(message)}`;
 }
 
-const SALES_URL = 'https://www.activepieces.com/sales';
+const SALES_URL = 'https://wa.me/62882000221551';
 
 export type FeatureKey =
   | 'PROJECTS'

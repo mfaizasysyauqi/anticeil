@@ -1,10 +1,12 @@
 import { isNil } from '@activepieces/core-utils';
 import { PurchasablePlan } from '@activepieces/shared';
-import { t } from 'i18next';
+import i18next, { t } from 'i18next';
 
 const FREE_PLAN_ID = 'free';
 const ANNUAL_INTERVAL = 'year';
-const SALES_URL = 'https://activepieces.com/sales';
+const SALES_URL =
+  'https://wa.me/62882000221551?text=' +
+  encodeURIComponent('Halo Anticeil, saya tertarik untuk beralih ke paket Enterprise.');
 
 function stripPlanInterval(name: string): string {
   return name.replace(/\s*\((annual|monthly|yearly)\)\s*/i, '').trim();
@@ -46,15 +48,40 @@ function toIdrPrice(
 
 export function formatIdr(amount: number): string {
   if (amount === 0) return 'Rp 0';
+  const isId = (t('language_marker', { defaultValue: '' }) === 'id') ||
+    (typeof window !== 'undefined' && (
+      document.documentElement.lang?.toLowerCase().startsWith('id') ||
+      window.localStorage?.getItem('i18nextLng')?.toLowerCase().startsWith('id')
+    )) ||
+    (i18next.language || '').toLowerCase().startsWith('id');
+
   if (amount >= 1_000_000) {
     const m = amount / 1_000_000;
-    return `Rp ${m % 1 === 0 ? m : m.toFixed(2).replace(/\.?0+$/, '')}M`;
+    const num = m % 1 === 0 ? m : m.toFixed(2).replace(/\.?0+$/, '');
+    return `Rp ${num}${isId ? 'jt' : 'M'}`;
   }
   if (amount >= 1_000) {
     const k = amount / 1_000;
-    return `Rp ${k % 1 === 0 ? k : k.toFixed(1).replace(/\.?0+$/, '')}k`;
+    const num = k % 1 === 0 ? k : k.toFixed(1).replace(/\.?0+$/, '');
+    return `Rp ${num}${isId ? 'rb' : 'k'}`;
   }
   return `Rp ${amount}`;
+}
+
+export function localizePriceDisplay(display: string | null | undefined): string {
+  if (!display) return '';
+  const isId = (t('language_marker', { defaultValue: '' }) === 'id') ||
+    (typeof window !== 'undefined' && (
+      document.documentElement.lang?.toLowerCase().startsWith('id') ||
+      window.localStorage?.getItem('i18nextLng')?.toLowerCase().startsWith('id')
+    )) ||
+    (i18next.language || '').toLowerCase().startsWith('id');
+
+  if (!isId) return display;
+  return display
+    .replace(/\b(\d+(?:\.\d+)?)M\b/g, '$1jt')
+    .replace(/\b(\d+(?:\.\d+)?)k\b/g, '$1rb')
+    .replace(/\/mo\b/gi, '/bln');
 }
 
 function computePricing({
@@ -77,7 +104,7 @@ function computePricing({
   }
   const idrPrice = toIdrPrice(apiPlan.price, entry.key, apiPlan.interval);
   if (apiPlan.interval !== ANNUAL_INTERVAL) {
-    const amount = idrPrice > 0 ? formatIdr(idrPrice) : apiPlan.priceDisplay ?? '';
+    const amount = idrPrice > 0 ? formatIdr(idrPrice) : localizePriceDisplay(apiPlan.priceDisplay ?? '');
     return { amount, suffix: t('/mo') };
   }
   const monthlyIdr = toIdrPrice(monthlySibling?.price, entry.key, 'month');
@@ -296,6 +323,7 @@ export const planSelectorUtils = {
   ANNUAL_INTERVAL,
   SALES_URL,
   formatIdr,
+  localizePriceDisplay,
 };
 
 export const DROP_TO_FREE_WARNING =

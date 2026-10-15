@@ -37,8 +37,8 @@ export function KeepPlanDialog({
     info.autumnPlanName ??
     (isNil(apiPlan) ? '' : planSelectorUtils.stripPlanInterval(apiPlan.name));
   const priceLabel = isNil(apiPlan?.price)
-    ? apiPlan?.priceDisplay ?? null
-    : `$${apiPlan.price.toLocaleString()}${
+    ? (apiPlan?.priceDisplay ? planSelectorUtils.localizePriceDisplay(apiPlan.priceDisplay) : null)
+    : `${planSelectorUtils.formatIdr(apiPlan.price)}${
         apiPlan.interval === planSelectorUtils.ANNUAL_INTERVAL
           ? t('/year')
           : t('/mo')

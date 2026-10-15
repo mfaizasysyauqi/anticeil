@@ -1,7 +1,7 @@
 import { isNil } from '@activepieces/core-utils';
 import { PurchasablePlan } from '@activepieces/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { t } from 'i18next';
+import i18next, { t } from 'i18next';
 import { Check, Info, Minus } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -76,6 +76,29 @@ const COMPARISON_ROWS: {
   },
 ];
 
+export function formatComparisonValue(val: string | boolean): string | boolean {
+  if (typeof val !== 'string') return val;
+  const isId = (t('language_marker', { defaultValue: '' }) === 'id') ||
+    (typeof window !== 'undefined' && (
+      document.documentElement.lang?.toLowerCase().startsWith('id') ||
+      window.localStorage?.getItem('i18nextLng')?.toLowerCase().startsWith('id')
+    )) ||
+    (i18next.language || '').toLowerCase().startsWith('id');
+
+  if (!isId) return val;
+
+  const translated = t(val);
+  if (translated !== val) return translated;
+
+  return val
+    .replace(/\/mo\b/gi, '/bln')
+    .replace(/\bFrom\s+(\d+(?:\.\d+)?)M\b/gi, 'Dari $1jt')
+    .replace(/\bFrom\s+(\d+(?:\.\d+)?)k\b/gi, 'Dari $1rb')
+    .replace(/\b(\d+(?:\.\d+)?)M\b/g, '$1jt')
+    .replace(/\b(\d+(?:\.\d+)?)k\b/g, '$1rb')
+    .replace(/(\d+),(\d{3})/g, '$1.$2');
+}
+
 const DEFAULT_PURCHASABLE_PLANS: PurchasablePlan[] = [
   {
     id: 'free',
@@ -95,7 +118,7 @@ const DEFAULT_PURCHASABLE_PLANS: PurchasablePlan[] = [
     description: 'For solo builders who automate regularly',
     price: 299000,
     interval: 'month',
-    priceDisplay: 'Rp 299k',
+    priceDisplay: 'Rp 299rb',
     baseVariantId: null,
     includedSeats: 5,
     includedCredits: 10000,
@@ -107,7 +130,7 @@ const DEFAULT_PURCHASABLE_PLANS: PurchasablePlan[] = [
     description: 'For solo builders who automate regularly',
     price: 2990000,
     interval: 'year',
-    priceDisplay: 'Rp 2.99M',
+    priceDisplay: 'Rp 2.99jt',
     baseVariantId: null,
     includedSeats: 5,
     includedCredits: 10000,
@@ -119,7 +142,7 @@ const DEFAULT_PURCHASABLE_PLANS: PurchasablePlan[] = [
     description: 'For teams that collaborate on automations',
     price: 2990000,
     interval: 'month',
-    priceDisplay: 'Rp 2.99M',
+    priceDisplay: 'Rp 2.99jt',
     baseVariantId: null,
     includedSeats: 25,
     includedCredits: 50000,
@@ -131,7 +154,7 @@ const DEFAULT_PURCHASABLE_PLANS: PurchasablePlan[] = [
     description: 'For teams that collaborate on automations',
     price: 29900000,
     interval: 'year',
-    priceDisplay: 'Rp 29.9M',
+    priceDisplay: 'Rp 29.9jt',
     baseVariantId: null,
     includedSeats: 25,
     includedCredits: 50000,
@@ -319,9 +342,17 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
           ? 'plus'
           : 'free';
 
-    // Free / Enterprise: skip payment, switch directly
-    if (targetPlanKey === 'free' || targetPlanKey === 'enterprise') {
+    // Free: skip payment, switch directly
+    if (targetPlanKey === 'free') {
       switchPlan(targetPlanKey);
+      return;
+    }
+
+    if (targetPlanKey === 'enterprise') {
+      const whatsappUrl =
+        'https://wa.me/62882000221551?text=' +
+        encodeURIComponent('Halo Anticeil, saya tertarik untuk beralih ke paket Enterprise.');
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
       return;
     }
 
@@ -596,7 +627,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
                         <Check className="size-4 text-primary shrink-0" />
                         <span className="truncate">
                           {typeof feat.value === 'string'
-                            ? `${feat.value} ${t(feat.label).toLowerCase()}`
+                            ? `${formatComparisonValue(feat.value)} ${t(feat.label).toLowerCase()}`
                             : t(feat.label)}
                         </span>
                       </li>
@@ -801,7 +832,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
                         <Minus className="size-4 mx-auto text-muted-foreground/40" />
                       ) : (
                         <span className="text-xs font-medium text-foreground/80">
-                          {val}
+                          {formatComparisonValue(val)}
                         </span>
                       )}
                     </td>
@@ -863,14 +894,18 @@ function PlanCta({
         </Button>
       );
     }
+    const whatsappUrl =
+      'https://wa.me/62882000221551?text=' +
+      encodeURIComponent('Halo Anticeil, saya tertarik untuk beralih ke paket Enterprise.');
     return (
       <Button
+        asChild
         variant="default"
         className="w-full bg-foreground text-background hover:bg-foreground/90 font-medium shadow-xs"
-        onClick={() => onSwitchPlan('enterprise')}
-        disabled={isSwitching}
       >
-        {isSwitching ? t('Activating...') : t('Switch to Enterprise (Unlock All)')}
+        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+          {t('Switch to Enterprise (Unlock All)')}
+        </a>
       </Button>
     );
   }
