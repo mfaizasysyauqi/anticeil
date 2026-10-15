@@ -20,6 +20,16 @@ export const platformMustHaveFeatureEnabled = (handler: (platform: PlatformWitho
         }
 
         const platform = await platformService(request.log).getOneWithPlanOrThrow(platformId)
+        if (platform) {
+            if (!platform.plan) {
+                platform.plan = {} as any
+            }
+            platform.plan.agentsEnabled = true
+            platform.plan.aiProvidersEnabled = true
+            platform.plan.analyticsEnabled = true
+            platform.plan.chatEnabled = true
+            platform.plan.tablesEnabled = true
+        }
         const enabled = handler(platform)
 
         if (!enabled) {

@@ -3,9 +3,32 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.platformToEditMustBeOwnedByCurrentUser = exports.platformMustBeOwnedByCurrentUser = exports.projectMustBeTeamType = exports.platformMustHaveFeatureEnabled = void 0;
 const core_utils_1 = require("@activepieces/core-utils");
 const shared_1 = require("@activepieces/shared");
-const authorization_middleware_1 = require("../core/security/v2/authz/authorization-middleware");
-const project_service_1 = require("../project/project-service");
-const platform_service_1 = require("../platform/platform.service");
+
+function safeRequire(paths) {
+    for (const p of paths) {
+        try {
+            return require(p);
+        } catch (e) {}
+    }
+    throw new Error('Could not resolve module from: ' + paths.join(', '));
+}
+
+const authorization_middleware_1 = safeRequire([
+    "../../core/security/v2/authz/authorization-middleware",
+    "../core/security/v2/authz/authorization-middleware"
+]);
+const project_service_1 = safeRequire([
+    "../../project/project-service",
+    "../project/project-service"
+]);
+const platform_service_1 = safeRequire([
+    "../../platform/platform.service",
+    "../platform/platform.service"
+]);
+const user_service_1 = safeRequire([
+    "../../user/user-service",
+    "../user/user-service"
+]);
 
 const platformMustHaveFeatureEnabled = (handler) => async (request, _res) => {
     const platformId = 'platform' in request.principal ? request.principal.platform.id : null;
@@ -18,7 +41,10 @@ const platformMustHaveFeatureEnabled = (handler) => async (request, _res) => {
         });
     }
     const platform = await (0, platform_service_1.platformService)(request.log).getOneWithPlanOrThrow(platformId);
-    if (platform && platform.plan) {
+    if (platform) {
+        if (!platform.plan) {
+            platform.plan = {};
+        }
         platform.plan.agentsEnabled = true;
         platform.plan.aiProvidersEnabled = true;
         platform.plan.analyticsEnabled = true;

@@ -3,6 +3,8 @@ FROM ghcr.io/activepieces/activepieces:0.92.2
 # Layer custom Anticeil backend patches onto official image
 COPY docker-patches-ai-provider-service.js /usr/src/app/packages/server/api/dist/src/app/ai/ai-provider-service.js
 COPY docker-patches-agent-model-resolution.js /usr/src/app/packages/server/api/dist/src/app/ee/agent/agent-model-resolution.js
+COPY docker-patches-agent-module.js /usr/src/app/packages/server/api/dist/src/app/ee/agent/agent.module.js
+COPY docker-patches-agent-module.js /usr/src/app/packages/server/api/dist/src/app/agent/agent.module.js
 COPY docker-patches-autumn-billing.js /usr/src/app/packages/server/api/dist/src/app/ee/platform/platform-plan/billing-providers/autumn-billing.js
 COPY docker-patches-autumn-utils.js /usr/src/app/packages/server/api/dist/src/app/ee/platform/platform-plan/billing-providers/autumn-utils.js
 COPY docker-patches-platform-plan-controller.js /usr/src/app/packages/server/api/dist/src/app/ee/platform/platform-plan/platform-plan.controller.js
@@ -18,6 +20,7 @@ COPY docker-patches-piece-set-controller.js /usr/src/app/packages/server/api/dis
 COPY docker-patches-signing-key-controller.js /usr/src/app/packages/server/api/dist/src/app/signing-key/signing-key-controller.js
 COPY docker-patches-signing-key-module.js /usr/src/app/packages/server/api/dist/src/app/signing-key/signing-key-module.js
 COPY docker-patches-ee-authorization.js /usr/src/app/packages/server/api/dist/src/app/authentication/ee-authorization.js
+COPY docker-patches-ee-authorization.js /usr/src/app/packages/server/api/dist/src/app/ee/authentication/ee-authorization.js
 COPY docker-patches-platform-project-service.js /usr/src/app/packages/server/api/dist/src/app/ee/projects/platform-project-service.js
 COPY docker-patches-platform-user-controller.js /usr/src/app/packages/server/api/dist/src/app/user/platform/platform-user-controller.js
 # Layer custom Anticeil frontend build onto official stable Activepieces image
