@@ -3068,5 +3068,11 @@
   "24/7 Dedicated VIP + SLA": "24/7 Dedicated VIP + SLA",
   "Rp 299k": "Rp 299rb",
   "Rp 2.99M": "Rp 2.99jt",
-  "Rp 29.9M": "Rp 29.9jt"
+  "Rp 29.9M": "Rp 29.9jt",
+  "Guest": "Tamu",
+  "guest": "tamu",
+  "Sign in": "Masuk",
+  "Click to sign in": "Klik untuk masuk",
+  "Sign in with email & password": "Masuk dengan email & kata sandi",
+  "Google OAuth belum aktif di server. Silakan masuk menggunakan email dan password.": "Google OAuth belum aktif di server. Silakan masuk menggunakan email dan kata sandi."
 }

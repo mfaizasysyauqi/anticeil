@@ -273,19 +273,38 @@ function AuthStep({
     );
   }
 
-  // Pure OAuth login for Anticeil
-  return (
-    <DrawerShell>
-      <Heading
-        title={t('Welcome to Anticeil')}
-        subtitle={t('Automate anything. Bring your own API key from Plus plan and above.')}
-      />
-      <ThirdPartyLogin
-        isSignUp={effectiveMode === 'signup'}
-        onSamlClick={() => setSamlOpen(true)}
-      />
-    </DrawerShell>
-  );
+  if (step === 'method') {
+    return (
+      <DrawerShell>
+        <Heading
+          title={t('Welcome to Anticeil')}
+          subtitle={t('Automate anything. Bring your own API key from Plus plan and above.')}
+        />
+        <ThirdPartyLogin
+          isSignUp={effectiveMode === 'signup'}
+          onSamlClick={() => setSamlOpen(true)}
+        />
+        <div className="relative my-3">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-border/60" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">
+              {t('Or')}
+            </span>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          type="button"
+          onClick={() => setStep('password')}
+          className="w-full h-10 text-xs font-medium text-foreground hover:bg-muted/50 rounded-lg cursor-pointer"
+        >
+          {t('Sign in with email & password')}
+        </Button>
+      </DrawerShell>
+    );
+  }
 
   if (step === 'password') {
     return (

@@ -14,6 +14,7 @@ import SamlIcon from '@/assets/img/custom/auth/saml.svg';
 import { useTelemetry } from '@/components/providers/telemetry-provider';
 import { Button } from '@/components/ui/button';
 import { internalErrorToast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 import { oauth2Utils } from '@/features/connections/utils/oauth2-utils';
 import { flagsHooks } from '@/hooks/flags-hooks';
 
@@ -35,7 +36,7 @@ function useThirdPartyAvailability(): ThirdPartyAvailability {
   const defaultShow = !emailAuthEnabled && !hasSpecificConfig;
 
   return {
-    google: Boolean(thirdPartyAuthProviders?.google) || defaultShow || true,
+    google: Boolean(thirdPartyAuthProviders?.google) || defaultShow,
     github: Boolean(thirdPartyAuthProviders?.github) || false,
     saml: isCloud || Boolean(thirdPartyAuthProviders?.saml),
     samlIsCloud: isCloud,
@@ -131,7 +132,12 @@ const ThirdPartyLogin = React.memo(
         thirdPartyLogin(loginUrl, providerName);
       } catch (err) {
         setLoadingProvider(null);
-        internalErrorToast();
+        console.error('Federated login failed:', err);
+        const isGoogle = providerName === ThirdPartyAuthnProviderEnum.GOOGLE;
+        const msg = isGoogle
+          ? t('Google OAuth belum aktif di server. Silakan masuk menggunakan email dan password.')
+          : t('OAuth provider belum aktif di server.');
+        toast.error(msg);
       }
     };
 

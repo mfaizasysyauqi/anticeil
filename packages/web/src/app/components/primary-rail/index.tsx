@@ -321,7 +321,10 @@ function RailHeader({
   const { embedState } = useEmbedding();
   const { data: edition } = flagsHooks.useFlag<ApEdition>(ApFlagId.EDITION);
   const { platform: currentPlatform } = platformHooks.useCurrentPlatform();
-  const showSwitcher = !embedState.isEmbedded;
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isLoggedIn = authenticationSession.isLoggedIn();
+  const showSwitcher = !embedState.isEmbedded && isLoggedIn;
 
   if (collapsed) {
     return (
@@ -390,12 +393,29 @@ function RailHeader({
         <TooltipContent side="right">{branding.websiteName}</TooltipContent>
       </Tooltip>
 
-      {showSwitcher ? (
+      {!isLoggedIn ? (
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => {
+              const searchParams = new URLSearchParams(location.search);
+              searchParams.set('login', 'true');
+              navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
+            }}
+            title={t('Click to sign in')}
+            className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left hover:bg-sidebar-accent cursor-pointer group"
+          >
+            <span className="flex-1 truncate text-sm font-medium text-sidebar-foreground/80 group-hover:text-sidebar-foreground">
+              {t('Guest')}
+            </span>
+          </button>
+        </div>
+      ) : showSwitcher ? (
         <div className="min-w-0 flex-1">
           <PlatformSwitcher>
             <button
               type="button"
-              className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left hover:bg-sidebar-accent"
+              className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left hover:bg-sidebar-accent cursor-pointer"
             >
               <span className="flex-1 truncate text-sm font-medium">
                 {currentPlatform?.name ?? t('platform')}
@@ -792,7 +812,27 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
 
   const isLoggedIn = authenticationSession.isLoggedIn();
   if (!user && !isLoggedIn) {
-    return null;
+    return (
+      <div className={cn('mt-2 flex items-center', collapsed ? 'px-2' : 'px-2')}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            const searchParams = new URLSearchParams(window.location.search);
+            searchParams.set('login', 'true');
+            navigate(`${window.location.pathname}?${searchParams.toString()}`, { replace: true });
+          }}
+          title={t('Sign in')}
+          className={cn(
+            'flex items-center gap-2 rounded-lg border border-border/60 hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground text-xs font-medium cursor-pointer transition-colors',
+            collapsed ? 'size-9 justify-center' : 'h-9 px-3 w-full justify-center',
+          )}
+        >
+          <LogOut className="size-3.5 rotate-180" />
+          {!collapsed && <span>{t('Sign in')}</span>}
+        </button>
+      </div>
+    );
   }
 
   const handleLogout = () => {
