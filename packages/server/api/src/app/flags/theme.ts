@@ -40,9 +40,15 @@ export function generateTheme({
     websiteName: string
     themeColors?: PlatformThemeColors
 }) {
-    const primary = generateColorVariations(primaryColor)
+    const sanitizeLogo = (url?: string) => {
+        if (!url || url.includes('activepieces.com') || url.includes('favicon.ico')) {
+            return '/logo.png';
+        }
+        return url;
+    }
+
     return {
-        websiteName,
+        websiteName: websiteName === 'Activepieces' ? 'Anticeil' : websiteName,
         colors: {
             avatar: themeColors?.avatar ?? '#515151',
             'blue-link': themeColors?.['blue-link'] ?? '#1890ff',
@@ -65,9 +71,9 @@ export function generateTheme({
             selection: themeColors?.selection ?? generateSelectionColor(primaryColor),
         },
         logos: {
-            fullLogoUrl,
-            favIconUrl,
-            logoIconUrl,
+            fullLogoUrl: sanitizeLogo(fullLogoUrl),
+            favIconUrl: sanitizeLogo(favIconUrl),
+            logoIconUrl: sanitizeLogo(logoIconUrl),
         },
     }
 }

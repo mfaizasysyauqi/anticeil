@@ -347,9 +347,9 @@ export const AppearanceSection = ({
               </LockedCallout>
             )}
             {BRAND_IMAGES.map((image) => {
-              const defaultUrl = image.kind === 'favicon' ? 'https://anticeil.com/favicon.ico' : 'https://anticeil.com/logo.png';
+              const defaultUrl = 'https://anticeil.com/logo.png';
               const rawUrl = platform[image.urlKey];
-              const sanitizedUrl = !rawUrl || rawUrl.includes('activepieces.com') ? defaultUrl : rawUrl;
+              const sanitizedUrl = !rawUrl || rawUrl.includes('activepieces.com') || rawUrl.includes('favicon.ico') ? defaultUrl : rawUrl;
               return (
                 <BrandImageField
                   key={`${image.kind}-${imageFieldsKey}`}
@@ -360,13 +360,14 @@ export const AppearanceSection = ({
                   currentUrl={sanitizedUrl}
                   file={images[image.kind]}
                   maxSizeMb={maxFileSizeMb ?? DEFAULT_MAX_FILE_SIZE_MB}
+                  disabled={brandingLocked}
                   onFileChange={(file) =>
                     setImages((previous) => ({ ...previous, [image.kind]: file }))
                   }
                 />
               );
             })}
-            <div className="flex flex-col gap-4 border-t border-gray-6 pt-4">
+            <div className="flex flex-col gap-4 border-t border-border/50 pt-4">
               <div className="flex flex-col gap-1">
                 <span className="text-sm font-medium text-gray-12">
                   {t('Colors')}
@@ -439,7 +440,7 @@ const ColorRow = ({
 }: ColorRowProps) => {
   const shownColor = color ?? defaultColor;
   return (
-    <FormItem className="flex flex-col gap-4 space-y-0 rounded-lg border border-gray-6 p-4">
+    <FormItem className="flex flex-col gap-4 space-y-0 rounded-xl border border-border/50 bg-card/40 p-4">
       <div className="flex items-center gap-3">
         <ColorPicker
           side="top"
@@ -450,7 +451,7 @@ const ColorRow = ({
         />
         <div className="flex min-w-0 flex-1 flex-col">
           <FormLabel className="font-normal">{label}</FormLabel>
-          <span className="text-xs text-gray-11">
+          <span className="text-xs text-muted-foreground">
             <span className="font-mono uppercase">{shownColor}</span>
             {isDefault && ` · ${t('Default')}`}
           </span>
@@ -468,7 +469,7 @@ const ColorRow = ({
         </Button>
       </div>
       <FormMessage />
-      <ColorPreview tone={tone} />
+      <ColorPreview tone={tone} color={shownColor} />
     </FormItem>
   );
 };
