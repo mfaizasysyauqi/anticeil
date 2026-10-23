@@ -329,7 +329,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
     },
   });
 
-  const currentPlanId = (subscription?.plan?.plan ?? platform.plan?.plan ?? 'free').toLowerCase();
+  const currentPlanId = (platform?.plan?.plan ?? subscription?.plan?.plan ?? 'free').toLowerCase();
   const hasScheduledChange = !isNil(subscription?.cancelAt);
   const downgradeWarning = planSelectorUtils.dropToFreeWarning(
     subscription?.additionalSeats,
@@ -540,14 +540,14 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
             apiPlan,
             monthlySibling,
           });
-          const isCurrent =
-            (!isNil(apiPlan) &&
-              (apiPlan.id.toLowerCase() === currentPlanId ||
-                apiPlan.id.toLowerCase().startsWith(currentPlanId))) ||
-            entry.key === currentPlanId ||
-            (entry.key === 'enterprise' && currentPlanId === 'enterprise') ||
-            (entry.key === 'free' &&
-              (currentPlanId === 'free' || isNil(currentPlanId)));
+          const normalizedCurrentKey = currentPlanId.includes('enterprise')
+            ? 'enterprise'
+            : currentPlanId.includes('team')
+              ? 'team'
+              : currentPlanId.includes('plus')
+                ? 'plus'
+                : 'free';
+          const isCurrent = entry.key === normalizedCurrentKey;
 
           // Get features for this plan from comparison rows
           const planFeatures = COMPARISON_ROWS.map((row) => {
@@ -730,14 +730,14 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
                   apiPlan,
                   monthlySibling,
                 });
-                const isCurrent =
-                  (!isNil(apiPlan) &&
-                    (apiPlan.id.toLowerCase() === currentPlanId ||
-                      apiPlan.id.toLowerCase().startsWith(currentPlanId))) ||
-                  entry.key === currentPlanId ||
-                  (entry.key === 'enterprise' && currentPlanId === 'enterprise') ||
-                  (entry.key === 'free' &&
-                    (currentPlanId === 'free' || isNil(currentPlanId)));
+                const normalizedCurrentKey = currentPlanId.includes('enterprise')
+                  ? 'enterprise'
+                  : currentPlanId.includes('team')
+                    ? 'team'
+                    : currentPlanId.includes('plus')
+                      ? 'plus'
+                      : 'free';
+                const isCurrent = entry.key === normalizedCurrentKey;
 
                 return (
                   <th

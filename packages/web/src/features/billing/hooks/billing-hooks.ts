@@ -236,7 +236,7 @@ export const billingQueries = {
     return useQuery({
       queryKey: billingKeys.platformSubscription(platformId),
       queryFn: platformBillingApi.getSubscriptionInfo,
-      staleTime: 5 * 60 * 1000,
+      staleTime: 10 * 1000,
       refetchOnMount: 'always',
       refetchOnWindowFocus: false,
       enabled: enabled && !isNil(platformId) && platformId !== '',

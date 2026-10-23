@@ -1,4 +1,4 @@
-﻿import { McpToolDefinition, ProjectScopedMcpServer } from '@activepieces/shared'
+import { McpToolDefinition, ProjectScopedMcpServer } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { isToolSearchEnabled } from '../../tool-search/tool-search-flag'
 import { apAddBranchTool } from './ap-add-branch'
@@ -128,7 +128,7 @@ export const activepiecesTools = (mcp: ProjectScopedMcpServer, userId: string | 
     apFlowStructureTool(mcp, log),
     apReadStepCodeTool(mcp, log),
     apReadStepSettingsTool(mcp, log),
-    apValidateFlowTool({ mcp, userId }, log),
+    apValidateFlowTool(mcp, log),
     apResearchPiecesTool(mcp, log),
     // Tool-search engine — gated behind the AP_TOOL_SEARCH_ENABLED rollout flag (default off).
     ...(isToolSearchEnabled() ? [apSearchActionsTool(mcp, log), apSearchTriggersTool(mcp, log)] : []),

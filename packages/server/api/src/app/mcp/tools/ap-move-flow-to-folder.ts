@@ -1,4 +1,4 @@
-﻿import { isNil, Permission } from '@activepieces/core-utils'
+import { isNil, Permission } from '@activepieces/core-utils'
 import { FlowOperationRequest, FlowOperationType, Folder, McpToolContext, McpToolDefinition } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
@@ -9,7 +9,7 @@ import { mcpUtils } from './mcp-utils'
 
 const moveFlowToFolderInput = z.object({
     flowId: z.string().describe('The id of the flow to move'),
-    folderName: mcpUtils.FOLDER_NAME_SCHEMA.describe('The folder to move the flow into. An existing folder is matched case-insensitively; a new one is created when no folder has this name.'),
+    folderName: z.string().optional().describe('The folder to move the flow into. An existing folder is matched case-insensitively; a new one is created when no folder has this name.'),
     uncategorized: z.boolean().optional().describe('true to take the flow out of its folder'),
 })
 

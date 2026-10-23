@@ -82,13 +82,16 @@ function BillingPageDetails({ platform, info }: BillingPageDetailsProps) {
       const stored = localStorage.getItem('anticeil_pending_order');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed?.orderId) {
+        // Remove immediately so it never runs repeatedly on future page reloads
+        localStorage.removeItem('anticeil_pending_order');
+
+        const isFresh = parsed?.timestamp ? Date.now() - parsed.timestamp < 30 * 60 * 1000 : false;
+        if (parsed?.orderId && isFresh) {
           setVerifyOrderId(parsed.orderId);
           platformBillingApi
             .verifyMidtransPayment({ orderId: parsed.orderId })
             .then((res) => {
               if (res.success) {
-                try { localStorage.removeItem('anticeil_pending_order'); } catch (e) {}
                 toast.success(
                   t('Pembayaran berhasil diverifikasi! Paket {plan} telah aktif.', {
                     plan: (res.plan || 'Plus').toUpperCase(),

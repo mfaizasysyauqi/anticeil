@@ -1,4 +1,4 @@
-﻿import { Permission } from '@activepieces/core-utils'
+import { Permission } from '@activepieces/core-utils'
 import { McpToolDefinition, ProjectScopedMcpServer } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
@@ -6,7 +6,7 @@ import { flowFolderService } from '../../flows/folder/folder.service'
 import { mcpUtils } from './mcp-utils'
 
 const createFolderInput = z.object({
-    folderName: mcpUtils.FOLDER_NAME_SCHEMA.unwrap().describe('The folder name, e.g. the solution being built ("Order intake")'),
+    folderName: z.string().min(1).describe('The folder name, e.g. the solution being built ("Order intake")'),
 })
 
 export const apCreateFolderTool = (mcp: ProjectScopedMcpServer, log: FastifyBaseLogger): McpToolDefinition => {

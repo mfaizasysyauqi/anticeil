@@ -262,6 +262,7 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
         await distributedStore.delete(getPlatformPlanNameKey(platformId))
         await distributedStore.delete(getCreditsBalanceKey(platformId))
         await distributedStore.delete(getCustomerStateMissKey(platformId))
+        await distributedStore.delete(`anticeil:midtrans:platform_latest_order:${platformId}`)
 
         const currentMonth = apDayjs().format('YYYY-MM')
         const usageKey = `anticeil:credits_usage:${platformId}:${currentMonth}`
@@ -548,8 +549,25 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
                 else if (lower.includes('team')) planName = 'team'
                 else if (lower.includes('plus')) planName = 'plus'
                 else {
-                    const gross = Number(status.gross_amount)
-                    planKey = gross >= 2000000 ? 'team' : (gross >= 200000 ? 'plus' : 'free')
+                    const gross = Number(status?.gross_amount || 0)
+                    planName = gross >= 2000000 ? 'team' : (gross >= 200000 ? 'plus' : 'free')
+                }
+            }
+
+            if (platformId) {
+                const currentPlatformPlan = await platformPlanService(request.log).getOrCreateForPlatform(platformId)
+                const currentPlanKey = (currentPlatformPlan?.plan || 'free').toLowerCase()
+                const isCurrentHigher = (currentPlanKey === 'enterprise' && planName !== 'enterprise') ||
+                                        (currentPlanKey === 'team' && (planName === 'plus' || planName === 'free'))
+
+                // Prevent accidental downgrades of active Team/Enterprise plans from stale or unconfirmed orders
+                if (isCurrentHigher && !status && !orderMeta?.planKey) {
+                    request.log.info({ platformId, currentPlanKey, attemptedPlan: planName }, '[Midtrans verify] Prevented downgrading higher active plan')
+                    return reply.status(StatusCodes.OK).send({
+                        success: true,
+                        plan: currentPlanKey,
+                        message: `Platform Anda saat ini tetap aktif pada paket ${currentPlanKey.toUpperCase()}.`,
+                    })
                 }
             }
 
@@ -559,7 +577,6 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
             const includedCredits = isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000))
 
             if (platformId) {
-                await platformPlanService(request.log).getOrCreateForPlatform(platformId)
                 await platformPlanRepo().update({ platformId }, {
                     plan: planName,
                     includedCredits,
