@@ -254,7 +254,6 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
             eventStreamingEnabled: isEnterprise,
             workerGroupsEnabled: isEnterprise,
             customDomainsEnabled: isEnterprise,
-            priorityQueueEnabled: isTeam,
             dedicatedWorkers: null,
             canary: false,
 

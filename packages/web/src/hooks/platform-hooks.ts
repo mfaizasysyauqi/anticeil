@@ -14,6 +14,53 @@ import { authenticationSession } from '@/lib/authentication-session';
 
 import { flagsHooks } from './flags-hooks';
 
+export function normalizePlatformPlan(
+  platform: PlatformWithoutSensitiveData,
+): PlatformWithoutSensitiveData {
+  if (!platform?.plan) return platform;
+  const rawPlan = (platform.plan.plan || 'free').toLowerCase();
+  const isEnterprise = rawPlan.includes('enterprise');
+  const isTeam = rawPlan.includes('team') || isEnterprise;
+  const isPlus = rawPlan.includes('plus') || isTeam;
+
+  return {
+    ...platform,
+    plan: {
+      ...platform.plan,
+      plan: isEnterprise ? 'enterprise' : (isTeam ? 'team' : (isPlus ? 'plus' : 'free')),
+      agentsEnabled: true,
+      aiProvidersEnabled: true,
+      chatEnabled: true,
+      tablesEnabled: true,
+      analyticsEnabled: true,
+
+      customAppearanceEnabled: isPlus || !!platform.plan.customAppearanceEnabled,
+      showPoweredBy: isPlus ? false : platform.plan.showPoweredBy,
+      auditLogEnabled: isPlus || !!platform.plan.auditLogEnabled,
+      apiKeysEnabled: isPlus || !!platform.plan.apiKeysEnabled,
+
+      globalConnectionsEnabled: isTeam || !!platform.plan.globalConnectionsEnabled,
+      ssoEnabled: isTeam || !!platform.plan.ssoEnabled,
+      customRolesEnabled: isTeam || !!platform.plan.customRolesEnabled,
+      projectRolesEnabled: isTeam || !!platform.plan.projectRolesEnabled,
+      environmentsEnabled: isTeam || !!platform.plan.environmentsEnabled,
+      embeddingEnabled: isTeam || !!platform.plan.embeddingEnabled,
+      secretManagersEnabled: isTeam || !!platform.plan.secretManagersEnabled,
+      managePiecesEnabled: isTeam || !!platform.plan.managePiecesEnabled,
+      manageTemplatesEnabled: isTeam || !!platform.plan.manageTemplatesEnabled,
+      billedTeamProjectsLimit: isTeam
+        ? null
+        : (isPlus ? Math.max(1, platform.plan.billedTeamProjectsLimit ?? 1) : platform.plan.billedTeamProjectsLimit),
+      usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
+
+      scimEnabled: isEnterprise || !!platform.plan.scimEnabled,
+      eventStreamingEnabled: isEnterprise || !!platform.plan.eventStreamingEnabled,
+      workerGroupsEnabled: isEnterprise || !!platform.plan.workerGroupsEnabled,
+      customDomainsEnabled: isEnterprise || !!platform.plan.customDomainsEnabled,
+    },
+  };
+}
+
 export const platformHooks = {
   useDeletePlatform: () => {
     const navigate = useNavigate();
@@ -38,12 +85,13 @@ export const platformHooks = {
         if (!currentPlatformId) {
           return null as any;
         }
-        return platformApi.getCurrentPlatform();
+        const data = await platformApi.getCurrentPlatform();
+        return normalizePlatformPlan(data);
       },
       staleTime: 10 * 1000,
     });
     return {
-      platform: query.data,
+      platform: normalizePlatformPlan(query.data),
       refetch: async () => {
         await query.refetch();
       },
@@ -51,7 +99,8 @@ export const platformHooks = {
         queryClient: QueryClient,
         platform: PlatformWithoutSensitiveData,
       ) => {
-        queryClient.setQueryData(['platform', currentPlatformId], platform);
+        const normalized = normalizePlatformPlan(platform);
+        queryClient.setQueryData(['platform', currentPlatformId], normalized);
       },
     };
   },

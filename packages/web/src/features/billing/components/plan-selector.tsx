@@ -244,7 +244,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
         auditLogEnabled: isPlus,
         environmentsEnabled: isTeam,
         embeddingEnabled: isTeam,
-        apiKeysEnabled: isTeam,
+        apiKeysEnabled: isPlus,
         secretManagersEnabled: isTeam,
         managePiecesEnabled: isTeam,
         manageTemplatesEnabled: isTeam,

@@ -62,7 +62,6 @@ function resolvePlanLimitsAndFeatures(planName = 'free') {
         eventStreamingEnabled: isEnterprise,
         workerGroupsEnabled: isEnterprise,
         customDomainsEnabled: isEnterprise,
-        priorityQueueEnabled: isTeam,
         dedicatedWorkers: null,
         canary: false,
     };
@@ -840,7 +839,6 @@ async function getBillingInformation(log, platformId) {
             platformPlan.eventStreamingEnabled !== planLimits.eventStreamingEnabled ||
             platformPlan.workerGroupsEnabled !== planLimits.workerGroupsEnabled ||
             platformPlan.customDomainsEnabled !== planLimits.customDomainsEnabled ||
-            platformPlan.priorityQueueEnabled !== planLimits.priorityQueueEnabled ||
             platformPlan.customAppearanceEnabled !== planLimits.customAppearanceEnabled
         );
         if (needsSync) {
@@ -864,7 +862,6 @@ async function getBillingInformation(log, platformId) {
                     eventStreamingEnabled: planLimits.eventStreamingEnabled,
                     workerGroupsEnabled: planLimits.workerGroupsEnabled,
                     customDomainsEnabled: planLimits.customDomainsEnabled,
-                    priorityQueueEnabled: planLimits.priorityQueueEnabled,
                     customAppearanceEnabled: planLimits.customAppearanceEnabled,
                     showPoweredBy: planLimits.showPoweredBy,
                 });
