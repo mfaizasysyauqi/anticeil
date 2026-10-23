@@ -3,6 +3,8 @@ import {
     DataSource,
     EntitySchema,
 } from 'typeorm'
+import { CommunityChannelEntity } from '../community/community-channel.entity'
+import { CommunityMessageEntity } from '../community/community-message.entity'
 import { AIProviderEntity } from '../ai/ai-provider-entity'
 import { AiToolConfigEntity } from '../ai/ai-tool-config-entity'
 import { PlatformAnalyticsReportEntity } from '../analytics/platform-analytics-report.entity'
@@ -139,6 +141,9 @@ function getEntities(): EntitySchema<unknown>[] {
         AppSumoEntity,
         PlatformPlanEntity,
         EventDestinationEntity,
+        // COMMUNITY
+        CommunityChannelEntity,
+        CommunityMessageEntity,
 
     ]
 }

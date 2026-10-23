@@ -22,6 +22,7 @@ import { AddDatasourcesLimit1695916063833 } from './migration/postgres/169591606
 import { AddPlatform1697717995884 } from './migration/postgres/1697717995884-add-platform'
 import { AddCustomDomain1698077078271 } from './migration/postgres/1698077078271-AddCustomDomain'
 import { AddMetadataFieldToFlowTemplates1744780800000 } from './migration/postgres/1744780800000-AddMetadataFieldToFlowTemplates'
+import { AddCommunityTables1868000000000 } from './migration/postgres/1868000000000-AddCommunityTables'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
 import { BackgroundMigration } from './background-migration'
@@ -930,6 +931,7 @@ export const getMigrations = (): (new () => Migration)[] => {
         AddAuditLogRetentionDaysToPlatform1865000000000,
         AddAiSpecificModelsVisibleToPlatformConfiguration1866000000000,
         FixAgentsEnabledForAllPlatforms1867000000000,
+        AddCommunityTables1868000000000,
     ]
     return migrations
 }
