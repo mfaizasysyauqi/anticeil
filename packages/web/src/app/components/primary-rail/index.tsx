@@ -81,12 +81,16 @@ import { MCP_CLIENT_BRANDING } from '../../routes/mcp-server/mcp-client-display'
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { SidebarUsageLimits } from '@/features/billing/components/sidebar-usage-limits';
 
+function getIsPlusOrAbove(platform: any): boolean {
+  const planName = (platform?.plan?.plan || 'free').toLowerCase();
+  const isTeamOrEnterprise = planName.includes('team') || planName.includes('enterprise');
+  return planName.includes('plus') || isTeamOrEnterprise;
+}
+
 export function PrimaryRail() {
   const { embedState } = useEmbedding();
   const { platform } = platformHooks.useCurrentPlatform();
-  const planName = (platform?.plan?.plan || 'free').toLowerCase();
-  const isTeamOrEnterprise = planName.includes('team') || planName.includes('enterprise');
-  const isPlusOrAbove = planName.includes('plus') || isTeamOrEnterprise;
+  const isPlusOrAbove = getIsPlusOrAbove(platform);
   const { data: currentUser } = userHooks.useCurrentUser();
   const { preference, setCollapsed, toggle } = useRailCollapsed();
   const { pathname } = useLocation();
@@ -387,6 +391,7 @@ export function MobilePrimaryRailSheet({
 }) {
   const { embedState } = useEmbedding();
   const { platform } = platformHooks.useCurrentPlatform();
+  const isPlusOrAbove = getIsPlusOrAbove(platform);
   const { data: currentUser } = userHooks.useCurrentUser();
   const showAgents = useAgentsNavVisible();
   const { checkAccess } = useAuthorization();
