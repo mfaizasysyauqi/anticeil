@@ -21,7 +21,7 @@ import {
   CoordinateExtent,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useBuilderStateContext } from '../builder-hooks';
 import { useHandleKeyPressOnCanvas } from '../shortcuts';
