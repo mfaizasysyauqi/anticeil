@@ -28,7 +28,7 @@ import {
   UserCogIcon,
 } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
-import { ComponentType, useState } from 'react';
+import { ComponentType, useCallback, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { UserAvatar } from '@/components/custom/user-avatar';
@@ -92,6 +92,20 @@ export function PrimaryRail() {
   const showAgents = useAgentsNavVisible();
   const { checkAccess } = useAuthorization();
   const isPlatformAdmin = useIsPlatformAdmin();
+  const [hovered, setHovered] = useState(false);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (!collapsed) return;
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => setHovered(true), 200);
+  }, [collapsed]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = null;
+    setHovered(false);
+  }, []);
 
   if (embedState.isEmbedded || embedState.hideSideNav) {
     return null;
@@ -106,8 +120,17 @@ export function PrimaryRail() {
     toggle();
   };
 
+  // Zapier-style: when collapsed, show the overlay on hover
+  const showOverlay = collapsed && hovered;
+
   return (
     <TooltipProvider delayDuration={300}>
+      <div
+        className="relative hidden lg:block shrink-0"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+      {/* Always render the collapsed rail to hold space */}
       <aside
         onClick={collapsed ? openSidebar : undefined}
         title={collapsed ? t('Open sidebar') : undefined}
@@ -229,6 +252,108 @@ export function PrimaryRail() {
           <RailAccountRow collapsed={collapsed} />
         </div>
       </aside>
+
+      {/* Hover overlay — expanded sidebar floating on top when collapsed */}
+      {showOverlay && (
+        <aside
+          className="absolute left-0 top-0 z-50 flex h-svh w-62 flex-col overflow-hidden whitespace-nowrap bg-sidebar py-3 shadow-xl border-r border-sidebar-border animate-in slide-in-from-left-2 duration-150"
+        >
+          <RailHeader collapsed={false} onToggle={toggleCollapsed} />
+
+          <div className="mt-2 flex min-h-0 flex-1 flex-col px-2">
+            <div className="flex shrink-0 flex-col gap-1">
+              {(platform?.plan?.chatEnabled ?? true) && (
+                <RailNavButton
+                  collapsed={false}
+                  to="/chat"
+                  icon={SquarePen}
+                  label={t('Chatbot')}
+                  isActive={({ pathname }) => pathname.startsWith('/chat')}
+                  onClick={() => {
+                    setHovered(false);
+                    window.dispatchEvent(new Event(chatUtils.newChatEvent));
+                  }}
+                />
+              )}
+              <RailNavButton
+                collapsed={false}
+                to="/community"
+                icon={MessagesSquare}
+                label={t('Community')}
+                isActive={({ pathname }) =>
+                  pathname.startsWith('/community') || pathname.startsWith('/messages')
+                }
+                onClick={() => setHovered(false)}
+              />
+              {checkAccess(Permission.READ_MCP) && (
+                <RailNavButton
+                  collapsed={false}
+                  to="/mcp-server"
+                  icon={Unplug}
+                  label={t('MCP')}
+                  badge={<McpClientLogos />}
+                  isActive={({ pathname }) => pathname.startsWith('/mcp-server')}
+                  onClick={() => setHovered(false)}
+                />
+              )}
+            </div>
+
+            {((platform?.plan?.chatEnabled ?? true) || checkAccess(Permission.READ_MCP)) && (
+              <div className="my-1.5 mx-1 h-px shrink-0 bg-sidebar-border" />
+            )}
+
+            <div className="flex shrink-0 flex-col gap-1">
+              <RailNavButton
+                collapsed={false}
+                to="/agents"
+                icon={Bot}
+                label={t('Agents')}
+                isActive={({ pathname }) => pathname.startsWith('/agents')}
+                onClick={() => setHovered(false)}
+              />
+              <RailNavButton
+                collapsed={false}
+                to="/templates"
+                icon={Compass}
+                label={t('Explore')}
+                isActive={({ pathname }) => pathname.startsWith('/templates')}
+                onClick={() => {
+                  setHovered(false);
+                  templatesTelemetryApi.sendEvent({
+                    eventType: TemplateTelemetryEventType.EXPLORE_VIEW,
+                    userId: currentUser?.id,
+                  });
+                }}
+              />
+              <RailNavButton
+                collapsed={false}
+                to="/impact"
+                icon={ChartLine}
+                label={t('Impact')}
+                isActive={({ pathname }) => pathname.startsWith('/impact')}
+                onClick={() => setHovered(false)}
+              />
+            </div>
+
+            {authenticationSession.isLoggedIn() && (
+              <>
+                <div className="my-1.5 mx-1 h-px shrink-0 bg-sidebar-border" />
+                <RailPinnedProjects collapsed={false} />
+              </>
+            )}
+          </div>
+
+          <div className="mt-auto flex flex-col gap-1.5 w-full">
+            {authenticationSession.isLoggedIn() && (
+              <div className="px-2">
+                <SidebarUsageLimits />
+              </div>
+            )}
+            <RailAccountRow collapsed={false} />
+          </div>
+        </aside>
+      )}
+      </div>
     </TooltipProvider>
   );
 }
@@ -531,7 +656,10 @@ function McpClientLogos() {
           <img
             src={MCP_CLIENT_BRANDING[client].icon}
             alt=""
-            className="size-3.5 object-contain"
+            className={cn(
+              'size-3.5 object-contain',
+              client === 'chatgpt' && 'dark:invert',
+            )}
           />
         </span>
       ))}

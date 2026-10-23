@@ -19,7 +19,9 @@ const ROUTES_THAT_HOLD_THE_RAIL_CLOSED = AGENT_ROUTES.flatMap((route) => [
 ]);
 
 function readInitial(): boolean {
-  return localStorage.getItem(STORAGE_KEY) === 'true';
+  const stored = localStorage.getItem(STORAGE_KEY);
+  // Default to collapsed when no preference is stored
+  return stored === null ? true : stored === 'true';
 }
 
 function persist(value: boolean): boolean {
