@@ -107,6 +107,11 @@ const RoleCell = ({
     }
   };
 
+  const rawRoleName =
+    row.original.type === 'member'
+      ? row.original.data.projectRole?.name ?? ''
+      : row.original.data.projectRole?.name ?? '';
+
   const roleName =
     row.original.type === 'member'
       ? getProjectRoleDisplayName(row.original.data.projectRole.name)
@@ -152,7 +157,7 @@ const RoleCell = ({
       <div className="w-[150px]">
         <RoleSelector
           type="project"
-          value={roleName}
+          value={rawRoleName || roleName}
           onValueChange={handleValueChange}
           disabled={!userHasPermissionToUpdateRole}
           roles={roles}

@@ -104,11 +104,26 @@ export const RoleSelector = ({
         description: getProjectRoleDescription(role.name),
       }));
 
-  const selectedRole = options.find((r) => r.value === value);
+  const selectedRole =
+    options.find(
+      (r) =>
+        r.value === value ||
+        r.label === value ||
+        (typeof value === 'string' &&
+          (r.value.toLowerCase() === value.toLowerCase() ||
+            r.label.toLowerCase() === value.toLowerCase())),
+    ) ||
+    (value
+      ? {
+          value: value,
+          label: isPlatform ? value : getProjectRoleDisplayName(value),
+          description: '',
+        }
+      : undefined);
 
   return (
     <Select
-      value={value}
+      value={selectedRole?.value || value}
       onValueChange={onValueChange}
       disabled={selectDisabled}
     >
@@ -119,7 +134,7 @@ export const RoleSelector = ({
             {projectRoleAssigning ? t('Saving...') : t('Loading...')}
           </span>
         ) : selectedRole ? (
-          <span className="font-normal">{selectedRole.label}</span>
+          <span className="font-normal truncate">{selectedRole.label}</span>
         ) : (
           <SelectValue placeholder={placeholder || t('Select Role')} />
         )}
