@@ -76,8 +76,6 @@ import { CommunityAvatar } from './community-avatar';
 import {
   DEFAULT_CHANNELS,
   DEFAULT_HUBS,
-  DEFAULT_MEMBERS,
-  INITIAL_MESSAGES,
 } from './community-data';
 import {
   CommunityAttachment,
@@ -196,8 +194,8 @@ export function CommunityPage() {
 
   const [channels, setChannels] = useState<CommunityChannel[]>(DEFAULT_CHANNELS);
   const [activeChannelId, setActiveChannelId] = useState<string>('umum');
-  const [messagesMap, setMessagesMap] = useState<Record<string, CommunityMessage[]>>(INITIAL_MESSAGES);
-  const [members, setMembers] = useState<CommunityMember[]>(DEFAULT_MEMBERS);
+  const [messagesMap, setMessagesMap] = useState<Record<string, CommunityMessage[]>>({});
+  const [members, setMembers] = useState<CommunityMember[]>([]);
 
   const [inputText, setInputText] = useState('');
   const [stagedAttachment, setStagedAttachment] = useState<CommunityAttachment | null>(null);
@@ -649,6 +647,22 @@ export function CommunityPage() {
     currentUser?.email?.split('@')[0] ||
     'Pengguna Anticeil';
 
+  const displayMembers: CommunityMember[] = useMemo(() => {
+    const list = [...members];
+    if (currentUser && !list.some((m) => m.id === currentUser.id || m.email === currentUser.email)) {
+      list.unshift({
+        id: currentUser.id,
+        name: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email,
+        email: currentUser.email,
+        avatar: currentUser.imageUrl ?? null,
+        role: (currentUser.platformRole === 'ADMIN' || currentUser.platformRole === 'OWNER' ? 'admin' : 'member') as CommunityRole,
+        status: 'online',
+        customStatus: currentUser.platformRole === 'OWNER' ? 'Founder @ Anticeil Cloud 🚀' : undefined,
+      });
+    }
+    return list;
+  }, [members, currentUser]);
+
   // Component: Discord Mini Server/Hub Rail (compact, theme-consistent & non-overflowing)
   const renderDiscordHubRail = () => (
     <div className="w-[54px] shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-2.5 select-none z-10 h-full overflow-hidden">
@@ -978,17 +992,17 @@ export function CommunityPage() {
   // Component: Members Sidebar Content
   const renderMembersSidebarContent = () => {
     const roles: { key: CommunityRole; title: string; count: number }[] = [
-      { key: 'admin', title: 'Staff', count: members.filter((m) => m.role === 'admin').length },
-      { key: 'creator', title: 'Kreator Template', count: members.filter((m) => m.role === 'creator').length },
-      { key: 'pro', title: 'Pro Member', count: members.filter((m) => m.role === 'pro').length },
-      { key: 'member', title: 'Anggota Lainnya', count: members.filter((m) => m.role === 'member').length },
+      { key: 'admin', title: 'Staff', count: displayMembers.filter((m) => m.role === 'admin').length },
+      { key: 'creator', title: 'Kreator Template', count: displayMembers.filter((m) => m.role === 'creator').length },
+      { key: 'pro', title: 'Pro Member', count: displayMembers.filter((m) => m.role === 'pro').length },
+      { key: 'member', title: 'Anggota Lainnya', count: displayMembers.filter((m) => m.role === 'member').length },
     ];
 
     return (
       <div className="flex flex-col h-full bg-sidebar border-l border-sidebar-border select-none w-60 shrink-0 overflow-hidden">
         {/* Header: NON-SCROLLABLE APP BAR */}
         <div className="h-12 border-b border-sidebar-border px-4 flex items-center justify-between font-semibold text-xs text-muted-foreground uppercase tracking-wider shrink-0 bg-sidebar z-10">
-          <span>{t('Daftar Anggota')} ({members.length})</span>
+          <span>{t('Daftar Anggota')} ({displayMembers.length})</span>
         </div>
 
         {/* Members List: SCROLLABLE DAFTAR ANGGOTA */}
@@ -1002,7 +1016,7 @@ export function CommunityPage() {
                     <span>{r.count}</span>
                   </div>
                   <div className="space-y-0.5">
-                    {members
+                    {displayMembers
                       .filter((m) => m.role === r.key)
                       .map((member) => (
                         <button

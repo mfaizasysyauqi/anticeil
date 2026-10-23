@@ -1,6 +1,7 @@
-import { apId } from '@activepieces/shared'
+import { apId, PlatformRole } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { repoFactory } from '../core/db/repo-factory'
+import { userRepo } from '../user/user-service'
 import { CommunityChannelEntity, CommunityChannelRow } from './community-channel.entity'
 import { CommunityMessageEntity, CommunityMessageRow } from './community-message.entity'
 
@@ -10,10 +11,59 @@ const messageRepo = repoFactory(CommunityMessageEntity)
 export const communityService = (_log: FastifyBaseLogger) => ({
 
     async listChannels(platformId: string): Promise<CommunityChannelRow[]> {
-        return channelRepo().find({
+        let channels = await channelRepo().find({
             where: { platformId, isDirectMessage: false },
             order: { created: 'ASC' },
         })
+
+        if (channels.length === 0) {
+            const defaults = [
+                channelRepo().create({
+                    id: 'umum',
+                    platformId,
+                    name: 'umum',
+                    description: 'Ruang obrolan umum seputar otomatisasi, AI builder, dan inovasi platform Anticeil.',
+                    category: 'CHANNELS',
+                    isDirectMessage: false,
+                    dmPair: null,
+                }),
+                channelRepo().create({
+                    id: 'showcase-template',
+                    platformId,
+                    name: 'showcase-template',
+                    description: 'Pamerkan alur otomatisasi buatanmu, dapatkan feedback, dan bagikan template gratis.',
+                    category: 'CHANNELS',
+                    isDirectMessage: false,
+                    dmPair: null,
+                }),
+                channelRepo().create({
+                    id: 'tanya-jawab',
+                    platformId,
+                    name: 'tanya-jawab',
+                    description: 'Diskusi problem-solving, debugging error alur kerja, dan tanya jawab teknis.',
+                    category: 'CHANNELS',
+                    isDirectMessage: false,
+                    dmPair: null,
+                }),
+            ]
+            channels = await channelRepo().save(defaults)
+
+            const defaultMsg = messageRepo().create({
+                id: apId(),
+                channelId: 'umum',
+                senderId: 'anticeil-community',
+                senderName: 'Anticeil Community',
+                senderEmail: 'community@anticeil.com',
+                senderAvatar: null,
+                senderRole: 'admin',
+                content: 'Selamat datang di **Komunitas Resmi Anticeil**! Ruang obrolan umum seputar otomatisasi, AI builder, dan inovasi platform. Silakan bagikan alur kerja atau tanyakan kendala Anda di sini!',
+                attachments: null,
+                reactions: { '🚀': ['anticeil-community'] },
+            })
+            await messageRepo().save(defaultMsg)
+        }
+
+        return channels
     },
 
     async createChannel(params: {
@@ -164,28 +214,26 @@ export const communityService = (_log: FastifyBaseLogger) => ({
         return messageRepo().save(msg)
     },
 
-    // ── Members (query users table directly) ────────────────────────────
+    // ── Members (query real users joined with user_identity) ─────────────
     async listMembers(platformId: string) {
-        const users: Array<{
-            u_id: string
-            u_email: string
-            u_firstName: string
-            u_lastName: string
-        }> = await channelRepo().manager
-            .createQueryBuilder()
-            .select(['u.id', 'u.email', 'u."firstName"', 'u."lastName"'])
-            .from('user', 'u')
-            .where('u."platformId" = :platformId', { platformId })
-            .limit(200)
-            .getRawMany()
+        const users = await userRepo().find({
+            where: { platformId },
+            relations: { identity: true },
+            take: 200,
+        })
 
-        return users.map((u) => ({
-            id: u.u_id,
-            name: `${u.u_firstName ?? ''} ${u.u_lastName ?? ''}`.trim() || u.u_email,
-            email: u.u_email,
-            avatar: null as string | null,
-            role: 'member' as const,
-            status: 'offline' as const,
-        }))
+        return users.map((u) => {
+            const firstName = u.identity?.firstName ?? ''
+            const lastName = u.identity?.lastName ?? ''
+            const fullName = `${firstName} ${lastName}`.trim()
+            return {
+                id: u.id,
+                name: fullName || u.identity?.email || 'User',
+                email: u.identity?.email ?? '',
+                avatar: u.identity?.imageUrl ?? null,
+                role: u.platformRole === PlatformRole.ADMIN ? ('admin' as const) : ('member' as const),
+                status: 'online' as const,
+            }
+        })
     },
 })
