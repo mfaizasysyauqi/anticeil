@@ -605,15 +605,15 @@ export function CommunityPage() {
   const renderHubIcon = (hub: CommunityHub) => {
     switch (hub.iconType) {
       case 'spark':
-        return <Sparkles className="w-5 h-5 text-amber-400" />;
+        return <Sparkles className="w-4 h-4 text-amber-400" />;
       case 'bot':
-        return <Bot className="w-5 h-5 text-emerald-400" />;
+        return <Bot className="w-4 h-4 text-emerald-400" />;
       case 'templates':
-        return <Layers className="w-5 h-5 text-purple-400" />;
+        return <Layers className="w-4 h-4 text-purple-400" />;
       case 'code':
-        return <Terminal className="w-5 h-5 text-blue-400" />;
+        return <Terminal className="w-4 h-4 text-blue-400" />;
       case 'dm':
-        return <MessageSquare className="w-5 h-5 text-rose-400" />;
+        return <MessageSquare className="w-4 h-4 text-rose-400" />;
       default:
         return <span className="font-bold text-xs">{hub.initials}</span>;
     }
@@ -650,11 +650,11 @@ export function CommunityPage() {
     currentUser?.email?.split('@')[0] ||
     'Pengguna Anticeil';
 
-  // Component: Discord Mini Server/Hub Rail (w-18 / 72px)
+  // Component: Discord Mini Server/Hub Rail (compact, elegant & non-overflowing)
   const renderDiscordHubRail = () => (
-    <div className="w-[72px] shrink-0 bg-zinc-950/90 dark:bg-zinc-950 flex flex-col items-center py-3 gap-2 border-r border-sidebar-border/40 select-none z-10">
+    <div className="w-[54px] shrink-0 bg-zinc-950/95 dark:bg-zinc-950 flex flex-col items-center py-2.5 gap-1.5 border-r border-sidebar-border/40 select-none z-10 h-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {/* Hub icons list */}
-      <div className="flex flex-col items-center gap-2 w-full flex-1">
+      <div className="flex flex-col items-center gap-1.5 w-full">
         {hubs.map((hub) => {
           const isActive = activeHubId === hub.id;
           return (
@@ -662,10 +662,10 @@ export function CommunityPage() {
               {/* Discord signature left white pill indicator */}
               <span
                 className={cn(
-                  'absolute left-0 w-1 bg-white rounded-r-full transition-all duration-200',
+                  'absolute left-0 w-[3px] bg-white rounded-r-full transition-all duration-200',
                   isActive
-                    ? 'h-10'
-                    : 'h-0 group-hover:h-5 opacity-80',
+                    ? 'h-7'
+                    : 'h-0 group-hover:h-3.5 opacity-80',
                 )}
               />
 
@@ -683,23 +683,23 @@ export function CommunityPage() {
                       }
                     }}
                     className={cn(
-                      'relative size-12 flex items-center justify-center font-bold text-sm transition-all duration-200 cursor-pointer',
+                      'relative size-10 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
                       isActive
-                        ? 'rounded-[16px] bg-primary/20 text-primary border border-primary/40 shadow-md shadow-primary/10'
-                        : 'rounded-[24px] bg-sidebar-accent/60 text-muted-foreground hover:rounded-[16px] hover:bg-sidebar-accent hover:text-foreground',
+                        ? 'rounded-[12px] bg-primary/20 text-primary border border-primary/40 shadow-sm shadow-primary/10'
+                        : 'rounded-full bg-sidebar-accent/60 text-muted-foreground hover:rounded-[12px] hover:bg-sidebar-accent hover:text-foreground',
                     )}
                   >
                     {renderHubIcon(hub)}
 
                     {/* Unread badge pill */}
                     {hub.unreadCount && hub.unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 size-4.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-zinc-950">
+                      <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-zinc-950">
                         {hub.unreadCount}
                       </span>
                     )}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={12} className="font-semibold text-xs">
+                <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
                   {hub.name}
                 </TooltipContent>
               </Tooltip>
@@ -708,19 +708,19 @@ export function CommunityPage() {
         })}
 
         {/* Discord separator bar */}
-        <div className="w-8 h-[2px] bg-border/40 my-1 rounded-full shrink-0" />
+        <div className="w-6 h-[2px] bg-border/40 my-1 rounded-full shrink-0" />
 
         {/* Add Channel / Hub (+) Button */}
         <Tooltip delayDuration={150}>
           <TooltipTrigger asChild>
             <button
               onClick={() => setIsCreateChannelOpen(true)}
-              className="group relative size-12 rounded-[24px] bg-sidebar-accent/50 text-emerald-500 hover:rounded-[16px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
+              className="group relative size-10 rounded-full bg-sidebar-accent/50 text-emerald-500 hover:rounded-[12px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
             >
-              <Plus className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90" />
+              <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={12} className="font-semibold text-xs">
+          <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
             {t('Buat Channel Baru')}
           </TooltipContent>
         </Tooltip>
@@ -730,12 +730,12 @@ export function CommunityPage() {
           <TooltipTrigger asChild>
             <Link
               to="/templates"
-              className="group relative size-12 rounded-[24px] bg-sidebar-accent/50 text-muted-foreground hover:rounded-[16px] hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
+              className="group relative size-10 rounded-full bg-sidebar-accent/50 text-muted-foreground hover:rounded-[12px] hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
             >
-              <Compass className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
+              <Compass className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
             </Link>
           </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={12} className="font-semibold text-xs">
+          <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
             {t('Jelajahi Template Otomasi')}
           </TooltipContent>
         </Tooltip>
@@ -1054,13 +1054,13 @@ export function CommunityPage() {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex h-svh w-full overflow-hidden bg-background">
-        {/* DESKTOP DISCORD HUB RAIL (w-18 / 72px) */}
-        <div className="hidden lg:flex shrink-0">
+        {/* DESKTOP DISCORD HUB RAIL (compact w-[54px]) */}
+        <div className="hidden lg:flex shrink-0 h-full">
           {renderDiscordHubRail()}
         </div>
 
         {/* DESKTOP CHANNELS SIDEBAR (w-60) */}
-        <div className="hidden lg:flex shrink-0">
+        <div className="hidden lg:flex shrink-0 h-full">
           {renderChannelsSidebarContent()}
         </div>
 

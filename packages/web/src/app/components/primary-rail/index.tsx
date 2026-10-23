@@ -93,18 +93,33 @@ export function PrimaryRail() {
   const { checkAccess } = useAuthorization();
   const isPlatformAdmin = useIsPlatformAdmin();
   const [hovered, setHovered] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMenuOpenRef = useRef(false);
+  const isMouseInsideRef = useRef(false);
 
   const handleMouseEnter = useCallback(() => {
+    isMouseInsideRef.current = true;
     if (!collapsed) return;
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     hoverTimerRef.current = setTimeout(() => setHovered(true), 200);
   }, [collapsed]);
 
   const handleMouseLeave = useCallback(() => {
+    isMouseInsideRef.current = false;
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     hoverTimerRef.current = null;
-    setHovered(false);
+    if (!isMenuOpenRef.current) {
+      setHovered(false);
+    }
+  }, []);
+
+  const handleMenuOpenChange = useCallback((open: boolean) => {
+    isMenuOpenRef.current = open;
+    setIsMenuOpen(open);
+    if (!open && !isMouseInsideRef.current) {
+      setHovered(false);
+    }
   }, []);
 
   if (embedState.isEmbedded || embedState.hideSideNav) {
@@ -120,8 +135,8 @@ export function PrimaryRail() {
     toggle();
   };
 
-  // Zapier-style: when collapsed, show the overlay on hover
-  const showOverlay = collapsed && hovered;
+  // Zapier-style: when collapsed, show the overlay on hover OR while dropdown menu is open
+  const showOverlay = collapsed && (hovered || isMenuOpen);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -249,7 +264,7 @@ export function PrimaryRail() {
               <SidebarUsageLimits />
             </div>
           )}
-          <RailAccountRow collapsed={collapsed} />
+          <RailAccountRow collapsed={collapsed} onMenuOpenChange={handleMenuOpenChange} />
         </div>
       </aside>
 
@@ -349,7 +364,7 @@ export function PrimaryRail() {
                 <SidebarUsageLimits />
               </div>
             )}
-            <RailAccountRow collapsed={false} />
+            <RailAccountRow collapsed={false} onMenuOpenChange={handleMenuOpenChange} />
           </div>
         </aside>
       )}
@@ -1001,12 +1016,24 @@ function orderProjects({
   return [...personal.sort(compare), ...others.sort(compare)];
 }
 
-function RailAccountRow({ collapsed }: { collapsed: boolean }) {
+function RailAccountRow({
+  collapsed,
+  onMenuOpenChange,
+}: {
+  collapsed: boolean;
+  onMenuOpenChange?: (open: boolean) => void;
+}) {
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { data: user } = userHooks.useCurrentUser();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const isPlatformAdmin = useIsPlatformAdmin();
+
+  const handleOpenChange = (open: boolean) => {
+    setMenuOpen(open);
+    onMenuOpenChange?.(open);
+  };
 
   const isLoggedIn = authenticationSession.isLoggedIn();
   if (!user && !isLoggedIn) {
@@ -1034,6 +1061,7 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
   }
 
   const handleLogout = () => {
+    handleOpenChange(false);
     userHooks.invalidateCurrentUser(queryClient);
     authenticationSession.logOut();
     navigate('/sign-in');
@@ -1056,7 +1084,7 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
         collapsed ? 'flex-col-reverse gap-1 px-2' : 'px-2',
       )}
     >
-      <DropdownMenu modal>
+      <DropdownMenu modal={false} open={menuOpen} onOpenChange={handleOpenChange}>
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
@@ -1065,14 +1093,14 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
                 aria-label={t('Account')}
                 onClick={(e) => e.stopPropagation()}
                 className={cn(
-                  'flex items-center gap-2 rounded-full hover:bg-sidebar-accent',
+                  'flex items-center gap-2.5 transition-colors hover:bg-sidebar-accent',
                   collapsed
-                    ? 'size-9 cursor-pointer justify-center'
-                    : 'h-10 min-w-0 flex-1 px-2 w-full',
+                    ? 'size-9 cursor-pointer justify-center rounded-full'
+                    : 'h-11 min-w-0 flex-1 px-2 py-1.5 w-full rounded-lg text-left cursor-pointer',
                 )}
               >
-                <div className="relative size-[22px] shrink-0">
-                  <div className="size-full overflow-hidden rounded-full">
+                <div className="relative size-[24px] shrink-0">
+                  <div className="size-full overflow-hidden rounded-full flex items-center justify-center">
                     <UserAvatar
                       className={cn('size-full object-cover', {
                         'scale-150': isNil(user?.imageUrl),
@@ -1080,16 +1108,30 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
                       name={displayName}
                       email={userEmail}
                       imageUrl={user?.imageUrl}
-                      size={22}
+                      size={24}
                       disableTooltip={true}
                     />
                   </div>
-
+                  {isPlatformAdmin && (
+                    <span className="absolute -bottom-0.5 -right-0.5 flex size-[10px] items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      <ShieldCheck className="size-[7px]" />
+                    </span>
+                  )}
                 </div>
                 {!collapsed && (
-                  <span className="min-w-0 flex-1 truncate text-left text-sm">
-                    {displayName}
-                  </span>
+                  <>
+                    <div className="grid min-w-0 flex-1 text-left text-xs leading-tight">
+                      <span className="truncate font-semibold text-sm text-sidebar-foreground">
+                        {displayName}
+                      </span>
+                      {userEmail && (
+                        <span className="truncate text-muted-foreground text-[11px]">
+                          {userEmail}
+                        </span>
+                      )}
+                    </div>
+                    <ChevronsUpDown className="ml-auto size-4 shrink-0 text-muted-foreground/70" />
+                  </>
                 )}
               </button>
             </DropdownMenuTrigger>
@@ -1099,7 +1141,7 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
           )}
         </Tooltip>
         <DropdownMenuContent
-          className="w-56 rounded-lg"
+          className="w-56 rounded-lg z-999"
           side="right"
           align="end"
           sideOffset={10}
@@ -1129,12 +1171,22 @@ function RailAccountRow({ collapsed }: { collapsed: boolean }) {
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             {isPlatformAdmin && (
-              <DropdownMenuItem onClick={() => navigate('/platform/projects')}>
+              <DropdownMenuItem
+                onClick={() => {
+                  handleOpenChange(false);
+                  navigate('/platform/projects');
+                }}
+              >
                 <ShieldCheck className="w-4 h-4 mr-2" />
                 <span className="flex-1">{t('Platform Admin')}</span>
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => setAccountSettingsOpen(true)}>
+            <DropdownMenuItem
+              onClick={() => {
+                handleOpenChange(false);
+                setAccountSettingsOpen(true);
+              }}
+            >
               <UserCogIcon className="w-4 h-4 mr-2" />
               {t('Account Settings')}
             </DropdownMenuItem>
