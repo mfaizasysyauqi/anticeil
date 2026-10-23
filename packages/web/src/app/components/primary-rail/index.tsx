@@ -84,6 +84,9 @@ import { SidebarUsageLimits } from '@/features/billing/components/sidebar-usage-
 export function PrimaryRail() {
   const { embedState } = useEmbedding();
   const { platform } = platformHooks.useCurrentPlatform();
+  const planName = (platform?.plan?.plan || 'free').toLowerCase();
+  const isTeamOrEnterprise = planName.includes('team') || planName.includes('enterprise');
+  const isPlusOrAbove = planName.includes('plus') || isTeamOrEnterprise;
   const { data: currentUser } = userHooks.useCurrentUser();
   const { preference, setCollapsed, toggle } = useRailCollapsed();
   const { pathname } = useLocation();
@@ -185,6 +188,7 @@ export function PrimaryRail() {
               to="/messages"
               icon={MessagesSquare}
               label={t('Team Chat')}
+              badge={!isPlusOrAbove ? <Lock className="size-3 text-muted-foreground/70 ml-auto" /> : undefined}
               isActive={({ pathname }) =>
                 pathname.startsWith('/community') || pathname.startsWith('/messages')
               }
@@ -295,6 +299,7 @@ export function PrimaryRail() {
                 to="/messages"
                 icon={MessagesSquare}
                 label={t('Team Chat')}
+                badge={!isPlusOrAbove ? <Lock className="size-3 text-muted-foreground/70 ml-auto" /> : undefined}
                 isActive={({ pathname }) =>
                   pathname.startsWith('/community') || pathname.startsWith('/messages')
                 }
@@ -425,6 +430,7 @@ export function MobilePrimaryRailSheet({
                 to="/messages"
                 icon={MessagesSquare}
                 label={t('Team Chat')}
+                badge={!isPlusOrAbove ? <Lock className="size-3 text-muted-foreground/70 ml-auto" /> : undefined}
                 isActive={({ pathname }) =>
                   pathname.startsWith('/community') || pathname.startsWith('/messages')
                 }

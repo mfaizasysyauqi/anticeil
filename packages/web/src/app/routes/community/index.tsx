@@ -68,6 +68,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { LockedFeatureGuard } from '@/app/components/locked-feature-guard';
+import { platformHooks } from '@/hooks/platform-hooks';
 import { userHooks } from '@/hooks/user-hooks';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -187,7 +189,12 @@ function renderFormattedMessage(content: string) {
 export function CommunityPage() {
   const { t } = useTranslation();
   const { data: currentUser } = userHooks.useCurrentUser();
+  const { platform } = platformHooks.useCurrentPlatform();
   const socket = useSocket();
+
+  const planName = (platform?.plan?.plan || 'free').toLowerCase();
+  const isTeamOrEnterprise = planName.includes('team') || planName.includes('enterprise');
+  const isPlusOrAbove = planName.includes('plus') || isTeamOrEnterprise;
 
   // Discord Hubs & Channels state
   const [hubs] = useState<CommunityHub[]>(DEFAULT_HUBS);
@@ -1102,7 +1109,15 @@ export function CommunityPage() {
   };
 
   return (
-    <TooltipProvider delayDuration={200}>
+    <LockedFeatureGuard
+      locked={!isPlusOrAbove}
+      lockTier="Plus"
+      lockTitle={t('Unlock Team Chat & Collaboration')}
+      lockDescription={t(
+        'Berkomunikasi secara real-time, berbagi template otomatisasi instan, dan kolaborasi terpadu dengan rekan tim kerja Anda. Buka fitur ini dengan upgrade ke paket Plus (hingga 5 pengguna) atau Team.',
+      )}
+    >
+      <TooltipProvider delayDuration={200}>
       <div className="flex h-full w-full overflow-hidden bg-background">
         {/* DESKTOP COMBINED LEFT SIDEBAR (Mini Hub Rail + Channels List + Full-width Bottom Dock) */}
         <div className="hidden lg:flex flex-col h-full shrink-0 border-r border-sidebar-border bg-sidebar select-none w-[294px] overflow-hidden">
@@ -1656,6 +1671,7 @@ export function CommunityPage() {
         </Dialog>
       </div>
     </TooltipProvider>
+    </LockedFeatureGuard>
   );
 }
 export default CommunityPage;

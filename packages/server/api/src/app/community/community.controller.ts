@@ -1,14 +1,30 @@
-import { PrincipalType } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, PrincipalType } from '@activepieces/shared'
+import { FastifyBaseLogger } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { securityAccess } from '../core/security/authorization/fastify-security'
+import { platformService } from '../platform/platform.service'
 import { communityService } from './community.service'
 
 const COMMUNITY_PRINCIPALS = [PrincipalType.USER] as const
 
 const communitySecurity = {
     security: securityAccess.publicPlatform(COMMUNITY_PRINCIPALS),
+}
+
+async function assertTeamChatAllowed(platformId: string, log: FastifyBaseLogger): Promise<void> {
+    const platform = await platformService(log).getOneWithPlanOrThrow(platformId)
+    const planName = (platform.plan?.plan || 'free').toLowerCase()
+    const isAllowed = planName.includes('plus') || planName.includes('team') || planName.includes('enterprise')
+    if (!isAllowed) {
+        throw new ActivepiecesError({
+            code: ErrorCode.VALIDATION,
+            params: {
+                message: 'Team Chat is available on Plus, Team, and Enterprise plans only. Upgrade your plan to unlock.',
+            },
+        })
+    }
 }
 
 export const communityController: FastifyPluginAsyncZod = async (fastify) => {
@@ -38,6 +54,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             }),
         },
     }, async (request, reply) => {
+        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const channel = await communityService(request.log).createChannel({
             platformId: request.principal.platform.id,
             name: request.body.name,
@@ -59,6 +76,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             }),
         },
     }, async (request, reply) => {
+        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const updated = await communityService(request.log).updateChannel({
             id: request.params.id,
             platformId: request.principal.platform.id,
@@ -76,6 +94,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             params: z.object({ id: z.string() }),
         },
     }, async (request, reply) => {
+        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const deleted = await communityService(request.log).deleteChannel(
             request.params.id,
             request.principal.platform.id,
@@ -115,6 +134,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             }),
         },
     }, async (request, reply) => {
+        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const msg = await communityService(request.log).sendMessage({
             channelId: request.params.channelId,
             senderId: request.principal.id,
@@ -136,6 +156,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             params: z.object({ messageId: z.string() }),
         },
     }, async (request, reply) => {
+        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const deleted = await communityService(request.log).deleteMessage(
             request.params.messageId,
             request.principal.id,
@@ -156,6 +177,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             }),
         },
     }, async (request, reply) => {
+        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const updated = await communityService(request.log).toggleReaction({
             messageId: request.params.messageId,
             emoji: request.body.emoji,
@@ -183,6 +205,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             body: z.object({ targetUserId: z.string() }),
         },
     }, async (request, reply) => {
+        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const channel = await communityService(request.log).getOrCreateDm({
             platformId: request.principal.platform.id,
             userId1: request.principal.id,
