@@ -3,8 +3,8 @@ import { CommunityChannel, CommunityMember, CommunityMessage } from './community
 export const DEFAULT_CHANNELS: CommunityChannel[] = [
   {
     id: 'umum',
-    name: 'umum-general',
-    description: 'Ruang obrolan umum seputar otomatisasi, AI, dan inovasi platform Anticeil.',
+    name: 'umum',
+    description: 'Ruang obrolan umum seputar otomatisasi, AI builder, dan inovasi platform Anticeil.',
     category: 'CHANNELS',
   },
   {
@@ -20,9 +20,9 @@ export const DEFAULT_CHANNELS: CommunityChannel[] = [
     category: 'CHANNELS',
   },
   {
-    id: 'tanya-jawab-support',
-    name: 'tanya-jawab-support',
-    description: 'Tanya jawab seputar webhook, API keys, error workflow, dan integrasi pieces.',
+    id: 'tanya-jawab',
+    name: 'tanya-jawab',
+    description: 'Tanya jawab seputar webhook, API keys, error workflow, dan integrasi 770+ pieces.',
     category: 'CHANNELS',
   },
 ];
@@ -32,40 +32,46 @@ export const DEFAULT_MEMBERS: CommunityMember[] = [
     id: 'user-admin-1',
     name: 'Faiz Asy-Syauqi',
     email: 'faiz@anticeil.com',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
     role: 'admin',
     status: 'online',
-    customStatus: 'Building Anticeil Cloud 🚀',
+    customStatus: 'Founder @ Anticeil Cloud 🚀',
   },
   {
     id: 'user-creator-1',
     name: 'Budi Pratama',
     email: 'budi.automates@gmail.com',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
     role: 'creator',
     status: 'online',
-    customStatus: 'Bikin template WhatsApp CRM',
+    customStatus: 'Building WhatsApp CRM Template ✨',
   },
   {
     id: 'user-pro-1',
     name: 'Devi Amanda',
     email: 'devi.tech@perusahaan.co.id',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
     role: 'pro',
     status: 'online',
-    customStatus: 'Automating Lead Gen',
+    customStatus: 'Automating Growth & Lead Gen 📈',
   },
   {
     id: 'user-member-1',
     name: 'Rizky Fauzi',
     email: 'rizky.fauzi@outlook.com',
+    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
     role: 'member',
     status: 'idle',
-    customStatus: 'Exploring AI Agents',
+    customStatus: 'Eksplorasi AI Agents & MCP 🤖',
   },
   {
     id: 'user-member-2',
     name: 'Siti Rahmawati',
     email: 'siti.rahma@startup.id',
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
     role: 'member',
     status: 'offline',
+    customStatus: 'Product Manager @ FinTech',
   },
 ];
 
@@ -77,8 +83,9 @@ export const INITIAL_MESSAGES: Record<string, CommunityMessage[]> = {
       senderId: 'user-admin-1',
       senderName: 'Faiz Asy-Syauqi',
       senderEmail: 'faiz@anticeil.com',
+      senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       senderRole: 'admin',
-      content: 'Selamat datang di **Komunitas Resmi Anticeil**! 🎉\nDi sini rekan-rekan bisa diskusi seputar workflow, bertukar template alur kerja, hingga transaksi template otomatisasi.',
+      content: 'Selamat datang di **Komunitas Resmi Anticeil**! 🎉\nDi sini rekan-rekan builder bisa berdiskusi seputar pembuatan workflow, saling tukar template alur kerja, hingga transaksi template otomatisasi siap pakai.',
       createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
       reactions: { '🎉': ['user-creator-1', 'user-pro-1'], '🔥': ['user-member-1'] },
     },
@@ -88,8 +95,9 @@ export const INITIAL_MESSAGES: Record<string, CommunityMessage[]> = {
       senderId: 'user-creator-1',
       senderName: 'Budi Pratama',
       senderEmail: 'budi.automates@gmail.com',
+      senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
       senderRole: 'creator',
-      content: 'Halo semua! Keren banget sekarang builder Anticeil kolaborasi real-time nya makin kenceng tanpa delay. Cursors realtime-nya mulus banget! 👏',
+      content: 'Halo rekan-rekan! Keren banget sekarang builder Anticeil kolaborasi real-time nya makin kenceng tanpa delay. Multi-cursor realtime-nya mulus banget! 👏',
       createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
       reactions: { '❤️': ['user-admin-1'] },
     },
@@ -99,8 +107,9 @@ export const INITIAL_MESSAGES: Record<string, CommunityMessage[]> = {
       senderId: 'user-pro-1',
       senderName: 'Devi Amanda',
       senderEmail: 'devi.tech@perusahaan.co.id',
+      senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
       senderRole: 'pro',
-      content: 'Iya bener! Kemarin tim marketing kami coba live pair-editing di canvas yang sama, berasa pake Figma buat otomatisasi.',
+      content: 'Iya bener! Kemarin tim kami coba live pair-editing di canvas yang sama, rasanya kayak pake Figma tapi langsung jalan jadi backend workflow beneran.',
       createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
       reactions: { '🚀': ['user-creator-1'] },
     },
@@ -112,6 +121,7 @@ export const INITIAL_MESSAGES: Record<string, CommunityMessage[]> = {
       senderId: 'user-creator-1',
       senderName: 'Budi Pratama',
       senderEmail: 'budi.automates@gmail.com',
+      senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
       senderRole: 'creator',
       content: 'Izin share template alur baru teman-teman! Alur ini otomatis membaca leads dari Google Sheets, validasi nomor WA, lalu kirim follow-up via AI Agent secara otomatis.',
       createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
@@ -138,6 +148,7 @@ export const INITIAL_MESSAGES: Record<string, CommunityMessage[]> = {
       senderId: 'user-creator-1',
       senderName: 'Budi Pratama',
       senderEmail: 'budi.automates@gmail.com',
+      senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
       senderRole: 'creator',
       content: 'Ready stock template enterprise: **"Automated Accounting & Invoice OCR Sync to Midtrans + Accurate"**.\nCocok buat UMKM / agensi yang butuh otomatisasi finance invoice. Minat bisa langsung DM atau reply di sini ya!',
       createdAt: new Date(Date.now() - 3600000 * 6).toISOString(),
@@ -162,28 +173,31 @@ export const INITIAL_MESSAGES: Record<string, CommunityMessage[]> = {
       senderId: 'user-pro-1',
       senderName: 'Devi Amanda',
       senderEmail: 'devi.tech@perusahaan.co.id',
+      senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
       senderRole: 'pro',
       content: 'Wah menarik mas Budi, aku barusan kirim pesan DM ya buat tanya kompatibilitas dengan webhook custom kami!',
       createdAt: new Date(Date.now() - 3600000 * 1).toISOString(),
     },
   ],
-  'tanya-jawab-support': [
+  'tanya-jawab': [
     {
       id: 'msg-t1',
-      channelId: 'tanya-jawab-support',
+      channelId: 'tanya-jawab',
       senderId: 'user-member-1',
       senderName: 'Rizky Fauzi',
       senderEmail: 'rizky.fauzi@outlook.com',
+      senderAvatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
       senderRole: 'member',
       content: 'Tanya dong mastah, kalau mau trigger alur saat ada file baru di Google Drive tapi cuma file `.pdf`, filternya lebih bagus ditaruh di trigger atau pakai step branch condition?',
       createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
     },
     {
       id: 'msg-t2',
-      channelId: 'tanya-jawab-support',
+      channelId: 'tanya-jawab',
       senderId: 'user-admin-1',
       senderName: 'Faiz Asy-Syauqi',
       senderEmail: 'faiz@anticeil.com',
+      senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       senderRole: 'admin',
       content: 'Halo @Rizky! Paling efisien pakai step **Branch (Filter)** langsung setelah trigger, cek kondisi `{{ step_1.mimeType }} contains application/pdf`. Jadi alur file selain PDF langsung berhenti tanpa buang kuota eksekusi.',
       createdAt: new Date(Date.now() - 3600000 * 1).toISOString(),
@@ -192,8 +206,8 @@ export const INITIAL_MESSAGES: Record<string, CommunityMessage[]> = {
   ],
 };
 
-const STORAGE_KEY_MESSAGES = 'anticeil_community_messages_v1';
-const STORAGE_KEY_CHANNELS = 'anticeil_community_channels_v1';
+const STORAGE_KEY_MESSAGES = 'anticeil_community_messages_v2';
+const STORAGE_KEY_CHANNELS = 'anticeil_community_channels_v2';
 
 export function loadStoredMessages(): Record<string, CommunityMessage[]> {
   try {

@@ -5,25 +5,21 @@ import {
   Users,
   Search,
   Plus,
-  Smile,
   Send,
   Sparkles,
   Layers,
   ChevronDown,
-  AtSign,
-  Pin,
   ExternalLink,
   Shield,
-  Award,
   Crown,
   Paperclip,
   X,
-  Volume2,
+  Smile,
+  CheckCircle2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
-import { UserAvatar } from '@/components/custom/user-avatar';
 import { useSocket } from '@/components/providers/socket-provider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,6 +30,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -46,6 +47,7 @@ import {
 import { userHooks } from '@/hooks/user-hooks';
 import { cn } from '@/lib/utils';
 
+import { CommunityAvatar } from './community-avatar';
 import {
   DEFAULT_CHANNELS,
   DEFAULT_MEMBERS,
@@ -61,6 +63,102 @@ import {
   CommunityRole,
 } from './community-types';
 
+// Preset realistic templates for sharing
+const SHAREABLE_TEMPLATES = [
+  {
+    name: 'AI Lead Qualification & WhatsApp Follow-Up',
+    description: 'Trigger Google Sheets -> AI Agent filtering -> WhatsApp Notification otomatis dalam 5 detik.',
+    pieceCount: 4,
+    price: 'Free',
+    tags: ['Google Sheets', 'WhatsApp', 'OpenAI'],
+  },
+  {
+    name: 'Enterprise Invoice OCR & Midtrans Sync',
+    description: 'Otomatis ekstrak PDF tagihan via OCR dan rekonsiliasi status pembayaran Midtrans ke ERP.',
+    pieceCount: 6,
+    price: 'Rp 299.000',
+    tags: ['OCR', 'Midtrans', 'Gmail'],
+  },
+  {
+    name: 'Social Media Multi-Platform Auto Publisher',
+    description: 'Satu draft content otomatis publish serentak ke Instagram, Telegram Channel, dan LinkedIn.',
+    pieceCount: 5,
+    price: 'Free',
+    tags: ['Groq AI', 'Telegram', 'Twitter'],
+  },
+];
+
+// Rich message parser (supports **bold**, `code`, @mentions, and links)
+function renderFormattedMessage(content: string) {
+  if (!content) return null;
+  const lines = content.split('\n');
+
+  return lines.map((line, lineIdx) => {
+    const tokens: React.ReactNode[] = [];
+    const regex = /(\*\*.*?\*\*|`.*?`|@[\w\.-]+|https?:\/\/[^\s]+)/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(line)) !== null) {
+      if (match.index > lastIndex) {
+        tokens.push(line.substring(lastIndex, match.index));
+      }
+      const token = match[0];
+      if (token.startsWith('**') && token.endsWith('**') && token.length > 4) {
+        tokens.push(
+          <strong key={`${lineIdx}-${match.index}`} className="font-semibold text-foreground">
+            {token.slice(2, -2)}
+          </strong>,
+        );
+      } else if (token.startsWith('`') && token.endsWith('`') && token.length > 2) {
+        tokens.push(
+          <code
+            key={`${lineIdx}-${match.index}`}
+            className="px-1.5 py-0.5 rounded bg-muted/80 font-mono text-[11px] text-primary border border-border/40 inline-block align-baseline"
+          >
+            {token.slice(1, -1)}
+          </code>,
+        );
+      } else if (token.startsWith('@')) {
+        tokens.push(
+          <span
+            key={`${lineIdx}-${match.index}`}
+            className="px-1.5 py-0.5 rounded-sm bg-primary/15 text-primary font-medium hover:underline cursor-pointer inline-block"
+          >
+            {token}
+          </span>,
+        );
+      } else if (token.startsWith('http')) {
+        tokens.push(
+          <a
+            key={`${lineIdx}-${match.index}`}
+            href={token}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline underline-offset-2 hover:opacity-80"
+          >
+            {token}
+          </a>,
+        );
+      } else {
+        tokens.push(token);
+      }
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < line.length) {
+      tokens.push(line.substring(lastIndex));
+    }
+
+    return (
+      <React.Fragment key={lineIdx}>
+        {tokens}
+        {lineIdx < lines.length - 1 && <br />}
+      </React.Fragment>
+    );
+  });
+}
+
 export function CommunityPage() {
   const { t } = useTranslation();
   const { data: currentUser } = userHooks.useCurrentUser();
@@ -75,7 +173,7 @@ export function CommunityPage() {
   const [stagedAttachment, setStagedAttachment] = useState<CommunityAttachment | null>(null);
   const [showMemberList, setShowMemberList] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [stagedEmojiPicker, setStagedEmojiPicker] = useState<string | null>(null);
+  const [isTemplatePopoverOpen, setIsTemplatePopoverOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -216,7 +314,7 @@ export function CommunityPage() {
     setActiveChannelId(dmId);
   };
 
-  // Handle file select simulation / R2 staging
+  // Handle file select simulation / staging
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -264,46 +362,52 @@ export function CommunityPage() {
           </Badge>
         );
       default:
-        return (
-          <Badge variant="outline" className="text-muted-foreground text-[10px] px-1.5 py-0">
-            Member
-          </Badge>
-        );
+        return null;
     }
   };
 
   const channelList = channels.filter((c) => c.category === 'CHANNELS');
   const dmList = channels.filter((c) => c.category === 'DIRECT MESSAGES');
 
+  const currentUserName =
+    `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() ||
+    currentUser?.email?.split('@')[0] ||
+    'Pengguna Anticeil';
+
   return (
     <div className="flex h-full w-full overflow-hidden bg-background text-foreground select-none">
       {/* 1. LEFT SIDEBAR: Discord Server / Channel List */}
       <div className="flex flex-col w-64 shrink-0 bg-sidebar border-r border-sidebar-border h-full">
         {/* Server Header */}
-        <div className="h-12 border-b border-sidebar-border px-4 flex items-center justify-between font-semibold shadow-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+        <div className="h-12 border-b border-sidebar-border px-3.5 flex items-center justify-between font-semibold shadow-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center text-primary font-bold text-xs shrink-0">
               AC
             </div>
-            <span className="text-sm font-semibold truncate tracking-tight">Anticeil Hub</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-sm font-semibold truncate tracking-tight">Anticeil Hub</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Server Online" />
+            </div>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
                 <ChevronDown className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuItem onClick={() => setActiveChannelId('umum')}>
-                <Hash className="w-4 h-4 mr-2" /> Channel Utama
+                <Hash className="w-4 h-4 mr-2" /> Channel Umum
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setActiveChannelId('showcase-template')}>
-                <Sparkles className="w-4 h-4 mr-2" /> Pamer Template
+                <Sparkles className="w-4 h-4 mr-2" /> Showcase Template
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setActiveChannelId('jual-beli-template')}>
+                <Layers className="w-4 h-4 mr-2" /> Jual Beli Template
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link to="/templates">
-                  <ExternalLink className="w-4 h-4 mr-2" /> Buka Marketplace
+                  <ExternalLink className="w-4 h-4 mr-2" /> Jelajahi Marketplace
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -314,16 +418,9 @@ export function CommunityPage() {
         <ScrollArea className="flex-1 px-2 py-3">
           {/* Section CHANNELS */}
           <div className="mb-4">
-            <div className="px-2 mb-1 flex items-center justify-between text-[11px] font-bold text-muted-foreground tracking-wider uppercase">
+            <div className="px-2 mb-1.5 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase">
               <span>{t('Channels Komunitas')}</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-[10px] text-muted-foreground/70">{channelList.length}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>Daftar Channel Publik</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <span className="text-[10px] text-muted-foreground/60">{channelList.length}</span>
             </div>
 
             <div className="space-y-0.5">
@@ -357,19 +454,20 @@ export function CommunityPage() {
 
           {/* Section DIRECT MESSAGES */}
           <div>
-            <div className="px-2 mb-1 flex items-center justify-between text-[11px] font-bold text-muted-foreground tracking-wider uppercase">
+            <div className="px-2 mb-1.5 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase">
               <span>{t('Direct Messages')}</span>
-              <span className="text-[10px] text-muted-foreground/70">{dmList.length}</span>
+              <span className="text-[10px] text-muted-foreground/60">{dmList.length}</span>
             </div>
 
             {dmList.length === 0 ? (
-              <div className="px-3 py-2 text-[11px] text-muted-foreground/60 italic">
-                Klik anggota di sebelah kanan untuk mulai chat pribadi.
+              <div className="px-2.5 py-2 text-[11px] text-muted-foreground/60 leading-relaxed">
+                Pilih anggota di panel kanan untuk memulai chat pribadi.
               </div>
             ) : (
               <div className="space-y-0.5">
                 {dmList.map((dm) => {
                   const isActive = activeChannelId === dm.id;
+                  const member = DEFAULT_MEMBERS.find((m) => `dm-${m.id}` === dm.id);
                   return (
                     <button
                       key={dm.id}
@@ -381,12 +479,22 @@ export function CommunityPage() {
                           : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                       )}
                     >
-                      <MessageSquare
-                        className={cn(
-                          'w-3.5 h-3.5 shrink-0 transition-colors',
-                          isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
-                        )}
-                      />
+                      {member ? (
+                        <CommunityAvatar
+                          name={member.name}
+                          imageUrl={member.avatar}
+                          size={18}
+                          status={member.status}
+                          showStatus
+                        />
+                      ) : (
+                        <MessageSquare
+                          className={cn(
+                            'w-3.5 h-3.5 shrink-0 transition-colors',
+                            isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
+                          )}
+                        />
+                      )}
                       <span className="truncate flex-1">{dm.name}</span>
                     </button>
                   );
@@ -399,27 +507,20 @@ export function CommunityPage() {
         {/* User Footer Profile Dock */}
         <div className="h-14 border-t border-sidebar-border px-3 flex items-center justify-between bg-sidebar-accent/30">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="relative">
-              <UserAvatar
-                name={
-                  `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() ||
-                  currentUser?.email ||
-                  'User'
-                }
-                email={currentUser?.email || 'user@anticeil.com'}
-                imageUrl={currentUser?.imageUrl ?? null}
-                size={30}
-              />
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-sidebar" />
-            </div>
+            <CommunityAvatar
+              name={currentUserName}
+              email={currentUser?.email}
+              imageUrl={currentUser?.imageUrl}
+              size={32}
+              status="online"
+              showStatus
+            />
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-semibold truncate leading-tight">
-                {`${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() ||
-                  currentUser?.email?.split('@')[0] ||
-                  'Pengguna'}
+                {currentUserName}
               </span>
-              <span className="text-[10px] text-muted-foreground truncate leading-tight">
-                Online
+              <span className="text-[10px] text-emerald-500 font-medium truncate leading-tight flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /> Online
               </span>
             </div>
           </div>
@@ -429,28 +530,30 @@ export function CommunityPage() {
       {/* 2. CENTER: Discord Main Chat Feed */}
       <div className="flex-1 flex flex-col h-full min-w-0 bg-background">
         {/* Top Channel Bar */}
-        <div className="h-12 border-b border-border px-4 flex items-center justify-between shadow-2xs shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="h-12 border-b border-border px-4 flex items-center justify-between shadow-2xs shrink-0 gap-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
             {activeChannel.isDirectMessage ? (
               <MessageSquare className="w-5 h-5 text-primary shrink-0" />
             ) : (
               <Hash className="w-5 h-5 text-muted-foreground shrink-0" />
             )}
-            <span className="text-sm font-semibold truncate">{activeChannel.name}</span>
-            <Separator orientation="vertical" className="h-4 mx-1" />
+            <span className="text-sm font-bold text-foreground shrink-0">
+              {activeChannel.name}
+            </span>
+            <Separator orientation="vertical" className="h-4 mx-1 shrink-0" />
             <span className="text-xs text-muted-foreground truncate hidden md:inline">
               {activeChannel.description}
             </span>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <div className="relative w-40 md:w-56">
+            <div className="relative w-36 md:w-52">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Cari pesan..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 pl-8 text-xs bg-muted/40 border-border/60"
+                className="h-8 pl-8 text-xs bg-muted/40 border-border/60 focus-visible:ring-1 focus-visible:ring-primary/40"
               />
             </div>
 
@@ -473,20 +576,24 @@ export function CommunityPage() {
         </div>
 
         {/* Message Feed Scroll Area */}
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1 p-4 md:p-6">
           {/* Welcome Channel Banner */}
-          <div className="mb-6 pt-4 pb-2 border-b border-border/40">
-            <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-3">
+          <div className="mb-6 pt-2 pb-5 border-b border-border/40">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center text-primary mb-3 shadow-inner">
               {activeChannel.isDirectMessage ? (
-                <MessageSquare className="w-6 h-6" />
+                <MessageSquare className="w-7 h-7" />
               ) : (
-                <Hash className="w-6 h-6" />
+                <Hash className="w-7 h-7" />
               )}
             </div>
-            <h2 className="text-xl font-bold tracking-tight">
-              Selamat datang di #{activeChannel.name}!
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
+              {activeChannel.isDirectMessage ? activeChannel.name : `Selamat datang di #${activeChannel.name}!`}
             </h2>
-            <p className="text-xs text-muted-foreground mt-1">{activeChannel.description}</p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-xl leading-relaxed">
+              {activeChannel.isDirectMessage
+                ? `Ini adalah awal dari riwayat obrolan langsung Anda dengan ${activeChannel.name}.`
+                : activeChannel.description || `Ini adalah awal dari channel #${activeChannel.name}.`}
+            </p>
           </div>
 
           {/* Messages List (Discord Linear Layout) */}
@@ -495,11 +602,11 @@ export function CommunityPage() {
               return (
                 <div
                   key={msg.id}
-                  className="group relative flex gap-3.5 pr-2 py-1 rounded-lg hover:bg-muted/30 transition-colors"
+                  className="group relative flex gap-3.5 pr-2 py-1 rounded-lg hover:bg-muted/20 transition-colors"
                 >
                   {/* Sender Avatar */}
                   <div className="shrink-0 pt-0.5">
-                    <UserAvatar
+                    <CommunityAvatar
                       name={msg.senderName}
                       email={msg.senderEmail}
                       imageUrl={msg.senderAvatar}
@@ -510,7 +617,7 @@ export function CommunityPage() {
                   {/* Message Body */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 leading-none mb-1">
-                      <span className="text-xs font-semibold hover:underline cursor-pointer">
+                      <span className="text-xs font-semibold text-foreground hover:underline cursor-pointer">
                         {msg.senderName}
                       </span>
                       {renderRoleBadge(msg.senderRole)}
@@ -522,9 +629,9 @@ export function CommunityPage() {
                       </span>
                     </div>
 
-                    {/* Content */}
+                    {/* Content with rich markdown formatting */}
                     <div className="text-xs leading-relaxed text-foreground/90 whitespace-pre-wrap select-text">
-                      {msg.content}
+                      {renderFormattedMessage(msg.content)}
                     </div>
 
                     {/* Template Card Attachment */}
@@ -533,23 +640,26 @@ export function CommunityPage() {
                         return (
                           <Card
                             key={i}
-                            className="mt-2.5 p-3.5 max-w-md bg-card/80 border-border/80 rounded-xl shadow-xs hover:border-primary/40 transition-all"
+                            className="mt-2.5 p-3.5 max-w-md bg-card/90 border-border/80 rounded-xl shadow-xs hover:border-primary/40 transition-all"
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                              <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
                                   <Layers className="w-4 h-4" />
                                 </div>
                                 <div>
-                                  <h4 className="text-xs font-semibold leading-tight">
+                                  <h4 className="text-xs font-semibold leading-tight text-foreground">
                                     {att.templateData.name}
                                   </h4>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {att.templateData.pieceCount} Pieces • {att.templateData.price || 'Free'}
+                                  <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                                    {att.templateData.pieceCount} Pieces •{' '}
+                                    <span className="text-primary font-medium">
+                                      {att.templateData.price || 'Free'}
+                                    </span>
                                   </span>
                                 </div>
                               </div>
-                              <Button asChild size="sm" variant="default" className="h-7 text-xs px-2.5">
+                              <Button asChild size="sm" variant="default" className="h-7 text-xs px-2.5 shrink-0">
                                 <Link to="/templates">
                                   Gunakan <ExternalLink className="w-3 h-3 ml-1" />
                                 </Link>
@@ -633,7 +743,7 @@ export function CommunityPage() {
             <div className="mb-2 flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border rounded-lg text-xs w-fit">
               <Paperclip className="w-3.5 h-3.5 text-primary" />
               <span className="font-medium truncate max-w-xs">{stagedAttachment.name}</span>
-              <span className="text-[10px] text-muted-foreground">({stagedAttachment.size})</span>
+              <span className="text-[10px] text-muted-foreground">({stagedAttachment.size || 'Attachment'})</span>
               <button
                 onClick={() => setStagedAttachment(null)}
                 className="hover:text-destructive transition-colors ml-1"
@@ -686,35 +796,77 @@ export function CommunityPage() {
               className="flex-1 bg-transparent border-0 outline-none text-xs text-foreground placeholder:text-muted-foreground/60 min-w-0"
             />
 
-            {/* Quick Template Share Dialog / Button */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-primary shrink-0"
-                    onClick={() => {
-                      setStagedAttachment({
-                        type: 'template',
-                        url: '/templates',
-                        name: 'Alur Otomatisasi Saya',
-                        templateData: {
-                          name: 'Custom Webhook Automation Flow',
-                          description: 'Alur otomasi yang diexport langsung dari project saya.',
-                          pieceCount: 3,
-                          price: 'Free',
-                        },
-                      });
-                    }}
-                  >
-                    <Layers className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Sisipkan Kartu Template</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            {/* Quick Template Share Popover */}
+            <Popover open={isTemplatePopoverOpen} onOpenChange={setIsTemplatePopoverOpen}>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          'h-7 w-7 text-muted-foreground hover:text-primary shrink-0',
+                          isTemplatePopoverOpen && 'text-primary bg-primary/10',
+                        )}
+                      >
+                        <Layers className="w-4 h-4" />
+                      </Button>
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>Bagikan Template Workflow</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <PopoverContent align="end" className="w-80 p-3 bg-card border-border shadow-md">
+                <div className="text-xs font-semibold mb-2 flex items-center justify-between">
+                  <span>Pilih Template untuk Dibagikan</span>
+                  <Badge variant="outline" className="text-[10px]">3 Pilihan</Badge>
+                </div>
+                <div className="space-y-2">
+                  {SHAREABLE_TEMPLATES.map((tmpl) => (
+                    <button
+                      key={tmpl.name}
+                      onClick={() => {
+                        setStagedAttachment({
+                          type: 'template',
+                          url: '/templates',
+                          name: tmpl.name,
+                          templateData: {
+                            name: tmpl.name,
+                            description: tmpl.description,
+                            pieceCount: tmpl.pieceCount,
+                            price: tmpl.price,
+                          },
+                        });
+                        setIsTemplatePopoverOpen(false);
+                      }}
+                      className="w-full text-left p-2.5 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-muted/40 transition-all group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold group-hover:text-primary transition-colors truncate">
+                          {tmpl.name}
+                        </span>
+                        <span className="text-[10px] font-medium text-primary shrink-0 ml-1">
+                          {tmpl.price}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                        {tmpl.description}
+                      </p>
+                      <div className="flex items-center gap-1 mt-1.5">
+                        {tmpl.tags.map((tag) => (
+                          <span key={tag} className="text-[9px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
 
             {/* Send Button */}
             <Button
@@ -726,11 +878,6 @@ export function CommunityPage() {
             >
               <Send className="w-3.5 h-3.5" />
             </Button>
-          </div>
-
-          <div className="flex justify-between items-center text-[10px] text-muted-foreground/60 px-1 mt-1">
-            <span>Tekan <strong>Enter</strong> untuk mengirim</span>
-            <span>Didukung enkripsi & media storage Cloudflare</span>
           </div>
         </div>
       </div>
@@ -745,7 +892,7 @@ export function CommunityPage() {
           <ScrollArea className="flex-1 p-3">
             {/* STAFF / ADMIN */}
             <div className="mb-4">
-              <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase px-2">
+              <span className="text-[10px] font-bold text-muted-foreground/80 tracking-wider uppercase px-2">
                 Staff — {DEFAULT_MEMBERS.filter((m) => m.role === 'admin').length}
               </span>
               <div className="mt-1 space-y-0.5">
@@ -755,10 +902,13 @@ export function CommunityPage() {
                     onClick={() => handleStartDM(member)}
                     className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors text-left group"
                   >
-                    <div className="relative">
-                      <UserAvatar name={member.name} email={member.email} size={30} />
-                      <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border-2 border-sidebar" />
-                    </div>
+                    <CommunityAvatar
+                      name={member.name}
+                      imageUrl={member.avatar}
+                      size={32}
+                      status={member.status}
+                      showStatus
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-medium text-foreground truncate">
@@ -777,7 +927,7 @@ export function CommunityPage() {
 
             {/* CREATORS */}
             <div className="mb-4">
-              <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase px-2">
+              <span className="text-[10px] font-bold text-muted-foreground/80 tracking-wider uppercase px-2">
                 Kreator Template — {DEFAULT_MEMBERS.filter((m) => m.role === 'creator').length}
               </span>
               <div className="mt-1 space-y-0.5">
@@ -787,10 +937,13 @@ export function CommunityPage() {
                     onClick={() => handleStartDM(member)}
                     className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors text-left group"
                   >
-                    <div className="relative">
-                      <UserAvatar name={member.name} email={member.email} size={30} />
-                      <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border-2 border-sidebar" />
-                    </div>
+                    <CommunityAvatar
+                      name={member.name}
+                      imageUrl={member.avatar}
+                      size={32}
+                      status={member.status}
+                      showStatus
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-medium text-foreground truncate">
@@ -809,7 +962,7 @@ export function CommunityPage() {
 
             {/* PRO MEMBERS */}
             <div className="mb-4">
-              <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase px-2">
+              <span className="text-[10px] font-bold text-muted-foreground/80 tracking-wider uppercase px-2">
                 Pro Member — {DEFAULT_MEMBERS.filter((m) => m.role === 'pro').length}
               </span>
               <div className="mt-1 space-y-0.5">
@@ -819,10 +972,13 @@ export function CommunityPage() {
                     onClick={() => handleStartDM(member)}
                     className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors text-left group"
                   >
-                    <div className="relative">
-                      <UserAvatar name={member.name} email={member.email} size={30} />
-                      <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border-2 border-sidebar" />
-                    </div>
+                    <CommunityAvatar
+                      name={member.name}
+                      imageUrl={member.avatar}
+                      size={32}
+                      status={member.status}
+                      showStatus
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-medium text-foreground truncate">
@@ -841,7 +997,7 @@ export function CommunityPage() {
 
             {/* OTHER MEMBERS */}
             <div>
-              <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase px-2">
+              <span className="text-[10px] font-bold text-muted-foreground/80 tracking-wider uppercase px-2">
                 Anggota Lainnya — {DEFAULT_MEMBERS.filter((m) => m.role === 'member').length}
               </span>
               <div className="mt-1 space-y-0.5">
@@ -849,27 +1005,21 @@ export function CommunityPage() {
                   <button
                     key={member.id}
                     onClick={() => handleStartDM(member)}
-                    className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors text-left group opacity-75 hover:opacity-100"
+                    className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors text-left group opacity-85 hover:opacity-100"
                   >
-                    <div className="relative">
-                      <UserAvatar name={member.name} email={member.email} size={30} />
-                      <span
-                        className={cn(
-                          'absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-sidebar',
-                          member.status === 'idle'
-                            ? 'bg-amber-500'
-                            : member.status === 'online'
-                              ? 'bg-emerald-500'
-                              : 'bg-muted-foreground',
-                        )}
-                      />
-                    </div>
+                    <CommunityAvatar
+                      name={member.name}
+                      imageUrl={member.avatar}
+                      size={32}
+                      status={member.status}
+                      showStatus
+                    />
                     <div className="min-w-0 flex-1">
                       <span className="text-xs font-medium text-foreground truncate block">
                         {member.name}
                       </span>
                       <span className="text-[10px] text-muted-foreground truncate block">
-                        {member.customStatus || 'Offline'}
+                        {member.customStatus || 'Member'}
                       </span>
                     </div>
                   </button>

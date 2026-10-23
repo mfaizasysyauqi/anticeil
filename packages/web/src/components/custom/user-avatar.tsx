@@ -40,7 +40,7 @@ export function UserAvatar({
         height={size}
         onError={() => setHasError(true)}
         className={cn('rounded-full aspect-square object-cover', className)}
-        style={{ width: `${size}px !important`, height: `${size}px !important` }}
+        style={{ width: `${size}px`, height: `${size}px` }}
       />
     ) : (
       <Avatar
@@ -48,8 +48,7 @@ export function UserAvatar({
         size={size}
         colors={['#0a0310', '#49007e', '#ff005b', '#ff7d10', '#ffb238']}
         variant="beam"
-        square
-        className={cn('rounded-full', className)}
+        className={cn('rounded-full aspect-square object-cover', className)}
       />
     );
 
@@ -60,8 +59,14 @@ export function UserAvatar({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className={cn('size-12 border', { 'border-none': withoutBorder })}>
-          {avatarElement} {disableTooltip}
+        <div
+          className={cn(
+            'inline-flex shrink-0 items-center justify-center rounded-full overflow-hidden',
+            { 'ring-1 ring-border': !withoutBorder },
+          )}
+          style={{ width: `${size}px`, height: `${size}px` }}
+        >
+          {avatarElement}
         </div>
       </TooltipTrigger>
       <TooltipContent side="bottom">{tooltip}</TooltipContent>
