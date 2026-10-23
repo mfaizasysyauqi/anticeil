@@ -341,7 +341,7 @@ const AgentsPageContent = () => {
                           key={starter.label}
                           type="button"
                           onClick={() => askChat(t(starter.prompt))}
-                          className="flex items-center gap-2 rounded-full border border-border py-[9px] pe-4 ps-[14px] text-sm font-medium leading-4 text-neutral-700 transition-colors hover:bg-accent"
+                          className="flex items-center gap-2 rounded-full border border-border py-[9px] pe-4 ps-[14px] text-sm font-medium leading-4 text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                         >
                           <span
                             aria-hidden
@@ -356,7 +356,7 @@ const AgentsPageContent = () => {
                           key={suggestion}
                           type="button"
                           onClick={() => askChat(t(suggestion))}
-                          className="rounded-full border border-border px-3 py-[5px] text-[13px] leading-4 transition-colors hover:bg-accent"
+                          className="rounded-full border border-border px-3 py-[5px] text-[13px] leading-4 text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                         >
                           {t(suggestion)}
                         </button>
@@ -448,7 +448,7 @@ const AgentsPageContent = () => {
                   onClick={() => setLayout('grid')}
                   className={cn(
                     'flex h-6 w-8 shrink-0 items-center justify-center rounded-full',
-                    layout === 'grid' && 'bg-neutral-100',
+                    layout === 'grid' && 'bg-neutral-100 dark:bg-neutral-800',
                   )}
                 >
                   <LayoutGrid
@@ -462,7 +462,7 @@ const AgentsPageContent = () => {
                   onClick={() => setLayout('list')}
                   className={cn(
                     'flex h-6 w-8 shrink-0 items-center justify-center rounded-full',
-                    layout === 'list' && 'bg-neutral-100',
+                    layout === 'list' && 'bg-neutral-100 dark:bg-neutral-800',
                   )}
                 >
                   <List
@@ -476,7 +476,7 @@ const AgentsPageContent = () => {
                 pending={createAgent.isPending}
                 onCreate={createBlankAgent}
                 size="sm"
-                className="px-3.5 text-neutral-700"
+                className="px-3.5 text-foreground"
                 icon={<Plus size={15} />}
                 label={t('New agent')}
               />
