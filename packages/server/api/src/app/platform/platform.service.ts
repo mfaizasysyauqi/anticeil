@@ -390,43 +390,11 @@ async function getBillingEnforced(log: FastifyBaseLogger, platformId: PlatformId
 async function getPlan(log: FastifyBaseLogger, platform: PlatformWithoutFederatedAuth): Promise<PlatformPlanLimits> {
     try {
         const plan = await platformPlanService(log).getOrCreateForPlatform(platform.id)
-        const planName = (plan.plan || 'free').toLowerCase()
-        const isEnterprise = planName.includes('enterprise')
-        const isTeam = planName.includes('team') || isEnterprise
-        const isPlus = planName.includes('plus') || isTeam
-
-        // Reconcile feature flags from plan name to prevent stale DB values from leaking
-        const reconciledFlags = {
-            billedTeamProjectsLimit: isTeam ? null : (isPlus ? 1 : 0),
-            usersLimit: isEnterprise ? null : (isTeam ? 25 : (isPlus ? 5 : 1)),
-            activeFlowsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? 100 : 5)),
-            projectsLimit: isEnterprise ? null : (isTeam ? null : (isPlus ? null : 1)),
-            customAppearanceEnabled: isPlus,
-            showPoweredBy: !isPlus,
-            auditLogEnabled: isPlus,
-            apiKeysEnabled: isPlus,
-            globalConnectionsEnabled: isTeam,
-            ssoEnabled: isTeam,
-            customRolesEnabled: isTeam,
-            projectRolesEnabled: isTeam,
-            environmentsEnabled: isTeam,
-            embeddingEnabled: isTeam,
-            secretManagersEnabled: isTeam,
-            managePiecesEnabled: isTeam,
-            manageTemplatesEnabled: isTeam,
-            priorityQueueEnabled: isTeam,
-            scimEnabled: isEnterprise,
-            eventStreamingEnabled: isEnterprise,
-            workerGroupsEnabled: isEnterprise,
-            customDomainsEnabled: isEnterprise,
+        return {
+            ...plan,
             agentsEnabled: true,
             aiProvidersEnabled: true,
             analyticsEnabled: true,
-        }
-
-        return {
-            ...plan,
-            ...reconciledFlags,
         }
     } catch (e) {
         log.warn({ error: e, platformId: platform.id }, 'Fallback to default plan')
