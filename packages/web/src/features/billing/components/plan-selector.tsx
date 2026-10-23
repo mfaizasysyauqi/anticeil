@@ -241,7 +241,7 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
         ssoEnabled: isTeam,
         customRolesEnabled: isTeam,
         projectRolesEnabled: isTeam,
-        auditLogEnabled: isTeam,
+        auditLogEnabled: isPlus,
         environmentsEnabled: isTeam,
         embeddingEnabled: isTeam,
         apiKeysEnabled: isTeam,

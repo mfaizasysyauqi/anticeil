@@ -28,9 +28,17 @@ export const useTeamProjectLimitGuard = ({
   const { openDialog } = useManagePlanDialogStore();
 
   const limit = platform.plan.billedTeamProjectsLimit;
-  const teamProjectsUsed = projects.filter(
+  const personalProjects = projects.filter(
+    (project) => project.type === ProjectType.PERSONAL,
+  );
+  const teamProjects = projects.filter(
     (project) => project.type === ProjectType.TEAM,
-  ).length;
+  );
+  // If no personal projects exist, the first project is the personal workspace, not an extra team project
+  const teamProjectsUsed =
+    personalProjects.length > 0
+      ? teamProjects.length
+      : Math.max(0, teamProjects.length - 1);
   const hasReachedLimit = !isNil(limit) && teamProjectsUsed >= limit;
 
   const ensureTeamProjectAvailable = (): boolean => {

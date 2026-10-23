@@ -160,8 +160,10 @@ async function assertMaximumNumberOfProjectsReachedByEdition(platformId: string,
             },
         })
     }
-    const projectsCount = await projectService(log).countByPlatformIdAndType(platformId, ProjectType.TEAM)
-    if (projectsCount >= billedTeamProjectsLimit) {
+    const personalCount = await projectService(log).countByPlatformIdAndType(platformId, ProjectType.PERSONAL)
+    const teamCount = await projectService(log).countByPlatformIdAndType(platformId, ProjectType.TEAM)
+    const effectiveTeamProjects = personalCount > 0 ? teamCount : Math.max(0, teamCount - 1)
+    if (effectiveTeamProjects >= billedTeamProjectsLimit) {
         throw new ActivepiecesError({
             code: ErrorCode.FEATURE_DISABLED,
             params: {

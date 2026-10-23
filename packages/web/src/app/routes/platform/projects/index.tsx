@@ -364,9 +364,16 @@ export default function ProjectsPage() {
   ];
 
   const limit = platform.plan.billedTeamProjectsLimit;
-  const teamProjectsUsed = allProjects.filter(
+  const personalProjects = allProjects.filter(
+    (p) => p.type === ProjectType.PERSONAL,
+  );
+  const teamProjects = allProjects.filter(
     (p) => p.type === ProjectType.TEAM,
-  ).length;
+  );
+  const teamProjectsUsed =
+    personalProjects.length > 0
+      ? teamProjects.length
+      : Math.max(0, teamProjects.length - 1);
   const hasLimit = !isNil(limit) && limit > 0;
   const usedPercent = hasLimit ? Math.min(100, Math.round((teamProjectsUsed / limit!) * 100)) : 0;
   const isNearLimit = hasLimit && usedPercent >= 80;

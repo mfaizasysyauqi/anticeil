@@ -498,7 +498,7 @@ const PlatformAppearanceSchema = z.object({
 
 type PlatformAppearanceSchema = z.infer<typeof PlatformAppearanceSchema>;
 
-const BRANDING_TIER = 'enterprise';
+const BRANDING_TIER = 'plus';
 const DEFAULT_MAX_FILE_SIZE_MB = 25;
 const ENTERPRISE_DOCUMENTATION_URL =
   'https://www.activepieces.com/docs/install/configuration/overview#enterprise-edition-optional';

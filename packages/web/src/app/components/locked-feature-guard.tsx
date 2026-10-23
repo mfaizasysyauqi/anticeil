@@ -20,17 +20,24 @@ export type LockedFeatureGuardProps = {
 const getTierFromKey = (key?: string): string => {
   switch (key) {
     case 'UNIVERSAL_AI':
+    case 'BRANDING':
+    case 'CUSTOM_APPEARANCE':
+    case 'PROJECTS':
+    case 'AUDIT_LOGS':
       return 'Plus';
     case 'API':
     case 'GLOBAL_CONNECTIONS':
-      return 'Team';
-    case 'TEMPLATES':
-    case 'AUDIT_LOGS':
     case 'SSO':
     case 'CUSTOM_ROLES':
+    case 'PROJECT_ROLES':
+    case 'ENVIRONMENTS':
+      return 'Team';
+    case 'TEMPLATES':
     case 'SECRET_MANAGERS':
     case 'EVENT_DESTINATIONS':
     case 'SIGNING_KEYS':
+    case 'SCIM':
+    case 'PIECE_SETS':
     default:
       return 'Enterprise';
   }
