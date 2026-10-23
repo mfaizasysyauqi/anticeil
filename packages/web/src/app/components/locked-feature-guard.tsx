@@ -24,20 +24,20 @@ const getTierFromKey = (key?: string): string => {
     case 'CUSTOM_APPEARANCE':
     case 'PROJECTS':
     case 'AUDIT_LOGS':
-      return 'Plus';
     case 'API':
+      return 'Plus';
     case 'GLOBAL_CONNECTIONS':
     case 'SSO':
     case 'CUSTOM_ROLES':
     case 'PROJECT_ROLES':
     case 'ENVIRONMENTS':
-      return 'Team';
-    case 'TEMPLATES':
     case 'SECRET_MANAGERS':
+    case 'TEMPLATES':
+    case 'PIECE_SETS':
+      return 'Team';
     case 'EVENT_DESTINATIONS':
     case 'SIGNING_KEYS':
     case 'SCIM':
-    case 'PIECE_SETS':
     default:
       return 'Enterprise';
   }

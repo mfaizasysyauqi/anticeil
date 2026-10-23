@@ -52,7 +52,9 @@ export default function ProjectsPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const isEnabled = platform.plan.billedTeamProjectsLimit === null || platform.plan.billedTeamProjectsLimit === undefined || platform.plan.billedTeamProjectsLimit > 0;
+  const _planName = (platform.plan.plan || 'free').toLowerCase();
+  const isEnabled = _planName.includes('team') || _planName.includes('enterprise') || _planName.includes('plus') || platform.plan.billedTeamProjectsLimit === null || (platform.plan.billedTeamProjectsLimit ?? 0) > 0;
+
   const { project: currentProject } =
     projectCollectionUtils.useCurrentProject();
 

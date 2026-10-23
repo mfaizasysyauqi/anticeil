@@ -47,22 +47,22 @@ function resolvePlanLimitsAndFeatures(planName = 'free') {
         showPoweredBy: !isPlus,
 
         globalConnectionsEnabled: isTeam,
-        ssoEnabled: false,
-        customRolesEnabled: false,
-        projectRolesEnabled: false,
-        auditLogEnabled: isTeam,
-        environmentsEnabled: false,
-        embeddingEnabled: false,
-        apiKeysEnabled: isTeam,
+        ssoEnabled: isTeam,
+        customRolesEnabled: isTeam,
+        projectRolesEnabled: isTeam,
+        auditLogEnabled: isPlus,
+        environmentsEnabled: isTeam,
+        embeddingEnabled: isTeam,
+        apiKeysEnabled: isPlus,
         secretManagersEnabled: isTeam,
-        managePiecesEnabled: false,
-        manageTemplatesEnabled: false,
+        managePiecesEnabled: isTeam,
+        manageTemplatesEnabled: isTeam,
 
-        scimEnabled: false,
-        eventStreamingEnabled: false,
-        workerGroupsEnabled: false,
-        customDomainsEnabled: false,
-        priorityQueueEnabled: isEnterprise,
+        scimEnabled: isEnterprise,
+        eventStreamingEnabled: isEnterprise,
+        workerGroupsEnabled: isEnterprise,
+        customDomainsEnabled: isEnterprise,
+        priorityQueueEnabled: isTeam,
         dedicatedWorkers: null,
         canary: false,
     };
@@ -819,15 +819,59 @@ async function getBillingInformation(log, platformId) {
 
     const currentPlanKey = (platformPlan?.plan || 'free').toLowerCase();
     const planLimits = resolvePlanLimitsAndFeatures(currentPlanKey);
-    // Ensure DB platform_plan row has usersLimit synced so core checkUsersExceededLimit triggers
-    if (platformPlan && platformPlan.usersLimit !== planLimits.usersLimit) {
-        try {
-            await (0, platform_plan_service_1.platformPlanRepo)().update({ platformId: platform.id }, {
-                usersLimit: planLimits.usersLimit,
-                activeFlowsLimit: planLimits.activeFlowsLimit,
-            });
-        } catch (dbErr) {
-            log.warn({ err: dbErr }, '[anticeil] could not sync platform_plan limits');
+    // Sync ALL plan limits and feature flags to DB so they stay consistent with the active plan
+    if (platformPlan) {
+        const needsSync = (
+            platformPlan.usersLimit !== planLimits.usersLimit ||
+            platformPlan.activeFlowsLimit !== planLimits.activeFlowsLimit ||
+            platformPlan.billedTeamProjectsLimit !== planLimits.billedTeamProjectsLimit ||
+            platformPlan.ssoEnabled !== planLimits.ssoEnabled ||
+            platformPlan.customRolesEnabled !== planLimits.customRolesEnabled ||
+            platformPlan.projectRolesEnabled !== planLimits.projectRolesEnabled ||
+            platformPlan.auditLogEnabled !== planLimits.auditLogEnabled ||
+            platformPlan.environmentsEnabled !== planLimits.environmentsEnabled ||
+            platformPlan.apiKeysEnabled !== planLimits.apiKeysEnabled ||
+            platformPlan.secretManagersEnabled !== planLimits.secretManagersEnabled ||
+            platformPlan.managePiecesEnabled !== planLimits.managePiecesEnabled ||
+            platformPlan.manageTemplatesEnabled !== planLimits.manageTemplatesEnabled ||
+            platformPlan.globalConnectionsEnabled !== planLimits.globalConnectionsEnabled ||
+            platformPlan.embeddingEnabled !== planLimits.embeddingEnabled ||
+            platformPlan.scimEnabled !== planLimits.scimEnabled ||
+            platformPlan.eventStreamingEnabled !== planLimits.eventStreamingEnabled ||
+            platformPlan.workerGroupsEnabled !== planLimits.workerGroupsEnabled ||
+            platformPlan.customDomainsEnabled !== planLimits.customDomainsEnabled ||
+            platformPlan.priorityQueueEnabled !== planLimits.priorityQueueEnabled ||
+            platformPlan.customAppearanceEnabled !== planLimits.customAppearanceEnabled
+        );
+        if (needsSync) {
+            try {
+                await (0, platform_plan_service_1.platformPlanRepo)().update({ platformId: platform.id }, {
+                    usersLimit: planLimits.usersLimit,
+                    activeFlowsLimit: planLimits.activeFlowsLimit,
+                    billedTeamProjectsLimit: planLimits.billedTeamProjectsLimit,
+                    ssoEnabled: planLimits.ssoEnabled,
+                    customRolesEnabled: planLimits.customRolesEnabled,
+                    projectRolesEnabled: planLimits.projectRolesEnabled,
+                    auditLogEnabled: planLimits.auditLogEnabled,
+                    environmentsEnabled: planLimits.environmentsEnabled,
+                    apiKeysEnabled: planLimits.apiKeysEnabled,
+                    secretManagersEnabled: planLimits.secretManagersEnabled,
+                    managePiecesEnabled: planLimits.managePiecesEnabled,
+                    manageTemplatesEnabled: planLimits.manageTemplatesEnabled,
+                    globalConnectionsEnabled: planLimits.globalConnectionsEnabled,
+                    embeddingEnabled: planLimits.embeddingEnabled,
+                    scimEnabled: planLimits.scimEnabled,
+                    eventStreamingEnabled: planLimits.eventStreamingEnabled,
+                    workerGroupsEnabled: planLimits.workerGroupsEnabled,
+                    customDomainsEnabled: planLimits.customDomainsEnabled,
+                    priorityQueueEnabled: planLimits.priorityQueueEnabled,
+                    customAppearanceEnabled: planLimits.customAppearanceEnabled,
+                    showPoweredBy: planLimits.showPoweredBy,
+                });
+                log.info({ platformId: platform.id, plan: currentPlanKey }, '[anticeil] synced all plan feature flags to DB');
+            } catch (dbErr) {
+                log.warn({ err: dbErr }, '[anticeil] could not sync platform_plan limits');
+            }
         }
     }
     const effectivePlan = {

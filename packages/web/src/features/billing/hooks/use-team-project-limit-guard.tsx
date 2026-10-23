@@ -27,7 +27,18 @@ export const useTeamProjectLimitGuard = ({
   const { platform } = platformHooks.useCurrentPlatform();
   const { openDialog } = useManagePlanDialogStore();
 
-  const limit = platform.plan.billedTeamProjectsLimit;
+  const rawLimit = platform.plan.billedTeamProjectsLimit;
+  const planName = (platform.plan.plan || 'free').toLowerCase();
+  const isTeamOrEnterprise = planName.includes('team') || planName.includes('enterprise');
+  const isPlus = planName.includes('plus') && !isTeamOrEnterprise;
+
+  // Derive effective limit from plan name to guard against stale DB values
+  const limit: number | null = isTeamOrEnterprise
+    ? null  // unlimited
+    : isPlus
+    ? Math.max(1, rawLimit ?? 1)
+    : (rawLimit ?? 0);
+
   const personalProjects = projects.filter(
     (project) => project.type === ProjectType.PERSONAL,
   );
@@ -40,6 +51,7 @@ export const useTeamProjectLimitGuard = ({
       ? teamProjects.length
       : Math.max(0, teamProjects.length - 1);
   const hasReachedLimit = !isNil(limit) && teamProjectsUsed >= limit;
+
 
   const ensureTeamProjectAvailable = (): boolean => {
     if (!hasReachedLimit) {

@@ -245,7 +245,7 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
             auditLogEnabled: isPlus,
             environmentsEnabled: isTeam,
             embeddingEnabled: isTeam,
-            apiKeysEnabled: isTeam,
+            apiKeysEnabled: isPlus,
             secretManagersEnabled: isTeam,
             managePiecesEnabled: isTeam,
             manageTemplatesEnabled: isTeam,
@@ -254,8 +254,10 @@ export const platformPlanController: FastifyPluginAsyncZod = async (app) => {
             eventStreamingEnabled: isEnterprise,
             workerGroupsEnabled: isEnterprise,
             customDomainsEnabled: isEnterprise,
+            priorityQueueEnabled: isTeam,
             dedicatedWorkers: null,
             canary: false,
+
         })
         await distributedStore.delete(getBillingOverviewKey(platformId))
         await distributedStore.delete(getPlatformPlanNameKey(platformId))
