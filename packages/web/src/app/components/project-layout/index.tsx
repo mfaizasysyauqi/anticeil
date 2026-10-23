@@ -79,16 +79,9 @@ export function ProjectDashboardLayout({
       hasPermission: true,
     },
     {
-      to: '/community',
-      label: t('Community'),
-      show: !isEmbedded,
-      icon: MessagesSquare,
-      hasPermission: true,
-    },
-    {
       to: '/messages',
-      label: t('Messages'),
-      show: false,
+      label: t('Team Chat'),
+      show: !isEmbedded,
       icon: MessagesSquare,
       hasPermission: true,
     },

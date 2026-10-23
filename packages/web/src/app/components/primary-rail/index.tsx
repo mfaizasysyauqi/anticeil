@@ -182,9 +182,9 @@ export function PrimaryRail() {
             )}
             <RailNavButton
               collapsed={collapsed}
-              to="/community"
+              to="/messages"
               icon={MessagesSquare}
-              label={t('Community')}
+              label={t('Team Chat')}
               isActive={({ pathname }) =>
                 pathname.startsWith('/community') || pathname.startsWith('/messages')
               }
@@ -292,9 +292,9 @@ export function PrimaryRail() {
               )}
               <RailNavButton
                 collapsed={false}
-                to="/community"
+                to="/messages"
                 icon={MessagesSquare}
-                label={t('Community')}
+                label={t('Team Chat')}
                 isActive={({ pathname }) =>
                   pathname.startsWith('/community') || pathname.startsWith('/messages')
                 }
@@ -422,9 +422,9 @@ export function MobilePrimaryRailSheet({
               )}
               <RailNavButton
                 collapsed={false}
-                to="/community"
+                to="/messages"
                 icon={MessagesSquare}
-                label={t('Community')}
+                label={t('Team Chat')}
                 isActive={({ pathname }) =>
                   pathname.startsWith('/community') || pathname.startsWith('/messages')
                 }

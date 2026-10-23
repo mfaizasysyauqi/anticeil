@@ -70,6 +70,7 @@ import {
 } from '@/components/ui/tooltip';
 import { userHooks } from '@/hooks/user-hooks';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 import { communityApi } from './community-api';
 import { CommunityAvatar } from './community-avatar';
@@ -572,12 +573,50 @@ export function CommunityPage() {
     setIsMobileMembersOpen(false);
   };
 
-  // File Select
+  // File Select with Strict Limit: Max 5MB, Images & Documents only (Videos banned to save storage)
+  const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type.startsWith('image/')) {
+    // Reset input value so user can re-select same file if needed
+    e.target.value = '';
+
+    // 1. Strict Size Check (5MB max)
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error('Ukuran file maksimal 5 MB untuk menjaga efisiensi storage.');
+      return;
+    }
+
+    // 2. Reject Video and Audio formats
+    if (file.type.startsWith('video/') || file.type.startsWith('audio/')) {
+      toast.error('Format video dan audio tidak diizinkan. Harap unggah gambar atau dokumen.');
+      return;
+    }
+
+    // 3. Allowed MIME types: images and documents (PDF, CSV, JSON, TXT, DOCX)
+    const isImage = file.type.startsWith('image/');
+    const isDocument =
+      file.type === 'application/pdf' ||
+      file.type === 'text/plain' ||
+      file.type === 'text/csv' ||
+      file.type === 'application/json' ||
+      file.type.includes('wordprocessingml') ||
+      file.type.includes('spreadsheetml') ||
+      file.name.endsWith('.pdf') ||
+      file.name.endsWith('.json') ||
+      file.name.endsWith('.txt') ||
+      file.name.endsWith('.csv') ||
+      file.name.endsWith('.docx') ||
+      file.name.endsWith('.xlsx');
+
+    if (!isImage && !isDocument) {
+      toast.error('Format file tidak didukung. Harap unggah gambar atau dokumen (PDF, TXT, CSV, JSON, DOCX).');
+      return;
+    }
+
+    if (isImage) {
       const reader = new FileReader();
       reader.onload = () => {
         setStagedAttachment({
@@ -759,11 +798,11 @@ export function CommunityPage() {
   // Component: Channels Sidebar Content (reusable for desktop & mobile drawer)
   const renderChannelsSidebarContent = (onItemClick?: () => void) => (
     <div className="flex flex-col h-full bg-sidebar select-none flex-1 min-w-0 overflow-hidden">
-      {/* Header: Community Title (NON-SCROLLABLE APP BAR) */}
+      {/* Header: Team Chat Title (NON-SCROLLABLE APP BAR) */}
       <div className="h-12 border-b border-sidebar-border px-3.5 flex items-center justify-between font-semibold shadow-2xs shrink-0 bg-sidebar z-10">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-semibold truncate tracking-tight text-foreground">
-            {t('Community')}
+            {t('Team Chat')}
           </span>
         </div>
 
@@ -1185,7 +1224,7 @@ export function CommunityPage() {
               </h2>
               <p className="text-sm text-muted-foreground mt-1 max-w-xl leading-relaxed">
                 {activeChannel.description ||
-                  'Ruang diskusi komunitas Anticeil. Mulai percakapan, bagikan template otomatisasi, atau diskusikan AI workflow.'}
+                  'Ruang obrolan tim Anticeil. Mulai percakapan, bagikan template otomatisasi, atau koordinasikan alur kerja tim.'}
               </p>
             </div>
 
@@ -1393,6 +1432,7 @@ export function CommunityPage() {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
+                accept="image/*,.pdf,.doc,.docx,.txt,.csv,.json"
                 className="hidden"
               />
 
@@ -1402,7 +1442,7 @@ export function CommunityPage() {
                 size="icon"
                 onClick={() => fileInputRef.current?.click()}
                 className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
-                title="Lampirkan File / Gambar"
+                title="Lampirkan Gambar atau Dokumen (Maks. 5 MB)"
               >
                 <Plus className="w-4 h-4" />
               </Button>
