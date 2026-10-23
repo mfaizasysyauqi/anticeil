@@ -119,6 +119,7 @@ jobs:
             echo "Deployment complete!"
 
       - name: Deploy frontend to Cloudflare Pages
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
         working-directory: packages/web
         continue-on-error: true
         env:
