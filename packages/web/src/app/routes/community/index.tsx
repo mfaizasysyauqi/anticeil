@@ -102,7 +102,7 @@ const SHAREABLE_TEMPLATES = [
     name: 'Enterprise Invoice OCR & Midtrans Sync',
     description: 'Otomatis ekstrak PDF tagihan via OCR dan rekonsiliasi status pembayaran Midtrans ke ERP.',
     pieceCount: 6,
-    price: 'Rp 299.000',
+    price: 'Free',
     tags: ['OCR', 'Midtrans', 'Gmail'],
   },
   {
@@ -649,19 +649,19 @@ export function CommunityPage() {
     currentUser?.email?.split('@')[0] ||
     'Pengguna Anticeil';
 
-  // Component: Discord Mini Server/Hub Rail (compact, elegant & non-overflowing)
+  // Component: Discord Mini Server/Hub Rail (compact, theme-consistent & non-overflowing)
   const renderDiscordHubRail = () => (
-    <div className="w-[54px] shrink-0 bg-zinc-950/95 dark:bg-zinc-950 flex flex-col items-center py-2.5 border-r border-sidebar-border/40 select-none z-10 h-full overflow-hidden">
+    <div className="w-[54px] shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-2.5 select-none z-10 h-full overflow-hidden">
       {/* Scrollable list of hubs if many */}
       <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col items-center gap-1.5 py-0.5">
         {hubs.map((hub) => {
           const isActive = activeHubId === hub.id;
           return (
             <div key={hub.id} className="relative group w-full flex items-center justify-center">
-              {/* Discord signature left white pill indicator */}
+              {/* Discord signature left pill indicator */}
               <span
                 className={cn(
-                  'absolute left-0 w-[3px] bg-white rounded-r-full transition-all duration-200',
+                  'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
                   isActive
                     ? 'h-7'
                     : 'h-0 group-hover:h-3.5 opacity-80',
@@ -684,15 +684,15 @@ export function CommunityPage() {
                     className={cn(
                       'relative size-10 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
                       isActive
-                        ? 'rounded-[12px] bg-primary/20 text-primary border border-primary/40 shadow-sm shadow-primary/10'
-                        : 'rounded-full bg-sidebar-accent/60 text-muted-foreground hover:rounded-[12px] hover:bg-sidebar-accent hover:text-foreground',
+                        ? 'rounded-[12px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
+                        : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[12px] hover:bg-sidebar-accent/80',
                     )}
                   >
                     {renderHubIcon(hub)}
 
                     {/* Unread badge pill */}
                     {hub.unreadCount && hub.unreadCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-zinc-950">
+                      <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-sidebar">
                         {hub.unreadCount}
                       </span>
                     )}
@@ -707,14 +707,14 @@ export function CommunityPage() {
         })}
 
         {/* Discord separator bar */}
-        <div className="w-6 h-[2px] bg-border/40 my-1 rounded-full shrink-0" />
+        <div className="w-6 h-[2px] bg-sidebar-border my-1 rounded-full shrink-0" />
 
         {/* Add Channel / Hub (+) Button */}
         <Tooltip delayDuration={150}>
           <TooltipTrigger asChild>
             <button
               onClick={() => setIsCreateChannelOpen(true)}
-              className="group relative size-10 rounded-full bg-sidebar-accent/50 text-emerald-500 hover:rounded-[12px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
+              className="group relative size-10 rounded-full bg-sidebar-accent text-emerald-500 hover:rounded-[12px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
             </button>
@@ -729,7 +729,7 @@ export function CommunityPage() {
           <TooltipTrigger asChild>
             <Link
               to="/templates"
-              className="group relative size-10 rounded-full bg-sidebar-accent/50 text-muted-foreground hover:rounded-[12px] hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
+              className="group relative size-10 rounded-full bg-sidebar-accent text-muted-foreground hover:rounded-[12px] hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
             >
               <Compass className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
             </Link>
@@ -744,14 +744,13 @@ export function CommunityPage() {
 
   // Component: Channels Sidebar Content (reusable for desktop & mobile drawer)
   const renderChannelsSidebarContent = (onItemClick?: () => void) => (
-    <div className="flex flex-col h-full bg-sidebar select-none w-60 shrink-0 border-r border-sidebar-border overflow-hidden">
+    <div className="flex flex-col h-full bg-sidebar select-none flex-1 min-w-0 overflow-hidden">
       {/* Header: Community Title (NON-SCROLLABLE APP BAR) */}
-      <div className="h-12 border-b border-sidebar-border px-3.5 flex items-center justify-between font-semibold shadow-xs shrink-0 bg-sidebar z-10">
+      <div className="h-12 border-b border-sidebar-border px-3.5 flex items-center justify-between font-semibold shadow-2xs shrink-0 bg-sidebar z-10">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-semibold truncate tracking-tight text-foreground">
             {t('Community')}
           </span>
-          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" title="Online" />
         </div>
 
         <DropdownMenu>
@@ -780,14 +779,6 @@ export function CommunityPage() {
               }}
             >
               <Sparkles className="w-4 h-4 mr-2" /> Showcase Template
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                setActiveChannelId('jual-beli-template');
-                onItemClick?.();
-              }}
-            >
-              <Layers className="w-4 h-4 mr-2" /> Jual Beli Template
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
@@ -923,28 +914,33 @@ export function CommunityPage() {
           )}
         </div>
       </div>
+    </div>
+  );
 
-      {/* User Footer Profile Dock (NON-SCROLLABLE BOTTOM BAR) */}
-      <div className="h-14 border-t border-sidebar-border px-3 flex items-center justify-between bg-sidebar-accent/30 shrink-0 z-10">
-        <div className="flex items-center gap-2.5 min-w-0">
+  // Component: User Footer Profile Dock across the entire left rail area (Discord layout)
+  const renderUserBottomDock = () => (
+    <div className="h-16 border-t border-sidebar-border px-2 flex items-center shrink-0 z-10 w-full select-none bg-sidebar">
+      <div className="w-full h-11 px-2 rounded-lg bg-sidebar-accent/50 hover:bg-sidebar-accent/80 transition-colors flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0 flex-1 mr-1.5">
           <CommunityAvatar
             name={currentUserName}
             email={currentUser?.email}
             imageUrl={currentUser?.imageUrl}
-            size={32}
+            size={30}
             status="online"
             showStatus
+            className="shrink-0"
           />
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-semibold truncate leading-tight">
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-xs font-semibold truncate leading-tight text-foreground">
               {currentUserName}
             </span>
-            <span className="text-[10px] text-emerald-500 font-medium">Online</span>
+            <span className="text-[10px] text-emerald-500 font-medium leading-none mt-0.5">Online</span>
           </div>
         </div>
 
         {/* Discord Mic, Headphones, Settings */}
-        <div className="flex items-center gap-0.5 text-muted-foreground">
+        <div className="flex items-center gap-0.5 text-muted-foreground shrink-0">
           <Button
             variant="ghost"
             size="icon"
@@ -1055,23 +1051,32 @@ export function CommunityPage() {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex h-full w-full overflow-hidden bg-background">
-        {/* DESKTOP DISCORD HUB RAIL (compact w-[54px]) */}
-        <div className="hidden lg:flex shrink-0 h-full">
-          {renderDiscordHubRail()}
-        </div>
-
-        {/* DESKTOP CHANNELS SIDEBAR (w-60) */}
-        <div className="hidden lg:flex shrink-0 h-full">
-          {renderChannelsSidebarContent()}
+        {/* DESKTOP COMBINED LEFT SIDEBAR (Mini Hub Rail + Channels List + Full-width Bottom Dock) */}
+        <div className="hidden lg:flex flex-col h-full shrink-0 border-r border-sidebar-border bg-sidebar select-none w-[294px] overflow-hidden">
+          {/* Top section: Split Rail + Channels */}
+          <div className="flex flex-1 min-h-0 w-full overflow-hidden">
+            {renderDiscordHubRail()}
+            <div className="flex-1 min-w-0 h-full flex flex-col">
+              {renderChannelsSidebarContent()}
+            </div>
+          </div>
+          {/* Bottom Dock: Spans across both Rail & Channels */}
+          {renderUserBottomDock()}
         </div>
 
         {/* MOBILE CHANNELS DRAWER */}
         <Sheet open={isMobileChannelsOpen} onOpenChange={setIsMobileChannelsOpen}>
-          <SheetContent side="left" className="p-0 w-80 flex">
-            {renderDiscordHubRail()}
-            <div className="flex-1 flex flex-col h-full">
-              {renderChannelsSidebarContent(() => setIsMobileChannelsOpen(false))}
+          <SheetContent side="left" className="p-0 w-[310px] flex flex-col h-full bg-sidebar">
+            <SheetHeader className="sr-only">
+              <SheetTitle>{t('Navigasi Channel & Hub')}</SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-1 min-h-0 w-full overflow-hidden">
+              {renderDiscordHubRail()}
+              <div className="flex-1 flex flex-col h-full min-w-0">
+                {renderChannelsSidebarContent(() => setIsMobileChannelsOpen(false))}
+              </div>
             </div>
+            {renderUserBottomDock()}
           </SheetContent>
         </Sheet>
 
@@ -1368,8 +1373,8 @@ export function CommunityPage() {
           )}
 
           {/* Chat Input Bar (NON-SCROLLABLE FORM CHAT / BOTTOM BAR) */}
-          <div className="p-3 border-t border-border/40 shrink-0 bg-background/90 backdrop-blur-xs z-10">
-            <div className="flex items-center gap-2 bg-sidebar rounded-lg border border-sidebar-border px-3 py-1.5 focus-within:border-primary/50 transition-colors">
+          <div className="h-16 border-t border-border/40 px-4 flex items-center shrink-0 bg-background/90 backdrop-blur-xs z-10">
+            <div className="w-full h-11 flex items-center gap-1.5 bg-sidebar rounded-lg border border-sidebar-border px-2.5 focus-within:border-primary/50 transition-colors">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -1382,7 +1387,7 @@ export function CommunityPage() {
                 variant="ghost"
                 size="icon"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
                 title="Lampirkan File / Gambar"
               >
                 <Plus className="w-4 h-4" />
@@ -1394,7 +1399,7 @@ export function CommunityPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
                     title="Bagikan Template Otomasi"
                   >
                     <Layers className="w-4 h-4" />
@@ -1444,7 +1449,7 @@ export function CommunityPage() {
                   }
                 }}
                 placeholder={`Pesan ke #${activeChannel.name}...`}
-                className="border-0 shadow-none focus-visible:ring-0 text-xs px-2 h-9 bg-transparent"
+                className="border-0 shadow-none focus-visible:ring-0 text-xs px-2 h-8 bg-transparent flex-1"
               />
 
               {/* Send Button */}
@@ -1453,9 +1458,9 @@ export function CommunityPage() {
                 size="icon"
                 onClick={handleSendMessage}
                 disabled={!inputText.trim() && !stagedAttachment}
-                className="h-8 w-8 shrink-0"
+                className="h-7 w-7 shrink-0"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
