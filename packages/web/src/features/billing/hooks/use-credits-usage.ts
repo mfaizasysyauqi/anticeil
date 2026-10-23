@@ -25,15 +25,26 @@ export function useCreditsUsage(): CreditsUsage {
   }
 
   const usage = platform.usage;
-  const creditsRemaining = usage?.creditsRemaining ?? null;
-  const isUnlimited = isNil(creditsRemaining);
+  const planCredits = platform.plan?.includedCredits;
   const creditsUsed = Math.round(usage?.creditsUsed ?? 0);
-  const total = isUnlimited ? 0 : creditsUsed + Math.round(creditsRemaining);
+  const creditsRemaining = !isNil(planCredits)
+    ? Math.max(0, planCredits - creditsUsed)
+    : (usage?.creditsRemaining ?? null);
+  const isUnlimited = isNil(creditsRemaining);
+  const total = isUnlimited
+    ? 0
+    : (!isNil(planCredits) ? planCredits : creditsUsed + Math.round(creditsRemaining));
   const percentUsed = billingUtils.percentUsed({ used: creditsUsed, total });
 
   return {
     platformId: platform.id,
-    usage,
+    usage: usage
+      ? {
+          ...usage,
+          creditsRemaining,
+          creditsUsed,
+        }
+      : undefined,
     isPlatformAdmin,
     isPaid: billingUtils.isPaidPlan(platform.plan.plan),
     isBillingEnforced: platform.billingEnforced === true,

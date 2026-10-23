@@ -261,10 +261,20 @@ export const platformService = (log: FastifyBaseLogger) => ({
             getPlan(log, platform),
             getBillingEnforced(log, id),
         ])
+        const currentCreditsUsed = usage?.creditsUsed ?? 0
+        const planCredits = plan?.includedCredits
+        const consistentCreditsRemaining = (planCredits !== null && planCredits !== undefined)
+            ? Math.max(0, planCredits - currentCreditsUsed)
+            : usage?.creditsRemaining
+        const coherentUsage = usage ? {
+            ...usage,
+            creditsUsed: currentCreditsUsed,
+            creditsRemaining: consistentCreditsRemaining,
+        } : undefined
         return {
             ...platform,
             federatedAuthProviders: { saml: samlConfigured ? {} : null },
-            usage,
+            usage: coherentUsage,
             billingEnforced,
             plan,
         }

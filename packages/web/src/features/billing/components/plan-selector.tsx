@@ -257,11 +257,6 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
         canary: false,
       };
 
-      setCurrentPlatform(queryClient, {
-        ...platform,
-        plan: updatedPlan as any,
-      });
-
       const planCreditsMap: Record<string, number> = {
         free: 1000,
         plus: 10000,
@@ -269,6 +264,18 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
         enterprise: 1000000,
       };
       const newLimit = planCreditsMap[targetPlanKey] ?? 1000;
+      const currentUsed = platform.usage?.creditsUsed ?? 0;
+      const updatedUsage = {
+        ...platform.usage,
+        creditsUsed: currentUsed,
+        creditsRemaining: Math.max(0, newLimit - currentUsed),
+      };
+
+      setCurrentPlatform(queryClient, {
+        ...platform,
+        plan: updatedPlan as any,
+        usage: updatedUsage as any,
+      });
 
       const updateData = (old: any) => {
         if (!old) return old;
@@ -298,9 +305,14 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
       }
 
       await queryClient.invalidateQueries();
-      await queryClient.refetchQueries({
-        queryKey: billingKeys.platformSubscription(platform.id),
-      });
+      if (platform?.id) {
+        await queryClient.refetchQueries({
+          queryKey: ['platform', platform.id],
+        });
+        await queryClient.refetchQueries({
+          queryKey: billingKeys.platformSubscription(platform.id),
+        });
+      }
 
       toast.success(
         t('Plan {plan} berhasil diaktifkan langsung (Mode Development).', {

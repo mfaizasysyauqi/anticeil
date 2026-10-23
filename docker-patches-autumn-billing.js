@@ -229,8 +229,24 @@ const autumnBillingProvider = (log) => ({
     },
     getConsumablesUsage: async (platformId) => {
         const { credits, appSumo } = await resolveCreditsCache(log, platformId);
+        const platformPlan = await (0, platform_plan_service_1.platformPlanService)(log).getOrCreateForPlatform(platformId);
+        const planKey = (platformPlan?.plan ?? 'free').toLowerCase();
+        const isEnterprise = planKey.includes('enterprise');
+        const isTeam = planKey.includes('team');
+        const isPlus = planKey.includes('plus');
+        const limit = platformPlan?.includedCredits ?? (isEnterprise ? 1000000 : (isTeam ? 50000 : (isPlus ? 10000 : 1000)));
+        const currentCredits = toCreditsUsage(credits);
+        const currentUsage = currentCredits?.usage ?? 0;
+        const effectiveCredits = currentCredits ? {
+            ...currentCredits,
+            remaining: Math.max(0, limit - currentUsage),
+        } : {
+            usage: currentUsage,
+            remaining: Math.max(0, limit - currentUsage),
+            nextResetAt: (0, server_utils_1.apDayjs)().endOf('month').toISOString(),
+        };
         return {
-            credits: toCreditsUsage(credits),
+            credits: effectiveCredits,
             appSumo: toAppSumoAiCreditsUsage(appSumo),
         };
     },
@@ -479,7 +495,7 @@ async function readCachedCredits(platformId) {
     const currentMonth = (0, server_utils_1.apDayjs)().format('YYYY-MM');
     const usageKey = `anticeil:credits_usage:${platformId}:${currentMonth}`;
     const currentUsage = (await redis_connections_1.distributedStore.get(usageKey)) ?? 0;
-    if ((0, core_utils_1.isNil)(credits) || credits.granted !== limit) {
+    if ((0, core_utils_1.isNil)(credits) || credits.granted !== limit || credits.remaining < Math.max(0, limit - currentUsage)) {
         credits = {
             featureId: shared_1.ConsumableFeatureId.AP_CREDITS,
             granted: limit,

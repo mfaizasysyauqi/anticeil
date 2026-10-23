@@ -50,8 +50,16 @@ export const SidebarUsageLimits = React.memo(() => {
     true,
   );
 
-  const effectiveCreditsRemaining = creditsRemaining ?? 1000;
+  const effectiveCreditsRemaining =
+    info?.usage?.creditsRemaining ?? creditsRemaining ?? 1000;
   const creditsText = billingUtils.formatCredits(effectiveCreditsRemaining);
+  const effectivePercentUsed =
+    !isNil(info?.usage?.creditsRemaining) && !isNil(info?.usage?.creditsUsed)
+      ? billingUtils.percentUsed({
+          used: info.usage.creditsUsed,
+          total: info.usage.creditsUsed + info.usage.creditsRemaining,
+        })
+      : percentUsed;
   const resetLine = billingUtils.resolveCreditsReset({
     creditsNextResetAt: usage?.creditsNextResetAt,
     creditsResetInterval: info?.creditsResetInterval ?? 'month',
@@ -71,7 +79,7 @@ export const SidebarUsageLimits = React.memo(() => {
             flowRunUtils.getStatusContainerClassName(severity),
           )}
         >
-          {t('{percent}% used', { percent: percentUsed })}
+          {t('{percent}% used', { percent: effectivePercentUsed })}
         </Badge>
       </div>
       <div className="flex items-center gap-2">

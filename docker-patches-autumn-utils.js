@@ -234,9 +234,12 @@ exports.autumnUtils = {
     async writeCustomerStateCaches({ platformId, customer, grantedFeatureIds }) {
         const creditsBalance = customer.balances[shared_1.ConsumableFeatureId.AP_CREDITS];
         const appSumoBalance = customer.balances[shared_1.ConsumableFeatureId.APP_SUMO_AI_CREDITS];
+        const platformPlan = await (0, platform_plan_service_1.platformPlanService)(system_1.system.globalLogger()).getOrCreateForPlatform(platformId);
+        const planKey = (platformPlan?.plan ?? 'free').toLowerCase();
+        const hasPaidPlan = planKey.includes('plus') || planKey.includes('team') || planKey.includes('enterprise');
         await Promise.all([
             redis_connections_1.distributedStore.put((0, keys_1.getBillingEnforcedKey)(platformId), exports.autumnUtils.billingEnforcedFromGrantedFeatureIds(grantedFeatureIds), keys_1.BILLING_ENFORCED_TTL_SECONDS),
-            (0, core_utils_1.isNil)(creditsBalance) ? Promise.resolve() : exports.autumnUtils.writeBalance({ platformId, featureId: shared_1.ConsumableFeatureId.AP_CREDITS, balance: creditsBalance }),
+            ((0, core_utils_1.isNil)(creditsBalance) || hasPaidPlan) ? Promise.resolve() : exports.autumnUtils.writeBalance({ platformId, featureId: shared_1.ConsumableFeatureId.AP_CREDITS, balance: creditsBalance }),
             (0, core_utils_1.isNil)(appSumoBalance) ? Promise.resolve() : exports.autumnUtils.writeBalance({ platformId, featureId: shared_1.ConsumableFeatureId.APP_SUMO_AI_CREDITS, balance: appSumoBalance }),
         ]);
         return {
