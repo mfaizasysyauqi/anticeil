@@ -38,8 +38,8 @@ export const CreditsInfoDialog = () => {
         aria-describedby={undefined}
         className="max-w-[625px] gap-0 overflow-hidden p-0"
       >
-        <div className="relative flex shrink-0 flex-col items-center justify-center gap-2 overflow-hidden border-b bg-violet-50 px-6 py-12 dark:bg-violet-950/30">
-          <DialogTitle className="relative flex items-center gap-2 text-2xl font-bold text-purple-900 dark:text-purple-200">
+        <div className="relative flex shrink-0 flex-col items-center justify-center gap-2 overflow-hidden border-b bg-teal-50 px-6 py-12 dark:bg-teal-950/30">
+          <DialogTitle className="relative flex items-center gap-2 text-2xl font-bold text-teal-900 dark:text-teal-200">
             <Coins className="size-6" />
             {t('Credits FAQ')}
           </DialogTitle>

@@ -73,9 +73,9 @@ export const LockedFeatureGuard = ({
       {/* Foreground Floating Unlock Dialog Card */}
       <div className="absolute inset-0 grid place-items-center overflow-auto p-6 z-20">
         <div className="pointer-events-auto flex w-full max-w-md flex-col items-center text-center gap-4 p-8 rounded-2xl border border-border/80 bg-card/95 backdrop-blur-md shadow-2xl">
-          {/* Lock Icon inside purple square */}
-          <div className="grid size-12 place-items-center rounded-xl bg-purple-950/70 border border-purple-800/60 text-purple-400 mb-1 shadow-inner">
-            <Lock className="size-6 text-purple-300" />
+          {/* Lock Icon inside teal square */}
+          <div className="grid size-12 place-items-center rounded-xl bg-teal-950/70 border border-teal-800/60 text-teal-400 mb-1 shadow-inner">
+            <Lock className="size-6 text-teal-300" />
           </div>
 
           <div className="flex flex-col gap-2">
@@ -93,7 +93,7 @@ export const LockedFeatureGuard = ({
 
           <div className="w-full flex flex-col gap-3 mt-2">
             <Button
-              className="w-full bg-[#6c47ff] hover:bg-[#5936e8] text-white font-medium py-2.5 rounded-lg shadow-lg shadow-purple-900/25 transition-all"
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 rounded-lg shadow-lg shadow-teal-900/25 transition-all"
               onClick={() => openManagePlanDialog()}
             >
               {t('Upgrade to {tier}', { tier })}

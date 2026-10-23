@@ -47,6 +47,8 @@ export function generateTheme({
         return url;
     }
 
+    const primary = generateColorVariations(primaryColor)
+
     return {
         websiteName: websiteName === 'Activepieces' ? 'Anticeil' : websiteName,
         colors: {
@@ -79,7 +81,7 @@ export function generateTheme({
 }
 
 export const defaultTheme = generateTheme({
-    primaryColor: '#0073EA',
+    primaryColor: '#0d9488',
     websiteName: 'Anticeil',
     fullLogoUrl: '/logo.png',
     favIconUrl: '/logo.png',

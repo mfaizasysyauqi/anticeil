@@ -6,5 +6,5 @@ export const adminSurface = {
   listFrame: 'rounded-xl border border-border/60 bg-card/60 shadow-xs',
   saveBar: 'border-t border-border/60 bg-background/95 backdrop-blur-md',
   lockedOverlay: 'rounded-xl border border-border/80 bg-card/95 backdrop-blur-md',
-  lockedInline: 'rounded-xl border border-purple-500/30 bg-purple-950/20 text-purple-300',
+  lockedInline: 'rounded-xl border border-teal-500/30 bg-teal-950/20 text-teal-300',
 } as const;

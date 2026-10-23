@@ -75,6 +75,7 @@ import { AccountSettingsDialog } from '../account-settings';
 import { recordAccess } from '../global-search/access-history';
 import { useGlobalSearch } from '../global-search/global-search-context';
 import { HelpAndFeedback } from '../help-and-feedback';
+import { MCP_CLIENT_BRANDING } from '../../routes/mcp-server/mcp-client-display';
 
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { SidebarUsageLimits } from '@/features/billing/components/sidebar-usage-limits';
@@ -146,9 +147,27 @@ export function PrimaryRail() {
                 to="/mcp-server"
                 icon={Unplug}
                 label={t('MCP')}
+                badge={<McpClientLogos />}
                 isActive={({ pathname }) => pathname.startsWith('/mcp-server')}
               />
             )}
+          </div>
+
+          {((platform?.plan?.chatEnabled ?? true) || checkAccess(Permission.READ_MCP)) && (
+            <div
+              className={cn(
+                'my-1.5 h-px shrink-0 bg-sidebar-border',
+                collapsed ? 'w-6' : 'mx-1',
+              )}
+            />
+          )}
+
+          <div
+            className={cn(
+              'flex shrink-0 flex-col gap-1',
+              collapsed && 'items-center',
+            )}
+          >
             <RailNavButton
               collapsed={collapsed}
               to="/agents"
@@ -176,10 +195,18 @@ export function PrimaryRail() {
               label={t('Impact')}
               isActive={({ pathname }) => pathname.startsWith('/impact')}
             />
-
           </div>
+
           {authenticationSession.isLoggedIn() && (
-            <RailPinnedProjects collapsed={collapsed} />
+            <>
+              <div
+                className={cn(
+                  'my-1.5 h-px shrink-0 bg-sidebar-border',
+                  collapsed ? 'w-6' : 'mx-1',
+                )}
+              />
+              <RailPinnedProjects collapsed={collapsed} />
+            </>
           )}
         </div>
 
@@ -249,10 +276,18 @@ export function MobilePrimaryRailSheet({
                   to="/mcp-server"
                   icon={Unplug}
                   label={t('MCP')}
+                  badge={<McpClientLogos />}
                   isActive={({ pathname }) => pathname.startsWith('/mcp-server')}
                   onClick={handleNavigate}
                 />
               )}
+            </div>
+
+            {((platform?.plan?.chatEnabled ?? true) || checkAccess(Permission.READ_MCP)) && (
+              <div className="my-1.5 mx-1 h-px shrink-0 bg-sidebar-border" />
+            )}
+
+            <div className="flex shrink-0 flex-col gap-1">
               <RailNavButton
                 collapsed={false}
                 to="/agents"
@@ -283,9 +318,14 @@ export function MobilePrimaryRailSheet({
                 isActive={({ pathname }) => pathname.startsWith('/impact')}
                 onClick={handleNavigate}
               />
-
             </div>
-            <RailPinnedProjects collapsed={false} />
+
+            {authenticationSession.isLoggedIn() && (
+              <>
+                <div className="my-1.5 mx-1 h-px shrink-0 bg-sidebar-border" />
+                <RailPinnedProjects collapsed={false} />
+              </>
+            )}
           </div>
 
           <div className="mt-auto flex flex-col gap-1.5 w-full">
@@ -458,6 +498,27 @@ function RailHeader({
 }
 
 
+const MCP_SIDEBAR_CLIENTS = ['claude', 'chatgpt', 'cursor'] as const;
+
+function McpClientLogos() {
+  return (
+    <span aria-hidden className="ml-auto flex shrink-0 items-center gap-1">
+      {MCP_SIDEBAR_CLIENTS.map((client) => (
+        <span
+          key={client}
+          className="flex size-[18px] shrink-0 items-center justify-center overflow-hidden rounded-[4px] border border-sidebar-border bg-sidebar-accent/50 p-[1.5px]"
+        >
+          <img
+            src={MCP_CLIENT_BRANDING[client].icon}
+            alt=""
+            className="size-3.5 object-contain"
+          />
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function RailNavButton({
   collapsed,
   to,
@@ -497,7 +558,7 @@ function RailNavButton({
       aria-label={label}
       onClick={handleClick}
       className={cn(
-        'flex shrink-0 items-center gap-3 rounded-full text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground',
+        'flex shrink-0 items-center gap-3 rounded-lg text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors',
         collapsed ? 'size-9 cursor-pointer justify-center' : 'h-10 px-3',
         active && 'bg-sidebar-accent font-medium text-sidebar-foreground',
       )}
@@ -574,19 +635,13 @@ function RailPinnedProjectsInner({ collapsed }: { collapsed: boolean }) {
   return (
     <div
       className={cn(
-        'mt-2 flex min-h-0 flex-1 flex-col',
+        'flex min-h-0 flex-1 flex-col',
         collapsed && 'items-center',
       )}
     >
-      <div
-        className={cn(
-          'mb-1 h-px shrink-0 bg-sidebar-border',
-          collapsed ? 'w-6' : 'mx-3',
-        )}
-      />
       {!collapsed && (
-        <div className="flex shrink-0 items-center gap-1 py-0.5 pl-3 pr-1">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-sidebar-foreground/50">
+        <div className="flex shrink-0 items-center gap-1 py-1 pl-3 pr-1">
+          <span className="flex-1 truncate text-xs font-medium text-sidebar-foreground/70">
             {t('Projects')}
           </span>
           <div className="ml-auto flex items-center gap-0.5">
@@ -669,7 +724,7 @@ function ProjectRow({
       }}
       aria-label={name}
       className={cn(
-        'flex shrink-0 items-center gap-3 rounded-full text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground',
+        'flex shrink-0 items-center gap-3 rounded-lg text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors',
         collapsed ? 'size-9 cursor-pointer justify-center' : 'h-9 w-full px-3',
         active && 'bg-sidebar-accent font-medium text-sidebar-foreground',
       )}

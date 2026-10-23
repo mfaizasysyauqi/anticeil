@@ -502,12 +502,12 @@ body,
     --border: rgba(0, 0, 0, 0.08);
     --input: rgba(0, 0, 0, 0.08);
 
-    --ring: rgba(0, 115, 234, 0.45);
+    --ring: rgba(13, 148, 136, 0.45);
     --radius: 0.5rem;
 
-    --primary-100: 210 100% 92%;
-    --primary: 210 100% 46%; /* #0073EA Anticeil Blue */
-    --primary-300: 210 100% 28%;
+    --primary-100: 173 80% 92%;
+    --primary: 175 84% 32%; /* #0d9488 Anticeil Teal */
+    --primary-300: 175 84% 20%;
     --primary-foreground: 0 0% 100%;
 
     /* Success — Emerald */
@@ -564,12 +564,12 @@ body,
 
     --sidebar-background: #f2f2ef;
     --sidebar-foreground: #1a1a1a;
-    --sidebar-primary: 210 100% 46%;
+    --sidebar-primary: 175 84% 32%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: rgba(0, 0, 0, 0.05);
     --sidebar-accent-foreground: #1a1a1a;
     --sidebar-border: rgba(0, 0, 0, 0.08);
-    --sidebar-ring: rgba(0, 115, 234, 0.45);
+    --sidebar-ring: rgba(13, 148, 136, 0.45);
     --sidebar-progress: 0 0% 50%;
     --builder-background: #fbfbfb;
     --builder-background-pattern: #b2b2b2;
@@ -590,9 +590,9 @@ body,
     --accent: rgba(255, 255, 255, 0.08);
     --accent-foreground: #f0f0f0;
 
-    --primary-100: 210 100% 25%;
-    --primary: 210 100% 55%; /* Anticeil Blue tuned for dark mode */
-    --primary-300: 210 100% 80%;
+    --primary-100: 175 84% 20%;
+    --primary: 173 80% 40%; /* #14b8a6 Anticeil Teal for dark mode */
+    --primary-300: 173 80% 80%;
     --primary-foreground: 0 0% 100%;
 
     --success: var(--success-400);
@@ -616,7 +616,7 @@ body,
     --border: rgba(255, 255, 255, 0.12);
     --input: rgba(255, 255, 255, 0.12);
 
-    --ring: rgba(0, 115, 234, 0.5);
+    --ring: rgba(20, 184, 166, 0.5);
     --radius: 0.5rem;
 
     --add-button-shadow: 0 0 0 6px hsl(var(--primary-100) / 0.4);
@@ -629,12 +629,12 @@ body,
 
     --sidebar-background: #141414; /* Anticeil sidebar panel */
     --sidebar-foreground: #f0f0f0;
-    --sidebar-primary: 210 100% 46%;
+    --sidebar-primary: 173 80% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: rgba(255, 255, 255, 0.08);
     --sidebar-accent-foreground: #f0f0f0;
     --sidebar-border: rgba(255, 255, 255, 0.12);
-    --sidebar-ring: rgba(0, 115, 234, 0.5);
+    --sidebar-ring: rgba(20, 184, 166, 0.5);
     --sidebar-progress: 210 15% 55%;
     --builder-background: #171717;
     --builder-background-pattern: rgba(255, 255, 255, 0.10);
