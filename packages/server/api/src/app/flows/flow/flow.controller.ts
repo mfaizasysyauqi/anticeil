@@ -87,7 +87,7 @@ export const flowController: FastifyPluginAsyncZod = async (app) => {
                 projectId: request.projectId,
             })
         }
-        return flowService(request.log).update({
+        const updatedFlow = await flowService(request.log).update({
             id: request.params.id,
             userId: actorUserId(request),
             platformId: request.principal.platform.id,
@@ -96,6 +96,18 @@ export const flowController: FastifyPluginAsyncZod = async (app) => {
             previousFlow: flow,
             ip: networkUtils.clientIp(request),
         })
+        try {
+            const { websocketService } = await import('../../core/websockets.service')
+            websocketService.to(request.projectId).emit('FLOW_UPDATED', {
+                flowId: request.params.id,
+                userId: actorUserId(request),
+                version: updatedFlow.version,
+            })
+        }
+        catch (e) {
+            request.log.error({ error: e }, '[FLOW_UPDATED] Failed to broadcast flow update')
+        }
+        return updatedFlow
     })
 
     app.get('/', ListFlowsRequestOptions, async (request) => {

@@ -97,7 +97,7 @@ export const presenceModule: FastifyPluginAsyncZod = async (app) => {
             if (!request.success) {
                 return
             }
-            const { resourceId, x, y, selectedStep } = request.data
+            const { resourceId, x, y, selectedStep, clientId } = request.data
             try {
                 // Ensure project's platform is on Plan Plus or above
                 const project = await projectService(app.log).getOneOrThrow(projectId)
@@ -110,6 +110,10 @@ export const presenceModule: FastifyPluginAsyncZod = async (app) => {
                 const user = await userService(app.log).getMetaInformation({ id: principal.id })
                 const displayName = `${user.firstName} ${user.lastName}`
 
+                if (clientId) {
+                    socket.data.clientId = clientId
+                }
+
                 // Broadcast cursor position and selected step to other collaborators in the project room
                 socket.to(projectId).emit(WebsocketClientEvent.CURSOR_UPDATED, {
                     resourceId,
@@ -120,6 +124,8 @@ export const presenceModule: FastifyPluginAsyncZod = async (app) => {
                     x,
                     y,
                     selectedStep: selectedStep ?? null,
+                    socketId: socket.id,
+                    clientId: clientId ?? socket.id,
                 })
             }
             catch (error) {
@@ -154,6 +160,8 @@ function registerPresenceDisconnectHandler({ socket, userId, projectId, app }: R
                 userDisplayName: '',
                 x: null,
                 y: null,
+                socketId: socket.id,
+                clientId: (socket.data.clientId as string | undefined) ?? socket.id,
             })
         }
     })

@@ -90,20 +90,27 @@ const ApBigAddButtonCanvasNode = React.memo(
                         )}
                         id={id}
                       >
-                        <span>
                           <Button
                             variant="transparent"
-                            className="w-full h-full flex items-center hover:bg-accent-foreground rounded-lg border-border border-solid border"
+                            className={cn(
+                              'w-full h-full flex items-center hover:bg-accent-foreground rounded-lg border-border border-solid border',
+                              {
+                                'bg-primary border-primary text-white hover:bg-primary':
+                                  isPieceSelectorOpened,
+                              },
+                            )}
                           >
                             <Plus
-                              className={cn('w-6 h-6 text-foreground ', {
-                                'opacity-0':
-                                  isShowingDropIndicator ||
-                                  isPieceSelectorOpened,
-                              })}
+                              className={cn(
+                                'w-6 h-6 stroke-[2.5px] transition-colors',
+                                isPieceSelectorOpened
+                                  ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]'
+                                  : isShowingDropIndicator
+                                  ? 'opacity-0'
+                                  : 'text-foreground',
+                              )}
                             />
                           </Button>
-                        </span>
                       </PieceSelector>
                     )}
                   </div>

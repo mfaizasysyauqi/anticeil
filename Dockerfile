@@ -23,6 +23,8 @@ COPY docker-patches-ee-authorization.js /usr/src/app/packages/server/api/dist/sr
 COPY docker-patches-ee-authorization.js /usr/src/app/packages/server/api/dist/src/app/ee/authentication/ee-authorization.js
 COPY docker-patches-platform-project-service.js /usr/src/app/packages/server/api/dist/src/app/ee/projects/platform-project-service.js
 COPY docker-patches-platform-user-controller.js /usr/src/app/packages/server/api/dist/src/app/user/platform/platform-user-controller.js
+COPY docker-patches-presence-module.js /usr/src/app/packages/server/api/dist/src/app/core/collaborative/presence/presence.module.js
+COPY docker-patches-flow-controller.js /usr/src/app/packages/server/api/dist/src/app/flows/flow/flow.controller.js
 # Layer custom Anticeil frontend build onto official stable Activepieces image
 COPY dist/packages/web/ /usr/src/app/dist/packages/web/
 

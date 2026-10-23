@@ -110,14 +110,19 @@ const ApAddButton = React.memo((props: ApButtonData) => {
                 className={cn(
                   'bg-card border border-border border-solid relative group overflow-visible rounded-md cursor-pointer flex items-center justify-center transition-all duration-300 ease-in-out shadow-xs hover:border-primary',
                   {
-                    'bg-primary border-primary': isPieceSelectorOpen,
+                    'bg-primary border-primary text-white': isPieceSelectorOpen,
                   },
                 )}
                 data-testid="add-action-button"
               >
-                {!isPieceSelectorOpen && (
-                  <Plus className="w-3 h-3 stroke-[3px] text-foreground" />
-                )}
+                <Plus
+                  className={cn(
+                    'w-3.5 h-3.5 stroke-[3px] transition-colors',
+                    isPieceSelectorOpen
+                      ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]'
+                      : 'text-foreground group-hover:text-primary',
+                  )}
+                />
               </div>
             </div>
           </div>

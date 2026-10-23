@@ -15,6 +15,7 @@ export enum WebsocketClientEvent {
     CURSOR_UPDATED = 'CURSOR_UPDATED',
     CHAT_MESSAGE_CHUNK = 'CHAT_MESSAGE_CHUNK',
     CHAT_PERSONALIZATION_PROGRESS = 'CHAT_PERSONALIZATION_PROGRESS',
+    FLOW_UPDATED = 'FLOW_UPDATED',
 }
 
 export enum WebsocketServerEvent {
@@ -78,6 +79,7 @@ export const CursorMoveRequest = z.object({
     x: z.number().nullable(),
     y: z.number().nullable(),
     selectedStep: z.string().nullable().optional(),
+    clientId: z.string().optional(),
 })
 
 export const CursorUpdatedEvent = z.object({
@@ -89,6 +91,8 @@ export const CursorUpdatedEvent = z.object({
     x: z.number().nullable(),
     y: z.number().nullable(),
     selectedStep: z.string().nullable().optional(),
+    socketId: z.string().optional(),
+    clientId: z.string().optional(),
 })
 
 export type LockResourceRequest = z.infer<typeof LockResourceRequest>

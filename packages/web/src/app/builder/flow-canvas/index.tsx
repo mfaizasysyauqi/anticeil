@@ -35,6 +35,10 @@ import { FlowDragLayer } from './flow-drag-layer';
 import { flowCanvasHooks } from './hooks';
 import { flowCanvasConsts } from './utils/consts';
 import { flowCanvasUtils } from './utils/flow-canvas-utils';
+import { useQueryClient } from '@tanstack/react-query';
+import { useSocket } from '@/components/providers/socket-provider';
+import { getTabClientId } from '@/hooks/use-realtime-cursors';
+import { WebsocketClientEvent } from '@activepieces/shared';
 import { AboveFlowWidgets } from './widgets';
 import Minimap from './widgets/minimap';
 import { useShowChevronNextToSelection } from './widgets/selection-chevron-button';
@@ -47,6 +51,7 @@ export const FlowCanvas = React.memo(
     setHasCanvasBeenInitialised: (value: boolean) => void;
   }) => {
     const [
+      flow,
       flowVersion,
       setSelectedNodes,
       selectedNodes,
@@ -56,8 +61,10 @@ export const FlowCanvas = React.memo(
       rightSidebar,
       notes,
       canvasOrientation,
+      setVersion,
     ] = useBuilderStateContext((state) => {
       return [
+        state.flow,
         state.flowVersion,
         state.setSelectedNodes,
         state.selectedNodes,
@@ -67,8 +74,42 @@ export const FlowCanvas = React.memo(
         state.rightSidebar,
         state.flowVersion?.notes,
         state.canvasOrientation,
+        state.setVersion,
       ];
     });
+
+    const socket = useSocket();
+    const queryClient = useQueryClient();
+
+    // Listen for realtime workflow modifications made by other tabs or collaborators
+    useEffect(() => {
+      if (!flow?.id || !socket) return;
+
+      const handleFlowUpdated = (event: {
+        flowId: string;
+        userId?: string;
+        socketId?: string;
+        clientId?: string;
+        version: FlowVersion;
+      }) => {
+        if (event.flowId !== flow.id) return;
+        const myTabId = getTabClientId();
+        if (event.clientId && event.clientId === myTabId) return;
+
+        if (event.version) {
+          setVersion(event.version, false);
+          queryClient.invalidateQueries({ queryKey: ['flow', flow.id] });
+        }
+      };
+
+      socket.on(WebsocketClientEvent.FLOW_UPDATED, handleFlowUpdated);
+      socket.on('FLOW_UPDATED', handleFlowUpdated);
+
+      return () => {
+        socket.off(WebsocketClientEvent.FLOW_UPDATED, handleFlowUpdated);
+        socket.off('FLOW_UPDATED', handleFlowUpdated);
+      };
+    }, [flow?.id, socket, setVersion, queryClient]);
     const containerRef = useRef<HTMLDivElement>(null);
     useShowChevronNextToSelection();
     flowCanvasHooks.useFocusOnStep();
@@ -250,7 +291,7 @@ export const FlowCanvas = React.memo(
             >
               <AboveFlowWidgets></AboveFlowWidgets>
               <RealtimeCanvasCursors
-                resourceId={flowVersion.id}
+                resourceId={flow.id}
                 selectedStep={selectedStep}
                 containerRef={containerRef}
               />

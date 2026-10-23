@@ -22,7 +22,14 @@ function usePresence({ resourceId }: { resourceId: string }): PresenceUser[] {
 
     const handlePresenceUpdated = (event: PresenceUpdatedEvent) => {
       if (event.resourceId === resourceId) {
-        setActiveUsers(event.users.filter((u) => u.userId !== currentUserId));
+        const others = event.users.filter((u) => u.userId !== currentUserId);
+        if (others.length > 0) {
+          setActiveUsers(others);
+        } else if (event.users.length > 1) {
+          setActiveUsers(event.users);
+        } else {
+          setActiveUsers([]);
+        }
       }
     };
 
@@ -43,9 +50,14 @@ function usePresence({ resourceId }: { resourceId: string }): PresenceUser[] {
       { resourceId },
       (response: { users: PresenceUser[] }) => {
         if (response?.users) {
-          setActiveUsers(
-            response.users.filter((u) => u.userId !== currentUserId),
-          );
+          const others = response.users.filter((u) => u.userId !== currentUserId);
+          if (others.length > 0) {
+            setActiveUsers(others);
+          } else if (response.users.length > 1) {
+            setActiveUsers(response.users);
+          } else {
+            setActiveUsers([]);
+          }
         }
       },
     );

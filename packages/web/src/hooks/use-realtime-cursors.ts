@@ -43,6 +43,15 @@ export function getCursorColor(userId: string): string {
 const INACTIVITY_TIMEOUT_MS = 4000;
 const THROTTLE_MS = 35; // ~28 fps for responsive cursor motion
 
+export const getTabClientId = (): string => {
+  if (typeof window === 'undefined') return 'server';
+  if (!(window as any).__AP_TAB_CLIENT_ID) {
+    (window as any).__AP_TAB_CLIENT_ID =
+      'tab_' + Math.random().toString(36).slice(2, 9) + '_' + Date.now().toString(36);
+  }
+  return (window as any).__AP_TAB_CLIENT_ID;
+};
+
 export function useRealtimeCursors({
   resourceId,
   selectedStep,
@@ -65,30 +74,44 @@ export function useRealtimeCursors({
     }
 
     const handleCursorUpdated = (event: CursorUpdatedEvent) => {
-      if (event.resourceId !== resourceId || event.userId === currentUserId) {
+      if (event.resourceId !== resourceId) {
         return;
       }
 
+      const myTabId = getTabClientId();
+      // Ignore cursor events from this exact tab
+      if (event.clientId && event.clientId === myTabId) {
+        return;
+      }
+
+      // Unique identifier for the cursor: clientId -> socketId -> userId
+      const cursorKey = event.clientId || event.socketId || event.userId;
+
       if (event.x === null || event.y === null) {
         setCursors((prev) => {
-          if (!prev[event.userId]) return prev;
+          if (!prev[cursorKey]) return prev;
           const next = { ...prev };
-          delete next[event.userId];
+          delete next[cursorKey];
           return next;
         });
         return;
       }
 
+      const isSameUserAnotherTab = Boolean(currentUserId && event.userId === currentUserId);
+      const userDisplayName = isSameUserAnotherTab
+        ? `${event.userDisplayName || 'You'} (Tab)`
+        : event.userDisplayName || 'Collaborator';
+
       setCursors((prev) => ({
         ...prev,
-        [event.userId]: {
-          userId: event.userId,
-          userDisplayName: event.userDisplayName || 'Collaborator',
+        [cursorKey]: {
+          userId: cursorKey,
+          userDisplayName,
           userImageUrl: event.userImageUrl,
           x: event.x!,
           y: event.y!,
           selectedStep: event.selectedStep ?? null,
-          color: getCursorColor(event.userId),
+          color: getCursorColor(cursorKey),
           lastSeen: Date.now(),
         },
       }));
@@ -135,6 +158,7 @@ export function useRealtimeCursors({
           x: null,
           y: null,
           selectedStep: selectedStep ?? null,
+          clientId: getTabClientId(),
         });
         return;
       }
@@ -147,6 +171,7 @@ export function useRealtimeCursors({
           x,
           y,
           selectedStep: selectedStep ?? null,
+          clientId: getTabClientId(),
         });
       } else {
         pendingPosRef.current = { x, y };
@@ -169,6 +194,7 @@ export function useRealtimeCursors({
           x,
           y,
           selectedStep: selectedStep ?? null,
+          clientId: getTabClientId(),
         });
       }
     }, THROTTLE_MS);
@@ -184,6 +210,7 @@ export function useRealtimeCursors({
           resourceId,
           x: null,
           y: null,
+          clientId: getTabClientId(),
         });
       }
     };
