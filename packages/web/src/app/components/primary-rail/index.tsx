@@ -544,6 +544,7 @@ function RailNavButton({
   to,
   icon: Icon,
   label,
+  badge,
   isActive,
   onClick,
 }: {
@@ -551,6 +552,7 @@ function RailNavButton({
   to: string;
   icon: ComponentType<{ className?: string }>;
   label: string;
+  badge?: React.ReactNode;
   isActive: (location: { pathname: string; search: string }) => boolean;
   onClick?: () => void;
 }) {
@@ -584,7 +586,8 @@ function RailNavButton({
       )}
     >
       <Icon className={cn('size-[18px] shrink-0', active && 'text-primary')} />
-      {!collapsed && <span className="truncate">{label}</span>}
+      {!collapsed && <span className="truncate flex-1">{label}</span>}
+      {!collapsed && badge}
     </Link>
   );
 

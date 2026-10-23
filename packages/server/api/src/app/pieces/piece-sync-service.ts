@@ -78,11 +78,9 @@ export const pieceSyncService = (log: FastifyBaseLogger) => ({
     },
 })
 
-async function deletePiecesIfNotOnCloud(dbPieces: PieceMetadataOnly[], cloudPieces: PieceRegistryResponse[], log: FastifyBaseLogger): Promise<number> {
-    const cloudMap = new Map<string, true>(cloudPieces.map(cloudPiece => [`${cloudPiece.name}:${cloudPiece.version}`, true]))
-    const piecesToDelete = dbPieces.filter(piece => piece.pieceType === PieceType.OFFICIAL && !cloudMap.has(`${piece.name}:${piece.version}`))
-    await pieceMetadataService(log).bulkDelete(piecesToDelete.map(piece => ({ name: piece.name, version: piece.version })))
-    return piecesToDelete.length
+async function deletePiecesIfNotOnCloud(dbPieces: PieceMetadataOnly[], _cloudPieces: PieceRegistryResponse[], log: FastifyBaseLogger): Promise<number> {
+    log.info({ existingPieceCount: dbPieces.length }, '[Anticeil Decoupling Safeguard] Preserving all existing pieces in local database (bulkDelete permanently disabled)')
+    return 0
 }
 
 async function installNewPieces(cloudPieces: PieceRegistryResponse[], dbPieces: PieceMetadataOnly[], log: FastifyBaseLogger, _publishCacheRefresh: boolean): Promise<{ added: number, fetchFailed: number }> {
