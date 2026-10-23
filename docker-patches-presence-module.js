@@ -14,6 +14,7 @@ const CURSOR_UPDATED_EVENT = (shared_1.WebsocketClientEvent && shared_1.Websocke
 const FLOW_UPDATED_EVENT = (shared_1.WebsocketClientEvent && shared_1.WebsocketClientEvent.FLOW_UPDATED) || 'FLOW_UPDATED';
 
 const presenceModule = async (app) => {
+    await setupCommunityApi(app);
     // Hook on Fastify responses: when a flow is updated via HTTP POST /api/v1/flows/:id, broadcast FLOW_UPDATED
     app.addHook('onSend', async (request, reply, payload) => {
         if (request.method === 'POST' && typeof request.url === 'string' && request.url.includes('/flows/') && reply.statusCode < 300) {
@@ -217,3 +218,523 @@ function registerPresenceDisconnectHandler({ socket, userId, projectId, app }) {
         }
     });
 }
+
+// ==========================================
+// ANTICEIL COMMUNITY API & REALTIME ENGINE
+// ==========================================
+async function setupCommunityApi(app) {
+    let dbReady = false;
+    const memoryChannels = [
+        { id: 'umum', name: 'umum', description: 'Ruang obrolan umum seputar otomatisasi, AI builder, dan inovasi platform Anticeil.', category: 'CHANNELS', hub_id: 'anticeil', is_direct_message: false },
+        { id: 'showcase-template', name: 'showcase-template', description: 'Pamerkan alur otomatisasi buatanmu, dapatkan feedback, dan bagikan template gratis.', category: 'CHANNELS', hub_id: 'anticeil', is_direct_message: false },
+        { id: 'jual-beli-template', name: 'jual-beli-template', description: 'Marketplace komunitas: jual atau beli workflow premium dan request otomasi custom.', category: 'CHANNELS', hub_id: 'anticeil', is_direct_message: false },
+        { id: 'tanya-jawab', name: 'tanya-jawab', description: 'Tanya jawab seputar webhook, API keys, error workflow, dan integrasi 770+ pieces.', category: 'CHANNELS', hub_id: 'anticeil', is_direct_message: false },
+        { id: 'ai-agents-discussion', name: 'ai-agents', description: 'Diskusi seputar agen otonom, tool calling, dan multi-agent coordination.', category: 'CHANNELS', hub_id: 'ai-agents', is_direct_message: false },
+        { id: 'prompt-engineering', name: 'prompt-engineering', description: 'Berbagi system prompts terbaik untuk coding, support, dan automations.', category: 'CHANNELS', hub_id: 'ai-agents', is_direct_message: false },
+        { id: 'mcp-builders', name: 'mcp-builders', description: 'Eksplorasi Model Context Protocol dan integrasi server MCP Anticeil.', category: 'CHANNELS', hub_id: 'ai-agents', is_direct_message: false },
+        { id: 'free-workflows', name: 'free-workflows', description: 'Koleksi template gratis siap pakai untuk UMKM dan bisnis.', category: 'CHANNELS', hub_id: 'templates', is_direct_message: false },
+        { id: 'enterprise-solutions', name: 'enterprise-solutions', description: 'Solusi otomatisasi skala besar, OCR invoice, ERP & banking sync.', category: 'CHANNELS', hub_id: 'templates', is_direct_message: false },
+        { id: 'workflow-critique', name: 'workflow-critique', description: 'Minta review arsitektur alur kerja dari para master builder Anticeil.', category: 'CHANNELS', hub_id: 'templates', is_direct_message: false },
+        { id: 'custom-pieces', name: 'custom-pieces', description: 'Panduan membuat custom pieces dengan Anticeil Framework.', category: 'CHANNELS', hub_id: 'developers', is_direct_message: false },
+        { id: 'webhook-integration', name: 'webhook-integration', description: 'Tips & trik menangani high-volume webhooks dan rate limits.', category: 'CHANNELS', hub_id: 'developers', is_direct_message: false },
+        { id: 'bug-reports', name: 'bug-reports', description: 'Laporkan temuan bug langsung ke developer Anticeil.', category: 'CHANNELS', hub_id: 'developers', is_direct_message: false }
+    ];
+
+    const memoryMessages = {
+        'umum': [
+            {
+                id: 'msg-u1',
+                channelId: 'umum',
+                senderId: 'user-admin-1',
+                senderName: 'Faiz Asy-Syauqi',
+                senderEmail: 'faiz@anticeil.com',
+                senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+                senderRole: 'admin',
+                content: 'Selamat datang di **Komunitas Resmi Anticeil**! 🎉\nDi sini rekan-rekan builder bisa berdiskusi seputar pembuatan workflow, saling tukar template alur kerja, hingga transaksi template otomatisasi siap pakai.',
+                createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+                reactions: { '🎉': ['user-creator-1', 'user-pro-1'], '🔥': ['user-member-1'] },
+                attachments: []
+            },
+            {
+                id: 'msg-u2',
+                channelId: 'umum',
+                senderId: 'user-creator-1',
+                senderName: 'Budi Pratama',
+                senderEmail: 'budi.automates@gmail.com',
+                senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+                senderRole: 'creator',
+                content: 'Halo rekan-rekan! Keren banget sekarang builder Anticeil kolaborasi real-time nya makin kenceng tanpa delay. Multi-cursor realtime-nya mulus banget! 👏',
+                createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+                reactions: { '❤️': ['user-admin-1'] },
+                attachments: []
+            },
+            {
+                id: 'msg-u3',
+                channelId: 'umum',
+                senderId: 'user-pro-1',
+                senderName: 'Devi Amanda',
+                senderEmail: 'devi.tech@perusahaan.co.id',
+                senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+                senderRole: 'pro',
+                content: 'Iya bener! Kemarin tim kami coba live pair-editing di canvas yang sama, rasanya kayak pake Figma tapi langsung jalan jadi backend workflow beneran.',
+                createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+                reactions: { '🚀': ['user-creator-1'] },
+                attachments: []
+            }
+        ],
+        'showcase-template': [
+            {
+                id: 'msg-s1',
+                channelId: 'showcase-template',
+                senderId: 'user-admin-1',
+                senderName: 'Faiz Asy-Syauqi',
+                senderEmail: 'faiz@anticeil.com',
+                senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+                senderRole: 'admin',
+                content: 'Halo semua! Buat yang baru bikin workflow keren dengan Anticeil Builder, silakan share di sini ya! Bisa lampirkan template langsung dengan klik icon stack di bawah input chat.',
+                createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+                reactions: { '✨': ['user-creator-1'] },
+                attachments: []
+            }
+        ],
+        'jual-beli-template': [
+            {
+                id: 'msg-j1',
+                channelId: 'jual-beli-template',
+                senderId: 'user-creator-1',
+                senderName: 'Budi Pratama',
+                senderEmail: 'budi.automates@gmail.com',
+                senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+                senderRole: 'creator',
+                content: 'Ready stock template enterprise: **"Automated Accounting & Invoice OCR Sync to Midtrans + Accurate"**.\nCocok buat UMKM / agensi yang butuh otomatisasi finance invoice. Minat bisa langsung DM atau reply di sini ya!',
+                createdAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+                attachments: [
+                    {
+                        type: 'template',
+                        url: '/templates',
+                        name: 'Automated Accounting & Invoice OCR Sync',
+                        templateData: {
+                            name: 'Enterprise Invoice OCR & Midtrans Sync',
+                            description: 'Otomatis ekstrak PDF tagihan dan rekonsiliasi status pembayaran Midtrans.',
+                            pieceCount: 6,
+                            price: 'Rp 299.000',
+                        },
+                    },
+                ],
+                reactions: { '💰': ['user-pro-1'], '👀': ['user-member-2'] },
+            }
+        ],
+        'tanya-jawab': [
+            {
+                id: 'msg-t1',
+                channelId: 'tanya-jawab',
+                senderId: 'user-member-1',
+                senderName: 'Rizky Fauzi',
+                senderEmail: 'rizky.fauzi@outlook.com',
+                senderAvatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
+                senderRole: 'member',
+                content: 'Tanya dong mastah, kalau mau trigger alur saat ada file baru di Google Drive tapi cuma file `.pdf`, filternya lebih bagus ditaruh di trigger atau pakai step branch condition?',
+                createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+                reactions: {},
+                attachments: []
+            },
+            {
+                id: 'msg-t2',
+                channelId: 'tanya-jawab',
+                senderId: 'user-admin-1',
+                senderName: 'Faiz Asy-Syauqi',
+                senderEmail: 'faiz@anticeil.com',
+                senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+                senderRole: 'admin',
+                content: 'Halo @Rizky! Paling efisien pakai step **Branch (Filter)** langsung setelah trigger, cek kondisi `{{ step_1.mimeType }} contains application/pdf`. Jadi alur file selain PDF langsung berhenti tanpa buang kuota eksekusi.',
+                createdAt: new Date(Date.now() - 3600000 * 1).toISOString(),
+                reactions: { '💡': ['user-member-1'], '👍': ['user-creator-1'] },
+                attachments: []
+            }
+        ]
+    };
+
+    const members = [
+        { id: 'user-admin-1', name: 'Faiz Asy-Syauqi', email: 'faiz@anticeil.com', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80', role: 'admin', status: 'online', customStatus: 'Founder @ Anticeil Cloud 🚀' },
+        { id: 'user-creator-1', name: 'Budi Pratama', email: 'budi.automates@gmail.com', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80', role: 'creator', status: 'online', customStatus: 'Building WhatsApp CRM Template ✨' },
+        { id: 'user-pro-1', name: 'Devi Amanda', email: 'devi.tech@perusahaan.co.id', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80', role: 'pro', status: 'online', customStatus: 'Automating Growth & Lead Gen 📈' },
+        { id: 'user-member-1', name: 'Rizky Fauzi', email: 'rizky.fauzi@outlook.com', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80', role: 'member', status: 'idle', customStatus: 'Eksplorasi AI Agents & MCP 🤖' },
+        { id: 'user-member-2', name: 'Siti Rahmawati', email: 'siti.rahma@startup.id', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80', role: 'member', status: 'offline', customStatus: 'Product Manager @ FinTech' }
+    ];
+
+    async function getDb() {
+        try {
+            const { databaseConnection } = require("../../../database/database-connection");
+            return databaseConnection();
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async function ensureTables() {
+        if (dbReady) return;
+        const ds = await getDb();
+        if (!ds) return;
+        try {
+            await ds.query(`
+                CREATE TABLE IF NOT EXISTS anticeil_community_channels (
+                    id VARCHAR(128) PRIMARY KEY,
+                    name VARCHAR(128) NOT NULL,
+                    description TEXT DEFAULT '',
+                    category VARCHAR(64) DEFAULT 'CHANNELS',
+                    hub_id VARCHAR(64) DEFAULT 'anticeil',
+                    is_direct_message BOOLEAN DEFAULT FALSE,
+                    dm_user_id VARCHAR(128),
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS anticeil_community_messages (
+                    id VARCHAR(128) PRIMARY KEY,
+                    channel_id VARCHAR(128) NOT NULL,
+                    sender_id VARCHAR(128) NOT NULL,
+                    sender_name VARCHAR(256) NOT NULL,
+                    sender_email VARCHAR(256) NOT NULL,
+                    sender_avatar TEXT,
+                    sender_role VARCHAR(64) DEFAULT 'member',
+                    content TEXT NOT NULL,
+                    attachments TEXT DEFAULT '[]',
+                    reactions TEXT DEFAULT '{}',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+            `);
+
+            const chCount = await ds.query('SELECT count(*) as cnt FROM anticeil_community_channels');
+            if (parseInt(chCount[0]?.cnt || 0, 10) === 0) {
+                for (const c of memoryChannels) {
+                    await ds.query(
+                        'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message) VALUES ($1, $2, $3, $4, $5, $6)',
+                        [c.id, c.name, c.description, c.category, c.hub_id, c.is_direct_message]
+                    );
+                }
+            }
+
+            const msgCount = await ds.query('SELECT count(*) as cnt FROM anticeil_community_messages');
+            if (parseInt(msgCount[0]?.cnt || 0, 10) === 0) {
+                for (const chId in memoryMessages) {
+                    for (const m of memoryMessages[chId]) {
+                        await ds.query(
+                            'INSERT INTO anticeil_community_messages (id, channel_id, sender_id, sender_name, sender_email, sender_avatar, sender_role, content, attachments, reactions, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+                            [
+                                m.id,
+                                m.channelId,
+                                m.senderId,
+                                m.senderName,
+                                m.senderEmail,
+                                m.senderAvatar,
+                                m.senderRole,
+                                m.content,
+                                JSON.stringify(m.attachments || []),
+                                JSON.stringify(m.reactions || {}),
+                                m.createdAt
+                            ]
+                        );
+                    }
+                }
+            }
+            dbReady = true;
+        } catch (err) {
+            app.log.warn({ err }, '[Community API] Database initialization warning, using in-memory');
+        }
+    }
+
+    ensureTables().catch(() => {});
+
+    // --- CHANNELS (CRUD) ---
+    app.get('/v1/community/channels', async (req) => {
+        await ensureTables();
+        const ds = await getDb();
+        const hubId = req.query?.hubId;
+        if (ds && dbReady) {
+            try {
+                let rows;
+                if (hubId) {
+                    rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE hub_id = $1 ORDER BY created_at ASC', [hubId]);
+                } else {
+                    rows = await ds.query('SELECT * FROM anticeil_community_channels ORDER BY created_at ASC');
+                }
+                return rows.map(r => ({
+                    id: r.id,
+                    name: r.name,
+                    description: r.description || '',
+                    category: r.category || 'CHANNELS',
+                    hubId: r.hub_id || 'anticeil',
+                    isDirectMessage: Boolean(r.is_direct_message),
+                    dmUserId: r.dm_user_id || undefined
+                }));
+            } catch (e) {}
+        }
+        return hubId ? memoryChannels.filter(c => c.hub_id === hubId) : memoryChannels;
+    });
+
+    app.post('/v1/community/channels', async (req, reply) => {
+        await ensureTables();
+        const { name, description = '', category = 'CHANNELS', hubId = 'anticeil' } = req.body || {};
+        if (!name) {
+            return reply.status(400).send({ message: 'Channel name is required' });
+        }
+        const cleanName = name.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || `channel-${Date.now()}`;
+        const id = cleanName;
+        const newChannel = {
+            id,
+            name: cleanName,
+            description,
+            category,
+            hubId,
+            isDirectMessage: false
+        };
+
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name=$2, description=$3',
+                    [id, cleanName, description, category, hubId, false]
+                );
+            } catch (e) {}
+        }
+        if (!memoryChannels.some(c => c.id === id)) {
+            memoryChannels.push({ ...newChannel, hub_id: hubId, is_direct_message: false });
+        }
+        if (app.io) {
+            app.io.emit('COMMUNITY_CHANNEL_CREATED', newChannel);
+        }
+        return newChannel;
+    });
+
+    app.put('/v1/community/channels/:id', async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const { name, description } = req.body || {};
+        const ds = await getDb();
+        let updatedChannel = null;
+        if (ds && dbReady) {
+            try {
+                const res = await ds.query(
+                    'UPDATE anticeil_community_channels SET name = COALESCE($1, name), description = COALESCE($2, description), updated_at = NOW() WHERE id = $3 RETURNING *',
+                    [name, description, id]
+                );
+                if (res && res[0]) {
+                    updatedChannel = {
+                        id: res[0].id,
+                        name: res[0].name,
+                        description: res[0].description,
+                        category: res[0].category,
+                        hubId: res[0].hub_id,
+                        isDirectMessage: Boolean(res[0].is_direct_message)
+                    };
+                }
+            } catch (e) {}
+        }
+        const memIdx = memoryChannels.findIndex(c => c.id === id);
+        if (memIdx >= 0) {
+            if (name) memoryChannels[memIdx].name = name;
+            if (description !== undefined) memoryChannels[memIdx].description = description;
+            if (!updatedChannel) {
+                updatedChannel = {
+                    id,
+                    name: memoryChannels[memIdx].name,
+                    description: memoryChannels[memIdx].description,
+                    category: memoryChannels[memIdx].category,
+                    hubId: memoryChannels[memIdx].hub_id
+                };
+            }
+        }
+        if (app.io && updatedChannel) {
+            app.io.emit('COMMUNITY_CHANNEL_UPDATED', updatedChannel);
+        }
+        return updatedChannel || { id, name, description };
+    });
+
+    app.delete('/v1/community/channels/:id', async (req) => {
+        await ensureTables();
+        const { id } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query('DELETE FROM anticeil_community_messages WHERE channel_id = $1', [id]);
+                await ds.query('DELETE FROM anticeil_community_channels WHERE id = $1', [id]);
+            } catch (e) {}
+        }
+        const memIdx = memoryChannels.findIndex(c => c.id === id);
+        if (memIdx >= 0) memoryChannels.splice(memIdx, 1);
+        delete memoryMessages[id];
+
+        if (app.io) {
+            app.io.emit('COMMUNITY_CHANNEL_DELETED', { id });
+        }
+        return { success: true, id };
+    });
+
+    // --- MESSAGES (CRUD) ---
+    app.get('/v1/community/channels/:channelId/messages', async (req) => {
+        await ensureTables();
+        const { channelId } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_community_messages WHERE channel_id = $1 ORDER BY created_at ASC LIMIT 200',
+                    [channelId]
+                );
+                return rows.map(r => ({
+                    id: r.id,
+                    channelId: r.channel_id,
+                    senderId: r.sender_id,
+                    senderName: r.sender_name,
+                    senderEmail: r.sender_email,
+                    senderAvatar: r.sender_avatar || null,
+                    senderRole: r.sender_role || 'member',
+                    content: r.content,
+                    createdAt: (r.created_at instanceof Date) ? r.created_at.toISOString() : String(r.created_at),
+                    attachments: typeof r.attachments === 'string' ? JSON.parse(r.attachments || '[]') : (r.attachments || []),
+                    reactions: typeof r.reactions === 'string' ? JSON.parse(r.reactions || '{}') : (r.reactions || {})
+                }));
+            } catch (e) {}
+        }
+        return memoryMessages[channelId] || [];
+    });
+
+    app.post('/v1/community/channels/:channelId/messages', async (req, reply) => {
+        await ensureTables();
+        const { channelId } = req.params;
+        const body = req.body || {};
+        if (!body.content && (!body.attachments || body.attachments.length === 0)) {
+            return reply.status(400).send({ message: 'Content or attachment is required' });
+        }
+        const id = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+        const newMessage = {
+            id,
+            channelId,
+            senderId: body.senderId || 'anon-user',
+            senderName: body.senderName || 'Pengguna Anticeil',
+            senderEmail: body.senderEmail || 'user@anticeil.com',
+            senderAvatar: body.senderAvatar || null,
+            senderRole: body.senderRole || 'member',
+            content: body.content || '',
+            createdAt: new Date().toISOString(),
+            attachments: body.attachments || [],
+            reactions: {}
+        };
+
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_community_messages (id, channel_id, sender_id, sender_name, sender_email, sender_avatar, sender_role, content, attachments, reactions, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+                    [
+                        id,
+                        channelId,
+                        newMessage.senderId,
+                        newMessage.senderName,
+                        newMessage.senderEmail,
+                        newMessage.senderAvatar,
+                        newMessage.senderRole,
+                        newMessage.content,
+                        JSON.stringify(newMessage.attachments),
+                        JSON.stringify(newMessage.reactions),
+                        newMessage.createdAt
+                    ]
+                );
+            } catch (e) {}
+        }
+        if (!memoryMessages[channelId]) memoryMessages[channelId] = [];
+        memoryMessages[channelId].push(newMessage);
+
+        if (app.io) {
+            app.io.emit('COMMUNITY_CHAT_MESSAGE', newMessage);
+        }
+        return newMessage;
+    });
+
+    app.delete('/v1/community/messages/:id', async (req) => {
+        await ensureTables();
+        const { id } = req.params;
+        let channelId = null;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const found = await ds.query('SELECT channel_id FROM anticeil_community_messages WHERE id = $1', [id]);
+                if (found && found[0]) {
+                    channelId = found[0].channel_id;
+                }
+                await ds.query('DELETE FROM anticeil_community_messages WHERE id = $1', [id]);
+            } catch (e) {}
+        }
+        for (const ch in memoryMessages) {
+            const idx = memoryMessages[ch].findIndex(m => m.id === id);
+            if (idx >= 0) {
+                channelId = ch;
+                memoryMessages[ch].splice(idx, 1);
+                break;
+            }
+        }
+        if (app.io) {
+            app.io.emit('COMMUNITY_MESSAGE_DELETED', { id, channelId });
+        }
+        return { success: true, id, channelId };
+    });
+
+    app.post('/v1/community/messages/:id/reactions', async (req) => {
+        await ensureTables();
+        const { id } = req.params;
+        const { emoji, userId = 'me' } = req.body || {};
+        let reactions = {};
+        let channelId = null;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const found = await ds.query('SELECT channel_id, reactions FROM anticeil_community_messages WHERE id = $1', [id]);
+                if (found && found[0]) {
+                    channelId = found[0].channel_id;
+                    const raw = found[0].reactions;
+                    reactions = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {});
+                }
+            } catch (e) {}
+        }
+        if (!channelId) {
+            for (const ch in memoryMessages) {
+                const msg = memoryMessages[ch].find(m => m.id === id);
+                if (msg) {
+                    channelId = ch;
+                    reactions = { ...(msg.reactions || {}) };
+                    break;
+                }
+            }
+        }
+        if (emoji) {
+            const list = reactions[emoji] || [];
+            if (list.includes(userId)) {
+                reactions[emoji] = list.filter(u => u !== userId);
+                if (reactions[emoji].length === 0) delete reactions[emoji];
+            } else {
+                reactions[emoji] = [...list, userId];
+            }
+        }
+        if (ds && dbReady) {
+            try {
+                await ds.query('UPDATE anticeil_community_messages SET reactions = $1 WHERE id = $2', [JSON.stringify(reactions), id]);
+            } catch (e) {}
+        }
+        if (channelId && memoryMessages[channelId]) {
+            const msg = memoryMessages[channelId].find(m => m.id === id);
+            if (msg) msg.reactions = reactions;
+        }
+        if (app.io) {
+            app.io.emit('COMMUNITY_REACTION_UPDATED', { id, channelId, reactions });
+        }
+        return { id, channelId, reactions };
+    });
+
+    // --- MEMBERS ---
+    app.get('/v1/community/members', async () => {
+        return members;
+    });
+}
+

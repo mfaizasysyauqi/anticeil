@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Hash,
   MessageSquare,
@@ -15,6 +15,17 @@ import {
   Paperclip,
   X,
   Menu,
+  Trash2,
+  Edit2,
+  Compass,
+  Bot,
+  Terminal,
+  Settings,
+  Mic,
+  MicOff,
+  Headphones,
+  Smile,
+  Check,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -24,9 +35,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -52,17 +72,19 @@ import {
 import { userHooks } from '@/hooks/user-hooks';
 import { cn } from '@/lib/utils';
 
+import { communityApi } from './community-api';
 import { CommunityAvatar } from './community-avatar';
 import {
   DEFAULT_CHANNELS,
+  DEFAULT_HUBS,
   DEFAULT_MEMBERS,
-  loadStoredChannels,
-  loadStoredMessages,
-  saveStoredMessages,
+  INITIAL_MESSAGES,
 } from './community-data';
 import {
   CommunityAttachment,
   CommunityChannel,
+  CommunityHub,
+  CommunityHubId,
   CommunityMember,
   CommunityMessage,
   CommunityRole,
@@ -169,16 +191,36 @@ export function CommunityPage() {
   const { data: currentUser } = userHooks.useCurrentUser();
   const socket = useSocket();
 
-  const [channels, setChannels] = useState<CommunityChannel[]>(() => loadStoredChannels());
+  // Discord Hubs & Channels state
+  const [hubs] = useState<CommunityHub[]>(DEFAULT_HUBS);
+  const [activeHubId, setActiveHubId] = useState<CommunityHubId>('anticeil');
+
+  const [channels, setChannels] = useState<CommunityChannel[]>(DEFAULT_CHANNELS);
   const [activeChannelId, setActiveChannelId] = useState<string>('umum');
-  const [messagesMap, setMessagesMap] = useState<Record<string, CommunityMessage[]>>(() =>
-    loadStoredMessages(),
-  );
+  const [messagesMap, setMessagesMap] = useState<Record<string, CommunityMessage[]>>(INITIAL_MESSAGES);
+  const [members, setMembers] = useState<CommunityMember[]>(DEFAULT_MEMBERS);
+
   const [inputText, setInputText] = useState('');
   const [stagedAttachment, setStagedAttachment] = useState<CommunityAttachment | null>(null);
   const [showMemberList, setShowMemberList] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isTemplatePopoverOpen, setIsTemplatePopoverOpen] = useState(false);
+
+  // Audio / mic dummy state for Discord user footer
+  const [isMuted, setIsMuted] = useState(false);
+  const [isDeafened, setIsDeafened] = useState(false);
+
+  // Channel CRUD Modals
+  const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
+  const [newChannelDesc, setNewChannelDesc] = useState('');
+  const [newChannelCategory, setNewChannelCategory] = useState<'CHANNELS' | 'DIRECT MESSAGES'>('CHANNELS');
+
+  const [channelToEdit, setChannelToEdit] = useState<CommunityChannel | null>(null);
+  const [editChannelName, setEditChannelName] = useState('');
+  const [editChannelDesc, setEditChannelDesc] = useState('');
+
+  const [channelToDelete, setChannelToDelete] = useState<CommunityChannel | null>(null);
 
   // Responsive state for Mobile/Tablet sheets
   const [isMobileChannelsOpen, setIsMobileChannelsOpen] = useState(false);
@@ -187,22 +229,162 @@ export function CommunityPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Active channel
-  const activeChannel =
-    channels.find((c) => c.id === activeChannelId) || channels[0] || DEFAULT_CHANNELS[0];
+  // 1. Initial Load from Backend API
+  useEffect(() => {
+    let mounted = true;
+    const loadData = async () => {
+      try {
+        const [channelsRes, membersRes] = await Promise.all([
+          communityApi.getChannels(),
+          communityApi.getMembers(),
+        ]);
+        if (mounted) {
+          if (channelsRes && channelsRes.length > 0) setChannels(channelsRes);
+          if (membersRes && membersRes.length > 0) setMembers(membersRes);
+        }
+      } catch (err) {
+        console.warn('Initial community load fallback', err);
+      }
+    };
+    loadData();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-  // Active messages
+  // 2. Load Messages when Active Channel Changes
+  useEffect(() => {
+    let mounted = true;
+    const loadChannelMessages = async () => {
+      try {
+        const msgs = await communityApi.getMessages(activeChannelId);
+        if (mounted && msgs) {
+          setMessagesMap((prev) => ({
+            ...prev,
+            [activeChannelId]: msgs,
+          }));
+        }
+      } catch (err) {
+        console.warn('Failed to load messages for channel', activeChannelId, err);
+      }
+    };
+    loadChannelMessages();
+    return () => {
+      mounted = false;
+    };
+  }, [activeChannelId]);
+
+  // 3. WebSocket Realtime Listeners
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleIncomingMessage = (newMsg: CommunityMessage) => {
+      setMessagesMap((prev) => {
+        const list = prev[newMsg.channelId] || [];
+        if (list.some((m) => m.id === newMsg.id)) return prev;
+        return {
+          ...prev,
+          [newMsg.channelId]: [...list, newMsg],
+        };
+      });
+    };
+
+    const handleMessageDeleted = ({ id, channelId }: { id: string; channelId?: string }) => {
+      setMessagesMap((prev) => {
+        const ch = channelId || activeChannelId;
+        const list = prev[ch] || [];
+        return {
+          ...prev,
+          [ch]: list.filter((m) => m.id !== id),
+        };
+      });
+    };
+
+    const handleReactionUpdated = ({
+      id,
+      channelId,
+      reactions,
+    }: {
+      id: string;
+      channelId?: string;
+      reactions: Record<string, string[]>;
+    }) => {
+      setMessagesMap((prev) => {
+        const ch = channelId || activeChannelId;
+        const list = prev[ch] || [];
+        return {
+          ...prev,
+          [ch]: list.map((m) => (m.id === id ? { ...m, reactions } : m)),
+        };
+      });
+    };
+
+    const handleChannelCreated = (newCh: CommunityChannel) => {
+      setChannels((prev) => {
+        if (prev.some((c) => c.id === newCh.id)) return prev;
+        return [...prev, newCh];
+      });
+    };
+
+    const handleChannelUpdated = (updatedCh: CommunityChannel) => {
+      setChannels((prev) => prev.map((c) => (c.id === updatedCh.id ? { ...c, ...updatedCh } : c)));
+    };
+
+    const handleChannelDeleted = ({ id }: { id: string }) => {
+      setChannels((prev) => prev.filter((c) => c.id !== id));
+      setActiveChannelId((current) => (current === id ? 'umum' : current));
+    };
+
+    socket.on('COMMUNITY_CHAT_MESSAGE', handleIncomingMessage);
+    socket.on('COMMUNITY_MESSAGE_DELETED', handleMessageDeleted);
+    socket.on('COMMUNITY_REACTION_UPDATED', handleReactionUpdated);
+    socket.on('COMMUNITY_CHANNEL_CREATED', handleChannelCreated);
+    socket.on('COMMUNITY_CHANNEL_UPDATED', handleChannelUpdated);
+    socket.on('COMMUNITY_CHANNEL_DELETED', handleChannelDeleted);
+
+    return () => {
+      socket.off('COMMUNITY_CHAT_MESSAGE', handleIncomingMessage);
+      socket.off('COMMUNITY_MESSAGE_DELETED', handleMessageDeleted);
+      socket.off('COMMUNITY_REACTION_UPDATED', handleReactionUpdated);
+      socket.off('COMMUNITY_CHANNEL_CREATED', handleChannelCreated);
+      socket.off('COMMUNITY_CHANNEL_UPDATED', handleChannelUpdated);
+      socket.off('COMMUNITY_CHANNEL_DELETED', handleChannelDeleted);
+    };
+  }, [socket, activeChannelId]);
+
+  // Channels filtered by selected Hub
+  const hubChannels = useMemo(() => {
+    if (activeHubId === 'direct-messages') {
+      return channels.filter((c) => c.category === 'DIRECT MESSAGES');
+    }
+    return channels.filter((c) => (c.hubId || 'anticeil') === activeHubId && c.category === 'CHANNELS');
+  }, [channels, activeHubId]);
+
+  const dmChannels = useMemo(() => {
+    return channels.filter((c) => c.category === 'DIRECT MESSAGES');
+  }, [channels]);
+
+  // Active channel resolution
+  const activeChannel = useMemo(() => {
+    return (
+      channels.find((c) => c.id === activeChannelId) ||
+      hubChannels[0] ||
+      channels[0] ||
+      DEFAULT_CHANNELS[0]
+    );
+  }, [channels, activeChannelId, hubChannels]);
+
+  // Active messages & filter
   const currentMessages = messagesMap[activeChannel.id] || [];
-
-  // Filtered messages
   const filteredMessages = searchQuery.trim()
-    ? currentMessages.filter((m) =>
-        m.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.senderName.toLowerCase().includes(searchQuery.toLowerCase()),
+    ? currentMessages.filter(
+        (m) =>
+          m.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          m.senderName.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : currentMessages;
 
-  // Auto scroll to bottom
+  // Auto scroll
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -211,31 +393,8 @@ export function CommunityPage() {
     scrollToBottom();
   }, [activeChannelId, currentMessages.length]);
 
-  // WebSocket realtime listener
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleIncomingMessage = (newMsg: CommunityMessage) => {
-      setMessagesMap((prev) => {
-        const list = prev[newMsg.channelId] || [];
-        if (list.some((m) => m.id === newMsg.id)) return prev;
-        const updated = {
-          ...prev,
-          [newMsg.channelId]: [...list, newMsg],
-        };
-        saveStoredMessages(updated);
-        return updated;
-      });
-    };
-
-    socket.on('COMMUNITY_CHAT_MESSAGE', handleIncomingMessage);
-    return () => {
-      socket.off('COMMUNITY_CHAT_MESSAGE', handleIncomingMessage);
-    };
-  }, [socket]);
-
   // Send message
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputText.trim() && !stagedAttachment) return;
 
     const currentUserId = currentUser?.id || 'anon-user';
@@ -244,8 +403,7 @@ export function CommunityPage() {
       currentUser?.email?.split('@')[0] ||
       'Pengguna Anticeil';
 
-    const newMessage: CommunityMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    const payload: Partial<CommunityMessage> = {
       channelId: activeChannel.id,
       senderId: currentUserId,
       senderName: currentUserName,
@@ -253,33 +411,47 @@ export function CommunityPage() {
       senderAvatar: currentUser?.imageUrl ?? null,
       senderRole: (currentUser?.platformRole === 'ADMIN' ? 'admin' : 'creator') as CommunityRole,
       content: inputText.trim(),
-      createdAt: new Date().toISOString(),
       attachments: stagedAttachment ? [stagedAttachment] : undefined,
-      reactions: {},
     };
-
-    setMessagesMap((prev) => {
-      const list = prev[activeChannel.id] || [];
-      const updated = {
-        ...prev,
-        [activeChannel.id]: [...list, newMessage],
-      };
-      saveStoredMessages(updated);
-      return updated;
-    });
-
-    // Broadcast through socket if available
-    if (socket && socket.connected) {
-      socket.emit('COMMUNITY_CHAT_MESSAGE', newMessage);
-    }
 
     setInputText('');
     setStagedAttachment(null);
+
+    try {
+      const saved = await communityApi.sendMessage(activeChannel.id, payload);
+      setMessagesMap((prev) => {
+        const list = prev[activeChannel.id] || [];
+        if (list.some((m) => m.id === saved.id)) return prev;
+        return {
+          ...prev,
+          [activeChannel.id]: [...list, saved],
+        };
+      });
+    } catch (err) {
+      console.error('Failed to send message', err);
+    }
   };
 
-  // Handle reaction
-  const handleToggleReaction = (msgId: string, emoji: string) => {
+  // Delete message (Message CRUD)
+  const handleDeleteMessage = async (msgId: string) => {
+    setMessagesMap((prev) => {
+      const list = prev[activeChannel.id] || [];
+      return {
+        ...prev,
+        [activeChannel.id]: list.filter((m) => m.id !== msgId),
+      };
+    });
+    try {
+      await communityApi.deleteMessage(msgId);
+    } catch (err) {
+      console.error('Failed to delete message', err);
+    }
+  };
+
+  // Toggle reaction
+  const handleToggleReaction = async (msgId: string, emoji: string) => {
     const currentUserId = currentUser?.id || 'me';
+
     setMessagesMap((prev) => {
       const list = prev[activeChannel.id] || [];
       const updatedList = list.map((msg) => {
@@ -294,17 +466,94 @@ export function CommunityPage() {
         }
         return { ...msg, reactions };
       });
-
-      const updated = {
+      return {
         ...prev,
         [activeChannel.id]: updatedList,
       };
-      saveStoredMessages(updated);
-      return updated;
     });
+
+    try {
+      await communityApi.toggleReaction(msgId, emoji, currentUserId);
+    } catch (err) {
+      console.error('Failed to toggle reaction', err);
+    }
   };
 
-  // Start DM with member
+  // Create Channel (Channel CRUD)
+  const handleCreateChannelSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChannelName.trim()) return;
+
+    try {
+      const created = await communityApi.createChannel({
+        name: newChannelName.trim(),
+        description: newChannelDesc.trim(),
+        category: newChannelCategory,
+        hubId: activeHubId === 'direct-messages' ? 'anticeil' : activeHubId,
+      });
+
+      setChannels((prev) => {
+        if (prev.some((c) => c.id === created.id)) return prev;
+        return [...prev, created];
+      });
+      setActiveChannelId(created.id);
+      setIsCreateChannelOpen(false);
+      setNewChannelName('');
+      setNewChannelDesc('');
+    } catch (err) {
+      console.error('Failed to create channel', err);
+    }
+  };
+
+  // Edit Channel (Channel CRUD)
+  const handleOpenEditChannel = (channel: CommunityChannel, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setChannelToEdit(channel);
+    setEditChannelName(channel.name);
+    setEditChannelDesc(channel.description || '');
+  };
+
+  const handleEditChannelSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!channelToEdit || !editChannelName.trim()) return;
+
+    try {
+      const updated = await communityApi.updateChannel(channelToEdit.id, {
+        name: editChannelName.trim(),
+        description: editChannelDesc.trim(),
+      });
+      setChannels((prev) =>
+        prev.map((c) => (c.id === channelToEdit.id ? { ...c, ...updated } : c)),
+      );
+      setChannelToEdit(null);
+    } catch (err) {
+      console.error('Failed to edit channel', err);
+    }
+  };
+
+  // Delete Channel (Channel CRUD)
+  const handleOpenDeleteChannel = (channel: CommunityChannel, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setChannelToDelete(channel);
+  };
+
+  const handleDeleteChannelConfirm = async () => {
+    if (!channelToDelete) return;
+    const id = channelToDelete.id;
+    setChannels((prev) => prev.filter((c) => c.id !== id));
+    if (activeChannelId === id) {
+      setActiveChannelId('umum');
+    }
+    setChannelToDelete(null);
+
+    try {
+      await communityApi.deleteChannel(id);
+    } catch (err) {
+      console.error('Failed to delete channel', err);
+    }
+  };
+
+  // Start DM
   const handleStartDM = (member: CommunityMember) => {
     const dmId = `dm-${member.id}`;
     const existing = channels.find((c) => c.id === dmId);
@@ -314,18 +563,19 @@ export function CommunityPage() {
         name: member.name,
         description: `Percakapan langsung dengan ${member.name} (${member.customStatus || member.role})`,
         category: 'DIRECT MESSAGES',
+        hubId: 'direct-messages',
         isDirectMessage: true,
         dmUserId: member.id,
       };
-      const updatedChannels = [...channels, newDMChannel];
-      setChannels(updatedChannels);
+      setChannels((prev) => [...prev, newDMChannel]);
     }
+    setActiveHubId('direct-messages');
     setActiveChannelId(dmId);
     setIsMobileChannelsOpen(false);
     setIsMobileMembersOpen(false);
   };
 
-  // Handle file select simulation / staging
+  // File Select
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -348,6 +598,24 @@ export function CommunityPage() {
         name: file.name,
         size: `${Math.round(file.size / 1024)} KB`,
       });
+    }
+  };
+
+  // Render Hub Icon Helper (Discord style)
+  const renderHubIcon = (hub: CommunityHub) => {
+    switch (hub.iconType) {
+      case 'spark':
+        return <Sparkles className="w-5 h-5 text-amber-400" />;
+      case 'bot':
+        return <Bot className="w-5 h-5 text-emerald-400" />;
+      case 'templates':
+        return <Layers className="w-5 h-5 text-purple-400" />;
+      case 'code':
+        return <Terminal className="w-5 h-5 text-blue-400" />;
+      case 'dm':
+        return <MessageSquare className="w-5 h-5 text-rose-400" />;
+      default:
+        return <span className="font-bold text-xs">{hub.initials}</span>;
     }
   };
 
@@ -377,28 +645,116 @@ export function CommunityPage() {
     }
   };
 
-  const channelList = channels.filter((c) => c.category === 'CHANNELS');
-  const dmList = channels.filter((c) => c.category === 'DIRECT MESSAGES');
-
   const currentUserName =
     `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() ||
     currentUser?.email?.split('@')[0] ||
     'Pengguna Anticeil';
 
+  // Component: Discord Mini Server/Hub Rail (w-18 / 72px)
+  const renderDiscordHubRail = () => (
+    <div className="w-[72px] shrink-0 bg-zinc-950/90 dark:bg-zinc-950 flex flex-col items-center py-3 gap-2 border-r border-sidebar-border/40 select-none z-10">
+      {/* Hub icons list */}
+      <div className="flex flex-col items-center gap-2 w-full flex-1">
+        {hubs.map((hub) => {
+          const isActive = activeHubId === hub.id;
+          return (
+            <div key={hub.id} className="relative group w-full flex items-center justify-center">
+              {/* Discord signature left white pill indicator */}
+              <span
+                className={cn(
+                  'absolute left-0 w-1 bg-white rounded-r-full transition-all duration-200',
+                  isActive
+                    ? 'h-10'
+                    : 'h-0 group-hover:h-5 opacity-80',
+                )}
+              />
+
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => {
+                      setActiveHubId(hub.id);
+                      // Switch to first channel in that hub if needed
+                      const firstCh = channels.find(
+                        (c) => (c.hubId || 'anticeil') === hub.id && c.category === 'CHANNELS',
+                      );
+                      if (firstCh && activeHubId !== hub.id) {
+                        setActiveChannelId(firstCh.id);
+                      }
+                    }}
+                    className={cn(
+                      'relative size-12 flex items-center justify-center font-bold text-sm transition-all duration-200 cursor-pointer',
+                      isActive
+                        ? 'rounded-[16px] bg-primary/20 text-primary border border-primary/40 shadow-md shadow-primary/10'
+                        : 'rounded-[24px] bg-sidebar-accent/60 text-muted-foreground hover:rounded-[16px] hover:bg-sidebar-accent hover:text-foreground',
+                    )}
+                  >
+                    {renderHubIcon(hub)}
+
+                    {/* Unread badge pill */}
+                    {hub.unreadCount && hub.unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 size-4.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-zinc-950">
+                        {hub.unreadCount}
+                      </span>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={12} className="font-semibold text-xs">
+                  {hub.name}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          );
+        })}
+
+        {/* Discord separator bar */}
+        <div className="w-8 h-[2px] bg-border/40 my-1 rounded-full shrink-0" />
+
+        {/* Add Channel / Hub (+) Button */}
+        <Tooltip delayDuration={150}>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setIsCreateChannelOpen(true)}
+              className="group relative size-12 rounded-[24px] bg-sidebar-accent/50 text-emerald-500 hover:rounded-[16px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
+            >
+              <Plus className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={12} className="font-semibold text-xs">
+            {t('Buat Channel Baru')}
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Discover / Templates Compass */}
+        <Tooltip delayDuration={150}>
+          <TooltipTrigger asChild>
+            <Link
+              to="/templates"
+              className="group relative size-12 rounded-[24px] bg-sidebar-accent/50 text-muted-foreground hover:rounded-[16px] hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
+            >
+              <Compass className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={12} className="font-semibold text-xs">
+            {t('Jelajahi Template Otomasi')}
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
+  );
+
   // Component: Channels Sidebar Content (reusable for desktop & mobile drawer)
   const renderChannelsSidebarContent = (onItemClick?: () => void) => (
-    <div className="flex flex-col h-full bg-sidebar select-none">
-      {/* Server Header */}
+    <div className="flex flex-col h-full bg-sidebar select-none w-60 shrink-0 border-r border-sidebar-border">
+      {/* Header: Community Title (Logo AC removed as requested!) */}
       <div className="h-12 border-b border-sidebar-border px-3.5 flex items-center justify-between font-semibold shadow-xs">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center text-primary font-bold text-xs shrink-0">
-            AC
-          </div>
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-sm font-semibold truncate tracking-tight">Anticeil Hub</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Server Online" />
-          </div>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-semibold truncate tracking-tight text-foreground">
+            {t('Community')}
+          </span>
+          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" title="Online" />
         </div>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
@@ -406,6 +762,10 @@ export function CommunityPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => setIsCreateChannelOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> {t('Buat Channel Baru')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
                 setActiveChannelId('umum');
@@ -430,6 +790,7 @@ export function CommunityPage() {
             >
               <Layers className="w-4 h-4 mr-2" /> Jual Beli Template
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link to="/templates">
                 <ExternalLink className="w-4 h-4 mr-2" /> Jelajahi Marketplace
@@ -444,22 +805,31 @@ export function CommunityPage() {
         {/* Section CHANNELS */}
         <div className="mb-4">
           <div className="px-2 mb-1.5 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase">
-            <span>{t('Channels Komunitas')}</span>
-            <span className="text-[10px] text-muted-foreground/60">{channelList.length}</span>
+            <div className="flex items-center gap-1">
+              <span>{t('Channels')}</span>
+              <span className="text-[10px] text-muted-foreground/60">({hubChannels.length})</span>
+            </div>
+            <button
+              onClick={() => setIsCreateChannelOpen(true)}
+              className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
+              title="Buat Channel"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           <div className="space-y-0.5">
-            {channelList.map((ch) => {
+            {hubChannels.map((ch) => {
               const isActive = activeChannelId === ch.id;
               return (
-                <button
+                <div
                   key={ch.id}
                   onClick={() => {
                     setActiveChannelId(ch.id);
                     onItemClick?.();
                   }}
                   className={cn(
-                    'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all text-left group',
+                    'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all text-left group cursor-pointer relative',
                     isActive
                       ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
                       : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
@@ -472,7 +842,27 @@ export function CommunityPage() {
                     )}
                   />
                   <span className="truncate flex-1">{ch.name}</span>
-                </button>
+
+                  {/* Channel action buttons (Edit & Delete CRUD) */}
+                  <div className="hidden group-hover:flex items-center gap-0.5 ml-auto shrink-0">
+                    <button
+                      onClick={(e) => handleOpenEditChannel(ch, e)}
+                      title="Edit Channel"
+                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </button>
+                    {ch.id !== 'umum' && (
+                      <button
+                        onClick={(e) => handleOpenDeleteChannel(ch, e)}
+                        title="Hapus Channel"
+                        className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -484,18 +874,18 @@ export function CommunityPage() {
         <div>
           <div className="px-2 mb-1.5 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase">
             <span>{t('Direct Messages')}</span>
-            <span className="text-[10px] text-muted-foreground/60">{dmList.length}</span>
+            <span className="text-[10px] text-muted-foreground/60">{dmChannels.length}</span>
           </div>
 
-          {dmList.length === 0 ? (
+          {dmChannels.length === 0 ? (
             <div className="px-2.5 py-2 text-[11px] text-muted-foreground/60 leading-relaxed">
               Pilih anggota di panel kanan untuk memulai chat pribadi.
             </div>
           ) : (
             <div className="space-y-0.5">
-              {dmList.map((dm) => {
+              {dmChannels.map((dm) => {
                 const isActive = activeChannelId === dm.id;
-                const member = DEFAULT_MEMBERS.find((m) => `dm-${m.id}` === dm.id);
+                const member = members.find((m) => `dm-${m.id}` === dm.id);
                 return (
                   <button
                     key={dm.id}
@@ -535,7 +925,7 @@ export function CommunityPage() {
         </div>
       </ScrollArea>
 
-      {/* User Footer Profile Dock */}
+      {/* User Footer Profile Dock (Discord style) */}
       <div className="h-14 border-t border-sidebar-border px-3 flex items-center justify-between bg-sidebar-accent/30">
         <div className="flex items-center gap-2.5 min-w-0">
           <CommunityAvatar
@@ -550,297 +940,260 @@ export function CommunityPage() {
             <span className="text-xs font-semibold truncate leading-tight">
               {currentUserName}
             </span>
-            <span className="text-[10px] text-emerald-500 font-medium truncate leading-tight flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" /> Online
-            </span>
+            <span className="text-[10px] text-emerald-500 font-medium">Online</span>
           </div>
+        </div>
+
+        {/* Discord Mic, Headphones, Settings */}
+        <div className="flex items-center gap-0.5 text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsMuted(!isMuted)}
+            className="h-7 w-7 hover:text-foreground"
+            title={isMuted ? 'Unmute' : 'Mute'}
+          >
+            {isMuted ? <MicOff className="w-3.5 h-3.5 text-red-400" /> : <Mic className="w-3.5 h-3.5" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsDeafened(!isDeafened)}
+            className="h-7 w-7 hover:text-foreground"
+            title={isDeafened ? 'Undeafen' : 'Deafen'}
+          >
+            <Headphones className={cn('w-3.5 h-3.5', isDeafened && 'text-red-400')} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            asChild
+            className="h-7 w-7 hover:text-foreground"
+            title="Pengaturan Akun"
+          >
+            <Link to="/settings">
+              <Settings className="w-3.5 h-3.5" />
+            </Link>
+          </Button>
         </div>
       </div>
     </div>
   );
 
-  // Component: Member List Content (reusable for desktop sidebar & tablet/mobile drawer)
-  const renderMemberListContent = () => (
-    <div className="flex flex-col h-full bg-sidebar">
-      <div className="h-12 border-b border-sidebar-border px-4 flex items-center font-semibold text-xs tracking-wider uppercase text-muted-foreground shadow-2xs">
-        {t('Daftar Anggota')} ({DEFAULT_MEMBERS.length})
+  // Component: Members Sidebar Content
+  const renderMembersSidebarContent = () => {
+    const roles: { key: CommunityRole; title: string; count: number }[] = [
+      { key: 'admin', title: 'Staff', count: members.filter((m) => m.role === 'admin').length },
+      { key: 'creator', title: 'Kreator Template', count: members.filter((m) => m.role === 'creator').length },
+      { key: 'pro', title: 'Pro Member', count: members.filter((m) => m.role === 'pro').length },
+      { key: 'member', title: 'Anggota Lainnya', count: members.filter((m) => m.role === 'member').length },
+    ];
+
+    return (
+      <div className="flex flex-col h-full bg-sidebar border-l border-sidebar-border select-none w-60 shrink-0">
+        <div className="h-12 border-b border-sidebar-border px-4 flex items-center justify-between font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+          <span>{t('Daftar Anggota')} ({members.length})</span>
+        </div>
+
+        <ScrollArea className="flex-1 px-3 py-3">
+          {roles.map(
+            (r) =>
+              r.count > 0 && (
+                <div key={r.key} className="mb-4">
+                  <div className="px-2 mb-1.5 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider flex items-center justify-between">
+                    <span>{r.title}</span>
+                    <span>{r.count}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {members
+                      .filter((m) => m.role === r.key)
+                      .map((member) => (
+                        <button
+                          key={member.id}
+                          onClick={() => handleStartDM(member)}
+                          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-sidebar-accent group"
+                        >
+                          <CommunityAvatar
+                            name={member.name}
+                            imageUrl={member.avatar}
+                            size={28}
+                            status={member.status}
+                            showStatus
+                          />
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={cn(
+                                  'text-xs font-medium truncate',
+                                  member.status === 'offline'
+                                    ? 'text-muted-foreground/60'
+                                    : 'text-foreground group-hover:text-primary',
+                                )}
+                              >
+                                {member.name}
+                              </span>
+                              {renderRoleBadge(member.role)}
+                            </div>
+                            {member.customStatus && (
+                              <span className="text-[10px] text-muted-foreground/70 truncate">
+                                {member.customStatus}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              ),
+          )}
+        </ScrollArea>
       </div>
-
-      <ScrollArea className="flex-1 p-3">
-        {/* STAFF / ADMIN */}
-        <div className="mb-4">
-          <span className="text-[10px] font-bold text-muted-foreground/80 tracking-wider uppercase px-2">
-            Staff — {DEFAULT_MEMBERS.filter((m) => m.role === 'admin').length}
-          </span>
-          <div className="mt-1 space-y-0.5">
-            {DEFAULT_MEMBERS.filter((m) => m.role === 'admin').map((member) => (
-              <button
-                key={member.id}
-                onClick={() => handleStartDM(member)}
-                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors text-left group"
-              >
-                <CommunityAvatar
-                  name={member.name}
-                  imageUrl={member.avatar}
-                  size={32}
-                  status={member.status}
-                  showStatus
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium text-foreground truncate">
-                      {member.name}
-                    </span>
-                    <Shield className="w-2.5 h-2.5 text-red-400 shrink-0" />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground truncate block">
-                    {member.customStatus || 'Administrator'}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* CREATORS */}
-        <div className="mb-4">
-          <span className="text-[10px] font-bold text-muted-foreground/80 tracking-wider uppercase px-2">
-            Kreator Template — {DEFAULT_MEMBERS.filter((m) => m.role === 'creator').length}
-          </span>
-          <div className="mt-1 space-y-0.5">
-            {DEFAULT_MEMBERS.filter((m) => m.role === 'creator').map((member) => (
-              <button
-                key={member.id}
-                onClick={() => handleStartDM(member)}
-                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors text-left group"
-              >
-                <CommunityAvatar
-                  name={member.name}
-                  imageUrl={member.avatar}
-                  size={32}
-                  status={member.status}
-                  showStatus
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium text-foreground truncate">
-                      {member.name}
-                    </span>
-                    <Sparkles className="w-2.5 h-2.5 text-purple-400 shrink-0" />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground truncate block">
-                    {member.customStatus || 'Top Creator'}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* PRO MEMBERS */}
-        <div className="mb-4">
-          <span className="text-[10px] font-bold text-muted-foreground/80 tracking-wider uppercase px-2">
-            Pro Member — {DEFAULT_MEMBERS.filter((m) => m.role === 'pro').length}
-          </span>
-          <div className="mt-1 space-y-0.5">
-            {DEFAULT_MEMBERS.filter((m) => m.role === 'pro').map((member) => (
-              <button
-                key={member.id}
-                onClick={() => handleStartDM(member)}
-                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors text-left group"
-              >
-                <CommunityAvatar
-                  name={member.name}
-                  imageUrl={member.avatar}
-                  size={32}
-                  status={member.status}
-                  showStatus
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium text-foreground truncate">
-                      {member.name}
-                    </span>
-                    <Crown className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground truncate block">
-                    {member.customStatus || 'Active Member'}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* OTHER MEMBERS */}
-        <div>
-          <span className="text-[10px] font-bold text-muted-foreground/80 tracking-wider uppercase px-2">
-            Anggota Lainnya — {DEFAULT_MEMBERS.filter((m) => m.role === 'member').length}
-          </span>
-          <div className="mt-1 space-y-0.5">
-            {DEFAULT_MEMBERS.filter((m) => m.role === 'member').map((member) => (
-              <button
-                key={member.id}
-                onClick={() => handleStartDM(member)}
-                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors text-left group opacity-85 hover:opacity-100"
-              >
-                <CommunityAvatar
-                  name={member.name}
-                  imageUrl={member.avatar}
-                  size={32}
-                  status={member.status}
-                  showStatus
-                />
-                <div className="min-w-0 flex-1">
-                  <span className="text-xs font-medium text-foreground truncate block">
-                    {member.name}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground truncate block">
-                    {member.customStatus || 'Member'}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </ScrollArea>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background text-foreground select-none">
-      {/* 1. LEFT SIDEBAR (Desktop & Tablet): Channels & DMs */}
-      <div className="hidden md:flex flex-col w-56 lg:w-64 shrink-0 border-r border-sidebar-border h-full">
-        {renderChannelsSidebarContent()}
-      </div>
+    <TooltipProvider delayDuration={200}>
+      <div className="flex h-svh w-full overflow-hidden bg-background">
+        {/* DESKTOP DISCORD HUB RAIL (w-18 / 72px) */}
+        <div className="hidden lg:flex shrink-0">
+          {renderDiscordHubRail()}
+        </div>
 
-      {/* MOBILE CHANNELS SHEET (Slide over from left) */}
-      <Sheet open={isMobileChannelsOpen} onOpenChange={setIsMobileChannelsOpen}>
-        <SheetContent side="left" className="p-0 w-72 sm:w-80">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Channels & DMs</SheetTitle>
-          </SheetHeader>
-          {renderChannelsSidebarContent(() => setIsMobileChannelsOpen(false))}
-        </SheetContent>
-      </Sheet>
+        {/* DESKTOP CHANNELS SIDEBAR (w-60) */}
+        <div className="hidden lg:flex shrink-0">
+          {renderChannelsSidebarContent()}
+        </div>
 
-      {/* 2. CENTER: Discord Main Chat Feed */}
-      <div className="flex-1 flex flex-col h-full min-w-0 bg-background overflow-hidden">
-        {/* Top Channel Bar */}
-        <div className="h-12 border-b border-border px-3 md:px-4 flex items-center justify-between shadow-2xs shrink-0 gap-2">
-          {/* Left: Mobile Drawer Trigger + Channel Info */}
-          <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-            {/* Mobile Menu Button to open Channels */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden h-8 w-8 text-muted-foreground shrink-0"
-              onClick={() => setIsMobileChannelsOpen(true)}
-            >
-              <Menu className="w-4 h-4" />
-            </Button>
-
-            {activeChannel.isDirectMessage ? (
-              <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-primary shrink-0" />
-            ) : (
-              <Hash className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground shrink-0" />
-            )}
-            <span className="text-xs md:text-sm font-bold text-foreground shrink-0 truncate">
-              {activeChannel.name}
-            </span>
-            <Separator orientation="vertical" className="h-4 mx-1 shrink-0 hidden sm:block" />
-            <span className="text-xs text-muted-foreground truncate hidden md:inline">
-              {activeChannel.description}
-            </span>
-          </div>
-
-          {/* Right: Search + Members Trigger */}
-          <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-            <div className="relative w-28 sm:w-40 md:w-52">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Cari..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 pl-8 text-xs bg-muted/40 border-border/60 focus-visible:ring-1 focus-visible:ring-primary/40"
-              />
+        {/* MOBILE CHANNELS DRAWER */}
+        <Sheet open={isMobileChannelsOpen} onOpenChange={setIsMobileChannelsOpen}>
+          <SheetContent side="left" className="p-0 w-80 flex">
+            {renderDiscordHubRail()}
+            <div className="flex-1 flex flex-col h-full">
+              {renderChannelsSidebarContent(() => setIsMobileChannelsOpen(false))}
             </div>
+          </SheetContent>
+        </Sheet>
 
-            {/* Desktop Users Button (Toggles desktop sidebar) */}
-            <div className="hidden lg:block">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={cn('h-8 w-8', showMemberList && 'bg-accent text-accent-foreground')}
-                      onClick={() => setShowMemberList(!showMemberList)}
-                    >
-                      <Users className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Daftar Anggota</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
+        {/* MOBILE MEMBERS DRAWER */}
+        <Sheet open={isMobileMembersOpen} onOpenChange={setIsMobileMembersOpen}>
+          <SheetContent side="right" className="p-0 w-72">
+            <SheetHeader className="sr-only">
+              <SheetTitle>{t('Daftar Anggota')}</SheetTitle>
+            </SheetHeader>
+            {renderMembersSidebarContent()}
+          </SheetContent>
+        </Sheet>
 
-            {/* Tablet & Mobile Users Button (Opens right Sheet) */}
-            <div className="lg:hidden">
+        {/* MAIN CHAT AREA */}
+        <div className="flex flex-1 flex-col h-full min-w-0 bg-background/50">
+          {/* Channel Top Header Bar */}
+          <div className="h-12 border-b border-border/60 px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs">
+            <div className="flex items-center gap-2 min-w-0">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                onClick={() => setIsMobileMembersOpen(true)}
+                onClick={() => setIsMobileChannelsOpen(true)}
+                className="lg:hidden h-8 w-8 -ml-1 text-muted-foreground mr-1"
+                title="Buka Menu Channel"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+
+              <Hash className="w-5 h-5 text-muted-foreground shrink-0" />
+              <span className="text-sm font-semibold truncate text-foreground">
+                {activeChannel.name}
+              </span>
+
+              {activeChannel.description && (
+                <>
+                  <Separator orientation="vertical" className="h-4 hidden sm:block mx-1" />
+                  <span className="text-xs text-muted-foreground truncate hidden sm:block max-w-[400px]">
+                    {activeChannel.description}
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* Top Bar Actions: Search & Members Toggle */}
+            <div className="flex items-center gap-2">
+              <div className="relative w-36 sm:w-56">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('Cari...')}
+                  className="h-8 pl-8 text-xs bg-sidebar-accent/50 border-sidebar-border"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              {/* Members Toggle Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  if (window.innerWidth < 1024) {
+                    setIsMobileMembersOpen(true);
+                  } else {
+                    setShowMemberList(!showMemberList);
+                  }
+                }}
+                className={cn('h-8 w-8', showMemberList && 'text-primary bg-primary/10')}
+                title="Daftar Anggota"
               >
                 <Users className="w-4 h-4" />
               </Button>
             </div>
           </div>
-        </div>
 
-        {/* Message Feed Scroll Area */}
-        <ScrollArea className="flex-1 p-3 md:p-6">
-          {/* Welcome Channel Banner */}
-          <div className="mb-4 md:mb-6 pt-2 pb-4 md:pb-5 border-b border-border/40">
-            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center text-primary mb-2.5 shadow-inner">
-              {activeChannel.isDirectMessage ? (
-                <MessageSquare className="w-6 h-6 md:w-7 md:h-7" />
-              ) : (
-                <Hash className="w-6 h-6 md:w-7 md:h-7" />
-              )}
+          {/* Messages Feed */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+            {/* Welcome banner at top of channel */}
+            <div className="mb-6 pt-4 pb-2">
+              <div className="w-14 h-14 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center text-primary mb-3">
+                <Hash className="w-7 h-7" />
+              </div>
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                Selamat datang di #{activeChannel.name}!
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1 max-w-xl leading-relaxed">
+                {activeChannel.description ||
+                  'Ruang diskusi komunitas Anticeil. Mulai percakapan, bagikan template otomatisasi, atau diskusikan AI workflow.'}
+              </p>
             </div>
-            <h2 className="text-lg md:text-2xl font-bold tracking-tight text-foreground">
-              {activeChannel.isDirectMessage ? activeChannel.name : `Selamat datang di #${activeChannel.name}!`}
-            </h2>
-            <p className="text-xs text-muted-foreground mt-1 max-w-xl leading-relaxed">
-              {activeChannel.isDirectMessage
-                ? `Ini adalah awal dari riwayat obrolan langsung Anda dengan ${activeChannel.name}.`
-                : activeChannel.description || `Ini adalah awal dari channel #${activeChannel.name}.`}
-            </p>
-          </div>
 
-          {/* Messages List (Discord Linear Layout) */}
-          <div className="space-y-3.5 md:space-y-4">
-            {filteredMessages.map((msg) => {
-              return (
+            <Separator className="my-4 bg-border/40" />
+
+            {/* Message List */}
+            {filteredMessages.length === 0 ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">
+                Belum ada pesan di channel ini. Jadilah yang pertama mengirim pesan!
+              </div>
+            ) : (
+              filteredMessages.map((msg) => (
                 <div
                   key={msg.id}
-                  className="group relative flex gap-2.5 md:gap-3.5 pr-1 md:pr-2 py-1 rounded-lg hover:bg-muted/20 transition-colors"
+                  className="group relative flex gap-3 px-2 py-1.5 -mx-2 rounded-lg hover:bg-muted/40 transition-colors"
                 >
                   {/* Sender Avatar */}
-                  <div className="shrink-0 pt-0.5">
-                    <CommunityAvatar
-                      name={msg.senderName}
-                      email={msg.senderEmail}
-                      imageUrl={msg.senderAvatar}
-                      size={34}
-                    />
-                  </div>
+                  <CommunityAvatar
+                    name={msg.senderName}
+                    email={msg.senderEmail}
+                    imageUrl={msg.senderAvatar}
+                    size={38}
+                    className="shrink-0 mt-0.5"
+                  />
 
                   {/* Message Body */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 md:gap-2 leading-none mb-1 flex-wrap">
+                    <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-xs font-semibold text-foreground hover:underline cursor-pointer">
                         {msg.senderName}
                       </span>
@@ -853,87 +1206,90 @@ export function CommunityPage() {
                       </span>
                     </div>
 
-                    {/* Content with rich markdown formatting */}
-                    <div className="text-xs leading-relaxed text-foreground/90 whitespace-pre-wrap select-text break-words">
+                    <div className="text-xs leading-relaxed text-foreground/90 break-words">
                       {renderFormattedMessage(msg.content)}
                     </div>
 
-                    {/* Template Card Attachment */}
-                    {msg.attachments?.map((att, i) => {
-                      if (att.type === 'template' && att.templateData) {
-                        return (
-                          <Card
-                            key={i}
-                            className="mt-2.5 p-3 md:p-3.5 max-w-full md:max-w-md bg-card/90 border-border/80 rounded-xl shadow-xs hover:border-primary/40 transition-all"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
-                                  <Layers className="w-4 h-4" />
+                    {/* Attachments rendering */}
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div className="mt-2 space-y-2">
+                        {msg.attachments.map((att, attIdx) => {
+                          if (att.type === 'template' && att.templateData) {
+                            return (
+                              <Card
+                                key={attIdx}
+                                className="p-3 max-w-md bg-sidebar border-border/80 rounded-lg shadow-xs hover:border-primary/50 transition-colors"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="p-1.5 rounded-md bg-primary/10 text-primary">
+                                      <Layers className="w-4 h-4" />
+                                    </div>
+                                    <span className="text-xs font-semibold">{att.templateData.name}</span>
+                                  </div>
+                                  <Badge variant="outline" className="text-[10px] font-mono">
+                                    {att.templateData.price || 'Free'}
+                                  </Badge>
                                 </div>
-                                <div className="min-w-0">
-                                  <h4 className="text-xs font-semibold leading-tight text-foreground truncate">
-                                    {att.templateData.name}
-                                  </h4>
-                                  <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                                    {att.templateData.pieceCount} Pieces •{' '}
-                                    <span className="text-primary font-medium">
-                                      {att.templateData.price || 'Free'}
-                                    </span>
+                                <p className="text-[11px] text-muted-foreground mt-1.5 line-clamp-2">
+                                  {att.templateData.description}
+                                </p>
+                                <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-border/40">
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {att.templateData.pieceCount} Langkah Alur
                                   </span>
+                                  <Button size="sm" variant="default" className="h-7 text-xs px-2.5" asChild>
+                                    <Link to="/templates">
+                                      {t('Gunakan Template')}
+                                      <ExternalLink className="w-3 h-3 ml-1" />
+                                    </Link>
+                                  </Button>
                                 </div>
-                              </div>
-                              <Button asChild size="sm" variant="default" className="h-7 text-xs px-2.5 shrink-0">
-                                <Link to="/templates">
-                                  Gunakan <ExternalLink className="w-3 h-3 ml-1" />
-                                </Link>
-                              </Button>
+                              </Card>
+                            );
+                          }
+                          if (att.type === 'image') {
+                            return (
+                              <img
+                                key={attIdx}
+                                src={att.url}
+                                alt={att.name}
+                                className="max-h-60 rounded-md border border-border/60 object-cover"
+                              />
+                            );
+                          }
+                          return (
+                            <div
+                              key={attIdx}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/60 border border-border/40 text-xs"
+                            >
+                              <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+                              <span className="truncate">{att.name}</span>
+                              {att.size && <span className="text-[10px] text-muted-foreground">({att.size})</span>}
                             </div>
-                            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
-                              {att.templateData.description}
-                            </p>
-                          </Card>
-                        );
-                      }
+                          );
+                        })}
+                      </div>
+                    )}
 
-                      if (att.type === 'image') {
-                        return (
-                          <div key={i} className="mt-2 max-w-full md:max-w-sm rounded-lg overflow-hidden border border-border">
-                            <img src={att.url} alt={att.name} className="w-full object-cover max-h-64" />
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div
-                          key={i}
-                          className="mt-2 flex items-center gap-2 p-2 rounded-md bg-muted/50 border border-border text-xs max-w-xs"
-                        >
-                          <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span className="truncate flex-1">{att.name}</span>
-                          <span className="text-[10px] text-muted-foreground">{att.size}</span>
-                        </div>
-                      );
-                    })}
-
-                    {/* Reactions Bar */}
+                    {/* Reactions Row */}
                     {msg.reactions && Object.keys(msg.reactions).length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
-                        {Object.entries(msg.reactions).map(([emoji, users]) => {
-                          const isReacted = users.includes(currentUser?.id || 'me');
+                        {Object.entries(msg.reactions).map(([emoji, userIds]) => {
+                          const isReacted = userIds.includes(currentUser?.id || 'me');
                           return (
                             <button
                               key={emoji}
                               onClick={() => handleToggleReaction(msg.id, emoji)}
                               className={cn(
-                                'flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border transition-colors',
+                                'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs border transition-colors cursor-pointer',
                                 isReacted
-                                  ? 'bg-primary/10 border-primary/40 text-primary font-medium'
-                                  : 'bg-muted/40 border-border hover:bg-muted text-foreground',
+                                  ? 'bg-primary/15 border-primary/40 text-primary font-medium'
+                                  : 'bg-muted/50 border-border/50 text-muted-foreground hover:bg-muted',
                               )}
                             >
                               <span>{emoji}</span>
-                              <span className="text-[10px] font-semibold">{users.length}</span>
+                              <span className="text-[11px] font-semibold">{userIds.length}</span>
                             </button>
                           );
                         })}
@@ -941,189 +1297,305 @@ export function CommunityPage() {
                     )}
                   </div>
 
-                  {/* Hover Quick Reaction Bar */}
-                  <div className="absolute right-2 top-2 hidden group-hover:flex items-center gap-0.5 bg-background border border-border shadow-xs rounded-md p-0.5 z-10">
-                    {['👍', '❤️', '🚀', '🔥', '💡'].map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => handleToggleReaction(msg.id, emoji)}
-                        className="h-6 w-6 rounded hover:bg-muted flex items-center justify-center text-xs transition-transform active:scale-90"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
+                  {/* Discord Hover Action Bar (Reactions & Delete CRUD) */}
+                  <div className="absolute right-3 -top-3.5 hidden group-hover:flex items-center bg-background border border-border/80 shadow-md rounded-md p-0.5 gap-0.5 z-10">
+                    <button
+                      onClick={() => handleToggleReaction(msg.id, '👍')}
+                      className="p-1 hover:bg-muted rounded text-xs transition-colors"
+                      title="Like"
+                    >
+                      👍
+                    </button>
+                    <button
+                      onClick={() => handleToggleReaction(msg.id, '❤️')}
+                      className="p-1 hover:bg-muted rounded text-xs transition-colors"
+                      title="Love"
+                    >
+                      ❤️
+                    </button>
+                    <button
+                      onClick={() => handleToggleReaction(msg.id, '🔥')}
+                      className="p-1 hover:bg-muted rounded text-xs transition-colors"
+                      title="Fire"
+                    >
+                      🔥
+                    </button>
+                    <button
+                      onClick={() => handleToggleReaction(msg.id, '🎉')}
+                      className="p-1 hover:bg-muted rounded text-xs transition-colors"
+                      title="Party"
+                    >
+                      🎉
+                    </button>
+
+                    <Separator orientation="vertical" className="h-4 mx-0.5" />
+
+                    {/* Delete Message button (Message CRUD) */}
+                    <button
+                      onClick={() => handleDeleteMessage(msg.id)}
+                      className="p-1 hover:bg-red-500/10 text-muted-foreground hover:text-red-400 rounded transition-colors"
+                      title="Hapus Pesan"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
-              );
-            })}
+              ))
+            )}
             <div ref={messagesEndRef} />
           </div>
-        </ScrollArea>
 
-        {/* Bottom Input Area (Discord Floating Input) */}
-        <div className="p-3 md:p-4 pt-1 border-t border-border/40 shrink-0">
-          {/* Staged Attachment Chip */}
+          {/* Staged Attachment Indicator */}
           {stagedAttachment && (
-            <div className="mb-2 flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border rounded-lg text-xs w-fit max-w-full">
-              <Paperclip className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="font-medium truncate max-w-xs">{stagedAttachment.name}</span>
-              <span className="text-[10px] text-muted-foreground shrink-0">({stagedAttachment.size || 'Attachment'})</span>
-              <button
+            <div className="mx-4 mb-2 p-2 rounded-md bg-sidebar border border-sidebar-border flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 truncate">
+                <Paperclip className="w-4 h-4 text-primary shrink-0" />
+                <span className="font-medium truncate">{stagedAttachment.name}</span>
+                {stagedAttachment.size && (
+                  <span className="text-[10px] text-muted-foreground">({stagedAttachment.size})</span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setStagedAttachment(null)}
-                className="hover:text-destructive transition-colors ml-1 shrink-0"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
               >
                 <X className="w-3.5 h-3.5" />
-              </button>
+              </Button>
             </div>
           )}
 
-          <div className="flex items-center gap-1.5 md:gap-2 bg-muted/30 border border-border/70 rounded-xl px-2.5 md:px-3 py-1.5 md:py-2 focus-within:border-primary/60 transition-colors">
-            {/* Hidden File Input */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="hidden"
-              accept="image/*,.json,.pdf"
-            />
+          {/* Chat Input Bar */}
+          <div className="p-4 pt-1 border-t border-border/40 shrink-0 bg-background/80">
+            <div className="flex items-center gap-2 bg-sidebar rounded-lg border border-sidebar-border px-3 py-1.5 focus-within:border-primary/50 transition-colors">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+              />
 
-            {/* Plus / Attachment Button */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
+              {/* Upload file button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                title="Lampirkan File / Gambar"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+
+              {/* Share Template Popover */}
+              <Popover open={isTemplatePopoverOpen} onOpenChange={setIsTemplatePopoverOpen}>
+                <PopoverTrigger asChild>
                   <Button
-                    type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground shrink-0"
-                    onClick={() => fileInputRef.current?.click()}
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                    title="Bagikan Template Otomasi"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Layers className="w-4 h-4" />
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent>Kirim file atau gambar</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            {/* Main Text Input */}
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              placeholder={`Pesan ke #${activeChannel.name}...`}
-              className="flex-1 bg-transparent border-0 outline-none text-xs text-foreground placeholder:text-muted-foreground/60 min-w-0"
-            />
-
-            {/* Quick Template Share Popover */}
-            <Popover open={isTemplatePopoverOpen} onOpenChange={setIsTemplatePopoverOpen}>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          'h-7 w-7 text-muted-foreground hover:text-primary shrink-0',
-                          isTemplatePopoverOpen && 'text-primary bg-primary/10',
-                        )}
-                      >
-                        <Layers className="w-4 h-4" />
-                      </Button>
-                    </PopoverTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent>Bagikan Template Workflow</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <PopoverContent align="end" className="w-[calc(100vw-32px)] sm:w-80 p-3 bg-card border-border shadow-md">
-                <div className="text-xs font-semibold mb-2 flex items-center justify-between">
-                  <span>Pilih Template untuk Dibagikan</span>
-                  <Badge variant="outline" className="text-[10px]">3 Pilihan</Badge>
-                </div>
-                <div className="space-y-2">
-                  {SHAREABLE_TEMPLATES.map((tmpl) => (
-                    <button
-                      key={tmpl.name}
-                      onClick={() => {
-                        setStagedAttachment({
-                          type: 'template',
-                          url: '/templates',
-                          name: tmpl.name,
-                          templateData: {
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="w-80 p-3">
+                  <div className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    Pilih Template untuk Dibagikan
+                  </div>
+                  <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                    {SHAREABLE_TEMPLATES.map((tmpl, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setStagedAttachment({
+                            type: 'template',
+                            url: '/templates',
                             name: tmpl.name,
-                            description: tmpl.description,
-                            pieceCount: tmpl.pieceCount,
-                            price: tmpl.price,
-                          },
-                        });
-                        setIsTemplatePopoverOpen(false);
-                      }}
-                      className="w-full text-left p-2.5 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-muted/40 transition-all group"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold group-hover:text-primary transition-colors truncate">
-                          {tmpl.name}
-                        </span>
-                        <span className="text-[10px] font-medium text-primary shrink-0 ml-1">
-                          {tmpl.price}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
-                        {tmpl.description}
-                      </p>
-                      <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                        {tmpl.tags.map((tag) => (
-                          <span key={tag} className="text-[9px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+                            templateData: tmpl,
+                          });
+                          setIsTemplatePopoverOpen(false);
+                        }}
+                        className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors border border-transparent hover:border-border/60"
+                      >
+                        <div className="flex items-center justify-between text-xs font-medium">
+                          <span className="truncate">{tmpl.name}</span>
+                          <span className="text-[10px] text-muted-foreground ml-2 shrink-0">{tmpl.price}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">
+                          {tmpl.description}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
 
-            {/* Send Button */}
-            <Button
-              type="button"
-              size="icon"
-              onClick={handleSendMessage}
-              disabled={!inputText.trim() && !stagedAttachment}
-              className="h-7 w-7 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 transition-opacity disabled:opacity-30"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </Button>
+              {/* Text Input */}
+              <Input
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                placeholder={`Pesan ke #${activeChannel.name}...`}
+                className="border-0 shadow-none focus-visible:ring-0 text-xs px-2 h-9 bg-transparent"
+              />
+
+              {/* Send Button */}
+              <Button
+                variant={inputText.trim() || stagedAttachment ? 'default' : 'ghost'}
+                size="icon"
+                onClick={handleSendMessage}
+                disabled={!inputText.trim() && !stagedAttachment}
+                className="h-8 w-8 shrink-0"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
+
+        {/* DESKTOP MEMBERS SIDEBAR (w-60) */}
+        {showMemberList && (
+          <div className="hidden lg:flex shrink-0">
+            {renderMembersSidebarContent()}
+          </div>
+        )}
+
+        {/* DIALOG: BUAT CHANNEL BARU (Channel CRUD: Create) */}
+        <Dialog open={isCreateChannelOpen} onOpenChange={setIsCreateChannelOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <form onSubmit={handleCreateChannelSubmit}>
+              <DialogHeader>
+                <DialogTitle>{t('Buat Channel Baru')}</DialogTitle>
+                <DialogDescription>
+                  Tambahkan ruang diskusi baru untuk tim dan komunitas Anticeil.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold">Nama Channel</label>
+                  <div className="relative">
+                    <Hash className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={newChannelName}
+                      onChange={(e) => setNewChannelName(e.target.value)}
+                      placeholder="contoh: tips-otomasi"
+                      className="pl-9 text-xs"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold">Deskripsi / Topik</label>
+                  <Input
+                    value={newChannelDesc}
+                    onChange={(e) => setNewChannelDesc(e.target.value)}
+                    placeholder="Ruang diskusi untuk..."
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCreateChannelOpen(false)}
+                >
+                  Batal
+                </Button>
+                <Button type="submit">
+                  Buat Channel
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* DIALOG: EDIT CHANNEL (Channel CRUD: Update) */}
+        <Dialog open={!!channelToEdit} onOpenChange={(open) => !open && setChannelToEdit(null)}>
+          <DialogContent className="sm:max-w-[425px]">
+            <form onSubmit={handleEditChannelSubmit}>
+              <DialogHeader>
+                <DialogTitle>{t('Edit Channel')}</DialogTitle>
+                <DialogDescription>
+                  Perbarui nama dan deskripsi topik channel.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold">Nama Channel</label>
+                  <Input
+                    value={editChannelName}
+                    onChange={(e) => setEditChannelName(e.target.value)}
+                    className="text-xs"
+                    required
+                  />
+                </div>
+
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold">Deskripsi</label>
+                  <Input
+                    value={editChannelDesc}
+                    onChange={(e) => setEditChannelDesc(e.target.value)}
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setChannelToEdit(null)}
+                >
+                  Batal
+                </Button>
+                <Button type="submit">
+                  Simpan Perubahan
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* DIALOG: DELETE CHANNEL (Channel CRUD: Delete) */}
+        <Dialog open={!!channelToDelete} onOpenChange={(open) => !open && setChannelToDelete(null)}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle className="text-red-500">{t('Hapus Channel?')}</DialogTitle>
+              <DialogDescription>
+                Apakah Anda yakin ingin menghapus channel #{channelToDelete?.name}? Semua pesan di dalamnya akan terhapus permanen.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter className="mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setChannelToDelete(null)}
+              >
+                Batal
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteChannelConfirm}
+              >
+                Hapus Channel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-
-      {/* 3. RIGHT SIDEBAR (Desktop): Member List */}
-      {showMemberList && (
-        <div className="w-60 shrink-0 border-l border-sidebar-border hidden lg:flex flex-col h-full">
-          {renderMemberListContent()}
-        </div>
-      )}
-
-      {/* TABLET & MOBILE MEMBERS SHEET (Slide over from right) */}
-      <Sheet open={isMobileMembersOpen} onOpenChange={setIsMobileMembersOpen}>
-        <SheetContent side="right" className="p-0 w-72 sm:w-80">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Daftar Anggota</SheetTitle>
-          </SheetHeader>
-          {renderMemberListContent()}
-        </SheetContent>
-      </Sheet>
-    </div>
+    </TooltipProvider>
   );
 }
-
 export default CommunityPage;

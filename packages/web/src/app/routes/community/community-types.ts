@@ -1,10 +1,22 @@
 export type CommunityRole = 'admin' | 'creator' | 'pro' | 'member';
 
+export type CommunityHubId = 'anticeil' | 'ai-agents' | 'templates' | 'developers' | 'direct-messages' | string;
+
+export type CommunityHub = {
+  id: CommunityHubId;
+  name: string;
+  iconType: 'spark' | 'bot' | 'templates' | 'code' | 'dm';
+  initials: string;
+  description: string;
+  unreadCount?: number;
+};
+
 export type CommunityChannel = {
   id: string;
   name: string;
   description: string;
   category: 'CHANNELS' | 'DIRECT MESSAGES';
+  hubId?: string;
   isDirectMessage?: boolean;
   dmUserId?: string;
   unreadCount?: number;

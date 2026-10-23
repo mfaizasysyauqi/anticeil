@@ -1,29 +1,142 @@
-import { CommunityChannel, CommunityMember, CommunityMessage } from './community-types';
+import { CommunityChannel, CommunityHub, CommunityMember, CommunityMessage } from './community-types';
+
+export const DEFAULT_HUBS: CommunityHub[] = [
+  {
+    id: 'anticeil',
+    name: 'Anticeil Community',
+    iconType: 'spark',
+    initials: 'AC',
+    description: 'Komunitas resmi pembangun workflow dan otomasi Anticeil.',
+  },
+  {
+    id: 'ai-agents',
+    name: 'AI Agents & MCP',
+    iconType: 'bot',
+    initials: 'AI',
+    description: 'Diskusi autonomous agents, tool calling, dan server MCP.',
+    unreadCount: 2,
+  },
+  {
+    id: 'templates',
+    name: 'Template Hub',
+    iconType: 'templates',
+    initials: 'TM',
+    description: 'Koleksi alur kerja siap pakai, jual-beli, dan request.',
+  },
+  {
+    id: 'developers',
+    name: 'Developer & API',
+    iconType: 'code',
+    initials: 'DEV',
+    description: 'Custom pieces development, webhook pipelines, dan bug reporting.',
+  },
+  {
+    id: 'direct-messages',
+    name: 'Direct Messages',
+    iconType: 'dm',
+    initials: 'DM',
+    description: 'Pesan langsung antar anggota komunitas.',
+  },
+];
 
 export const DEFAULT_CHANNELS: CommunityChannel[] = [
+  // Anticeil Community Hub
   {
     id: 'umum',
     name: 'umum',
     description: 'Ruang obrolan umum seputar otomatisasi, AI builder, dan inovasi platform Anticeil.',
     category: 'CHANNELS',
+    hubId: 'anticeil',
   },
   {
     id: 'showcase-template',
     name: 'showcase-template',
     description: 'Pamerkan alur otomatisasi buatanmu, dapatkan feedback, dan bagikan template gratis.',
     category: 'CHANNELS',
+    hubId: 'anticeil',
   },
   {
     id: 'jual-beli-template',
     name: 'jual-beli-template',
     description: 'Marketplace komunitas: jual atau beli workflow premium dan request otomasi custom.',
     category: 'CHANNELS',
+    hubId: 'anticeil',
   },
   {
     id: 'tanya-jawab',
     name: 'tanya-jawab',
     description: 'Tanya jawab seputar webhook, API keys, error workflow, dan integrasi 770+ pieces.',
     category: 'CHANNELS',
+    hubId: 'anticeil',
+  },
+
+  // AI Agents Hub
+  {
+    id: 'ai-agents-discussion',
+    name: 'ai-agents',
+    description: 'Diskusi seputar agen otonom, tool calling, dan multi-agent coordination.',
+    category: 'CHANNELS',
+    hubId: 'ai-agents',
+  },
+  {
+    id: 'prompt-engineering',
+    name: 'prompt-engineering',
+    description: 'Berbagi system prompts terbaik untuk coding, support, dan automations.',
+    category: 'CHANNELS',
+    hubId: 'ai-agents',
+  },
+  {
+    id: 'mcp-builders',
+    name: 'mcp-builders',
+    description: 'Eksplorasi Model Context Protocol dan integrasi server MCP Anticeil.',
+    category: 'CHANNELS',
+    hubId: 'ai-agents',
+  },
+
+  // Template Hub
+  {
+    id: 'free-workflows',
+    name: 'free-workflows',
+    description: 'Koleksi template gratis siap pakai untuk UMKM dan bisnis.',
+    category: 'CHANNELS',
+    hubId: 'templates',
+  },
+  {
+    id: 'enterprise-solutions',
+    name: 'enterprise-solutions',
+    description: 'Solusi otomatisasi skala besar, OCR invoice, ERP & banking sync.',
+    category: 'CHANNELS',
+    hubId: 'templates',
+  },
+  {
+    id: 'workflow-critique',
+    name: 'workflow-critique',
+    description: 'Minta review arsitektur alur kerja dari para master builder Anticeil.',
+    category: 'CHANNELS',
+    hubId: 'templates',
+  },
+
+  // Developer Hub
+  {
+    id: 'custom-pieces',
+    name: 'custom-pieces',
+    description: 'Panduan membuat custom pieces dengan Anticeil Framework.',
+    category: 'CHANNELS',
+    hubId: 'developers',
+  },
+  {
+    id: 'webhook-integration',
+    name: 'webhook-integration',
+    description: 'Tips & trik menangani high-volume webhooks dan rate limits.',
+    category: 'CHANNELS',
+    hubId: 'developers',
+  },
+  {
+    id: 'bug-reports',
+    name: 'bug-reports',
+    description: 'Laporkan temuan bug langsung ke developer Anticeil.',
+    category: 'CHANNELS',
+    hubId: 'developers',
   },
 ];
 
