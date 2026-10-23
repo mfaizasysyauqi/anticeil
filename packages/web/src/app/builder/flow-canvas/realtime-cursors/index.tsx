@@ -19,9 +19,9 @@ export const RealtimeCanvasCursors = React.memo(
 
     useEffect(() => {
       const container = containerRef.current;
-      if (!container || !isPlanPlusOrAbove) return;
+      if (!container) return;
 
-      const handlePointerMove = (e: PointerEvent) => {
+      const handlePointerMove = (e: MouseEvent | PointerEvent) => {
         // Calculate canvas graph coordinates taking zoom and pan into account
         const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
         sendCursorPosition(pos.x, pos.y);
@@ -31,16 +31,20 @@ export const RealtimeCanvasCursors = React.memo(
         sendCursorPosition(null, null);
       };
 
-      container.addEventListener('pointermove', handlePointerMove);
+      container.addEventListener('pointermove', handlePointerMove as EventListener);
+      container.addEventListener('mousemove', handlePointerMove as EventListener);
       container.addEventListener('pointerleave', handlePointerLeave);
+      container.addEventListener('mouseleave', handlePointerLeave);
 
       return () => {
-        container.removeEventListener('pointermove', handlePointerMove);
+        container.removeEventListener('pointermove', handlePointerMove as EventListener);
+        container.removeEventListener('mousemove', handlePointerMove as EventListener);
         container.removeEventListener('pointerleave', handlePointerLeave);
+        container.removeEventListener('mouseleave', handlePointerLeave);
       };
-    }, [containerRef, isPlanPlusOrAbove, screenToFlowPosition, sendCursorPosition]);
+    }, [containerRef, screenToFlowPosition, sendCursorPosition]);
 
-    if (!isPlanPlusOrAbove || cursors.length === 0) {
+    if (cursors.length === 0) {
       return null;
     }
 

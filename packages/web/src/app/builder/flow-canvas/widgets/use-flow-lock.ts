@@ -1,5 +1,5 @@
 import { isNil } from '@activepieces/core-utils';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useResourceLock } from '@/hooks/use-resource-lock';
@@ -7,23 +7,16 @@ import { useResourceLock } from '@/hooks/use-resource-lock';
 import { useBuilderStateContext } from '../../builder-hooks';
 import { flowCanvasHooks } from '../hooks';
 
+// Simultaneous collaborative editing enabled: flow locking is disabled so collaborators
+// can edit in parallel without turn-based locks or 'take over' barriers.
 function useFlowLock() {
-  const [readonly, flowId, setReadOnly] = useBuilderStateContext((state) => [
-    state.readonly,
+  const [flowId] = useBuilderStateContext((state) => [
     state.flow.id,
-    state.setReadOnly,
   ]);
   const run = useBuilderStateContext((state) => state.run);
-  const readonlySetByLock = useRef(false);
   const navigate = useNavigate();
   const { switchToDraft } = flowCanvasHooks.useSwitchToDraft();
 
-  // refresh the flow in place after a successful take-over; a full-page
-  // reload would break the embed SDK handshake inside an iframe. When viewing
-  // a run, mirror EditFlowOrViewDraftButton: navigate to the flow
-  // (client-side, embed-safe) instead of editing a draft under the run view.
-  // Branch on the builder run state, not the URL: embed mounts a memory
-  // router, so window.location never reflects the in-app route.
   const onTakeOver = useCallback(() => {
     if (!isNil(run)) {
       navigate(`/flows/${flowId}`);
@@ -32,23 +25,12 @@ function useFlowLock() {
     }
   }, [run, navigate, flowId, switchToDraft]);
 
-  const { lockedBy, takeOver } = useResourceLock({
+  const { takeOver } = useResourceLock({
     resourceId: flowId,
     onTakeOver,
   });
 
-  useEffect(() => {
-    if (lockedBy && !readonly) {
-      readonlySetByLock.current = true;
-      setReadOnly(true);
-    }
-    if (!lockedBy && readonlySetByLock.current) {
-      readonlySetByLock.current = false;
-      setReadOnly(false);
-    }
-  }, [lockedBy, readonly, setReadOnly]);
-
-  return { lockedBy, takeOver };
+  return { lockedBy: null, takeOver };
 }
 
 export { useFlowLock };

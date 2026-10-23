@@ -24,6 +24,8 @@ import { PromiseQueue } from '@/lib/promise-queue';
 
 import { BuilderState } from '../builder-hooks';
 import { flowCanvasUtils } from '../flow-canvas/utils/flow-canvas-utils';
+import { getSocket } from '@/components/providers/socket-provider';
+import { getTabClientId } from '@/hooks/use-realtime-cursors';
 
 export type FlowState = {
   flow: PopulatedFlow;
@@ -256,6 +258,21 @@ export const createFlowState = (
                 saving: flowUpdatesQueue.size() !== 0,
               };
             });
+
+            // Broadcast the updated flow version to all other open tabs/collaborators in real time
+            try {
+              const sock = getSocket();
+              if (sock && sock.connected) {
+                sock.emit('FLOW_UPDATED', {
+                  flowId: state.flow.id,
+                  version: serverFlowVersion,
+                  clientId: getTabClientId(),
+                });
+              }
+            } catch (broadcastErr) {
+              console.error('Failed to emit FLOW_UPDATED', broadcastErr);
+            }
+
             onSuccess?.();
           } catch (error) {
             console.error(error);
@@ -330,10 +347,11 @@ export const createFlowState = (
         readonly:
           state.flow.publishedVersionId !== flowVersion.id &&
           flowVersion.state === FlowVersionState.LOCKED,
-        rightSidebar:
-          initiallySelectedStep && !isEmptyTriggerInitiallySelected
-            ? RightSideBarType.PIECE_SETTINGS
-            : RightSideBarType.NONE,
+        rightSidebar: shouldReselectInitialStep
+          ? (initiallySelectedStep && !isEmptyTriggerInitiallySelected
+              ? RightSideBarType.PIECE_SETTINGS
+              : RightSideBarType.NONE)
+          : state.rightSidebar,
         selectedBranchIndex: null,
       }));
     },

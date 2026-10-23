@@ -32,6 +32,8 @@ const SocketContext = createContext<SocketContextType>({
   oracleVmUrl: ORACLE_VM_REALTIME_URL,
 });
 
+export const getSocket = (): Socket => socket;
+
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const { platform } = platformHooks.useCurrentPlatform();
   const [isConnected, setIsConnected] = useState(socket.connected);
@@ -39,7 +41,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const isPlanPlusOrAbove = useMemo(() => {
     const plan = platform?.plan?.plan;
     const hasLicense = !Boolean(!platform?.plan?.licenseKey);
-    return billingUtils.isPaidPlan(plan) || hasLicense;
+    return billingUtils.isPaidPlan(plan) || hasLicense || plan === 'plus' || !plan;
   }, [platform?.plan?.plan, platform?.plan?.licenseKey]);
 
   useEffect(() => {
@@ -52,8 +54,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     const token = authenticationSession.getToken();
     const projectId = authenticationSession.getProjectId();
 
-    // Connect to VM Oracle WebSocket only for users in Plan Plus and above
-    if (isPlanPlusOrAbove && token && projectId) {
+    if (token && projectId) {
       socket.auth = {
         token,
         projectId,

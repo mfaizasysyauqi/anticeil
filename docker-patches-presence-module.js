@@ -4,13 +4,37 @@ exports.presenceModule = void 0;
 const core_utils_1 = require("@activepieces/core-utils");
 const shared_1 = require("@activepieces/shared");
 const user_service_1 = require("../../../user/user-service");
-let project_service_1, platform_plan_service_1;
-try { project_service_1 = require("../../../project/project-service"); } catch(e) { try { project_service_1 = require("../../../ee/projects/platform-project-service"); } catch(e2) { project_service_1 = null; } }
-try { platform_plan_service_1 = require("../../../billing/platform-plan.service"); } catch(e) { try { platform_plan_service_1 = require("../../../ee/platform/platform-plan/platform-plan.service"); } catch(e2) { platform_plan_service_1 = null; } }
 const websockets_service_1 = require("../../websockets.service");
 const collaborative_resource_1 = require("../collaborative-resource");
 const presence_service_1 = require("./presence.service");
+
+// Fallbacks for custom Anticeil realtime websocket events that may not exist in base image's @activepieces/shared
+const MOVE_CURSOR_EVENT = (shared_1.WebsocketServerEvent && shared_1.WebsocketServerEvent.MOVE_CURSOR) || 'MOVE_CURSOR';
+const CURSOR_UPDATED_EVENT = (shared_1.WebsocketClientEvent && shared_1.WebsocketClientEvent.CURSOR_UPDATED) || 'CURSOR_UPDATED';
+const FLOW_UPDATED_EVENT = (shared_1.WebsocketClientEvent && shared_1.WebsocketClientEvent.FLOW_UPDATED) || 'FLOW_UPDATED';
+
 const presenceModule = async (app) => {
+    // Hook on Fastify responses: when a flow is updated via HTTP POST /api/v1/flows/:id, broadcast FLOW_UPDATED
+    app.addHook('onSend', async (request, reply, payload) => {
+        if (request.method === 'POST' && typeof request.url === 'string' && request.url.includes('/flows/') && reply.statusCode < 300) {
+            try {
+                const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
+                if (data && data.id && data.version) {
+                    const projectId = request.projectId || (request.principal && request.principal.projectId);
+                    if (projectId) {
+                        websockets_service_1.websocketService.to(projectId).emit(FLOW_UPDATED_EVENT, {
+                            flowId: data.id,
+                            version: data.version,
+                        });
+                    }
+                }
+            } catch (e) {
+                // Ignore parse errors on non-json responses
+            }
+        }
+        return payload;
+    });
+
     websockets_service_1.websocketService.addListener(shared_1.PrincipalType.USER, shared_1.WebsocketServerEvent.JOIN_PRESENCE, (socket) => {
         return async (data, principal, projectId, callback) => {
             const request = shared_1.PresenceRequest.safeParse(data);
@@ -27,7 +51,11 @@ const presenceModule = async (app) => {
                     return;
                 }
                 const user = await (0, user_service_1.userService)(app.log).getMetaInformation({ id: principal.id });
-                const displayName = `${user.firstName} ${user.lastName}`;
+                const displayName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Collaborator';
+                socket.data.userDisplayName = displayName;
+                socket.data.userEmail = user.email || '';
+                socket.data.userImageUrl = user.imageUrl ?? null;
+
                 await (0, presence_service_1.presenceService)(app.log).join({
                     resourceId,
                     projectId,
@@ -51,6 +79,7 @@ const presenceModule = async (app) => {
             }
         };
     });
+
     websockets_service_1.websocketService.addListener(shared_1.PrincipalType.USER, shared_1.WebsocketServerEvent.LEAVE_PRESENCE, (socket) => {
         return async (data, principal, projectId) => {
             const request = shared_1.PresenceRequest.safeParse(data);
@@ -71,12 +100,14 @@ const presenceModule = async (app) => {
                     users,
                 });
                 // Also clear cursor when leaving resource
-                socket.to(projectId).emit(shared_1.WebsocketClientEvent.CURSOR_UPDATED, {
+                socket.to(projectId).emit(CURSOR_UPDATED_EVENT, {
                     resourceId,
                     userId: principal.id,
                     userDisplayName: '',
                     x: null,
                     y: null,
+                    socketId: socket.id,
+                    clientId: socket.data.clientId ?? socket.id,
                 });
             }
             catch (error) {
@@ -84,37 +115,43 @@ const presenceModule = async (app) => {
             }
         };
     });
-    websockets_service_1.websocketService.addListener(shared_1.PrincipalType.USER, shared_1.WebsocketServerEvent.MOVE_CURSOR, (socket) => {
+
+    // Realtime cursor movement listener
+    websockets_service_1.websocketService.addListener(shared_1.PrincipalType.USER, MOVE_CURSOR_EVENT, (socket) => {
         return async (data, principal, projectId) => {
-            const request = shared_1.CursorMoveRequest.safeParse(data);
-            if (!request.success) {
+            if (!data || typeof data !== 'object') {
                 return;
             }
-            const { resourceId, x, y, selectedStep, clientId } = request.data;
+            const { resourceId, x, y, selectedStep, clientId } = data;
+            if (!resourceId) {
+                return;
+            }
             try {
-                // Ensure project's platform is on Plan Plus or above
-                if (project_service_1 && platform_plan_service_1) {
-                    const project = await (0, project_service_1.projectService)(app.log).getOneOrThrow(projectId);
-                    const platformPlan = await (0, platform_plan_service_1.platformPlanService)(app.log).getOrCreateForPlatform(project.platformId);
-                    const isPlanPlusOrAbove = platformPlan.plan && platformPlan.plan !== 'free' && platformPlan.plan !== 'free_legacy';
-                    if (!isPlanPlusOrAbove) {
-                        return;
+                if (!socket.data.userDisplayName) {
+                    try {
+                        const user = await (0, user_service_1.userService)(app.log).getMetaInformation({ id: principal.id });
+                        socket.data.userDisplayName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Collaborator';
+                        socket.data.userEmail = user.email || '';
+                        socket.data.userImageUrl = user.imageUrl ?? null;
+                    } catch (e) {
+                        socket.data.userDisplayName = 'Collaborator';
                     }
                 }
-                const user = await (0, user_service_1.userService)(app.log).getMetaInformation({ id: principal.id });
-                const displayName = `${user.firstName} ${user.lastName}`;
                 if (clientId) {
                     socket.data.clientId = clientId;
                 }
+                socket.data.presenceResourceId = resourceId;
+                const displayName = socket.data.userDisplayName || 'Collaborator';
+
                 // Broadcast cursor position and selected step to other collaborators in the project room
-                socket.to(projectId).emit(shared_1.WebsocketClientEvent.CURSOR_UPDATED, {
+                socket.to(projectId).emit(CURSOR_UPDATED_EVENT, {
                     resourceId,
                     userId: principal.id,
                     userDisplayName: displayName,
-                    userEmail: user.email,
-                    userImageUrl: user.imageUrl ?? null,
-                    x,
-                    y,
+                    userEmail: socket.data.userEmail,
+                    userImageUrl: socket.data.userImageUrl,
+                    x: typeof x === 'number' ? x : null,
+                    y: typeof y === 'number' ? y : null,
                     selectedStep: selectedStep ?? null,
                     socketId: socket.id,
                     clientId: clientId ?? socket.id,
@@ -125,8 +162,25 @@ const presenceModule = async (app) => {
             }
         };
     });
+
+    // Realtime workflow modification broadcast listener
+    websockets_service_1.websocketService.addListener(shared_1.PrincipalType.USER, FLOW_UPDATED_EVENT, (socket) => {
+        return async (data, principal, projectId) => {
+            if (!data || typeof data !== 'object') {
+                return;
+            }
+            try {
+                // Forward the updated flow version to all other open tabs/collaborators in this project
+                socket.to(projectId).emit(FLOW_UPDATED_EVENT, data);
+            }
+            catch (error) {
+                app.log.error({ error }, '[FLOW_UPDATED] Failed to broadcast flow update');
+            }
+        };
+    });
 };
 exports.presenceModule = presenceModule;
+
 function registerPresenceDisconnectHandler({ socket, userId, projectId, app }) {
     if (socket.data.presenceDisconnectRegistered) {
         return;
@@ -135,18 +189,23 @@ function registerPresenceDisconnectHandler({ socket, userId, projectId, app }) {
     socket.once('disconnect', async () => {
         const presenceResourceId = socket.data.presenceResourceId;
         if (typeof presenceResourceId === 'string') {
-            await (0, presence_service_1.presenceService)(app.log).leave({
-                resourceId: presenceResourceId,
-                projectId,
-                userId,
-            });
-            const users = await (0, presence_service_1.presenceService)(app.log).getActiveUsers({ resourceId: presenceResourceId, projectId });
-            websockets_service_1.websocketService.to(projectId).emit(shared_1.WebsocketClientEvent.PRESENCE_UPDATED, {
-                resourceId: presenceResourceId,
-                users,
-            });
+            try {
+                await (0, presence_service_1.presenceService)(app.log).leave({
+                    resourceId: presenceResourceId,
+                    projectId,
+                    userId,
+                });
+                const users = await (0, presence_service_1.presenceService)(app.log).getActiveUsers({ resourceId: presenceResourceId, projectId });
+                websockets_service_1.websocketService.to(projectId).emit(shared_1.WebsocketClientEvent.PRESENCE_UPDATED, {
+                    resourceId: presenceResourceId,
+                    users,
+                });
+            } catch (err) {
+                // Ignore disconnect errors
+            }
+
             // Clear cursor position for disconnected user
-            websockets_service_1.websocketService.to(projectId).emit(shared_1.WebsocketClientEvent.CURSOR_UPDATED, {
+            websockets_service_1.websocketService.to(projectId).emit(CURSOR_UPDATED_EVENT, {
                 resourceId: presenceResourceId,
                 userId,
                 userDisplayName: '',

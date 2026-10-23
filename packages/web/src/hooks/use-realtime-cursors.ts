@@ -66,9 +66,11 @@ export function useRealtimeCursors({
   const lastSentTimeRef = useRef<number>(0);
   const pendingPosRef = useRef<{ x: number | null; y: number | null } | null>(null);
 
+  const canTrack = isPlanPlusOrAbove !== false && Boolean(resourceId);
+
   // Listen for cursor updates from other collaborators on Oracle VM
   useEffect(() => {
-    if (!isPlanPlusOrAbove || !resourceId) {
+    if (!canTrack) {
       setCursors({});
       return;
     }
@@ -118,6 +120,7 @@ export function useRealtimeCursors({
     };
 
     socket.on(WebsocketClientEvent.CURSOR_UPDATED, handleCursorUpdated);
+    socket.on('CURSOR_UPDATED', handleCursorUpdated);
 
     // Prune stale cursors every 1.5 seconds
     const pruneInterval = setInterval(() => {
@@ -138,14 +141,15 @@ export function useRealtimeCursors({
 
     return () => {
       socket.off(WebsocketClientEvent.CURSOR_UPDATED, handleCursorUpdated);
+      socket.off('CURSOR_UPDATED', handleCursorUpdated);
       clearInterval(pruneInterval);
     };
-  }, [resourceId, socket, currentUserId, isPlanPlusOrAbove]);
+  }, [resourceId, socket, currentUserId, canTrack]);
 
   // Function to broadcast current user's cursor position in canvas graph space
   const sendCursorPosition = useCallback(
     (x: number | null, y: number | null) => {
-      if (!isPlanPlusOrAbove || !resourceId || !socket.connected) {
+      if (!resourceId || !socket.connected) {
         return;
       }
 
@@ -153,7 +157,7 @@ export function useRealtimeCursors({
       // If clearing cursor (pointer leave), send immediately
       if (x === null || y === null) {
         lastSentTimeRef.current = now;
-        socket.emit(WebsocketServerEvent.MOVE_CURSOR, {
+        socket.emit('MOVE_CURSOR', {
           resourceId,
           x: null,
           y: null,
@@ -166,7 +170,7 @@ export function useRealtimeCursors({
       // Throttle rapid pointermove events
       if (now - lastSentTimeRef.current >= THROTTLE_MS) {
         lastSentTimeRef.current = now;
-        socket.emit(WebsocketServerEvent.MOVE_CURSOR, {
+        socket.emit('MOVE_CURSOR', {
           resourceId,
           x,
           y,
@@ -177,19 +181,19 @@ export function useRealtimeCursors({
         pendingPosRef.current = { x, y };
       }
     },
-    [isPlanPlusOrAbove, resourceId, socket, selectedStep],
+    [resourceId, socket, selectedStep],
   );
 
   // Flush any trailing throttled position
   useEffect(() => {
-    if (!isPlanPlusOrAbove) return;
+    if (!resourceId) return;
 
     const timer = setInterval(() => {
       if (pendingPosRef.current && socket.connected) {
         const { x, y } = pendingPosRef.current;
         pendingPosRef.current = null;
         lastSentTimeRef.current = performance.now();
-        socket.emit(WebsocketServerEvent.MOVE_CURSOR, {
+        socket.emit('MOVE_CURSOR', {
           resourceId,
           x,
           y,
@@ -200,13 +204,13 @@ export function useRealtimeCursors({
     }, THROTTLE_MS);
 
     return () => clearInterval(timer);
-  }, [isPlanPlusOrAbove, resourceId, socket, selectedStep]);
+  }, [resourceId, socket, selectedStep]);
 
   // Clear cursor when unmounting
   useEffect(() => {
     return () => {
-      if (isPlanPlusOrAbove && socket.connected && resourceId) {
-        socket.emit(WebsocketServerEvent.MOVE_CURSOR, {
+      if (socket.connected && resourceId) {
+        socket.emit('MOVE_CURSOR', {
           resourceId,
           x: null,
           y: null,
@@ -214,7 +218,7 @@ export function useRealtimeCursors({
         });
       }
     };
-  }, [isPlanPlusOrAbove, resourceId, socket]);
+  }, [resourceId, socket]);
 
   return {
     cursors: Object.values(cursors),
