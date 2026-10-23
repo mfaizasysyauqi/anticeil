@@ -55,7 +55,7 @@ export const RealtimeCanvasCursors = React.memo(
     // Render directly into document.body to break out of FlowCanvas stacking context (z-30)
     // so cursors and name badges are permanently above all banners, nodes, and test widgets
     return createPortal(
-      <div className="fixed inset-0 pointer-events-none select-none z-[9999999]">
+      <div className="fixed inset-0 pointer-events-none select-none" style={{ zIndex: 9999999 }}>
         {cursors.map((cursor) => {
           const screenPos = flowToScreenPosition({ x: cursor.x, y: cursor.y });
           // If the position is scrolled far outside the visible canvas area, don't render it
