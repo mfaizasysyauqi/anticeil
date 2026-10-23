@@ -4,8 +4,9 @@ exports.presenceModule = void 0;
 const core_utils_1 = require("@activepieces/core-utils");
 const shared_1 = require("@activepieces/shared");
 const user_service_1 = require("../../../user/user-service");
-const project_service_1 = require("../../../project/project-service");
-const platform_plan_service_1 = require("../../../billing/platform-plan.service");
+let project_service_1, platform_plan_service_1;
+try { project_service_1 = require("../../../project/project-service"); } catch(e) { try { project_service_1 = require("../../../ee/projects/platform-project-service"); } catch(e2) { project_service_1 = null; } }
+try { platform_plan_service_1 = require("../../../billing/platform-plan.service"); } catch(e) { try { platform_plan_service_1 = require("../../../ee/platform/platform-plan/platform-plan.service"); } catch(e2) { platform_plan_service_1 = null; } }
 const websockets_service_1 = require("../../websockets.service");
 const collaborative_resource_1 = require("../collaborative-resource");
 const presence_service_1 = require("./presence.service");
@@ -92,11 +93,13 @@ const presenceModule = async (app) => {
             const { resourceId, x, y, selectedStep, clientId } = request.data;
             try {
                 // Ensure project's platform is on Plan Plus or above
-                const project = await (0, project_service_1.projectService)(app.log).getOneOrThrow(projectId);
-                const platformPlan = await (0, platform_plan_service_1.platformPlanService)(app.log).getOrCreateForPlatform(project.platformId);
-                const isPlanPlusOrAbove = platformPlan.plan && platformPlan.plan !== 'free' && platformPlan.plan !== 'free_legacy';
-                if (!isPlanPlusOrAbove) {
-                    return;
+                if (project_service_1 && platform_plan_service_1) {
+                    const project = await (0, project_service_1.projectService)(app.log).getOneOrThrow(projectId);
+                    const platformPlan = await (0, platform_plan_service_1.platformPlanService)(app.log).getOrCreateForPlatform(project.platformId);
+                    const isPlanPlusOrAbove = platformPlan.plan && platformPlan.plan !== 'free' && platformPlan.plan !== 'free_legacy';
+                    if (!isPlanPlusOrAbove) {
+                        return;
+                    }
                 }
                 const user = await (0, user_service_1.userService)(app.log).getMetaInformation({ id: principal.id });
                 const displayName = `${user.firstName} ${user.lastName}`;

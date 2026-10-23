@@ -9,8 +9,9 @@ const authorization_1 = require("../../authentication/authorization");
 const common_1 = require("../../core/security/authorization/common");
 const fastify_security_1 = require("../../core/security/authorization/fastify-security");
 const rbac_middleware_1 = require("../../authentication/project-role/rbac-middleware");
-const platform_plan_service_1 = require("../../billing/platform-plan.service");
-const project_plan_service_1 = require("../../project/project-plan/project-plan.service");
+let platform_plan_service_1, project_plan_service_1;
+try { platform_plan_service_1 = require("../../billing/platform-plan.service"); } catch(e) { try { platform_plan_service_1 = require("../../ee/platform/platform-plan/platform-plan.service"); } catch(e2) { platform_plan_service_1 = null; } }
+try { project_plan_service_1 = require("../../project/project-plan/project-plan.service"); } catch(e) { try { project_plan_service_1 = require("../../ee/project-plan/project-plan.service"); } catch(e2) { project_plan_service_1 = null; } }
 const git_sync_service_1 = require("../../project/project-release/git-sync/git-sync.service");
 const network_utils_1 = require("../../helper/network-utils");
 const user_service_1 = require("../../user/user-service");
@@ -75,8 +76,8 @@ const flowController = async (app) => {
         const turnOnFlow = request.body.type === shared_1.FlowOperationType.CHANGE_STATUS && request.body.request.status === shared_1.FlowStatus.ENABLED && flow.status === shared_1.FlowStatus.DISABLED;
         const publishDisabledFlow = request.body.type === shared_1.FlowOperationType.LOCK_AND_PUBLISH && flow.status === shared_1.FlowStatus.DISABLED;
         if (turnOnFlow || publishDisabledFlow) {
-            await (0, platform_plan_service_1.platformPlanService)(request.log).checkActiveFlowsExceededLimit(request.principal.platform.id);
-            await (0, project_plan_service_1.projectLimitsService)(request.log).checkActiveFlowsExceededLimit({
+            if (platform_plan_service_1) await (0, platform_plan_service_1.platformPlanService)(request.log).checkActiveFlowsExceededLimit(request.principal.platform.id);
+            if (project_plan_service_1) await (0, project_plan_service_1.projectLimitsService)(request.log).checkActiveFlowsExceededLimit({
                 projectId: request.projectId,
             });
         }
