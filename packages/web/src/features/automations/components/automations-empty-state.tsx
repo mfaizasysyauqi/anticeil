@@ -17,19 +17,17 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { PermissionNeededTooltip } from '@/components/custom/permission-needed-tooltip';
-import { TagWithBright } from '@/components/custom/tag-with-bright';
 import { useEmbedding } from '@/components/providers/embed-provider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ImportFlowDialog } from '@/features/flows/components/import-flow-dialog';
 import { flowHooks } from '@/features/flows/hooks/flow-hooks';
-import { PieceIconList } from '@/features/pieces/components/piece-icon-list';
 import { ImportTableDialog } from '@/features/tables/components/import-table-dialog';
 import { tableHooks } from '@/features/tables/hooks/table-hooks';
 import { TemplatesBrowseDialog } from '@/features/templates';
+import { ExploreTemplateCard } from '@/features/templates/components/explore-template-card';
 import { UseTemplateDialog } from '@/features/templates/components/use-template-dialog';
 import { templatesHooks } from '@/features/templates/hooks/templates-hook';
-import { useGradientFromPieces } from '@/features/templates/hooks/use-gradient-from-pieces';
 import { useAuthorization } from '@/hooks/authorization-hooks';
 import { flagsHooks } from '@/hooks/flags-hooks';
 import { platformHooks } from '@/hooks/platform-hooks';
@@ -109,86 +107,22 @@ const GetStartedCard = ({
   );
 };
 
-type SuggestedTemplateCardProps = {
-  template: Template;
-  onSelect: (template: Template) => void;
-};
-
-const SuggestedTemplateCard = ({
-  template,
-  onSelect,
-}: SuggestedTemplateCardProps) => {
-  const hasFlows = template.flows && template.flows.length > 0;
-  const { gradient } = useGradientFromPieces(
-    hasFlows ? template.flows![0]?.trigger : undefined,
-  );
-
-  const displayTags = template.tags.slice(0, 1);
-
-  return (
-    <Card
-      onClick={() => onSelect(template)}
-      variant="interactive"
-      className="h-[220px] flex flex-col"
-    >
-      <CardContent className="py-4 px-4 flex flex-col gap-1 flex-1 min-h-0">
-        <div className="h-12 flex flex-col justify-start flex-shrink-0">
-          <h3 className="font-semibold text-base leading-tight line-clamp-2">
-            {template.name}
-          </h3>
-        </div>
-
-        <p className="text-muted-foreground text-sm line-clamp-2 mt-1 flex-shrink-0">
-          {template.summary || (
-            <span className="italic">{t('No summary')}</span>
-          )}
-        </p>
-
-        <div className="h-8 flex gap-2 flex-wrap overflow-hidden mt-2 flex-shrink-0">
-          {displayTags.length > 0 &&
-            displayTags.map((tag, index) => (
-              <TagWithBright
-                key={index}
-                index={index}
-                prefix={t('Save')}
-                title={tag.title}
-                color={tag.color}
-                size="sm"
-              />
-            ))}
-        </div>
-      </CardContent>
-
-      <div
-        className="h-14 flex items-center px-4 rounded-b-lg transition-all duration-300"
-        style={{
-          background: gradient || 'rgba(0,0,0,0.02)',
-        }}
-      >
-        {hasFlows && template.flows![0]?.trigger && (
-          <PieceIconList
-            trigger={template.flows![0]?.trigger}
-            maxNumberOfIconsToShow={4}
-            size="md"
-            className="flex gap-0.5"
-            excludeCore={true}
-          />
-        )}
-      </div>
-    </Card>
-  );
-};
-
 const TemplateCardSkeleton = () => {
   return (
-    <Card className="h-[220px] flex flex-col">
-      <CardContent className="py-4 px-4 flex flex-col gap-2 flex-1">
-        <Skeleton className="h-6 w-3/4" />
-        <Skeleton className="h-4 w-full mt-2" />
-        <Skeleton className="h-4 w-2/3" />
-        <Skeleton className="h-6 w-24 mt-2" />
-      </CardContent>
-      <div className="h-14 bg-muted/30 rounded-b-lg" />
+    <Card className="h-[190px] w-full p-4 rounded-xl border border-border/50 bg-card/40 flex flex-col justify-between">
+      <div className="space-y-2">
+        <Skeleton className="h-5 w-3/4 rounded-md" />
+        <Skeleton className="h-4 w-full rounded-md mt-2" />
+        <Skeleton className="h-4 w-2/3 rounded-md" />
+      </div>
+      <div className="flex items-center justify-between pt-3 border-t border-border/40">
+        <div className="flex items-center gap-1.5">
+          <Skeleton className="size-6 rounded-md" />
+          <Skeleton className="size-6 rounded-md" />
+          <Skeleton className="size-6 rounded-md" />
+        </div>
+        <Skeleton className="size-6 rounded-full" />
+      </div>
     </Card>
   );
 };
@@ -355,10 +289,10 @@ export const AutomationsEmptyState = ({
               </>
             ) : (
               topTemplates.map((template) => (
-                <SuggestedTemplateCard
+                <ExploreTemplateCard
                   key={template.id}
                   template={template}
-                  onSelect={handleTemplateSelect}
+                  onTemplateSelect={handleTemplateSelect}
                 />
               ))
             )}
