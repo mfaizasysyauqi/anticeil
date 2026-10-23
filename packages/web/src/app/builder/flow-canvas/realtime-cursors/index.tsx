@@ -1,5 +1,6 @@
-import { useReactFlow, ViewportPortal } from '@xyflow/react';
+import { useReactFlow, useViewport } from '@xyflow/react';
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 import { CollaboratorCursor, useRealtimeCursors } from '@/hooks/use-realtime-cursors';
 
@@ -11,8 +12,9 @@ interface RealtimeCanvasCursorsProps {
 
 export const RealtimeCanvasCursors = React.memo(
   ({ resourceId, selectedStep, containerRef }: RealtimeCanvasCursorsProps) => {
-    const { screenToFlowPosition } = useReactFlow();
-    const { cursors, sendCursorPosition, isPlanPlusOrAbove } = useRealtimeCursors({
+    const { screenToFlowPosition, flowToScreenPosition } = useReactFlow();
+    useViewport(); // Subscribes to pan/zoom changes to keep screen positions perfectly synced
+    const { cursors, sendCursorPosition } = useRealtimeCursors({
       resourceId,
       selectedStep,
     });
@@ -44,35 +46,64 @@ export const RealtimeCanvasCursors = React.memo(
       };
     }, [containerRef, screenToFlowPosition, sendCursorPosition]);
 
-    if (cursors.length === 0) {
+    if (cursors.length === 0 || typeof document === 'undefined') {
       return null;
     }
 
-    return (
-      <ViewportPortal>
-        <div
-          className="pointer-events-none select-none absolute inset-0 z-[99999]"
-          style={{ zIndex: 999999 }}
-        >
-          {cursors.map((cursor) => (
-            <CollaboratorCursorItem key={cursor.userId} cursor={cursor} />
-          ))}
-        </div>
-      </ViewportPortal>
+    const rect = containerRef.current?.getBoundingClientRect();
+
+    // Render directly into document.body to break out of FlowCanvas stacking context (z-30)
+    // so cursors and name badges are permanently above all banners, nodes, and test widgets
+    return createPortal(
+      <div className="fixed inset-0 pointer-events-none select-none z-[9999999]">
+        {cursors.map((cursor) => {
+          const screenPos = flowToScreenPosition({ x: cursor.x, y: cursor.y });
+          // If the position is scrolled far outside the visible canvas area, don't render it
+          if (rect) {
+            if (
+              screenPos.x < rect.left - 60 ||
+              screenPos.x > rect.right + 60 ||
+              screenPos.y < rect.top - 60 ||
+              screenPos.y > rect.bottom + 60
+            ) {
+              return null;
+            }
+          }
+          return (
+            <CollaboratorCursorItem
+              key={cursor.userId}
+              cursor={cursor}
+              screenX={screenPos.x}
+              screenY={screenPos.y}
+            />
+          );
+        })}
+      </div>,
+      document.body,
     );
   },
 );
 
 RealtimeCanvasCursors.displayName = 'RealtimeCanvasCursors';
 
-const CollaboratorCursorItem = ({ cursor }: { cursor: CollaboratorCursor }) => {
+const CollaboratorCursorItem = ({
+  cursor,
+  screenX,
+  screenY,
+}: {
+  cursor: CollaboratorCursor;
+  screenX: number;
+  screenY: number;
+}) => {
   return (
     <div
-      className="absolute pointer-events-none transition-transform duration-75 ease-out select-none z-[99999]"
+      className="fixed pointer-events-none transition-transform duration-75 ease-out select-none"
       style={{
-        transform: `translate(${cursor.x}px, ${cursor.y}px)`,
+        transform: `translate3d(${screenX}px, ${screenY}px, 0)`,
         willChange: 'transform',
-        zIndex: 999999,
+        zIndex: 9999999,
+        left: 0,
+        top: 0,
       }}
     >
       {/* Figma-style SVG cursor pointer with color-matching theme */}
@@ -98,7 +129,7 @@ const CollaboratorCursorItem = ({ cursor }: { cursor: CollaboratorCursor }) => {
         className="ml-3 -mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium text-white shadow-2xl whitespace-nowrap border border-white/20"
         style={{
           backgroundColor: cursor.color,
-          zIndex: 999999,
+          zIndex: 9999999,
         }}
       >
         <span>{cursor.userDisplayName}</span>
