@@ -96,10 +96,10 @@ function PlatformLayoutInner({
 
       {/* Main content */}
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-sidebar">
-        <div className="flex-1 flex flex-col p-0 sm:p-2 sm:pt-3 sm:pb-3 overflow-hidden">
+        <div className="flex-1 flex flex-col p-2 lg:pl-0 lg:pr-2 lg:pt-3 lg:pb-3 overflow-hidden">
           <div
             id="dashboard-content-container"
-            className="relative flex flex-col h-full bg-background rounded-none sm:rounded-xl shadow-[2px_0px_4px_-2px_rgba(0,0,0,0.05),0px_2px_4px_-2px_rgba(0,0,0,0.05)] border-0 sm:border overflow-clip"
+            className="relative flex flex-col h-full bg-background rounded-xl shadow-[2px_0px_4px_-2px_rgba(0,0,0,0.05),0px_2px_4px_-2px_rgba(0,0,0,0.05)] border overflow-clip"
           >
             <div className="flex flex-col flex-1 overflow-auto">
               {children}

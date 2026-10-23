@@ -228,7 +228,7 @@ function ProjectDashboardLayoutInner({
           <div
             className={cn(
               'flex-1 flex flex-col min-h-0 overflow-hidden',
-              !isEmbedded && 'p-0 sm:pr-2 sm:pt-2 sm:pb-2 lg:pr-2 lg:pt-3 lg:pb-3',
+              !isEmbedded && 'p-2 lg:pl-0 lg:pr-2 lg:pt-3 lg:pb-3',
             )}
           >
             <div
@@ -236,7 +236,7 @@ function ProjectDashboardLayoutInner({
               className={cn(
                 'relative flex flex-col h-full flex-1 min-h-0 bg-background overflow-clip',
                 !isEmbedded &&
-                  'rounded-none sm:rounded-xl shadow-[2px_0px_4px_-2px_rgba(0,0,0,0.05),0px_2px_4px_-2px_rgba(0,0,0,0.05)] border-0 sm:border',
+                  'rounded-xl shadow-[2px_0px_4px_-2px_rgba(0,0,0,0.05),0px_2px_4px_-2px_rgba(0,0,0,0.05)] border',
               )}
             >
               {!hideHeader && (
