@@ -18,6 +18,7 @@ import {
   Compass,
   Lock,
   LogOut,
+  MessagesSquare,
   PanelLeftClose,
   Search,
   ShieldCheck,
@@ -134,13 +135,22 @@ export function PrimaryRail() {
                 collapsed={collapsed}
                 to="/chat"
                 icon={SquarePen}
-                label={t('Chat')}
+                label={t('Chatbot')}
                 isActive={({ pathname }) => pathname.startsWith('/chat')}
                 onClick={() =>
                   window.dispatchEvent(new Event(chatUtils.newChatEvent))
                 }
               />
             )}
+            <RailNavButton
+              collapsed={collapsed}
+              to="/community"
+              icon={MessagesSquare}
+              label={t('Community')}
+              isActive={({ pathname }) =>
+                pathname.startsWith('/community') || pathname.startsWith('/messages')
+              }
+            />
             {checkAccess(Permission.READ_MCP) && (
               <RailNavButton
                 collapsed={collapsed}
@@ -262,7 +272,7 @@ export function MobilePrimaryRailSheet({
                   collapsed={false}
                   to="/chat"
                   icon={SquarePen}
-                  label={t('Chat')}
+                  label={t('Chatbot')}
                   isActive={({ pathname }) => pathname.startsWith('/chat')}
                   onClick={() => {
                     handleNavigate();
@@ -270,6 +280,16 @@ export function MobilePrimaryRailSheet({
                   }}
                 />
               )}
+              <RailNavButton
+                collapsed={false}
+                to="/community"
+                icon={MessagesSquare}
+                label={t('Community')}
+                isActive={({ pathname }) =>
+                  pathname.startsWith('/community') || pathname.startsWith('/messages')
+                }
+                onClick={handleNavigate}
+              />
               {checkAccess(Permission.READ_MCP) && (
                 <RailNavButton
                   collapsed={false}

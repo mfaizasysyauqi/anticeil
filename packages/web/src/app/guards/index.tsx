@@ -32,13 +32,35 @@ const ChatWithAIPage = lazyWithRetry(
   'chat-with-ai',
 );
 
+const CommunityPage = lazyWithRetry(
+  () =>
+    import('@/app/routes/community').then((m) => ({
+      default: m.CommunityPage,
+    })),
+  'community',
+);
+
 function chatElement() {
   return (
     <AllowOnlyLoggedInUserOnlyGuard>
       <ProjectDashboardLayout>
-        <PageTitle title="Chat">
+        <PageTitle title="Chatbot">
           <Suspense fallback={<RouteLoadingBar />}>
             <ChatWithAIPage />
+          </Suspense>
+        </PageTitle>
+      </ProjectDashboardLayout>
+    </AllowOnlyLoggedInUserOnlyGuard>
+  );
+}
+
+function communityElement() {
+  return (
+    <AllowOnlyLoggedInUserOnlyGuard>
+      <ProjectDashboardLayout>
+        <PageTitle title="Community">
+          <Suspense fallback={<RouteLoadingBar />}>
+            <CommunityPage />
           </Suspense>
         </PageTitle>
       </ProjectDashboardLayout>
@@ -49,6 +71,13 @@ function chatElement() {
 const chatRoutes = [
   { path: '/chat', element: chatElement() },
   { path: '/chat/:conversationId', element: chatElement() },
+];
+
+const communityRoutes = [
+  { path: '/community', element: communityElement() },
+  { path: '/community/:channelId', element: communityElement() },
+  { path: '/messages', element: communityElement() },
+  { path: '/messages/:channelId', element: communityElement() },
 ];
 
 const AgentsPage = lazyWithRetry(
@@ -108,6 +137,7 @@ const routes = [
   ...authRoutes,
   ...platformRoutes,
   ...chatRoutes,
+  ...communityRoutes,
   ...agentRoutes,
   {
     path: '/projects/:projectId',

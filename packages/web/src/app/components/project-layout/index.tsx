@@ -1,6 +1,6 @@
 import { isNil } from '@activepieces/core-utils';
 import { ApEdition, ApFlagId } from '@activepieces/shared';
-import { Menu, Search, Unplug } from 'lucide-react';
+import { Menu, Search, Unplug, MessagesSquare } from 'lucide-react';
 import React, { ComponentType, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useSearchParams } from 'react-router-dom';
@@ -79,8 +79,22 @@ export function ProjectDashboardLayout({
       hasPermission: true,
     },
     {
+      to: '/community',
+      label: t('Community'),
+      show: !isEmbedded,
+      icon: MessagesSquare,
+      hasPermission: true,
+    },
+    {
+      to: '/messages',
+      label: t('Messages'),
+      show: false,
+      icon: MessagesSquare,
+      hasPermission: true,
+    },
+    {
       to: '/chat',
-      label: t('Chat'),
+      label: t('Chatbot'),
       show: !isEmbedded,
       icon: CompassIcon,
       hasPermission: true,
