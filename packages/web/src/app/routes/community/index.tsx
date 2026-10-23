@@ -61,7 +61,6 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
@@ -652,9 +651,9 @@ export function CommunityPage() {
 
   // Component: Discord Mini Server/Hub Rail (compact, elegant & non-overflowing)
   const renderDiscordHubRail = () => (
-    <div className="w-[54px] shrink-0 bg-zinc-950/95 dark:bg-zinc-950 flex flex-col items-center py-2.5 gap-1.5 border-r border-sidebar-border/40 select-none z-10 h-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {/* Hub icons list */}
-      <div className="flex flex-col items-center gap-1.5 w-full">
+    <div className="w-[54px] shrink-0 bg-zinc-950/95 dark:bg-zinc-950 flex flex-col items-center py-2.5 border-r border-sidebar-border/40 select-none z-10 h-full overflow-hidden">
+      {/* Scrollable list of hubs if many */}
+      <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col items-center gap-1.5 py-0.5">
         {hubs.map((hub) => {
           const isActive = activeHubId === hub.id;
           return (
@@ -745,9 +744,9 @@ export function CommunityPage() {
 
   // Component: Channels Sidebar Content (reusable for desktop & mobile drawer)
   const renderChannelsSidebarContent = (onItemClick?: () => void) => (
-    <div className="flex flex-col h-full bg-sidebar select-none w-60 shrink-0 border-r border-sidebar-border">
-      {/* Header: Community Title (Logo AC removed as requested!) */}
-      <div className="h-12 border-b border-sidebar-border px-3.5 flex items-center justify-between font-semibold shadow-xs">
+    <div className="flex flex-col h-full bg-sidebar select-none w-60 shrink-0 border-r border-sidebar-border overflow-hidden">
+      {/* Header: Community Title (NON-SCROLLABLE APP BAR) */}
+      <div className="h-12 border-b border-sidebar-border px-3.5 flex items-center justify-between font-semibold shadow-xs shrink-0 bg-sidebar z-10">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-semibold truncate tracking-tight text-foreground">
             {t('Community')}
@@ -800,8 +799,8 @@ export function CommunityPage() {
         </DropdownMenu>
       </div>
 
-      {/* Channels & DMs Scroll Area */}
-      <ScrollArea className="flex-1 px-2 py-3">
+      {/* Channels & DMs Scroll Area (SCROLLABLE LIST CHANNEL) */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-2 py-3 [scrollbar-width:thin]">
         {/* Section CHANNELS */}
         <div className="mb-4">
           <div className="px-2 mb-1.5 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase">
@@ -923,10 +922,10 @@ export function CommunityPage() {
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
-      {/* User Footer Profile Dock (Discord style) */}
-      <div className="h-14 border-t border-sidebar-border px-3 flex items-center justify-between bg-sidebar-accent/30">
+      {/* User Footer Profile Dock (NON-SCROLLABLE BOTTOM BAR) */}
+      <div className="h-14 border-t border-sidebar-border px-3 flex items-center justify-between bg-sidebar-accent/30 shrink-0 z-10">
         <div className="flex items-center gap-2.5 min-w-0">
           <CommunityAvatar
             name={currentUserName}
@@ -990,12 +989,14 @@ export function CommunityPage() {
     ];
 
     return (
-      <div className="flex flex-col h-full bg-sidebar border-l border-sidebar-border select-none w-60 shrink-0">
-        <div className="h-12 border-b border-sidebar-border px-4 flex items-center justify-between font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+      <div className="flex flex-col h-full bg-sidebar border-l border-sidebar-border select-none w-60 shrink-0 overflow-hidden">
+        {/* Header: NON-SCROLLABLE APP BAR */}
+        <div className="h-12 border-b border-sidebar-border px-4 flex items-center justify-between font-semibold text-xs text-muted-foreground uppercase tracking-wider shrink-0 bg-sidebar z-10">
           <span>{t('Daftar Anggota')} ({members.length})</span>
         </div>
 
-        <ScrollArea className="flex-1 px-3 py-3">
+        {/* Members List: SCROLLABLE DAFTAR ANGGOTA */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 [scrollbar-width:thin]">
           {roles.map(
             (r) =>
               r.count > 0 && (
@@ -1046,14 +1047,14 @@ export function CommunityPage() {
                 </div>
               ),
           )}
-        </ScrollArea>
+        </div>
       </div>
     );
   };
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex h-svh w-full overflow-hidden bg-background">
+      <div className="flex h-full w-full overflow-hidden bg-background">
         {/* DESKTOP DISCORD HUB RAIL (compact w-[54px]) */}
         <div className="hidden lg:flex shrink-0 h-full">
           {renderDiscordHubRail()}
@@ -1085,9 +1086,9 @@ export function CommunityPage() {
         </Sheet>
 
         {/* MAIN CHAT AREA */}
-        <div className="flex flex-1 flex-col h-full min-w-0 bg-background/50">
-          {/* Channel Top Header Bar */}
-          <div className="h-12 border-b border-border/60 px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs">
+        <div className="flex flex-1 flex-col h-full min-h-0 min-w-0 bg-background/50 overflow-hidden">
+          {/* Channel Top Header Bar: NON-SCROLLABLE APP BAR */}
+          <div className="h-12 border-b border-border/60 px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
             <div className="flex items-center gap-2 min-w-0">
               <Button
                 variant="ghost"
@@ -1153,8 +1154,8 @@ export function CommunityPage() {
             </div>
           </div>
 
-          {/* Messages Feed */}
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+          {/* Messages Feed (SCROLLABLE CONVERSATION) */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 [scrollbar-width:thin]">
             {/* Welcome banner at top of channel */}
             <div className="mb-6 pt-4 pb-2">
               <div className="w-14 h-14 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center text-primary mb-3">
@@ -1366,8 +1367,8 @@ export function CommunityPage() {
             </div>
           )}
 
-          {/* Chat Input Bar */}
-          <div className="p-4 pt-1 border-t border-border/40 shrink-0 bg-background/80">
+          {/* Chat Input Bar (NON-SCROLLABLE FORM CHAT / BOTTOM BAR) */}
+          <div className="p-3 border-t border-border/40 shrink-0 bg-background/90 backdrop-blur-xs z-10">
             <div className="flex items-center gap-2 bg-sidebar rounded-lg border border-sidebar-border px-3 py-1.5 focus-within:border-primary/50 transition-colors">
               <input
                 type="file"

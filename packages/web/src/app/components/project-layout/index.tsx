@@ -181,6 +181,12 @@ function ProjectDashboardLayoutInner({
   const branding = flagsHooks.useWebsiteBranding();
   const { data: currentUser } = userHooks.useCurrentUser();
 
+  const location = useLocation();
+  const isFixedViewportRoute =
+    location.pathname.startsWith('/community') ||
+    location.pathname.startsWith('/messages') ||
+    location.pathname.startsWith('/chat');
+
   return (
     <div className="flex flex-col lg:flex-row h-svh w-full overflow-hidden">
       {!isEmbedded && (
@@ -256,7 +262,16 @@ function ProjectDashboardLayoutInner({
               {!hideHeader && (
                 <ProjectDashboardLayoutHeader key={currentProjectId} />
               )}
-              <div className="flex-1 min-h-0 overflow-auto">{children}</div>
+              <div
+                className={cn(
+                  'flex-1 min-h-0',
+                  isFixedViewportRoute
+                    ? 'h-full overflow-hidden flex flex-col'
+                    : 'overflow-auto',
+                )}
+              >
+                {children}
+              </div>
             </div>
           </div>
         </SidebarInset>
