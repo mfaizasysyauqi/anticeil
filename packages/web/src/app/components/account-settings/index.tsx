@@ -9,6 +9,8 @@ import { AtSign, Camera, Clock, Mail, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { formatUtils } from '@/lib/format-utils';
+
 import { UserAvatar } from '@/components/custom/user-avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -184,7 +186,7 @@ export function AccountSettingsDialog({
                   </span>
                   <span>•</span>
                   <Mail className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{user?.email}</span>
+                  <span className="truncate">{formatUtils.maskEmail(user?.email ?? '')}</span>
                 </div>
               </div>
             </div>

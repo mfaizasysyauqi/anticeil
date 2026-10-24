@@ -9,6 +9,12 @@ const emailRegex =
 
 export const formatUtils = {
   emailRegex,
+  maskEmail(email: string): string {
+    const [local, domain] = email.split('@');
+    if (!domain) return '***';
+    const visible = local.slice(0, Math.min(3, local.length));
+    return `${visible}***@${domain}`;
+  },
   convertEnumToHumanReadable(str: string) {
     const words = str.split(/[_.]/);
     return words

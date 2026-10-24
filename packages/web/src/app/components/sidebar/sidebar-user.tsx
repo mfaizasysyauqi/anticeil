@@ -51,6 +51,8 @@ export function SidebarUser() {
       ? user.firstName
       : `${user.firstName} ${user.lastName}`.trim();
 
+  const username = (user as any).username || user.email?.split('@')[0] || 'user';
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -110,7 +112,7 @@ export function SidebarUser() {
                   <span className="truncate font-medium">
                     {displayName}
                   </span>
-                  <span className="truncate text-xs">{user.email}</span>
+                  <span className="truncate text-xs font-mono text-muted-foreground">@{username}</span>
                   {isPlatformAdmin && (
                     <div className="flex items-center gap-1 mt-1">
                       <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
