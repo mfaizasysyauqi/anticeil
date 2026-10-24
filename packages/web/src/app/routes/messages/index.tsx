@@ -2993,7 +2993,7 @@ export function CommunityPage() {
                         {/* 1. Full Webhook URL */}
                         <div className="space-y-1.5">
                           <label className="text-xs font-semibold flex items-center justify-between">
-                            <span>URL Webhook Masuk (Persis Discord)</span>
+                            <span>URL Webhook Masuk</span>
                             <Badge variant="outline" className="text-[10px] text-primary bg-primary/5">
                               Otomatis
                             </Badge>
