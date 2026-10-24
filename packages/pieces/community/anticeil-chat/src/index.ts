@@ -6,7 +6,7 @@ export const anticeilChat = createPiece({
   displayName: 'Anticeil Chat',
   description: 'Kirim pesan, notifikasi, dan peringatan otomatis langsung ke saluran Anticeil Chat / Messages.',
   minimumSupportedRelease: '0.88.2',
-  logoUrl: 'https://cdn.activepieces.com/pieces/discord.png',
+  logoUrl: 'https://anticeil.com/logo.png',
   categories: [PieceCategory.COMMUNICATION],
   auth: undefined,
   actions: [

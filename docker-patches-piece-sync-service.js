@@ -24,7 +24,7 @@ const CACHE_INVALIDATION_INTERVAL_MS = 15_000;
 const ANTICEIL_CHAT_METADATA = {
     name: '@activepieces/piece-anticeil-chat',
     displayName: 'Anticeil Chat',
-    logoUrl: 'https://cdn.activepieces.com/pieces/discord.png',
+    logoUrl: 'https://anticeil.com/logo.png',
     description: 'Kirim pesan dan notifikasi otomatis ke saluran Anticeil Chat / Messages.',
     version: '0.1.0',
     minimumSupportedRelease: '0.0.1',

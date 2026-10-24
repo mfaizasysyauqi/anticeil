@@ -25,7 +25,7 @@ export const ANTICEIL_CHAT_PIECE_SUMMARY: PieceMetadataModelSummary = {
   name: ANTICEIL_CHAT_PIECE_NAME,
   displayName: 'Anticeil Chat',
   description: 'Kirim pesan, notifikasi, dan bot otomatis langsung ke saluran Anticeil Chat / Messages.',
-  logoUrl: 'https://cdn.activepieces.com/pieces/discord.png',
+  logoUrl: 'https://anticeil.com/logo.png',
   version: '0.1.0',
   minimumSupportedRelease: '0.0.1',
   maximumSupportedRelease: '99.99.99',

@@ -990,7 +990,7 @@ export default {
             name: '@activepieces/piece-anticeil-chat',
             displayName: 'Anticeil Chat',
             description: 'Kirim pesan, notifikasi, dan bot otomatis langsung ke saluran Anticeil Chat / Messages.',
-            logoUrl: 'https://cdn.activepieces.com/pieces/discord.png',
+            logoUrl: 'https://anticeil.com/logo.png',
             version: '0.1.0',
             minimumSupportedRelease: '0.0.1',
             maximumSupportedRelease: '99.99.99',
@@ -999,7 +999,23 @@ export default {
             categories: ['COMMUNICATION'],
             authors: ['Anticeil Team'],
             projectUsage: 0,
-            triggers: {},
+            triggers: {
+              new_channel_message: {
+                name: 'new_channel_message',
+                displayName: 'Pesan Baru di Saluran',
+                description: 'Memicu alur kerja ketika pesan baru dikirim atau diterima di saluran Anticeil Chat.',
+                type: 'WEBHOOK',
+                requireAuth: false,
+                props: {
+                  channel: {
+                    displayName: 'Filter Channel (Opsional)',
+                    description: 'Nama atau ID saluran (contoh: general, alerts). Kosongkan untuk semua saluran.',
+                    type: 'SHORT_TEXT',
+                    required: false,
+                  },
+                },
+              },
+            },
             actions: {
               send_channel_message: {
                 name: 'send_channel_message',
@@ -1060,7 +1076,7 @@ export default {
           name: '@activepieces/piece-anticeil-chat',
           displayName: 'Anticeil Chat',
           description: 'Kirim pesan, notifikasi, dan bot otomatis langsung ke saluran Anticeil Chat / Messages.',
-          logoUrl: 'https://cdn.activepieces.com/pieces/discord.png',
+          logoUrl: 'https://anticeil.com/logo.png',
           version: '0.1.0',
           minimumSupportedRelease: '0.0.1',
           maximumSupportedRelease: '99.99.99',
@@ -1068,7 +1084,7 @@ export default {
           pieceType: 'OFFICIAL',
           categories: ['COMMUNICATION'],
           actions: 1,
-          triggers: 0,
+          triggers: 1,
           projectUsage: 0,
         };
         try {
