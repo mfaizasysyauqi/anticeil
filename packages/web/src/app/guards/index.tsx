@@ -58,7 +58,7 @@ function communityElement() {
   return (
     <AllowOnlyLoggedInUserOnlyGuard>
       <ProjectDashboardLayout>
-        <PageTitle title="Community">
+        <PageTitle title="Chat">
           <Suspense fallback={<RouteLoadingBar />}>
             <CommunityPage />
           </Suspense>

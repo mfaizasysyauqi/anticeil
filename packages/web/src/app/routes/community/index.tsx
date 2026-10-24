@@ -1401,7 +1401,7 @@ export function CommunityPage() {
     <LockedFeatureGuard
       locked={!isPlusOrAbove}
       lockTier="Plus"
-      lockTitle={t('Unlock Team Chat & Collaboration')}
+      lockTitle={t('Unlock Chat & Collaboration')}
       lockDescription={t(
         'Berkomunikasi secara real-time, berbagi template otomatisasi instan, dan kolaborasi terpadu dengan rekan tim kerja Anda. Buka fitur ini dengan upgrade ke paket Plus (hingga 5 pengguna) atau Team.',
       )}

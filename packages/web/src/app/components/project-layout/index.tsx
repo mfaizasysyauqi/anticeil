@@ -80,7 +80,7 @@ export function ProjectDashboardLayout({
     },
     {
       to: '/messages',
-      label: t('Team Chat'),
+      label: t('Chat'),
       show: !isEmbedded,
       icon: MessagesSquare,
       hasPermission: true,

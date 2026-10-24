@@ -191,7 +191,7 @@ export function PrimaryRail() {
               collapsed={collapsed}
               to="/messages"
               icon={MessagesSquare}
-              label={t('Team Chat')}
+              label={t('Chat')}
               badge={!isPlusOrAbove ? <Lock className="size-3 text-muted-foreground/70 ml-auto" /> : undefined}
               isActive={({ pathname }) =>
                 pathname.startsWith('/community') || pathname.startsWith('/messages')
@@ -302,7 +302,7 @@ export function PrimaryRail() {
                 collapsed={false}
                 to="/messages"
                 icon={MessagesSquare}
-                label={t('Team Chat')}
+                label={t('Chat')}
                 badge={!isPlusOrAbove ? <Lock className="size-3 text-muted-foreground/70 ml-auto" /> : undefined}
                 isActive={({ pathname }) =>
                   pathname.startsWith('/community') || pathname.startsWith('/messages')
@@ -434,7 +434,7 @@ export function MobilePrimaryRailSheet({
                 collapsed={false}
                 to="/messages"
                 icon={MessagesSquare}
-                label={t('Team Chat')}
+                label={t('Chat')}
                 badge={!isPlusOrAbove ? <Lock className="size-3 text-muted-foreground/70 ml-auto" /> : undefined}
                 isActive={({ pathname }) =>
                   pathname.startsWith('/community') || pathname.startsWith('/messages')
