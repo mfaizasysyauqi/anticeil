@@ -869,15 +869,97 @@ export default {
         return jsonResponse(folders || []);
       }
 
-      // 12. GET /v1/pieces - proxy to Activepieces Cloud for full catalog
+      // 12. GET /v1/pieces - proxy to Activepieces Cloud for full catalog with Anticeil Chat piece
       if (path.startsWith('/v1/pieces')) {
         if (path.startsWith('/v1/pieces/stats')) {
           return jsonResponse({});
+        }
+        if (path === '/v1/pieces/@activepieces/piece-anticeil-chat' || path.startsWith('/v1/pieces/@activepieces/piece-anticeil-chat')) {
+          return jsonResponse({
+            name: '@activepieces/piece-anticeil-chat',
+            displayName: 'Anticeil Chat',
+            description: 'Kirim pesan, notifikasi, dan bot otomatis langsung ke saluran Anticeil Chat / Messages.',
+            logoUrl: 'https://cdn.activepieces.com/pieces/discord.png',
+            version: '0.1.0',
+            minimumSupportedRelease: '0.0.1',
+            maximumSupportedRelease: '99.99.99',
+            packageType: 'REGISTRY',
+            pieceType: 'OFFICIAL',
+            categories: ['COMMUNICATION'],
+            authors: ['Anticeil Team'],
+            projectUsage: 0,
+            triggers: {},
+            actions: {
+              send_channel_message: {
+                name: 'send_channel_message',
+                displayName: 'Kirim Pesan ke Channel',
+                description: 'Kirim pesan bot otomatis ke saluran Anticeil Chat menggunakan Webhook URL atau ID Saluran.',
+                requireAuth: false,
+                props: {
+                  webhookUrl: {
+                    displayName: 'Webhook URL',
+                    description: 'Salin Webhook URL dari Pengaturan Saluran Anticeil Chat (contoh: https://anticeil.com/api/v1/community/webhook?channelId=ch-...)',
+                    type: 'SHORT_TEXT',
+                    required: false,
+                    defaultValue: '',
+                  },
+                  channelId: {
+                    displayName: 'ID Saluran / Nama Channel',
+                    description: 'ID saluran (contoh: ch-general-123) atau nama channel (contoh: general, alerts) jika tidak menggunakan URL webhook lengkap.',
+                    type: 'SHORT_TEXT',
+                    required: false,
+                    defaultValue: 'general',
+                  },
+                  hubId: {
+                    displayName: 'ID Server (Hub ID)',
+                    description: 'ID Server Anticeil Chat tempat saluran berada (Default: anticeil).',
+                    type: 'SHORT_TEXT',
+                    required: false,
+                    defaultValue: 'anticeil',
+                  },
+                  content: {
+                    displayName: 'Isi Pesan (Markdown)',
+                    description: 'Pesan yang ingin dikirim. Mendukung sintaks Markdown (bold, italic, list, link, code).',
+                    type: 'LONG_TEXT',
+                    required: true,
+                  },
+                  botName: {
+                    displayName: 'Nama Bot',
+                    description: 'Nama bot pengirim yang akan ditampilkan dengan badge [BOT] ungu.',
+                    type: 'SHORT_TEXT',
+                    required: false,
+                    defaultValue: 'Anticeil Bot',
+                  },
+                  botAvatar: {
+                    displayName: 'Avatar URL',
+                    description: 'Opsional: URL gambar avatar bot.',
+                    type: 'SHORT_TEXT',
+                    required: false,
+                  },
+                },
+              },
+            },
+          });
         }
         // POST (options, install, sync) - handle locally
         if (request.method === 'POST') {
           return jsonResponse({});
         }
+        const anticeilChatSummary = {
+          name: '@activepieces/piece-anticeil-chat',
+          displayName: 'Anticeil Chat',
+          description: 'Kirim pesan, notifikasi, dan bot otomatis langsung ke saluran Anticeil Chat / Messages.',
+          logoUrl: 'https://cdn.activepieces.com/pieces/discord.png',
+          version: '0.1.0',
+          minimumSupportedRelease: '0.0.1',
+          maximumSupportedRelease: '99.99.99',
+          packageType: 'REGISTRY',
+          pieceType: 'OFFICIAL',
+          categories: ['COMMUNICATION'],
+          actions: 1,
+          triggers: 0,
+          projectUsage: 0,
+        };
         try {
           const apUrl = `https://cloud.activepieces.com/api${path}${url.search}`;
           const apRes = await fetch(apUrl, {
@@ -885,14 +967,16 @@ export default {
           });
           if (apRes.ok) {
             const data = await apRes.json();
-            // Normalize: frontend expects plain array, cloud may return SeekPage {data:[]}
             const normalized = Array.isArray(data) ? data : (data?.data ?? []);
+            if (!normalized.some((p: any) => p.name === '@activepieces/piece-anticeil-chat')) {
+              return jsonResponse([anticeilChatSummary, ...normalized]);
+            }
             return jsonResponse(normalized);
           }
         } catch (e) {
           console.error('Pieces proxy error:', e);
         }
-        return jsonResponse([]);
+        return jsonResponse([anticeilChatSummary]);
       }
 
       // 13. Flow runs & count

@@ -8,14 +8,27 @@ import {
 export const sendChannelMessage = createAction({
   name: 'send_channel_message',
   displayName: 'Kirim Pesan ke Channel',
-  description: 'Kirim pesan bot otomatis dengan format Markdown ke saluran obrolan Anticeil Chat.',
+  description: 'Kirim pesan bot otomatis ke saluran Anticeil Chat melalui Webhook URL atau ID Saluran.',
   requireAuth: false,
   props: {
+    webhookUrl: Property.ShortText({
+      displayName: 'Webhook URL',
+      description: 'Salin Webhook URL dari Pengaturan Saluran Anticeil Chat (contoh: https://anticeil.com/api/v1/community/webhook?channelId=ch-...)',
+      required: false,
+      placeholder: 'https://anticeil.com/api/v1/community/webhook?channelId=ch-...',
+    }),
     channel: Property.ShortText({
-      displayName: 'Channel',
-      description: 'Nama channel (contoh: general, alerts, dev) atau ID channel. Jika belum ada, channel akan dibuat otomatis.',
-      required: true,
+      displayName: 'Channel ID / Nama Saluran',
+      description: 'ID Saluran atau nama saluran jika tidak menggunakan Webhook URL lengkap (contoh: general atau ch-general-123).',
+      required: false,
       defaultValue: 'general',
+    }),
+    hubId: Property.ShortText({
+      displayName: 'ID Server (Hub ID)',
+      description: 'ID Server Anticeil Chat (Default: anticeil).',
+      required: false,
+      defaultValue: 'anticeil',
+      advanced: true,
     }),
     content: Property.LongText({
       displayName: 'Isi Pesan (Markdown)',
@@ -33,29 +46,31 @@ export const sendChannelMessage = createAction({
       description: 'Opsional: URL gambar avatar bot.',
       required: false,
     }),
-    webhookUrl: Property.ShortText({
-      displayName: 'Custom Webhook URL',
-      description: 'Opsional: Tentukan URL endpoint jika workflow berjalan di luar instance lokal. Default: http://127.0.0.1:3000/api/v1/community/webhook',
-      required: false,
-      advanced: true,
-    }),
   },
   async run(context) {
+    const rawWebhook = context.propsValue.webhookUrl?.trim();
     const channel = context.propsValue.channel || 'general';
+    const hubId = context.propsValue.hubId || 'anticeil';
     const content = context.propsValue.content;
     const botName = context.propsValue.botName || 'Anticeil Bot';
     const botAvatar = context.propsValue.botAvatar || undefined;
 
-    const baseUrl =
-      context.propsValue.webhookUrl ||
-      process.env['AP_FRONTEND_URL'] ||
-      process.env['FRONTEND_URL'] ||
-      'http://127.0.0.1:3000';
+    let targetUrl: string;
 
-    const targetUrl = `${baseUrl.replace(/\/+$/, '')}/api/v1/community/webhook`;
+    if (rawWebhook && (rawWebhook.startsWith('http://') || rawWebhook.startsWith('https://'))) {
+      targetUrl = rawWebhook;
+    } else {
+      const baseUrl =
+        process.env['AP_FRONTEND_URL'] ||
+        process.env['FRONTEND_URL'] ||
+        'http://127.0.0.1:3000';
+      targetUrl = `${baseUrl.replace(/\/+$/, '')}/api/v1/community/webhook`;
+    }
 
     const request: HttpRequest<{
       channel: string;
+      channelId?: string;
+      hubId: string;
       content: string;
       botName: string;
       botAvatar?: string;
@@ -64,6 +79,8 @@ export const sendChannelMessage = createAction({
       url: targetUrl,
       body: {
         channel,
+        channelId: channel,
+        hubId,
         content,
         botName,
         botAvatar,

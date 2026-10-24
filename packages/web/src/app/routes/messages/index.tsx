@@ -35,6 +35,7 @@ import {
   UserCheck,
   UserX,
   Inbox,
+  Webhook,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -290,6 +291,13 @@ export function CommunityPage() {
   // DM Search Dialog (Discord-style "Find or start a conversation")
   const [isDmSearchOpen, setIsDmSearchOpen] = useState(false);
   const [dmSearchQuery, setDmSearchQuery] = useState('');
+
+  // Webhook Integration Dialog (Discord-style incoming webhooks & IDs)
+  const [isWebhookDialogOpen, setIsWebhookDialogOpen] = useState<boolean>(false);
+  const [isCopiedWebhook, setIsCopiedWebhook] = useState<boolean>(false);
+  const [isCopiedChannelId, setIsCopiedChannelId] = useState<boolean>(false);
+  const [isCopiedHubId, setIsCopiedHubId] = useState<boolean>(false);
+  const [isTestingWebhook, setIsTestingWebhook] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2252,8 +2260,28 @@ export function CommunityPage() {
               )}
             </div>
 
-            {/* Top Bar Actions: Members Toggle & Search (Search on right) */}
+            {/* Top Bar Actions: Webhook Integrations, Members Toggle & Search */}
             <div className="flex items-center gap-2">
+              {/* Webhook & Integrations Button (Ala Discord Webhook) */}
+              {activeChannel && (
+                <Tooltip delayDuration={150}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setIsWebhookDialogOpen(true)}
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      title="Integrasi Webhook & ID Saluran"
+                    >
+                      <Webhook className="w-4 h-4 text-primary" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
+                    {t('Integrasi Webhook Bot & ID')}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
               {/* Members/Friends Toggle Button */}
               <Tooltip delayDuration={150}>
                 <TooltipTrigger asChild>
@@ -2811,6 +2839,199 @@ export function CommunityPage() {
                 onClick={handleDeleteHubConfirm}
               >
                 {t('Hapus Server')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* DIALOG: INTEGRASI WEBHOOK & ID SALURAN (Ala Discord) */}
+        <Dialog open={isWebhookDialogOpen} onOpenChange={setIsWebhookDialogOpen}>
+          <DialogContent className="sm:max-w-[540px]">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                  <Webhook className="w-4 h-4" />
+                </div>
+                <div>
+                  <DialogTitle className="text-base flex items-center gap-1.5">
+                    {t('Integrasi Webhook Bot')}
+                    <span className="text-muted-foreground font-normal text-xs">
+                      #{activeChannel?.name || 'saluran'}
+                    </span>
+                  </DialogTitle>
+                  <DialogDescription className="text-xs">
+                    Salin Webhook URL atau ID di bawah untuk menghubungkan automasi Flow Builder ke saluran ini.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* 1. Full Webhook URL */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold flex items-center justify-between">
+                  <span>URL Webhook Masuk (Persis Discord)</span>
+                  <Badge variant="outline" className="text-[10px] text-primary bg-primary/5">
+                    Otomatis
+                  </Badge>
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={`${typeof window !== 'undefined' ? window.location.origin : 'https://anticeil.com'}/api/v1/community/webhook?channelId=${activeChannel?.id || 'general'}&hubId=${activeHub?.id || 'anticeil'}`}
+                    className="font-mono text-[11px] bg-muted/40 select-all"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={isCopiedWebhook ? 'default' : 'outline'}
+                    className="shrink-0 h-9 px-3 gap-1.5 text-xs"
+                    onClick={() => {
+                      const url = `${typeof window !== 'undefined' ? window.location.origin : 'https://anticeil.com'}/api/v1/community/webhook?channelId=${activeChannel?.id || 'general'}&hubId=${activeHub?.id || 'anticeil'}`;
+                      navigator.clipboard.writeText(url);
+                      setIsCopiedWebhook(true);
+                      setTimeout(() => setIsCopiedWebhook(false), 2000);
+                    }}
+                  >
+                    {isCopiedWebhook ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-green-500" />
+                        Tersalin
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        Salin URL
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Tempel URL ini pada field <strong>Webhook URL</strong> di Flow Builder atau piece HTTP.
+                </p>
+              </div>
+
+              {/* 2. Direct IDs: Channel ID & Server/Hub ID */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    ID Saluran (Channel ID)
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      readOnly
+                      value={activeChannel?.id || ''}
+                      className="font-mono text-[11px] bg-muted/40 select-all h-8"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2 shrink-0"
+                      onClick={() => {
+                        if (activeChannel?.id) {
+                          navigator.clipboard.writeText(activeChannel.id);
+                          setIsCopiedChannelId(true);
+                          setTimeout(() => setIsCopiedChannelId(false), 2000);
+                        }
+                      }}
+                    >
+                      {isCopiedChannelId ? (
+                        <Check className="w-3 h-3 text-green-500" />
+                      ) : (
+                        <Copy className="w-3 h-3" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    ID Server (Hub ID)
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      readOnly
+                      value={activeHub?.id || 'anticeil'}
+                      className="font-mono text-[11px] bg-muted/40 select-all h-8"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2 shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(activeHub?.id || 'anticeil');
+                        setIsCopiedHubId(true);
+                        setTimeout(() => setIsCopiedHubId(false), 2000);
+                      }}
+                    >
+                      {isCopiedHubId ? (
+                        <Check className="w-3 h-3 text-green-500" />
+                      ) : (
+                        <Copy className="w-3 h-3" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Testing Section */}
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-semibold flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    <span>Uji Coba Pengiriman Bot</span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={isTestingWebhook}
+                    onClick={async () => {
+                      setIsTestingWebhook(true);
+                      try {
+                        await fetch('/api/v1/community/webhook', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            channelId: activeChannel?.id,
+                            channel: activeChannel?.name,
+                            hubId: activeHub?.id,
+                            botName: 'Anticeil Ping Bot',
+                            content: `👋 **Tes Webhook Berhasil!** Terkoneksi ke saluran **#${activeChannel?.name || 'general'}** (ID Server: \`${activeHub?.id || 'anticeil'}\`). Automasi Flow Builder Anda siap mengirim pesan ke sini! 🚀`,
+                          }),
+                        });
+                      } catch (err) {
+                        console.error('Failed to test webhook', err);
+                      } finally {
+                        setIsTestingWebhook(false);
+                      }
+                    }}
+                    className="h-7 text-xs px-2.5 gap-1.5"
+                  >
+                    {isTestingWebhook ? (
+                      <Clock className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Send className="w-3 h-3" />
+                    )}
+                    {isTestingWebhook ? 'Mengirim...' : 'Kirim Pesan Tes'}
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Kirim pesan simulasi bot langsung ke saluran <strong>#{activeChannel?.name || 'general'}</strong> untuk memastikan webhook terhubung.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsWebhookDialogOpen(false)}
+              >
+                {t('Tutup')}
               </Button>
             </DialogFooter>
           </DialogContent>
