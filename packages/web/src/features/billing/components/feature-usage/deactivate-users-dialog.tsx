@@ -23,6 +23,7 @@ import {
   platformUserKeys,
 } from '@/features/platform-admin/hooks/platform-user-hooks';
 import { platformHooks } from '@/hooks/platform-hooks';
+import { formatUtils } from '@/lib/format-utils';
 import { cn } from '@/lib/utils';
 
 export const DeactivateUsersDialog = ({
@@ -212,8 +213,8 @@ function SelectableEmailList({
               onCheckedChange={() => onToggle(item.id)}
             />
             <div className="min-w-0 flex-1">
-              <TextWithTooltip tooltipMessage={item.email}>
-                <p className="text-sm text-foreground">{item.email}</p>
+              <TextWithTooltip tooltipMessage={formatUtils.maskEmail(item.email)}>
+                <p className="text-sm text-foreground font-mono">{formatUtils.maskEmail(item.email)}</p>
               </TextWithTooltip>
             </div>
             <span className="shrink-0 text-xs text-muted-foreground">

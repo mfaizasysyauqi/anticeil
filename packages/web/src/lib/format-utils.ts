@@ -9,7 +9,8 @@ const emailRegex =
 
 export const formatUtils = {
   emailRegex,
-  maskEmail(email: string): string {
+  maskEmail(email?: string | null): string {
+    if (!email) return '';
     const [local, domain] = email.split('@');
     if (!domain) return '***';
     const visible = local.slice(0, Math.min(3, local.length));

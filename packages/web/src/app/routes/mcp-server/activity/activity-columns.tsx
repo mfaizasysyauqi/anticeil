@@ -9,6 +9,7 @@ import { StatusIconWithText } from '@/components/custom/status-icon-with-text';
 import { TextWithTooltip } from '@/components/custom/text-with-tooltip';
 import { Badge } from '@/components/ui/badge';
 import { PieceIconWithPieceName } from '@/features/pieces/components/piece-icon-from-name';
+import { formatUtils } from '@/lib/format-utils';
 
 import { ClientIcon } from '../client-icon';
 import { mcpClientDisplay } from '../mcp-client-display';
@@ -73,7 +74,7 @@ export function buildActivityColumns({
       }
       const name = `${rowMember.firstName} ${rowMember.lastName}`.trim();
       return (
-        <TextWithTooltip tooltipMessage={rowMember.email}>
+        <TextWithTooltip tooltipMessage={formatUtils.maskEmail(rowMember.email)}>
           <div className="truncate text-muted-foreground">
             {rowMember.id === currentUserId
               ? t('{name} · you', { name })

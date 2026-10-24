@@ -7,6 +7,7 @@ import {
   HoverCardContent,
 } from '@/components/ui/hover-card';
 import { userHooks } from '@/hooks/user-hooks';
+import { formatUtils } from '@/lib/format-utils';
 import { cn } from '@/lib/utils';
 
 import { UserAvatar } from './user-avatar';
@@ -85,10 +86,15 @@ export const ApAvatar = ({
                 {user.firstName} {user.lastName}
               </h4>
             </div>
+            {(user as any).username && (
+              <div className="text-xs font-mono text-primary font-medium mt-0.5">
+                @{(user as any).username}
+              </div>
+            )}
             <div className="flex items-center gap-2 mt-1.5">
               <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span className="text-xs text-muted-foreground truncate">
-                {user.email}
+              <span className="text-xs text-muted-foreground truncate font-mono">
+                {formatUtils.maskEmail(user.email)}
               </span>
             </div>
           </div>

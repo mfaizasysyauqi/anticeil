@@ -9,6 +9,7 @@ import { ConfirmationDeleteDialog } from '@/components/custom/delete-dialog';
 import { TextWithTooltip } from '@/components/custom/text-with-tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatUtils } from '@/lib/format-utils';
 import { cn } from '@/lib/utils';
 
 import { ClientIcon } from '../client-icon';
@@ -92,7 +93,7 @@ export function buildGrantsColumns({
         }
         const name = `${member.firstName} ${member.lastName}`.trim();
         return (
-          <TextWithTooltip tooltipMessage={member.email}>
+          <TextWithTooltip tooltipMessage={formatUtils.maskEmail(member.email)}>
             <div className="truncate text-muted-foreground">
               {member.id === currentUserId ? t('{name} · you', { name }) : name}
             </div>

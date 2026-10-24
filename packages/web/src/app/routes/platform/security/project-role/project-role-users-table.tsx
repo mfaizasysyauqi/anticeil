@@ -21,6 +21,7 @@ import {
 import { VirtualizedScrollArea } from '@/components/ui/virtualized-scroll-area';
 import { getProjectRoleDisplayName } from '@/features/members';
 import { projectRoleQueries } from '@/features/platform-admin';
+import { formatUtils } from '@/lib/format-utils';
 
 export const ProjectRoleUsersSheet = ({
   projectRole,
@@ -93,7 +94,7 @@ function renderUserItem(member: ProjectMemberWithUser) {
       <ItemContent>
         <ItemTitle>{fullName}</ItemTitle>
         <ItemDescription>
-          {user.email}
+          <span className="font-mono">{formatUtils.maskEmail(user.email)}</span>
           {' · '}
           <Link to={`/projects/${project.id}/settings/team`}>
             {project.displayName}

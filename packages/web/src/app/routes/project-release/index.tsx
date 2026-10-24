@@ -21,6 +21,7 @@ import { DataTableColumnHeader } from '@/components/custom/data-table/data-table
 import { FormattedDate } from '@/components/custom/formatted-date';
 import { PermissionNeededTooltip } from '@/components/custom/permission-needed-tooltip';
 import { Button } from '@/components/ui/button';
+import { formatUtils } from '@/lib/format-utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -122,7 +123,9 @@ const ProjectReleasesPage = () => {
         />
       ),
       cell: ({ row }) => (
-        <div className="text-left">{row.original.importedByUser?.email}</div>
+        <div className="text-left font-mono text-xs">
+          {formatUtils.maskEmail(row.original.importedByUser?.email)}
+        </div>
       ),
     },
     {

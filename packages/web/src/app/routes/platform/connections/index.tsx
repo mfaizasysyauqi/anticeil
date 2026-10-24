@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import { formatUtils } from '@/lib/format-utils';
+
 import { DashboardPageHeader } from '@/app/components/dashboard-page-header';
 import { CopyTextTooltip } from '@/components/custom/clipboard/copy-text-tooltip';
 import {
@@ -198,10 +200,10 @@ export default function PlatformConnectionsPage() {
         const fullName = [owner.firstName, owner.lastName]
           .filter(Boolean)
           .join(' ');
-        const label = fullName || owner.email;
+        const label = fullName || formatUtils.maskEmail(owner.email);
         return (
-          <TextWithTooltip tooltipMessage={owner.email}>
-            <span className="truncate max-w-[180px]">{label}</span>
+          <TextWithTooltip tooltipMessage={formatUtils.maskEmail(owner.email)}>
+            <span className="truncate max-w-[180px] font-mono text-xs">{label}</span>
           </TextWithTooltip>
         );
       },

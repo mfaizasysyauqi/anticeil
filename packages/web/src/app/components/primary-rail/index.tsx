@@ -1109,6 +1109,10 @@ function RailAccountRow({
 
   const displayName = rawName || user?.email?.split('@')[0] || t('Account');
   const userEmail = user?.email ?? '';
+  const username =
+    (user as any)?.username ||
+    user?.email?.split('@')[0]?.toLowerCase().replace(/[^a-z0-9_]/g, '') ||
+    'user';
 
   return (
     <div
@@ -1157,11 +1161,9 @@ function RailAccountRow({
                       <span className="truncate font-semibold text-sm text-sidebar-foreground">
                         {displayName}
                       </span>
-                      {userEmail && (
-                        <span className="truncate text-muted-foreground text-[11px]">
-                          {userEmail}
-                        </span>
-                      )}
+                      <span className="truncate text-muted-foreground text-[11px] font-mono">
+                        @{username}
+                      </span>
                     </div>
                     <ChevronsUpDown className="ml-auto size-4 shrink-0 text-muted-foreground/70" />
                   </>
@@ -1195,9 +1197,9 @@ function RailAccountRow({
                 <span className="truncate font-medium">
                   {displayName}
                 </span>
-                {user?.email && (
-                  <span className="truncate text-xs">{user.email}</span>
-                )}
+                <span className="truncate text-xs font-mono text-muted-foreground">
+                  @{username}
+                </span>
               </div>
             </div>
           </DropdownMenuLabel>

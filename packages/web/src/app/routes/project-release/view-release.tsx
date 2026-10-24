@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/tooltip';
 import { projectReleaseQueries } from '@/features/project-releases';
 import { authenticationSession } from '@/lib/authentication-session';
+import { formatUtils } from '@/lib/format-utils';
 
 import { ApplyButton } from './apply-plan';
 
@@ -134,7 +135,7 @@ const ViewRelease = () => {
                     </span>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{release?.importedByUser?.email}</p>
+                    <p className="font-mono text-xs">{formatUtils.maskEmail(release?.importedByUser?.email)}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

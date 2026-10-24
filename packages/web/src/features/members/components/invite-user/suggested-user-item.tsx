@@ -63,8 +63,8 @@ function PlatformUserItem({
           <span className="text-sm font-medium truncate">
             {user.firstName} {user.lastName}
           </span>
-          <span className="text-xs text-muted-foreground truncate">
-            {user.email}
+          <span className="text-xs text-muted-foreground truncate font-mono">
+            {formatUtils.maskEmail(user.email)}
           </span>
         </div>
         <Badge
@@ -142,8 +142,8 @@ function EmailStatusSuggestionItem({
             {user ? `${user.firstName} ${user.lastName}` : emailStatus.email}
           </span>
           {user && (
-            <span className="text-xs text-muted-foreground truncate">
-              {user.email}
+            <span className="text-xs text-muted-foreground truncate font-mono">
+              {formatUtils.maskEmail(user.email)}
             </span>
           )}
         </div>
