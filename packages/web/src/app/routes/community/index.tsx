@@ -76,6 +76,7 @@ import { toast } from 'sonner';
 
 import { InviteUserDialog } from '@/features/members';
 import { authenticationSession } from '@/lib/authentication-session';
+import { PlatformRole } from '@activepieces/shared';
 
 import { communityApi } from './community-api';
 import { CommunityAvatar } from './community-avatar';
@@ -423,9 +424,9 @@ export function CommunityPage() {
     const myMemberInfo = members.find((m) => m.id === currentUserId || m.email === currentUser?.email);
     let myRole: CommunityRole = myMemberInfo?.role || 'member';
     if (!myMemberInfo) {
-      if (currentUser?.platformRole === 'ADMIN' || currentUser?.platformRole === 'OWNER') {
+      if (currentUser?.platformRole === PlatformRole.ADMIN) {
         myRole = 'platform_admin';
-      } else if (currentUser?.platformRole === 'OPERATOR') {
+      } else if (currentUser?.platformRole === PlatformRole.OPERATOR) {
         myRole = 'platform_operator';
       }
     }
@@ -745,10 +746,10 @@ export function CommunityPage() {
     if (currentUser && !list.some((m) => m.id === currentUser.id || m.email === currentUser.email)) {
       let currentRole: CommunityRole = 'member';
       let currentLabel = 'Anggota Platform';
-      if (currentUser.platformRole === 'ADMIN' || currentUser.platformRole === 'OWNER') {
+      if (currentUser.platformRole === PlatformRole.ADMIN) {
         currentRole = 'platform_admin';
         currentLabel = 'Admin Platform';
-      } else if (currentUser.platformRole === 'OPERATOR') {
+      } else if (currentUser.platformRole === PlatformRole.OPERATOR) {
         currentRole = 'platform_operator';
         currentLabel = 'Operator Platform';
       }
