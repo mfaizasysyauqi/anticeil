@@ -201,7 +201,7 @@ export function CommunityPage() {
   const [activeHubId, setActiveHubId] = useState<CommunityHubId>('anticeil');
 
   const [channels, setChannels] = useState<CommunityChannel[]>(DEFAULT_CHANNELS);
-  const [activeChannelId, setActiveChannelId] = useState<string>('umum');
+  const [activeChannelId, setActiveChannelId] = useState<string>('');
   const [messagesMap, setMessagesMap] = useState<Record<string, CommunityMessage[]>>({});
   const [members, setMembers] = useState<CommunityMember[]>([]);
 
@@ -244,8 +244,15 @@ export function CommunityPage() {
           communityApi.getMembers(),
         ]);
         if (mounted) {
-          if (channelsRes && channelsRes.length > 0) setChannels(channelsRes);
-          if (membersRes && membersRes.length > 0) setMembers(membersRes);
+          if (Array.isArray(channelsRes)) {
+            setChannels(channelsRes);
+            if (channelsRes.length > 0) {
+              setActiveChannelId((curr) => curr || channelsRes[0].id);
+            }
+          }
+          if (Array.isArray(membersRes)) {
+            setMembers(membersRes);
+          }
         }
       } catch (err) {
         console.warn('Initial community load fallback', err);
@@ -259,6 +266,7 @@ export function CommunityPage() {
 
   // 2. Load Messages when Active Channel Changes
   useEffect(() => {
+    if (!activeChannelId) return;
     let mounted = true;
     const loadChannelMessages = async () => {
       try {
@@ -337,7 +345,7 @@ export function CommunityPage() {
 
     const handleChannelDeleted = ({ id }: { id: string }) => {
       setChannels((prev) => prev.filter((c) => c.id !== id));
-      setActiveChannelId((current) => (current === id ? 'umum' : current));
+      setActiveChannelId((current) => (current === id ? '' : current));
     };
 
     socket.on('COMMUNITY_CHAT_MESSAGE', handleIncomingMessage);
@@ -371,16 +379,17 @@ export function CommunityPage() {
 
   // Active channel resolution
   const activeChannel = useMemo(() => {
+    if (channels.length === 0) return null;
     return (
       channels.find((c) => c.id === activeChannelId) ||
       hubChannels[0] ||
       channels[0] ||
-      DEFAULT_CHANNELS[0]
+      null
     );
   }, [channels, activeChannelId, hubChannels]);
 
   // Active messages & filter
-  const currentMessages = messagesMap[activeChannel.id] || [];
+  const currentMessages = activeChannel ? messagesMap[activeChannel.id] || [] : [];
   const filteredMessages = searchQuery.trim()
     ? currentMessages.filter(
         (m) =>
@@ -400,6 +409,7 @@ export function CommunityPage() {
 
   // Send message
   const handleSendMessage = async () => {
+    if (!activeChannel) return;
     if (!inputText.trim() && !stagedAttachment) return;
 
     const currentUserId = currentUser?.id || 'anon-user';
@@ -439,6 +449,7 @@ export function CommunityPage() {
 
   // Delete message (Message CRUD)
   const handleDeleteMessage = async (msgId: string) => {
+    if (!activeChannel) return;
     setMessagesMap((prev) => {
       const list = prev[activeChannel.id] || [];
       return {
@@ -455,6 +466,7 @@ export function CommunityPage() {
 
   // Toggle reaction
   const handleToggleReaction = async (msgId: string, emoji: string) => {
+    if (!activeChannel) return;
     const currentUserId = currentUser?.id || 'me';
 
     setMessagesMap((prev) => {
@@ -547,7 +559,7 @@ export function CommunityPage() {
     const id = channelToDelete.id;
     setChannels((prev) => prev.filter((c) => c.id !== id));
     if (activeChannelId === id) {
-      setActiveChannelId('umum');
+      setActiveChannelId('');
     }
     setChannelToDelete(null);
 
@@ -703,7 +715,7 @@ export function CommunityPage() {
         avatar: currentUser.imageUrl ?? null,
         role: (currentUser.platformRole === 'ADMIN' || currentUser.platformRole === 'OWNER' ? 'admin' : 'member') as CommunityRole,
         status: 'online',
-        customStatus: currentUser.platformRole === 'OWNER' ? 'Founder @ Anticeil Cloud 🚀' : undefined,
+        customStatus: undefined,
       });
     }
     return list;
@@ -824,23 +836,6 @@ export function CommunityPage() {
               <Plus className="w-4 h-4 mr-2" /> {t('Buat Channel Baru')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setActiveChannelId('umum');
-                onItemClick?.();
-              }}
-            >
-              <Hash className="w-4 h-4 mr-2" /> Channel Umum
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                setActiveChannelId('showcase-template');
-                onItemClick?.();
-              }}
-            >
-              <Sparkles className="w-4 h-4 mr-2" /> Showcase Template
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link to="/templates">
                 <ExternalLink className="w-4 h-4 mr-2" /> Jelajahi Marketplace
@@ -868,41 +863,56 @@ export function CommunityPage() {
             </button>
           </div>
 
-          <div className="space-y-0.5">
-            {hubChannels.map((ch) => {
-              const isActive = activeChannelId === ch.id;
-              return (
-                <div
-                  key={ch.id}
-                  onClick={() => {
-                    setActiveChannelId(ch.id);
-                    onItemClick?.();
-                  }}
-                  className={cn(
-                    'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all text-left group cursor-pointer relative',
-                    isActive
-                      ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
-                      : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                  )}
-                >
-                  <Hash
+          {hubChannels.length === 0 ? (
+            <div className="px-2.5 py-4 text-center">
+              <p className="text-[11px] text-muted-foreground/60 leading-relaxed mb-2">
+                {t('Belum ada channel')}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCreateChannelOpen(true)}
+                className="h-7 text-xs px-2.5 gap-1 w-full"
+              >
+                <Plus className="w-3 h-3" />
+                {t('Buat Channel')}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-0.5">
+              {hubChannels.map((ch) => {
+                const isActive = activeChannelId === ch.id;
+                return (
+                  <div
+                    key={ch.id}
+                    onClick={() => {
+                      setActiveChannelId(ch.id);
+                      onItemClick?.();
+                    }}
                     className={cn(
-                      'w-4 h-4 shrink-0 transition-colors',
-                      isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
+                      'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all text-left group cursor-pointer relative',
+                      isActive
+                        ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
+                        : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                     )}
-                  />
-                  <span className="truncate flex-1">{ch.name}</span>
+                  >
+                    <Hash
+                      className={cn(
+                        'w-4 h-4 shrink-0 transition-colors',
+                        isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
+                      )}
+                    />
+                    <span className="truncate flex-1">{ch.name}</span>
 
-                  {/* Channel action buttons (Edit & Delete CRUD) */}
-                  <div className="hidden group-hover:flex items-center gap-0.5 ml-auto shrink-0">
-                    <button
-                      onClick={(e) => handleOpenEditChannel(ch, e)}
-                      title="Edit Channel"
-                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
-                    >
-                      <Edit2 className="w-3 h-3" />
-                    </button>
-                    {ch.id !== 'umum' && (
+                    {/* Channel action buttons (Edit & Delete CRUD) */}
+                    <div className="hidden group-hover:flex items-center gap-0.5 ml-auto shrink-0">
+                      <button
+                        onClick={(e) => handleOpenEditChannel(ch, e)}
+                        title="Edit Channel"
+                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
                       <button
                         onClick={(e) => handleOpenDeleteChannel(ch, e)}
                         title="Hapus Channel"
@@ -910,12 +920,12 @@ export function CommunityPage() {
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
-                    )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <Separator className="my-2 bg-sidebar-border/60" />
@@ -1053,9 +1063,14 @@ export function CommunityPage() {
 
         {/* Members List: SCROLLABLE DAFTAR ANGGOTA */}
         <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 [scrollbar-width:thin]">
-          {roles.map(
-            (r) =>
-              r.count > 0 && (
+          {displayMembers.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-4 text-center py-8">
+              <Users className="w-8 h-8 text-muted-foreground/30 mb-2" />
+              <p className="text-xs text-muted-foreground/60">{t('Belum ada anggota')}</p>
+            </div>
+          ) : (
+            roles.map((r) =>
+              r.count > 0 ? (
                 <div key={r.key} className="mb-4">
                   <div className="px-2 mb-1.5 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider flex items-center justify-between">
                     <span>{r.title}</span>
@@ -1101,7 +1116,8 @@ export function CommunityPage() {
                       ))}
                   </div>
                 </div>
-              ),
+              ) : null,
+            )
           )}
         </div>
       </div>
@@ -1175,10 +1191,10 @@ export function CommunityPage() {
 
               <Hash className="w-5 h-5 text-muted-foreground shrink-0" />
               <span className="text-sm font-semibold truncate text-foreground">
-                {activeChannel.name}
+                {activeChannel ? activeChannel.name : t('Belum ada channel')}
               </span>
 
-              {activeChannel.description && (
+              {activeChannel?.description && (
                 <>
                   <Separator orientation="vertical" className="h-4 hidden sm:block mx-1" />
                   <span className="text-xs text-muted-foreground truncate hidden sm:block max-w-[400px]">
@@ -1229,29 +1245,47 @@ export function CommunityPage() {
 
           {/* Messages Feed (SCROLLABLE CONVERSATION) */}
           <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 [scrollbar-width:thin]">
-            {/* Welcome banner at top of channel */}
-            <div className="mb-6 pt-4 pb-2">
-              <div className="w-14 h-14 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center text-primary mb-3">
-                <Hash className="w-7 h-7" />
-              </div>
-              <h2 className="text-2xl font-bold tracking-tight text-foreground">
-                Selamat datang di #{activeChannel.name}!
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1 max-w-xl leading-relaxed">
-                {activeChannel.description ||
-                  'Ruang obrolan tim Anticeil. Mulai percakapan, bagikan template otomatisasi, atau koordinasikan alur kerja tim.'}
-              </p>
-            </div>
-
-            <Separator className="my-4 bg-border/40" />
-
-            {/* Message List */}
-            {filteredMessages.length === 0 ? (
-              <div className="py-12 text-center text-sm text-muted-foreground">
-                Belum ada pesan di channel ini. Jadilah yang pertama mengirim pesan!
+            {!activeChannel ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-24 text-center px-4">
+                <div className="w-16 h-16 rounded-2xl bg-muted/50 border border-border/60 flex items-center justify-center text-muted-foreground mb-4">
+                  <Hash className="w-8 h-8 opacity-60" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-1">
+                  {t('Belum Ada Channel')}
+                </h3>
+                <p className="text-xs text-muted-foreground max-w-sm mb-5 leading-relaxed">
+                  {t('Workspace ini belum memiliki channel. Buat channel pertama untuk mulai berkolaborasi dan berkomunikasi dengan tim.')}
+                </p>
+                <Button onClick={() => setIsCreateChannelOpen(true)} size="sm" className="gap-1.5 shadow-2xs">
+                  <Plus className="w-4 h-4" />
+                  {t('Buat Channel Baru')}
+                </Button>
               </div>
             ) : (
-              filteredMessages.map((msg) => (
+              <>
+                {/* Welcome banner at top of channel */}
+                <div className="mb-6 pt-4 pb-2">
+                  <div className="w-14 h-14 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center text-primary mb-3">
+                    <Hash className="w-7 h-7" />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                    Selamat datang di #{activeChannel.name}!
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xl leading-relaxed">
+                    {activeChannel.description ||
+                      'Ruang obrolan tim Anticeil. Mulai percakapan, bagikan template otomatisasi, atau koordinasikan alur kerja tim.'}
+                  </p>
+                </div>
+
+                <Separator className="my-4 bg-border/40" />
+
+                {/* Message List */}
+                {filteredMessages.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-muted-foreground">
+                    Belum ada pesan di channel ini. Jadilah yang pertama mengirim pesan!
+                  </div>
+                ) : (
+                  filteredMessages.map((msg) => (
                 <div
                   key={msg.id}
                   className="group relative flex gap-3 px-2 py-1.5 -mx-2 rounded-lg hover:bg-muted/40 transition-colors"
@@ -1416,6 +1450,8 @@ export function CommunityPage() {
                 </div>
               ))
             )}
+              </>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -1517,8 +1553,9 @@ export function CommunityPage() {
                     handleSendMessage();
                   }
                 }}
-                placeholder={`Pesan ke #${activeChannel.name}...`}
-                className="border-0 shadow-none focus-visible:ring-0 text-xs px-2 h-8 bg-transparent flex-1"
+                disabled={!activeChannel}
+                placeholder={activeChannel ? `Pesan ke #${activeChannel.name}...` : t('Pilih atau buat channel terlebih dahulu...')}
+                className="border-0 shadow-none focus-visible:ring-0 text-xs px-2 h-8 bg-transparent flex-1 disabled:opacity-50"
               />
 
               {/* Send Button */}
@@ -1526,7 +1563,7 @@ export function CommunityPage() {
                 variant={inputText.trim() || stagedAttachment ? 'default' : 'ghost'}
                 size="icon"
                 onClick={handleSendMessage}
-                disabled={!inputText.trim() && !stagedAttachment}
+                disabled={!activeChannel || (!inputText.trim() && !stagedAttachment)}
                 className="h-7 w-7 shrink-0"
               >
                 <Send className="w-3.5 h-3.5" />

@@ -11,57 +11,10 @@ const messageRepo = repoFactory(CommunityMessageEntity)
 export const communityService = (_log: FastifyBaseLogger) => ({
 
     async listChannels(platformId: string): Promise<CommunityChannelRow[]> {
-        let channels = await channelRepo().find({
+        const channels = await channelRepo().find({
             where: { platformId, isDirectMessage: false },
             order: { created: 'ASC' },
         })
-
-        if (channels.length === 0) {
-            const defaults = [
-                channelRepo().create({
-                    id: 'umum',
-                    platformId,
-                    name: 'umum',
-                    description: 'Ruang obrolan umum seputar otomatisasi, AI builder, dan inovasi platform Anticeil.',
-                    category: 'CHANNELS',
-                    isDirectMessage: false,
-                    dmPair: null,
-                }),
-                channelRepo().create({
-                    id: 'showcase-template',
-                    platformId,
-                    name: 'showcase-template',
-                    description: 'Pamerkan alur otomatisasi buatanmu, dapatkan feedback, dan bagikan template gratis.',
-                    category: 'CHANNELS',
-                    isDirectMessage: false,
-                    dmPair: null,
-                }),
-                channelRepo().create({
-                    id: 'tanya-jawab',
-                    platformId,
-                    name: 'tanya-jawab',
-                    description: 'Diskusi problem-solving, debugging error alur kerja, dan tanya jawab teknis.',
-                    category: 'CHANNELS',
-                    isDirectMessage: false,
-                    dmPair: null,
-                }),
-            ]
-            channels = await channelRepo().save(defaults)
-
-            const defaultMsg = messageRepo().create({
-                id: apId(),
-                channelId: 'umum',
-                senderId: 'anticeil-community',
-                senderName: 'Anticeil Community',
-                senderEmail: 'community@anticeil.com',
-                senderAvatar: null,
-                senderRole: 'admin',
-                content: 'Selamat datang di **Komunitas Resmi Anticeil**! Ruang obrolan umum seputar otomatisasi, AI builder, dan inovasi platform. Silakan bagikan alur kerja atau tanyakan kendala Anda di sini!',
-                attachments: null,
-                reactions: { '🚀': ['anticeil-community'] },
-            })
-            await messageRepo().save(defaultMsg)
-        }
 
         return channels
     },

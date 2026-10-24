@@ -224,143 +224,9 @@ function registerPresenceDisconnectHandler({ socket, userId, projectId, app }) {
 // ==========================================
 async function setupCommunityApi(app) {
     let dbReady = false;
-    const memoryChannels = [
-        { id: 'umum', name: 'umum', description: 'Ruang obrolan umum seputar otomatisasi, AI builder, dan inovasi platform Anticeil.', category: 'CHANNELS', hub_id: 'anticeil', is_direct_message: false },
-        { id: 'showcase-template', name: 'showcase-template', description: 'Pamerkan alur otomatisasi buatanmu, dapatkan feedback, dan bagikan template gratis.', category: 'CHANNELS', hub_id: 'anticeil', is_direct_message: false },
-        { id: 'jual-beli-template', name: 'jual-beli-template', description: 'Marketplace komunitas: jual atau beli workflow premium dan request otomasi custom.', category: 'CHANNELS', hub_id: 'anticeil', is_direct_message: false },
-        { id: 'tanya-jawab', name: 'tanya-jawab', description: 'Tanya jawab seputar webhook, API keys, error workflow, dan integrasi 770+ pieces.', category: 'CHANNELS', hub_id: 'anticeil', is_direct_message: false },
-        { id: 'ai-agents-discussion', name: 'ai-agents', description: 'Diskusi seputar agen otonom, tool calling, dan multi-agent coordination.', category: 'CHANNELS', hub_id: 'ai-agents', is_direct_message: false },
-        { id: 'prompt-engineering', name: 'prompt-engineering', description: 'Berbagi system prompts terbaik untuk coding, support, dan automations.', category: 'CHANNELS', hub_id: 'ai-agents', is_direct_message: false },
-        { id: 'mcp-builders', name: 'mcp-builders', description: 'Eksplorasi Model Context Protocol dan integrasi server MCP Anticeil.', category: 'CHANNELS', hub_id: 'ai-agents', is_direct_message: false },
-        { id: 'free-workflows', name: 'free-workflows', description: 'Koleksi template gratis siap pakai untuk UMKM dan bisnis.', category: 'CHANNELS', hub_id: 'templates', is_direct_message: false },
-        { id: 'enterprise-solutions', name: 'enterprise-solutions', description: 'Solusi otomatisasi skala besar, OCR invoice, ERP & banking sync.', category: 'CHANNELS', hub_id: 'templates', is_direct_message: false },
-        { id: 'workflow-critique', name: 'workflow-critique', description: 'Minta review arsitektur alur kerja dari para master builder Anticeil.', category: 'CHANNELS', hub_id: 'templates', is_direct_message: false },
-        { id: 'custom-pieces', name: 'custom-pieces', description: 'Panduan membuat custom pieces dengan Anticeil Framework.', category: 'CHANNELS', hub_id: 'developers', is_direct_message: false },
-        { id: 'webhook-integration', name: 'webhook-integration', description: 'Tips & trik menangani high-volume webhooks dan rate limits.', category: 'CHANNELS', hub_id: 'developers', is_direct_message: false },
-        { id: 'bug-reports', name: 'bug-reports', description: 'Laporkan temuan bug langsung ke developer Anticeil.', category: 'CHANNELS', hub_id: 'developers', is_direct_message: false }
-    ];
-
-    const memoryMessages = {
-        'umum': [
-            {
-                id: 'msg-u1',
-                channelId: 'umum',
-                senderId: 'user-admin-1',
-                senderName: 'Faiz Asy-Syauqi',
-                senderEmail: 'faiz@anticeil.com',
-                senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-                senderRole: 'admin',
-                content: 'Selamat datang di **Komunitas Resmi Anticeil**! 🎉\nDi sini rekan-rekan builder bisa berdiskusi seputar pembuatan workflow, saling tukar template alur kerja, hingga transaksi template otomatisasi siap pakai.',
-                createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-                reactions: { '🎉': ['user-creator-1', 'user-pro-1'], '🔥': ['user-member-1'] },
-                attachments: []
-            },
-            {
-                id: 'msg-u2',
-                channelId: 'umum',
-                senderId: 'user-creator-1',
-                senderName: 'Budi Pratama',
-                senderEmail: 'budi.automates@gmail.com',
-                senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-                senderRole: 'creator',
-                content: 'Halo rekan-rekan! Keren banget sekarang builder Anticeil kolaborasi real-time nya makin kenceng tanpa delay. Multi-cursor realtime-nya mulus banget! 👏',
-                createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-                reactions: { '❤️': ['user-admin-1'] },
-                attachments: []
-            },
-            {
-                id: 'msg-u3',
-                channelId: 'umum',
-                senderId: 'user-pro-1',
-                senderName: 'Devi Amanda',
-                senderEmail: 'devi.tech@perusahaan.co.id',
-                senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-                senderRole: 'pro',
-                content: 'Iya bener! Kemarin tim kami coba live pair-editing di canvas yang sama, rasanya kayak pake Figma tapi langsung jalan jadi backend workflow beneran.',
-                createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-                reactions: { '🚀': ['user-creator-1'] },
-                attachments: []
-            }
-        ],
-        'showcase-template': [
-            {
-                id: 'msg-s1',
-                channelId: 'showcase-template',
-                senderId: 'user-admin-1',
-                senderName: 'Faiz Asy-Syauqi',
-                senderEmail: 'faiz@anticeil.com',
-                senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-                senderRole: 'admin',
-                content: 'Halo semua! Buat yang baru bikin workflow keren dengan Anticeil Builder, silakan share di sini ya! Bisa lampirkan template langsung dengan klik icon stack di bawah input chat.',
-                createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-                reactions: { '✨': ['user-creator-1'] },
-                attachments: []
-            }
-        ],
-        'jual-beli-template': [
-            {
-                id: 'msg-j1',
-                channelId: 'jual-beli-template',
-                senderId: 'user-creator-1',
-                senderName: 'Budi Pratama',
-                senderEmail: 'budi.automates@gmail.com',
-                senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-                senderRole: 'creator',
-                content: 'Ready stock template enterprise: **"Automated Accounting & Invoice OCR Sync to Midtrans + Accurate"**.\nCocok buat UMKM / agensi yang butuh otomatisasi finance invoice. Minat bisa langsung DM atau reply di sini ya!',
-                createdAt: new Date(Date.now() - 3600000 * 6).toISOString(),
-                attachments: [
-                    {
-                        type: 'template',
-                        url: '/templates',
-                        name: 'Automated Accounting & Invoice OCR Sync',
-                        templateData: {
-                            name: 'Enterprise Invoice OCR & Midtrans Sync',
-                            description: 'Otomatis ekstrak PDF tagihan dan rekonsiliasi status pembayaran Midtrans.',
-                            pieceCount: 6,
-                            price: 'Rp 299.000',
-                        },
-                    },
-                ],
-                reactions: { '💰': ['user-pro-1'], '👀': ['user-member-2'] },
-            }
-        ],
-        'tanya-jawab': [
-            {
-                id: 'msg-t1',
-                channelId: 'tanya-jawab',
-                senderId: 'user-member-1',
-                senderName: 'Rizky Fauzi',
-                senderEmail: 'rizky.fauzi@outlook.com',
-                senderAvatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
-                senderRole: 'member',
-                content: 'Tanya dong mastah, kalau mau trigger alur saat ada file baru di Google Drive tapi cuma file `.pdf`, filternya lebih bagus ditaruh di trigger atau pakai step branch condition?',
-                createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-                reactions: {},
-                attachments: []
-            },
-            {
-                id: 'msg-t2',
-                channelId: 'tanya-jawab',
-                senderId: 'user-admin-1',
-                senderName: 'Faiz Asy-Syauqi',
-                senderEmail: 'faiz@anticeil.com',
-                senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-                senderRole: 'admin',
-                content: 'Halo @Rizky! Paling efisien pakai step **Branch (Filter)** langsung setelah trigger, cek kondisi `{{ step_1.mimeType }} contains application/pdf`. Jadi alur file selain PDF langsung berhenti tanpa buang kuota eksekusi.',
-                createdAt: new Date(Date.now() - 3600000 * 1).toISOString(),
-                reactions: { '💡': ['user-member-1'], '👍': ['user-creator-1'] },
-                attachments: []
-            }
-        ]
-    };
-
-    const members = [
-        { id: 'user-admin-1', name: 'Faiz Asy-Syauqi', email: 'faiz@anticeil.com', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80', role: 'admin', status: 'online', customStatus: 'Founder @ Anticeil Cloud 🚀' },
-        { id: 'user-creator-1', name: 'Budi Pratama', email: 'budi.automates@gmail.com', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80', role: 'creator', status: 'online', customStatus: 'Building WhatsApp CRM Template ✨' },
-        { id: 'user-pro-1', name: 'Devi Amanda', email: 'devi.tech@perusahaan.co.id', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80', role: 'pro', status: 'online', customStatus: 'Automating Growth & Lead Gen 📈' },
-        { id: 'user-member-1', name: 'Rizky Fauzi', email: 'rizky.fauzi@outlook.com', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80', role: 'member', status: 'idle', customStatus: 'Eksplorasi AI Agents & MCP 🤖' },
-        { id: 'user-member-2', name: 'Siti Rahmawati', email: 'siti.rahma@startup.id', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80', role: 'member', status: 'offline', customStatus: 'Product Manager @ FinTech' }
-    ];
+    const memoryChannels = [];
+    const memoryMessages = {};
+    const members = [];
 
     async function getDb() {
         try {
@@ -405,39 +271,24 @@ async function setupCommunityApi(app) {
                 );
             `);
 
-            const chCount = await ds.query('SELECT count(*) as cnt FROM anticeil_community_channels');
-            if (parseInt(chCount[0]?.cnt || 0, 10) === 0) {
-                for (const c of memoryChannels) {
-                    await ds.query(
-                        'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message) VALUES ($1, $2, $3, $4, $5, $6)',
-                        [c.id, c.name, c.description, c.category, c.hub_id, c.is_direct_message]
-                    );
-                }
-            }
+            // Clean up any previously seeded dummy/placeholder channels and messages
+            const dummyChannelIds = [
+                'umum', 'showcase-template', 'jual-beli-template', 'tanya-jawab',
+                'ai-agents-discussion', 'prompt-engineering', 'mcp-builders',
+                'free-workflows', 'enterprise-solutions', 'workflow-critique',
+                'custom-pieces', 'webhook-integration', 'bug-reports'
+            ];
+            try {
+                await ds.query(
+                    `DELETE FROM anticeil_community_messages WHERE channel_id = ANY($1) OR sender_id LIKE 'user-%' OR sender_id = 'anticeil-community'`,
+                    [dummyChannelIds]
+                );
+                await ds.query(
+                    `DELETE FROM anticeil_community_channels WHERE id = ANY($1)`,
+                    [dummyChannelIds]
+                );
+            } catch (cleanErr) {}
 
-            const msgCount = await ds.query('SELECT count(*) as cnt FROM anticeil_community_messages');
-            if (parseInt(msgCount[0]?.cnt || 0, 10) === 0) {
-                for (const chId in memoryMessages) {
-                    for (const m of memoryMessages[chId]) {
-                        await ds.query(
-                            'INSERT INTO anticeil_community_messages (id, channel_id, sender_id, sender_name, sender_email, sender_avatar, sender_role, content, attachments, reactions, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
-                            [
-                                m.id,
-                                m.channelId,
-                                m.senderId,
-                                m.senderName,
-                                m.senderEmail,
-                                m.senderAvatar,
-                                m.senderRole,
-                                m.content,
-                                JSON.stringify(m.attachments || []),
-                                JSON.stringify(m.reactions || {}),
-                                m.createdAt
-                            ]
-                        );
-                    }
-                }
-            }
             dbReady = true;
         } catch (err) {
             app.log.warn({ err }, '[Community API] Database initialization warning, using in-memory');
@@ -734,7 +585,28 @@ async function setupCommunityApi(app) {
 
     // --- MEMBERS ---
     app.get('/v1/community/members', async () => {
-        return members;
+        const ds = await getDb();
+        if (ds) {
+            try {
+                const users = await ds.query(`
+                    SELECT u.id, u."platformRole", ui."firstName", ui."lastName", ui.email, ui."imageUrl"
+                    FROM "user" u
+                    LEFT JOIN "user_identity" ui ON u."identityId" = ui.id
+                    LIMIT 200
+                `);
+                return (users || []).map(u => ({
+                    id: u.id,
+                    name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'User',
+                    email: u.email || '',
+                    avatar: u.imageUrl || null,
+                    role: u.platformRole === 'ADMIN' ? 'admin' : 'member',
+                    status: 'online'
+                }));
+            } catch (e) {
+                return [];
+            }
+        }
+        return [];
     });
 }
 
