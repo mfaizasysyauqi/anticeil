@@ -13,18 +13,9 @@ const communitySecurity = {
     security: securityAccess.publicPlatform(COMMUNITY_PRINCIPALS),
 }
 
-async function assertTeamChatAllowed(platformId: string, log: FastifyBaseLogger): Promise<void> {
-    const platform = await platformService(log).getOneWithPlanOrThrow(platformId)
-    const planName = (platform.plan?.plan || 'free').toLowerCase()
-    const isAllowed = planName.includes('plus') || planName.includes('team') || planName.includes('enterprise')
-    if (!isAllowed) {
-        throw new ActivepiecesError({
-            code: ErrorCode.VALIDATION,
-            params: {
-                message: 'Team Chat is available on Plus, Team, and Enterprise plans only. Upgrade your plan to unlock.',
-            },
-        })
-    }
+async function assertTeamChatAllowed(_platformId: string, _log: FastifyBaseLogger): Promise<void> {
+    // Chat is subsidized and free for all users to grow the open community & bot ecosystem
+    return
 }
 
 export const communityController: FastifyPluginAsyncZod = async (fastify) => {

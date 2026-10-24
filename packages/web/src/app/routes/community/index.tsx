@@ -1399,7 +1399,7 @@ export function CommunityPage() {
 
   return (
     <LockedFeatureGuard
-      locked={!isPlusOrAbove}
+      locked={false}
       lockTier="Plus"
       lockTitle={t('Unlock Chat & Collaboration')}
       lockDescription={t(
