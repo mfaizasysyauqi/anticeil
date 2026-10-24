@@ -467,12 +467,10 @@ export function CommunityPage() {
 
     const myMemberInfo = members.find((m) => m.id === currentUserId || m.email === currentUser?.email);
     let myRole: CommunityRole = myMemberInfo?.role || 'member';
-    if (!myMemberInfo) {
-      if (currentUser?.platformRole === PlatformRole.ADMIN) {
-        myRole = 'platform_admin';
-      } else if (currentUser?.platformRole === PlatformRole.OPERATOR) {
-        myRole = 'platform_operator';
-      }
+    if (activeHub?.role === 'owner') {
+      myRole = 'owner';
+    } else if (activeHub?.role === 'admin') {
+      myRole = 'admin';
     }
 
     const payload: Partial<CommunityMessage> = {
@@ -909,38 +907,25 @@ export function CommunityPage() {
     }
   };
 
-  // Role Badge Helper (Explicit Platform & Project Roles)
+  // Role Badge Helper (Discord Server Roles: Pemilik, Admin, Bot)
   const renderRoleBadge = (role: CommunityRole, roleLabel?: string) => {
     switch (role) {
-      case 'platform_admin':
-      case 'admin':
-        return (
-          <Badge className="bg-red-500/15 text-red-400 hover:bg-red-500/25 border-red-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1 shrink-0">
-            <Shield className="w-2.5 h-2.5" /> {roleLabel || t('Admin Platform')}
-          </Badge>
-        );
-      case 'platform_operator':
+      case 'owner':
         return (
           <Badge className="bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 border-amber-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1 shrink-0">
-            <Shield className="w-2.5 h-2.5" /> {roleLabel || t('Operator Platform')}
+            <Crown className="w-2.5 h-2.5" /> {roleLabel || t('Pemilik')}
           </Badge>
         );
-      case 'project_admin':
+      case 'admin':
         return (
-          <Badge className="bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 border-purple-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1 shrink-0">
-            <Crown className="w-2.5 h-2.5" /> {roleLabel || t('Admin Proyek')}
+          <Badge className="bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border-rose-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1 shrink-0">
+            <Shield className="w-2.5 h-2.5" /> {roleLabel || t('Admin')}
           </Badge>
         );
-      case 'project_editor':
+      case 'bot':
         return (
-          <Badge className="bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border-blue-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1 shrink-0">
-            <Edit2 className="w-2.5 h-2.5" /> {roleLabel || t('Editor Proyek')}
-          </Badge>
-        );
-      case 'project_viewer':
-        return (
-          <Badge className="bg-slate-500/15 text-slate-400 hover:bg-slate-500/25 border-slate-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1 shrink-0">
-            <Users className="w-2.5 h-2.5" /> {roleLabel || t('Viewer Proyek')}
+          <Badge className="bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25 border-indigo-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1 shrink-0">
+            <Bot className="w-2.5 h-2.5" /> {roleLabel || t('Bot')}
           </Badge>
         );
       default:
@@ -954,17 +939,22 @@ export function CommunityPage() {
     'Pengguna Anticeil';
 
   const displayMembers: CommunityMember[] = useMemo(() => {
-    const list = [...members];
-    if (currentUser && !list.some((m) => m.id === currentUser.id || m.email === currentUser.email)) {
-      let currentRole: CommunityRole = 'member';
-      let currentLabel = 'Anggota Platform';
-      if (currentUser.platformRole === PlatformRole.ADMIN) {
-        currentRole = 'platform_admin';
-        currentLabel = 'Admin Platform';
-      } else if (currentUser.platformRole === PlatformRole.OPERATOR) {
-        currentRole = 'platform_operator';
-        currentLabel = 'Operator Platform';
+    const isOwner = activeHub?.role === 'owner';
+    const isAdmin = activeHub?.role === 'admin';
+    const list = members.map((m) => {
+      if (m.id === currentUser?.id || m.email === currentUser?.email) {
+        return {
+          ...m,
+          role: isOwner ? ('owner' as CommunityRole) : isAdmin ? ('admin' as CommunityRole) : (m.role || 'member'),
+          roleLabel: isOwner ? 'Pemilik' : isAdmin ? 'Admin' : undefined,
+        };
       }
+      return m;
+    });
+
+    if (currentUser && !list.some((m) => m.id === currentUser.id || m.email === currentUser.email)) {
+      const currentRole: CommunityRole = isOwner ? 'owner' : isAdmin ? 'admin' : 'member';
+      const currentLabel = isOwner ? 'Pemilik' : isAdmin ? 'Admin' : undefined;
       list.unshift({
         id: currentUser.id,
         name: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email,
@@ -978,7 +968,7 @@ export function CommunityPage() {
       });
     }
     return list;
-  }, [members, currentUser]);
+  }, [members, currentUser, activeHub]);
 
   // Component: Discord Mini Server/Hub Rail (compact, theme-consistent & non-overflowing)
   const renderDiscordHubRail = () => {
@@ -1403,13 +1393,36 @@ export function CommunityPage() {
 
   // Component: Members Sidebar Content
   const renderMembersSidebarContent = () => {
-    const roleGroups: { key: CommunityRole; title: string; count: number }[] = [
-      { key: 'platform_admin', title: t('Admin Platform'), count: displayMembers.filter((m) => m.role === 'platform_admin' || m.role === 'admin').length },
-      { key: 'platform_operator', title: t('Operator Platform'), count: displayMembers.filter((m) => m.role === 'platform_operator').length },
-      { key: 'project_admin', title: t('Admin Proyek'), count: displayMembers.filter((m) => m.role === 'project_admin').length },
-      { key: 'project_editor', title: t('Editor Proyek'), count: displayMembers.filter((m) => m.role === 'project_editor').length },
-      { key: 'project_viewer', title: t('Viewer Proyek'), count: displayMembers.filter((m) => m.role === 'project_viewer').length },
-      { key: 'member', title: t('Anggota Platform'), count: displayMembers.filter((m) => m.role === 'member' || !m.role || m.role === 'pro' || m.role === 'creator').length },
+    const roleGroups: {
+      key: string;
+      title: string;
+      filter: (m: CommunityMember) => boolean;
+    }[] = [
+      {
+        key: 'owner',
+        title: t('Pemilik Server'),
+        filter: (m) => m.role === 'owner',
+      },
+      {
+        key: 'admin',
+        title: t('Admin Server'),
+        filter: (m) => m.role === 'admin',
+      },
+      {
+        key: 'bot',
+        title: t('Bot & Integrasi'),
+        filter: (m) => m.role === 'bot',
+      },
+      {
+        key: 'online',
+        title: t('Online'),
+        filter: (m) => m.role !== 'owner' && m.role !== 'admin' && m.role !== 'bot' && m.status !== 'offline',
+      },
+      {
+        key: 'offline',
+        title: t('Offline'),
+        filter: (m) => m.role !== 'owner' && m.role !== 'admin' && m.role !== 'bot' && m.status === 'offline',
+      },
     ];
 
     return (
@@ -1430,59 +1443,56 @@ export function CommunityPage() {
               <p className="text-xs text-muted-foreground/60">{t('Belum ada anggota')}</p>
             </div>
           ) : (
-            roleGroups.map((r) =>
-              r.count > 0 ? (
+            roleGroups.map((r) => {
+              const matchedMembers = displayMembers.filter(r.filter);
+              if (matchedMembers.length === 0) return null;
+
+              return (
                 <div key={r.key} className="mb-4">
                   <div className="px-2 mb-1.5 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider flex items-center justify-between">
                     <span>{r.title}</span>
-                    <span>{r.count}</span>
+                    <span>{matchedMembers.length}</span>
                   </div>
                   <div className="space-y-0.5">
-                    {displayMembers
-                      .filter((m) => {
-                        if (r.key === 'platform_admin') return m.role === 'platform_admin' || m.role === 'admin';
-                        if (r.key === 'member') return m.role === 'member' || !m.role || m.role === 'pro' || m.role === 'creator';
-                        return m.role === r.key;
-                      })
-                      .map((member) => (
-                        <button
-                          key={member.id}
-                          onClick={() => handleStartDM(member)}
-                          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-sidebar-accent group"
-                        >
-                          <CommunityAvatar
-                            name={member.name}
-                            imageUrl={member.avatar}
-                            size={28}
-                            status={member.status}
-                            showStatus
-                          />
-                          <div className="flex flex-col min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
-                              <span
-                                className={cn(
-                                  'text-xs font-medium truncate',
-                                  member.status === 'offline'
-                                    ? 'text-muted-foreground/60'
-                                    : 'text-foreground group-hover:text-primary',
-                                )}
-                              >
-                                {member.name}
-                              </span>
-                              {renderRoleBadge(member.role, member.roleLabel)}
-                            </div>
-                            {member.customStatus && (
-                              <span className="text-[10px] text-muted-foreground/70 truncate">
-                                {member.customStatus}
-                              </span>
-                            )}
+                    {matchedMembers.map((member) => (
+                      <button
+                        key={member.id}
+                        onClick={() => handleStartDM(member)}
+                        className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-sidebar-accent group"
+                      >
+                        <CommunityAvatar
+                          name={member.name}
+                          imageUrl={member.avatar}
+                          size={28}
+                          status={member.status}
+                          showStatus
+                        />
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={cn(
+                                'text-xs font-medium truncate',
+                                member.status === 'offline'
+                                  ? 'text-muted-foreground/60'
+                                  : 'text-foreground group-hover:text-primary',
+                              )}
+                            >
+                              {member.name}
+                            </span>
+                            {renderRoleBadge(member.role, member.roleLabel)}
                           </div>
-                        </button>
-                      ))}
+                          {member.customStatus && (
+                            <span className="text-[10px] text-muted-foreground/70 truncate">
+                              {member.customStatus}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ) : null,
-            )
+              );
+            })
           )}
         </div>
       </div>

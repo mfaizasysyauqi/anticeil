@@ -356,17 +356,20 @@ export const messagesService = (_log: FastifyBaseLogger) => ({
 
             const roleMap = new Map(hubMembers.map(m => [m.userId, m.role]))
 
+            const hub = await hubRepo().findOneBy({ id: hubId })
+
             return users.map((u) => {
                 const firstName = u.identity?.firstName ?? ''
                 const lastName = u.identity?.lastName ?? ''
                 const fullName = `${firstName} ${lastName}`.trim()
                 const hubRole = roleMap.get(u.id) ?? 'member'
+                const isOwner = hub?.ownerId === u.id || hubRole === 'owner'
                 return {
                     id: u.id,
                     name: fullName || u.identity?.email || 'User',
                     email: u.identity?.email ?? '',
                     avatar: u.identity?.imageUrl ?? null,
-                    role: hubRole === 'owner' || hubRole === 'admin' ? ('admin' as const) : ('member' as const),
+                    role: (isOwner ? 'owner' : hubRole === 'admin' ? 'admin' : 'member') as 'owner' | 'admin' | 'member',
                     status: 'online' as const,
                 }
             })
@@ -387,7 +390,7 @@ export const messagesService = (_log: FastifyBaseLogger) => ({
                 name: fullName || u.identity?.email || 'User',
                 email: u.identity?.email ?? '',
                 avatar: u.identity?.imageUrl ?? null,
-                role: u.platformRole === PlatformRole.ADMIN ? ('admin' as const) : ('member' as const),
+                role: 'member' as const,
                 status: 'online' as const,
             }
         })
