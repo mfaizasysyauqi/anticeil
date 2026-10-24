@@ -94,7 +94,7 @@ function renderUserItem(member: ProjectMemberWithUser) {
       <ItemContent>
         <ItemTitle>{fullName}</ItemTitle>
         <ItemDescription>
-          <span className="font-mono">{formatUtils.maskEmail(user.email)}</span>
+          <span>{formatUtils.maskEmail(user.email)}</span>
           {' · '}
           <Link to={`/projects/${project.id}/settings/team`}>
             {project.displayName}

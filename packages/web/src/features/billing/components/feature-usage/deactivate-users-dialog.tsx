@@ -214,7 +214,7 @@ function SelectableEmailList({
             />
             <div className="min-w-0 flex-1">
               <TextWithTooltip tooltipMessage={formatUtils.maskEmail(item.email)}>
-                <p className="text-sm text-foreground font-mono">{formatUtils.maskEmail(item.email)}</p>
+                <p className="text-sm text-foreground">{formatUtils.maskEmail(item.email)}</p>
               </TextWithTooltip>
             </div>
             <span className="shrink-0 text-xs text-muted-foreground">

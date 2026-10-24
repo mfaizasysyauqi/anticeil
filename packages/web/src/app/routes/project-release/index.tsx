@@ -123,7 +123,7 @@ const ProjectReleasesPage = () => {
         />
       ),
       cell: ({ row }) => (
-        <div className="text-left font-mono text-xs">
+        <div className="text-left">
           {formatUtils.maskEmail(row.original.importedByUser?.email)}
         </div>
       ),

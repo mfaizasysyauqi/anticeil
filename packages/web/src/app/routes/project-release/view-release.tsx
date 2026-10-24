@@ -135,7 +135,7 @@ const ViewRelease = () => {
                     </span>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="font-mono text-xs">{formatUtils.maskEmail(release?.importedByUser?.email)}</p>
+                    <p>{formatUtils.maskEmail(release?.importedByUser?.email)}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

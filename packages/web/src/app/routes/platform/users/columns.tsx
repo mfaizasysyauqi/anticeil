@@ -75,9 +75,7 @@ export const createUsersTableColumns = (
                 <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <TruncatedColumnTextValue
                   value={displayEmail}
-                  className={`max-w-[200px] 2xl:max-w-[280px] ${
-                    maskEmails ? 'font-mono text-xs' : ''
-                  }`}
+                  className="max-w-[200px] 2xl:max-w-[280px]"
                 />
               </div>
             )}

@@ -203,7 +203,7 @@ export default function PlatformConnectionsPage() {
         const label = fullName || formatUtils.maskEmail(owner.email);
         return (
           <TextWithTooltip tooltipMessage={formatUtils.maskEmail(owner.email)}>
-            <span className="truncate max-w-[180px] font-mono text-xs">{label}</span>
+            <span className="truncate max-w-[180px]">{label}</span>
           </TextWithTooltip>
         );
       },
