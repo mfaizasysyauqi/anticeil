@@ -1041,14 +1041,12 @@ export default {
                     description: 'ID saluran (contoh: ch-general-123) atau nama channel (contoh: general, alerts) jika tidak menggunakan URL webhook lengkap.',
                     type: 'SHORT_TEXT',
                     required: false,
-                    defaultValue: 'general',
                   },
                   hubId: {
                     displayName: 'ID Server (Hub ID)',
-                    description: 'ID Server Anticeil Chat tempat saluran berada (Default: anticeil).',
+                    description: 'ID Server Anticeil Chat tempat saluran berada.',
                     type: 'SHORT_TEXT',
                     required: false,
-                    defaultValue: 'anticeil',
                   },
                   content: {
                     displayName: 'Isi Pesan (Markdown)',

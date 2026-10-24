@@ -17,16 +17,20 @@ export const sendChannelMessage = createAction({
       required: false,
       placeholder: 'https://anticeil.com/api/v1/community/webhook?channelId=ch-...',
     }),
-    channel: Property.ShortText({
-      displayName: 'Channel ID / Nama Saluran (Opsional)',
+    channelId: Property.ShortText({
+      displayName: 'ID Saluran / Nama Channel (Opsional)',
       description: 'Opsional jika Webhook URL sudah diisi. ID Saluran atau nama saluran jika ingin meng-override URL.',
+      required: false,
+    }),
+    channel: Property.ShortText({
+      displayName: 'ID Saluran / Channel (Legacy)',
+      description: 'Parameter alias channel untuk kompatibilitas versi lama.',
       required: false,
     }),
     hubId: Property.ShortText({
       displayName: 'ID Server / Hub ID (Opsional)',
       description: 'Opsional jika Webhook URL sudah diisi. ID Server Anticeil Chat.',
       required: false,
-      advanced: true,
     }),
     content: Property.LongText({
       displayName: 'Isi Pesan (Markdown)',
@@ -47,7 +51,7 @@ export const sendChannelMessage = createAction({
   },
   async run(context) {
     const rawWebhook = context.propsValue.webhookUrl?.trim();
-    let channel = context.propsValue.channel?.trim();
+    let channel = (context.propsValue.channelId || (context.propsValue as any).channel)?.trim();
     let hubId = context.propsValue.hubId?.trim();
     const content = context.propsValue.content;
     const botName = context.propsValue.botName || 'Anticeil Bot';

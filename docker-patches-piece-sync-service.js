@@ -40,12 +40,29 @@ const ANTICEIL_CHAT_METADATA = {
             description: 'Kirim pesan bot otomatis dengan format Markdown ke saluran obrolan Anticeil Chat.',
             requireAuth: false,
             props: {
-                channel: {
-                    displayName: 'Channel',
-                    description: 'Nama channel (contoh: general, alerts, dev) atau ID channel.',
+                webhookUrl: {
+                    displayName: 'Webhook URL',
+                    description: 'Salin Webhook URL dari Pengaturan Saluran Anticeil Chat (contoh: https://anticeil.com/api/v1/community/webhook?channelId=ch-...)',
                     type: 'SHORT_TEXT',
-                    required: true,
-                    defaultValue: 'general'
+                    required: false
+                },
+                channel: {
+                    displayName: 'ID Saluran / Nama Channel',
+                    description: 'Nama channel (contoh: general, alerts) atau ID channel (contoh: ch-mvmmfi3o-halo).',
+                    type: 'SHORT_TEXT',
+                    required: false
+                },
+                channelId: {
+                    displayName: 'ID Saluran (Alias)',
+                    description: 'ID saluran jika menggunakan parameter channelId.',
+                    type: 'SHORT_TEXT',
+                    required: false
+                },
+                hubId: {
+                    displayName: 'ID Server (Hub ID)',
+                    description: 'ID Server Anticeil Chat tempat saluran berada.',
+                    type: 'SHORT_TEXT',
+                    required: false
                 },
                 content: {
                     displayName: 'Isi Pesan (Markdown)',
@@ -63,12 +80,6 @@ const ANTICEIL_CHAT_METADATA = {
                 botAvatar: {
                     displayName: 'Avatar URL',
                     description: 'URL gambar avatar bot.',
-                    type: 'SHORT_TEXT',
-                    required: false
-                },
-                webhookUrl: {
-                    displayName: 'Custom Webhook URL',
-                    description: 'Opsional: URL endpoint webhook jika workflow dijalankan di luar instance lokal. Default: http://127.0.0.1:3000/api/v1/community/webhook',
                     type: 'SHORT_TEXT',
                     required: false
                 }
