@@ -65,19 +65,38 @@ exports.sendChannelMessage = (0, pieces_framework_1.createAction)({
                     'http://127.0.0.1:3000';
                 targetUrl = `${baseUrl.replace(/\/+$/, '')}/api/v1/community/webhook`;
             }
-            const request = {
-                method: pieces_common_1.HttpMethod.POST,
-                url: targetUrl,
-                body: {
-                    channel,
-                    channelId: channel,
-                    hubId,
-                    content,
-                    botName,
-                    botAvatar,
-                },
+            const payload = {
+                channel,
+                channelId: channel,
+                hubId,
+                content,
+                botName,
+                botAvatar,
             };
-            return yield pieces_common_1.httpClient.sendRequest(request);
+            // Candidate URLs: if inside Docker network on Oracle VM, prioritize direct local app container address
+            const candidates = [];
+            if (targetUrl.includes('anticeil.com')) {
+                const parsedPath = targetUrl.replace(/https?:\/\/[^\/]+/, '');
+                candidates.push(`http://activepieces-app:80${parsedPath}`);
+                candidates.push(`http://127.0.0.1:8080${parsedPath}`);
+            }
+            candidates.push(targetUrl);
+            let lastError = null;
+            for (const url of candidates) {
+                try {
+                    const response = yield pieces_common_1.httpClient.sendRequest({
+                        method: pieces_common_1.HttpMethod.POST,
+                        url,
+                        body: payload,
+                        timeout: 8000,
+                    });
+                    return response.body || response;
+                }
+                catch (err) {
+                    lastError = err;
+                }
+            }
+            throw lastError || new Error('Gagal mengirim webhook pesan');
         });
     },
 });

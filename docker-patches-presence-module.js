@@ -922,5 +922,27 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/bot/message`, botWebhookHandler);
         app.post(`${prefix}/bot`, botWebhookHandler);
     }
+
+    // --- INTERCEPT PIECE BUNDLE DOWNLOAD FOR ANTICEIL CHAT (WORKER ENGINE) ---
+    app.addHook('onRequest', async (req, reply) => {
+        if (req.url && req.url.includes('/pieces/bundle') && req.query && req.query.name === '@activepieces/piece-anticeil-chat') {
+            const fs = require('fs');
+            const path = require('path');
+            const candidatePaths = [
+                '/usr/src/app/packages/pieces/community/anticeil-chat/activepieces-piece-anticeil-chat-0.1.0.tgz',
+                path.resolve('packages/pieces/community/anticeil-chat/activepieces-piece-anticeil-chat-0.1.0.tgz'),
+                path.join(__dirname, '../../../../../../packages/pieces/community/anticeil-chat/activepieces-piece-anticeil-chat-0.1.0.tgz')
+            ];
+            for (const p of candidatePaths) {
+                if (fs.existsSync(p)) {
+                    return reply
+                        .status(200)
+                        .header('Content-Type', 'application/octet-stream')
+                        .header('Content-Disposition', 'attachment; filename="activepieces-piece-anticeil-chat-0.1.0.tgz"')
+                        .send(fs.readFileSync(p));
+                }
+            }
+        }
+    });
 }
 

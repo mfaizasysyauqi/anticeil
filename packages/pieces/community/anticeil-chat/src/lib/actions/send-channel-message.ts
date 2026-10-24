@@ -67,26 +67,39 @@ export const sendChannelMessage = createAction({
       targetUrl = `${baseUrl.replace(/\/+$/, '')}/api/v1/community/webhook`;
     }
 
-    const request: HttpRequest<{
-      channel: string;
-      channelId?: string;
-      hubId: string;
-      content: string;
-      botName: string;
-      botAvatar?: string;
-    }> = {
-      method: HttpMethod.POST,
-      url: targetUrl,
-      body: {
-        channel,
-        channelId: channel,
-        hubId,
-        content,
-        botName,
-        botAvatar,
-      },
+    const payload = {
+      channel,
+      channelId: channel,
+      hubId,
+      content,
+      botName,
+      botAvatar,
     };
 
-    return await httpClient.sendRequest(request);
+    // Candidate URLs: if inside Docker network on Oracle VM, prioritize direct local app container address
+    const candidates: string[] = [];
+    if (targetUrl.includes('anticeil.com')) {
+      const parsedPath = targetUrl.replace(/https?:\/\/[^\/]+/, '');
+      candidates.push(`http://activepieces-app:80${parsedPath}`);
+      candidates.push(`http://127.0.0.1:8080${parsedPath}`);
+    }
+    candidates.push(targetUrl);
+
+    let lastError: any = null;
+    for (const url of candidates) {
+      try {
+        const response = await httpClient.sendRequest<{ success: boolean; message?: any }>({
+          method: HttpMethod.POST,
+          url,
+          body: payload,
+          timeout: 8000,
+        });
+        return response.body || response;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    throw lastError || new Error('Gagal mengirim webhook pesan');
   },
 });
