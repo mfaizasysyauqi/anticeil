@@ -75,4 +75,17 @@ export const userMutations = {
       onError,
     });
   },
+  useUpdateUsername: ({
+    onSuccess,
+    onError,
+  }: {
+    onSuccess?: (data: { username: string; usernameUpdatedAt: string | null }) => void;
+    onError?: (error: any) => void;
+  } = {}) => {
+    return useMutation({
+      mutationFn: (username: string) => userApi.updateUsername(username),
+      onSuccess,
+      onError,
+    });
+  },
 };

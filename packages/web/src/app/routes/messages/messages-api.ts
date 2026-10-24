@@ -183,6 +183,13 @@ export const messagesApi = {
       role: h.role || 'member',
     };
   },
+
+  async inviteMemberByUsername(
+    hubId: string,
+    username: string,
+  ): Promise<{ found: boolean; alreadyMember?: boolean; user?: CommunityMember }> {
+    return api.post(`/v1/messages/hubs/${hubId}/invite-user`, { username });
+  },
 };
 
 export const communityApi = messagesApi;

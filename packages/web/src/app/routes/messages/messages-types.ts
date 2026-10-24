@@ -67,6 +67,7 @@ export type CommunityMember = {
   id: string;
   name: string;
   email: string;
+  username?: string | null;
   avatar?: string | null;
   role: CommunityRole;
   roleLabel?: string;

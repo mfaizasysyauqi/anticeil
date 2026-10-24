@@ -369,6 +369,7 @@ export const messagesService = (_log: FastifyBaseLogger) => ({
                     name: fullName || u.identity?.email || 'User',
                     email: u.identity?.email ?? '',
                     avatar: u.identity?.imageUrl ?? null,
+                    username: u.identity?.username ?? null,
                     role: (isOwner ? 'owner' : hubRole === 'admin' ? 'admin' : 'member') as 'owner' | 'admin' | 'member',
                     status: 'online' as const,
                 }
@@ -390,10 +391,76 @@ export const messagesService = (_log: FastifyBaseLogger) => ({
                 name: fullName || u.identity?.email || 'User',
                 email: u.identity?.email ?? '',
                 avatar: u.identity?.imageUrl ?? null,
+                username: u.identity?.username ?? null,
                 role: 'member' as const,
                 status: 'online' as const,
             }
         })
+    },
+
+    async inviteMemberByUsername(hubId: string, rawUsername: string): Promise<{
+        found: boolean
+        alreadyMember?: boolean
+        user?: {
+            id: string
+            name: string
+            email: string
+            username: string
+            avatar: string | null
+            role: string
+            status: 'online'
+        }
+    }> {
+        const hub = await hubRepo().findOneBy({ id: hubId })
+        if (!hub) {
+            return { found: false }
+        }
+
+        const cleanUsername = rawUsername.trim().replace(/^@/, '').toLowerCase()
+        if (!cleanUsername) {
+            return { found: false }
+        }
+
+        const user = await userRepo().createQueryBuilder('u')
+            .innerJoinAndSelect('u.identity', 'identity')
+            .where('LOWER(identity.username) = :username', { username: cleanUsername })
+            .getOne()
+
+        if (!user) {
+            return { found: false }
+        }
+
+        let member = await hubMemberRepo().findOneBy({ hubId, userId: user.id })
+        let alreadyMember = false
+        if (member) {
+            alreadyMember = true
+        } else {
+            member = hubMemberRepo().create({
+                id: apId(),
+                hubId,
+                userId: user.id,
+                role: 'member',
+            })
+            await hubMemberRepo().save(member)
+        }
+
+        const firstName = user.identity?.firstName ?? ''
+        const lastName = user.identity?.lastName ?? ''
+        const fullName = `${firstName} ${lastName}`.trim()
+
+        return {
+            found: true,
+            alreadyMember,
+            user: {
+                id: user.id,
+                name: fullName || user.identity?.email || user.identity?.username || 'User',
+                email: user.identity?.email ?? '',
+                username: user.identity?.username ?? cleanUsername,
+                avatar: user.identity?.imageUrl ?? null,
+                role: member.role,
+                status: 'online',
+            },
+        }
     },
 })
 

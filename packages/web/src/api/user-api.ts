@@ -23,4 +23,7 @@ export const userApi = {
   deleteProfilePicture(): Promise<{ success: boolean }> {
     return api.delete<{ success: boolean }>('/v1/users/me/profile-picture');
   },
+  updateUsername(username: string): Promise<{ username: string; usernameUpdatedAt: string | null }> {
+    return api.patch('/v1/users/me/username', { username });
+  },
 };

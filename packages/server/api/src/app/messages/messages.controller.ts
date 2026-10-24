@@ -116,6 +116,22 @@ export const messagesController: FastifyPluginAsyncZod = async (fastify) => {
         return reply.send(hub)
     })
 
+    // POST /v1/community/hubs/:id/invite-user — invite/add a member by username
+    fastify.post('/hubs/:id/invite-user', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ id: z.string() }),
+            body: z.object({ username: z.string().min(1) }),
+        },
+    }, async (request, reply) => {
+        const result = await messagesService(request.log).inviteMemberByUsername(
+            request.params.id,
+            request.body.username,
+        )
+        return reply.send(result)
+    })
+
     // ── Channels ──────────────────────────────────────────────────────────
 
     // GET /v1/community/channels

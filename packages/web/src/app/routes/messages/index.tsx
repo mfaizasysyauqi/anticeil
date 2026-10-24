@@ -28,9 +28,15 @@ import {
   Check,
   Share2,
   UserPlus,
+  Copy,
+  AlertCircle,
+  Clock,
+  AtSign,
+  UserCheck,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import dayjs from 'dayjs';
 
 import { useSocket } from '@/components/providers/socket-provider';
 import { Badge } from '@/components/ui/badge';
@@ -73,11 +79,11 @@ import {
 } from '@/components/ui/tooltip';
 import { LockedFeatureGuard } from '@/app/components/locked-feature-guard';
 import { platformHooks } from '@/hooks/platform-hooks';
-import { userHooks } from '@/hooks/user-hooks';
+import { userHooks, userMutations } from '@/hooks/user-hooks';
+import { queryClient } from '@/app/query-client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-import { InviteUserDialog } from '@/features/members';
 import { authenticationSession } from '@/lib/authentication-session';
 import { PlatformRole } from '@activepieces/shared';
 
@@ -253,6 +259,14 @@ export function CommunityPage() {
   const [isMobileChannelsOpen, setIsMobileChannelsOpen] = useState(false);
   const [isMobileMembersOpen, setIsMobileMembersOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [inviteUsername, setInviteUsername] = useState('');
+  const [isInvitingUsername, setIsInvitingUsername] = useState(false);
+  const [userNotFound, setUserNotFound] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Edit Username dialog state (with 14-day cooldown)
+  const [isEditUsernameOpen, setIsEditUsernameOpen] = useState(false);
+  const [editUsernameInput, setEditUsernameInput] = useState('');
 
   // DM Search Dialog (Discord-style "Find or start a conversation")
   const [isDmSearchOpen, setIsDmSearchOpen] = useState(false);
@@ -586,11 +600,94 @@ export function CommunityPage() {
       setIsCreateHubOpen(false);
       setJoinInviteCode('');
       toast.success(t(`Berhasil bergabung ke server ${joinedHub.name}! 🎉`));
+
+      // Clear ?invite= from URL so page reloads don't re-trigger auto-join
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('invite')) {
+        url.searchParams.delete('invite');
+        window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+      }
     } catch {
       toast.error(t('Kode undangan tidak valid atau server tidak ditemukan.'));
     } finally {
       setIsJoiningHub(false);
     }
+  };
+
+  // Invite by Username
+  const handleInviteByUsername = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const rawUser = inviteUsername.trim().replace(/^@/, '');
+    if (!rawUser) {
+      toast.error(t('Masukkan username yang ingin diundang'));
+      return;
+    }
+
+    const currentHubId = activeHub?.id;
+    if (!currentHubId) {
+      toast.error(t('Server tidak valid.'));
+      return;
+    }
+
+    try {
+      setIsInvitingUsername(true);
+      setUserNotFound(null);
+      const res = await communityApi.inviteMemberByUsername(currentHubId, rawUser);
+      if (res.found && res.user) {
+        if (res.alreadyMember) {
+          toast.info(t(`@${res.user.username || rawUser} sudah menjadi anggota server ini.`));
+        } else {
+          toast.success(t(`Berhasil menambahkan @${res.user.username || rawUser} ke server! 🎉`));
+          setMembers((prev) => {
+            if (prev.some((m) => m.id === res.user!.id)) return prev;
+            return [...prev, res.user!];
+          });
+        }
+        setInviteUsername('');
+        setUserNotFound(null);
+      } else {
+        setUserNotFound(rawUser);
+      }
+    } catch (err) {
+      console.error('Invite by username failed', err);
+      toast.error(t('Gagal mengundang pengguna. Silakan coba lagi.'));
+    } finally {
+      setIsInvitingUsername(false);
+    }
+  };
+
+  // Cooldown calculation for username change (14 days / 2 weeks)
+  const usernameCooldownDays = 14;
+  const usernameLastUpdated = currentUser?.usernameUpdatedAt ? new Date(currentUser.usernameUpdatedAt) : null;
+  const usernameCooldownEnd = usernameLastUpdated
+    ? new Date(usernameLastUpdated.getTime() + usernameCooldownDays * 24 * 60 * 60 * 1000)
+    : null;
+  const isUsernameCooldownActive = usernameCooldownEnd ? new Date() < usernameCooldownEnd : false;
+
+  const updateUsernameMutation = userMutations.useUpdateUsername({
+    onSuccess: (data) => {
+      userHooks.invalidateCurrentUser(queryClient);
+      toast.success(t(`Username berhasil diperbarui menjadi @${data.username}! 🎉`));
+      setIsEditUsernameOpen(false);
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || t('Gagal mengubah username.');
+      toast.error(msg);
+    },
+  });
+
+  const handleSaveUsername = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = editUsernameInput.trim().replace(/^@/, '').toLowerCase();
+    if (cleaned.length < 3 || cleaned.length > 32) {
+      toast.error(t('Username harus antara 3 hingga 32 karakter.'));
+      return;
+    }
+    if (!/^[a-z0-9_]+$/.test(cleaned)) {
+      toast.error(t('Username hanya boleh menggunakan huruf kecil, angka, dan garis bawah (_).'));
+      return;
+    }
+    updateUsernameMutation.mutate(cleaned);
   };
 
   // Create Server / Hub (Discord style Server CRUD)
@@ -945,6 +1042,7 @@ export function CommunityPage() {
       if (m.id === currentUser?.id || m.email === currentUser?.email) {
         return {
           ...m,
+          username: m.username || currentUser?.username || null,
           role: isOwner ? ('owner' as CommunityRole) : isAdmin ? ('admin' as CommunityRole) : (m.role || 'member'),
           roleLabel: isOwner ? 'Pemilik' : isAdmin ? 'Admin' : undefined,
         };
@@ -959,6 +1057,7 @@ export function CommunityPage() {
         id: currentUser.id,
         name: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email,
         email: currentUser.email,
+        username: currentUser.username || null,
         avatar: currentUser.imageUrl ?? null,
         role: currentRole,
         roleLabel: currentLabel,
@@ -1351,7 +1450,20 @@ export function CommunityPage() {
             <span className="text-xs font-semibold truncate leading-tight text-foreground">
               {currentUserName}
             </span>
-            <span className="text-[10px] text-emerald-500 font-medium leading-none mt-0.5">Online</span>
+            <button
+              type="button"
+              onClick={() => {
+                setEditUsernameInput(currentUser?.username || '');
+                setIsEditUsernameOpen(true);
+              }}
+              className="text-[10px] text-muted-foreground hover:text-primary transition-colors font-mono leading-none mt-0.5 truncate text-left flex items-center gap-1 group"
+              title={t('Ubah username')}
+            >
+              <span className="truncate">
+                {currentUser?.username ? `@${currentUser.username}` : t('@atur_username')}
+              </span>
+              <Edit2 className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
+            </button>
           </div>
         </div>
 
@@ -1481,6 +1593,11 @@ export function CommunityPage() {
                             </span>
                             {renderRoleBadge(member.role, member.roleLabel)}
                           </div>
+                          {member.username && (
+                            <span className="text-[10px] text-muted-foreground/60 truncate font-mono leading-none mt-0.5">
+                              @{member.username}
+                            </span>
+                          )}
                           {member.customStatus && (
                             <span className="text-[10px] text-muted-foreground/70 truncate">
                               {member.customStatus}
@@ -2413,7 +2530,234 @@ export function CommunityPage() {
         </Dialog>
       </div>
     </TooltipProvider>
-    <InviteUserDialog open={isInviteOpen} setOpen={setIsInviteOpen} />
+        {/* Hub Invite Dialog (Discord-Style: Search & Invite by Username + Share Link) */}
+        <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+                <UserPlus className="w-5 h-5 text-primary" />
+                {t('Undang Teman ke')} {activeHub?.name || 'Server'}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                {t('Undang langsung menggunakan username atau bagikan link undangan server.')}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Form 1: Invite by Username */}
+              <form onSubmit={handleInviteByUsername} className="space-y-2">
+                <label className="text-xs font-medium text-foreground flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <AtSign className="w-3.5 h-3.5 text-primary" />
+                    {t('Undang via Username')}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {t('Contoh: faiz, alex_99')}
+                  </span>
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground font-mono">@</span>
+                    <Input
+                      value={inviteUsername}
+                      onChange={(e) => {
+                        setInviteUsername(e.target.value);
+                        if (userNotFound) setUserNotFound(null);
+                      }}
+                      placeholder="username"
+                      className="pl-7 text-xs font-mono"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={isInvitingUsername || !inviteUsername.trim()}
+                    size="sm"
+                    className="gap-1.5 shrink-0"
+                  >
+                    {isInvitingUsername ? (
+                      <span className="text-xs">{t('Mencari...')}</span>
+                    ) : (
+                      <>
+                        <UserCheck className="w-4 h-4" />
+                        <span>{t('Undang')}</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+
+              {/* Alert when username not found -> Immediate Share Link Callout */}
+              {userNotFound && (
+                <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs space-y-2 animate-in fade-in-50 duration-200">
+                  <div className="flex items-start gap-2 text-amber-500 font-semibold">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{t('Pengguna')} @{userNotFound} {t('tidak ditemukan')}</span>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed text-[11px]">
+                    {t('Pengguna belum terdaftar di Anticeil. Bagikan link undangan di bawah ini langsung kepada mereka. Saat mereka mendaftar atau login via OAuth (Google / GitHub), sistem akan')} <strong className="text-foreground">{t('otomatis memasukkan mereka ke server ini')}</strong>!
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs gap-1.5 h-8 border-amber-500/40 hover:bg-amber-500/20 text-foreground"
+                    onClick={() => {
+                      const code = activeHub?.inviteCode || activeHub?.id;
+                      const url = `${window.location.origin}/messages?invite=${code}`;
+                      navigator.clipboard.writeText(url);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 2000);
+                      toast.success(t('Link undangan berhasil disalin! 📋'));
+                    }}
+                  >
+                    {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedLink ? t('Link Tersalin!') : t('Salin Link Undangan Otomatis')}</span>
+                  </Button>
+                </div>
+              )}
+
+              {/* Form 2: Share Link Undangan Server */}
+              <div className="pt-2 border-t border-border space-y-2">
+                <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Share2 className="w-3.5 h-3.5 text-primary" />
+                    {t('Tautan Undangan Server')}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    {t('Tidak pernah kedaluwarsa')}
+                  </span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={`${window.location.origin}/messages?invite=${activeHub?.inviteCode || activeHub?.id}`}
+                    className="text-xs font-mono bg-muted/40 select-all"
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    className="gap-1.5 shrink-0"
+                    onClick={() => {
+                      const code = activeHub?.inviteCode || activeHub?.id;
+                      const url = `${window.location.origin}/messages?invite=${code}`;
+                      navigator.clipboard.writeText(url);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 2000);
+                      toast.success(t('Tautan undangan berhasil disalin! 📋'));
+                    }}
+                  >
+                    {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    <span>{copiedLink ? t('Tersalin!') : t('Salin')}</span>
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-normal">
+                  {t('Kirim tautan ini ke calon anggota. Mereka yang login atau registrasi via tautan ini akan otomatis langsung bergabung.')}
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsInviteOpen(false);
+                  setUserNotFound(null);
+                  setInviteUsername('');
+                }}
+              >
+                {t('Selesai')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Username Dialog (With 14-day Cooldown) */}
+        <Dialog open={isEditUsernameOpen} onOpenChange={setIsEditUsernameOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+                <AtSign className="w-5 h-5 text-primary" />
+                {t('Ubah Username')}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                {t('Username unik Anda digunakan untuk mempermudah teman mengundang Anda ke server obrolan.')}
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleSaveUsername} className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">
+                  {t('Username Baru')}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground font-mono">@</span>
+                  <Input
+                    value={editUsernameInput}
+                    onChange={(e) => setEditUsernameInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                    placeholder="username_anda"
+                    disabled={isUsernameCooldownActive}
+                    maxLength={32}
+                    className="pl-7 text-xs font-mono"
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {t('3-32 karakter: huruf kecil (a-z), angka (0-9), dan garis bawah (_).')}
+                </p>
+              </div>
+
+              {/* Cooldown Information / Warning Card */}
+              {isUsernameCooldownActive ? (
+                <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 text-amber-500 font-semibold">
+                    <Clock className="w-4 h-4 shrink-0" />
+                    <span>{t('Cooldown Perubahan Username Aktif')}</span>
+                  </div>
+                  <p className="text-muted-foreground text-[11px]">
+                    {t('Anda baru saja mengubah username. Username dapat diubah kembali pada:')}{' '}
+                    <strong className="text-foreground">
+                      {dayjs(usernameCooldownEnd).format('DD MMMM YYYY, HH:mm')}
+                    </strong>
+                    .
+                  </p>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-lg border border-border bg-muted/40 text-[11px] text-muted-foreground flex items-start gap-2">
+                  <Clock className="w-3.5 h-3.5 shrink-0 text-primary mt-0.5" />
+                  <span>
+                    {t('Username hanya dapat diubah sekali setiap 14 hari (cooldown 2 minggu) untuk menjaga keamanan dan identitas pengguna.')}
+                  </span>
+                </div>
+              )}
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditUsernameOpen(false)}
+                >
+                  {t('Batal')}
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={
+                    isUsernameCooldownActive ||
+                    updateUsernameMutation.isPending ||
+                    !editUsernameInput.trim() ||
+                    editUsernameInput.trim() === currentUser?.username
+                  }
+                >
+                  {updateUsernameMutation.isPending ? t('Menyimpan...') : t('Simpan Username')}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
     </LockedFeatureGuard>
   );
 }
