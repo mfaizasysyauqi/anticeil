@@ -7,6 +7,8 @@ import { repoFactory } from '../../core/db/repo-factory'
 import { passwordHasher } from '../lib/password-hasher'
 import { UserIdentityEntity } from './user-identity-entity'
 
+const USERNAME_COOLDOWN_DAYS = 14
+
 export const userIdentityRepository = repoFactory(UserIdentityEntity)
 
 export const userIdentityService = (log: FastifyBaseLogger) => ({
@@ -27,6 +29,7 @@ export const userIdentityService = (log: FastifyBaseLogger) => ({
                 },
             })
         }
+        const username = await generateUniqueUsername(cleanedEmail)
         const newUserIdentity: UserIdentity = {
             firstName: params.firstName,
             lastName: params.lastName,
@@ -41,6 +44,8 @@ export const userIdentityService = (log: FastifyBaseLogger) => ({
             newsLetter: params.newsLetter,
             tokenVersion: nanoid(),
             imageUrl: params.imageUrl,
+            username,
+            usernameUpdatedAt: null,
         }
         const identity = await userIdentityRepository().save(newUserIdentity)
         return identity
@@ -79,7 +84,7 @@ export const userIdentityService = (log: FastifyBaseLogger) => ({
         const userIdentity = await userIdentityRepository().findOneByOrFail({ id: params.id })
         return userIdentity
     },
-    async getBasicInformation(id: string): Promise<Pick<UserIdentity, 'email' | 'firstName' | 'lastName' | 'trackEvents' | 'newsLetter' | 'imageUrl'>> {
+    async getBasicInformation(id: string): Promise<Pick<UserIdentity, 'email' | 'firstName' | 'lastName' | 'trackEvents' | 'newsLetter' | 'imageUrl' | 'username' | 'usernameUpdatedAt'>> {
         const user = await userIdentityRepository().findOneByOrFail({ id })
         return {
             email: user.email,
@@ -88,6 +93,8 @@ export const userIdentityService = (log: FastifyBaseLogger) => ({
             trackEvents: user.trackEvents,
             newsLetter: user.newsLetter,
             imageUrl: user.imageUrl,
+            username: user.username,
+            usernameUpdatedAt: user.usernameUpdatedAt,
         }
     },
     async updatePassword(params: UpdatePasswordParams): Promise<void> {
@@ -137,12 +144,76 @@ export const userIdentityService = (log: FastifyBaseLogger) => ({
     async updateLastLoggedInPlatformId({ id, lastLoggedInPlatformId }: UpdateLastLoggedInPlatformIdParams): Promise<void> {
         await userIdentityRepository().update(id, { lastLoggedInPlatformId })
     },
+    async getByUsername(username: string): Promise<UserIdentity | null> {
+        return userIdentityRepository().findOneBy({ username: username.toLowerCase() })
+    },
+    async updateUsername({ id, username }: UpdateUsernameParams): Promise<UserIdentity> {
+        const identity = await userIdentityRepository().findOneByOrFail({ id })
+
+        // Enforce cooldown
+        if (identity.usernameUpdatedAt) {
+            const lastUpdate = new Date(identity.usernameUpdatedAt)
+            const cooldownEnd = new Date(lastUpdate.getTime() + USERNAME_COOLDOWN_DAYS * 24 * 60 * 60 * 1000)
+            if (new Date() < cooldownEnd) {
+                throw new ActivepiecesError({
+                    code: ErrorCode.VALIDATION,
+                    params: {
+                        message: `Username can only be changed once every ${USERNAME_COOLDOWN_DAYS} days. Next change available after ${cooldownEnd.toISOString()}.`,
+                    },
+                })
+            }
+        }
+
+        const sanitized = sanitizeUsername(username)
+        if (sanitized.length < 3 || sanitized.length > 32) {
+            throw new ActivepiecesError({
+                code: ErrorCode.VALIDATION,
+                params: {
+                    message: 'Username must be between 3 and 32 characters.',
+                },
+            })
+        }
+
+        const existing = await userIdentityRepository().findOneBy({ username: sanitized })
+        if (existing && existing.id !== id) {
+            throw new ActivepiecesError({
+                code: ErrorCode.VALIDATION,
+                params: {
+                    message: 'Username is already taken.',
+                },
+            })
+        }
+
+        await userIdentityRepository().update(id, {
+            username: sanitized,
+            usernameUpdatedAt: new Date().toISOString(),
+        })
+        return this.getOneOrFail({ id })
+    },
 })
 
 
 async function getIdentityByEmail(email: string): Promise<UserIdentity | null> {
     const cleanedEmail = email.toLowerCase().trim()
     return userIdentityRepository().findOneBy({ email: cleanedEmail })
+}
+
+function sanitizeUsername(raw: string): string {
+    return raw.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 32)
+}
+
+async function generateUniqueUsername(email: string): Promise<string> {
+    const base = sanitizeUsername(email.split('@')[0]) || 'user'
+    const trimmed = base.slice(0, 26) // leave room for suffix
+    let candidate = trimmed
+    let attempt = 0
+    while (attempt < 10) {
+        const exists = await userIdentityRepository().findOneBy({ username: candidate })
+        if (!exists) return candidate
+        candidate = `${trimmed}_${nanoid(4).toLowerCase()}`
+        attempt++
+    }
+    return `${trimmed}_${nanoid(6).toLowerCase()}`
 }
 
 type GetOneOrFailParams = {
@@ -170,6 +241,11 @@ type UpdateParams = {
 type UpdateLastLoggedInPlatformIdParams = {
     id: string
     lastLoggedInPlatformId: string
+}
+
+type UpdateUsernameParams = {
+    id: string
+    username: string
 }
 
 type VerifyIdentityPasswordParams = {

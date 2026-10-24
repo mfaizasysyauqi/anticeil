@@ -51,6 +51,8 @@ export const UserWithMetaInformation = z.object({
     platformId: Nullable(z.string()),
     platformRole: z.enum(PlatformRole),
     lastName: z.string(),
+    username: z.string().default(''),
+    usernameUpdatedAt: Nullable(DateOrString).optional(),
     created: DateOrString,
     updated: DateOrString,
     lastActiveDate: Nullable(DateOrString),
@@ -81,6 +83,14 @@ export const UpdateMeResponse = z.object({
     trackEvents: z.boolean(),
     newsLetter: z.boolean(),
     imageUrl: Nullable(z.string()),
+    username: z.string(),
+    usernameUpdatedAt: Nullable(DateOrString).optional(),
 })
 
 export type UpdateMeResponse = z.infer<typeof UpdateMeResponse>
+
+export const UpdateUsernameRequest = z.object({
+    username: z.string().min(3).max(32).regex(/^[a-z0-9_]+$/, 'Username must only contain lowercase letters, numbers, and underscores'),
+})
+
+export type UpdateUsernameRequest = z.infer<typeof UpdateUsernameRequest>

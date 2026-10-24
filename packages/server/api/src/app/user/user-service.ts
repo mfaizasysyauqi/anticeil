@@ -244,6 +244,8 @@ export const userService = (log: FastifyBaseLogger) => ({
             email: identity.email,
             firstName: identity.firstName,
             lastName: identity.lastName,
+            username: identity.username,
+            usernameUpdatedAt: identity.usernameUpdatedAt,
             platformId: user.platformId,
             platformRole: user.platformRole,
             status: user.status,

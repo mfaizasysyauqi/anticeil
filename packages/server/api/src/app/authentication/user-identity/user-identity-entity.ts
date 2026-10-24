@@ -47,6 +47,15 @@ export const UserIdentityEntity = new EntitySchema<UserIdentity>({
             type: String,
             nullable: true,
         },
+        username: {
+            type: String,
+            nullable: false,
+            unique: true,
+        },
+        usernameUpdatedAt: {
+            type: 'timestamp with time zone',
+            nullable: true,
+        },
         lastLoggedInPlatformId: {
             ...ApIdSchema,
             nullable: true,
@@ -56,6 +65,11 @@ export const UserIdentityEntity = new EntitySchema<UserIdentity>({
         {
             name: 'idx_user_identity_email',
             columns: ['email'],
+            unique: true,
+        },
+        {
+            name: 'idx_user_identity_username',
+            columns: ['username'],
             unique: true,
         },
     ],

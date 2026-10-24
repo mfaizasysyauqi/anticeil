@@ -24,6 +24,7 @@ import { AddCustomDomain1698077078271 } from './migration/postgres/1698077078271
 import { AddMetadataFieldToFlowTemplates1744780800000 } from './migration/postgres/1744780800000-AddMetadataFieldToFlowTemplates'
 import { AddCommunityTables1868000000000 } from './migration/postgres/1868000000000-AddCommunityTables'
 import { AddCommunityHubAndInviteTables1869000000000 } from './migration/postgres/1869000000000-AddCommunityHubAndInviteTables'
+import { AddUsernameToUserIdentity1869000000001 } from './migration/postgres/1869000000001-AddUsernameToUserIdentity'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
 import { BackgroundMigration } from './background-migration'
@@ -934,6 +935,7 @@ export const getMigrations = (): (new () => Migration)[] => {
         FixAgentsEnabledForAllPlatforms1867000000000,
         AddCommunityTables1868000000000,
         AddCommunityHubAndInviteTables1869000000000,
+        AddUsernameToUserIdentity1869000000001,
     ]
     return migrations
 }

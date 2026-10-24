@@ -1,5 +1,5 @@
 import { ApId, ApMultipartFile, isNil } from '@activepieces/core-utils'
-import { AP_MAXIMUM_PROFILE_PICTURE_SIZE, FileType, PrincipalType, PROFILE_PICTURE_ALLOWED_TYPES, SERVICE_KEY_SECURITY_OPENAPI, UpdateMeResponse, UserWithMetaInformation } from '@activepieces/shared'
+import { AP_MAXIMUM_PROFILE_PICTURE_SIZE, FileType, PrincipalType, PROFILE_PICTURE_ALLOWED_TYPES, SERVICE_KEY_SECURITY_OPENAPI, UpdateMeResponse, UpdateUsernameRequest, UserWithMetaInformation } from '@activepieces/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
@@ -52,6 +52,28 @@ export const usersController: FastifyPluginAsyncZod = async (app) => {
         return { success: true }
     })
 
+    app.patch('/me/username', UpdateUsernameRequestOptions, async (req) => {
+        const userId = req.principal.id
+        const user = await userService(req.log).getOrThrow({ id: userId })
+        const identityId = user.identityId
+
+        const updated = await userIdentityService(app.log).updateUsername({
+            id: identityId,
+            username: req.body.username,
+        })
+
+        return {
+            email: updated.email,
+            firstName: updated.firstName,
+            lastName: updated.lastName,
+            trackEvents: updated.trackEvents,
+            newsLetter: updated.newsLetter,
+            imageUrl: updated.imageUrl,
+            username: updated.username,
+            usernameUpdatedAt: updated.usernameUpdatedAt,
+        }
+    })
+
 }
 
 const GetUserByIdRequest = {
@@ -93,5 +115,17 @@ const DeleteProfilePictureRequest = {
     },
     config: {
         security: securityAccess.publicPlatform([PrincipalType.USER]),
+    },
+}
+
+const UpdateUsernameRequestOptions = {
+    config: {
+        security: securityAccess.publicPlatform([PrincipalType.USER]),
+    },
+    schema: {
+        body: UpdateUsernameRequest,
+        response: {
+            [StatusCodes.OK]: UpdateMeResponse,
+        },
     },
 }
