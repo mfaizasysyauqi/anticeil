@@ -18,16 +18,14 @@ export const sendChannelMessage = createAction({
       placeholder: 'https://anticeil.com/api/v1/community/webhook?channelId=ch-...',
     }),
     channel: Property.ShortText({
-      displayName: 'Channel ID / Nama Saluran',
-      description: 'ID Saluran atau nama saluran jika tidak menggunakan Webhook URL lengkap (contoh: general atau ch-general-123).',
+      displayName: 'Channel ID / Nama Saluran (Opsional)',
+      description: 'Opsional jika Webhook URL sudah diisi. ID Saluran atau nama saluran jika ingin meng-override URL.',
       required: false,
-      defaultValue: 'general',
     }),
     hubId: Property.ShortText({
-      displayName: 'ID Server (Hub ID)',
-      description: 'ID Server Anticeil Chat (Default: anticeil).',
+      displayName: 'ID Server / Hub ID (Opsional)',
+      description: 'Opsional jika Webhook URL sudah diisi. ID Server Anticeil Chat.',
       required: false,
-      defaultValue: 'anticeil',
       advanced: true,
     }),
     content: Property.LongText({
@@ -49,11 +47,29 @@ export const sendChannelMessage = createAction({
   },
   async run(context) {
     const rawWebhook = context.propsValue.webhookUrl?.trim();
-    const channel = context.propsValue.channel || 'general';
-    const hubId = context.propsValue.hubId || 'anticeil';
+    let channel = context.propsValue.channel?.trim();
+    let hubId = context.propsValue.hubId?.trim();
     const content = context.propsValue.content;
     const botName = context.propsValue.botName || 'Anticeil Bot';
     const botAvatar = context.propsValue.botAvatar || undefined;
+
+    // Auto-extract channelId and hubId from Webhook URL query parameters if not explicitly provided
+    if (rawWebhook) {
+      try {
+        const parsed = new URL(rawWebhook);
+        const urlChannel = parsed.searchParams.get('channelId') || parsed.searchParams.get('channel');
+        const urlHubId = parsed.searchParams.get('hubId');
+        if (!channel && urlChannel) {
+          channel = urlChannel;
+        }
+        if (!hubId && urlHubId) {
+          hubId = urlHubId;
+        }
+      } catch (e) {}
+    }
+
+    channel = channel || 'general';
+    hubId = hubId || 'anticeil';
 
     let targetUrl: string;
 
