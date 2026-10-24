@@ -246,6 +246,23 @@ async function setupCommunityApi(app) {
         return null;
     }
 
+    async function resolvePlatformId(req, ds) {
+        if (req?.body?.platformId) return req.body.platformId;
+        if (req?.query?.platformId) return req.query.platformId;
+        if (req?.headers?.['x-platform-id']) return req.headers['x-platform-id'];
+        const fromToken = getPlatformId(req);
+        if (fromToken) return fromToken;
+        if (ds) {
+            try {
+                const rows = await ds.query('SELECT id FROM "platform" LIMIT 1');
+                if (rows && rows[0] && rows[0].id) return rows[0].id;
+                const ch = await ds.query('SELECT platform_id FROM anticeil_community_channels WHERE platform_id IS NOT NULL LIMIT 1');
+                if (ch && ch[0] && ch[0].platform_id) return ch[0].platform_id;
+            } catch (e) {}
+        }
+        return 'anticeil-platform';
+    }
+
     async function getDb() {
         try {
             const { databaseConnection } = require("../../../database/database-connection");
@@ -309,22 +326,21 @@ async function setupCommunityApi(app) {
 
     ensureTables().catch(() => {});
 
-    // --- CHANNELS (CRUD) ---
-    app.get('/v1/community/channels', async (req) => {
+    // --- CHANNELS HANDLERS ---
+    const getChannelsHandler = async (req) => {
         await ensureTables();
         const ds = await getDb();
         const hubId = req.query?.hubId;
-        const platformId = getPlatformId(req);
-        if (!platformId) return [];
+        const platformId = await resolvePlatformId(req, ds);
         if (ds && dbReady) {
             try {
                 let rows;
                 if (hubId) {
-                    rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE platform_id = $1 AND hub_id = $2 ORDER BY created_at ASC', [platformId, hubId]);
+                    rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE (platform_id = $1 OR platform_id IS NULL) AND hub_id = $2 ORDER BY created_at ASC', [platformId, hubId]);
                 } else {
-                    rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE platform_id = $1 ORDER BY created_at ASC', [platformId]);
+                    rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE (platform_id = $1 OR platform_id IS NULL) ORDER BY created_at ASC', [platformId]);
                 }
-                return rows.map(r => ({
+                return (rows || []).map(r => ({
                     id: r.id,
                     name: r.name,
                     description: r.description || '',
@@ -335,17 +351,17 @@ async function setupCommunityApi(app) {
                 }));
             } catch (e) {}
         }
-        return [];
-    });
+        return memoryChannels.filter(c => !hubId || c.hubId === hubId);
+    };
 
-    app.post('/v1/community/channels', async (req, reply) => {
+    const createChannelHandler = async (req, reply) => {
         await ensureTables();
         const { name, description = '', category = 'CHANNELS', hubId = 'anticeil' } = req.body || {};
         if (!name) {
             return reply.status(400).send({ message: 'Channel name is required' });
         }
-        const platformId = getPlatformId(req);
-        if (!platformId) return reply.status(401).send({ message: 'Unauthorized' });
+        const ds = await getDb();
+        const platformId = await resolvePlatformId(req, ds);
         const cleanName = name.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || `channel-${Date.now()}`;
         const id = `ch-${Date.now().toString(36)}-${cleanName.substring(0, 20)}`;
         const newChannel = {
@@ -357,7 +373,6 @@ async function setupCommunityApi(app) {
             isDirectMessage: false
         };
 
-        const ds = await getDb();
         if (ds && dbReady) {
             try {
                 await ds.query(
@@ -366,13 +381,14 @@ async function setupCommunityApi(app) {
                 );
             } catch (e) {}
         }
+        memoryChannels.push(newChannel);
         if (app.io) {
             app.io.emit('COMMUNITY_CHANNEL_CREATED', newChannel);
         }
         return newChannel;
-    });
+    };
 
-    app.put('/v1/community/channels/:id', async (req, reply) => {
+    const updateChannelHandler = async (req, reply) => {
         await ensureTables();
         const { id } = req.params;
         const { name, description } = req.body || {};
@@ -380,9 +396,9 @@ async function setupCommunityApi(app) {
         let updatedChannel = null;
         if (ds && dbReady) {
             try {
-                const platformId = getPlatformId(req);
+                const platformId = await resolvePlatformId(req, ds);
                 const res = await ds.query(
-                    'UPDATE anticeil_community_channels SET name = COALESCE($1, name), description = COALESCE($2, description), updated_at = NOW() WHERE id = $3 AND platform_id = $4 RETURNING *',
+                    'UPDATE anticeil_community_channels SET name = COALESCE($1, name), description = COALESCE($2, description), updated_at = NOW() WHERE id = $3 AND (platform_id = $4 OR platform_id IS NULL) RETURNING *',
                     [name, description, id, platformId]
                 );
                 if (res && res[0]) {
@@ -415,16 +431,17 @@ async function setupCommunityApi(app) {
             app.io.emit('COMMUNITY_CHANNEL_UPDATED', updatedChannel);
         }
         return updatedChannel || { id, name, description };
-    });
+    };
 
-    app.delete('/v1/community/channels/:id', async (req) => {
+    const deleteChannelHandler = async (req) => {
         await ensureTables();
         const { id } = req.params;
         const ds = await getDb();
         if (ds && dbReady) {
             try {
+                const platformId = await resolvePlatformId(req, ds);
                 await ds.query('DELETE FROM anticeil_community_messages WHERE channel_id = $1', [id]);
-                await ds.query('DELETE FROM anticeil_community_channels WHERE id = $1 AND platform_id = $2', [id, getPlatformId(req)]);
+                await ds.query('DELETE FROM anticeil_community_channels WHERE id = $1 AND (platform_id = $2 OR platform_id IS NULL)', [id, platformId]);
             } catch (e) {}
         }
         const memIdx = memoryChannels.findIndex(c => c.id === id);
@@ -435,10 +452,10 @@ async function setupCommunityApi(app) {
             app.io.emit('COMMUNITY_CHANNEL_DELETED', { id });
         }
         return { success: true, id };
-    });
+    };
 
-    // --- MESSAGES (CRUD) ---
-    app.get('/v1/community/channels/:channelId/messages', async (req) => {
+    // --- MESSAGES HANDLERS ---
+    const getMessagesHandler = async (req) => {
         await ensureTables();
         const { channelId } = req.params;
         const ds = await getDb();
@@ -448,7 +465,7 @@ async function setupCommunityApi(app) {
                     'SELECT * FROM anticeil_community_messages WHERE channel_id = $1 ORDER BY created_at ASC LIMIT 200',
                     [channelId]
                 );
-                return rows.map(r => ({
+                return (rows || []).map(r => ({
                     id: r.id,
                     channelId: r.channel_id,
                     senderId: r.sender_id,
@@ -464,9 +481,9 @@ async function setupCommunityApi(app) {
             } catch (e) {}
         }
         return memoryMessages[channelId] || [];
-    });
+    };
 
-    app.post('/v1/community/channels/:channelId/messages', async (req, reply) => {
+    const createMessageHandler = async (req, reply) => {
         await ensureTables();
         const { channelId } = req.params;
         const body = req.body || {};
@@ -516,9 +533,9 @@ async function setupCommunityApi(app) {
             app.io.emit('COMMUNITY_CHAT_MESSAGE', newMessage);
         }
         return newMessage;
-    });
+    };
 
-    app.delete('/v1/community/messages/:id', async (req) => {
+    const deleteMessageHandler = async (req) => {
         await ensureTables();
         const { id } = req.params;
         let channelId = null;
@@ -544,9 +561,9 @@ async function setupCommunityApi(app) {
             app.io.emit('COMMUNITY_MESSAGE_DELETED', { id, channelId });
         }
         return { success: true, id, channelId };
-    });
+    };
 
-    app.post('/v1/community/messages/:id/reactions', async (req) => {
+    const toggleReactionHandler = async (req) => {
         await ensureTables();
         const { id } = req.params;
         const { emoji, userId = 'me' } = req.body || {};
@@ -595,13 +612,12 @@ async function setupCommunityApi(app) {
             app.io.emit('COMMUNITY_REACTION_UPDATED', { id, channelId, reactions });
         }
         return { id, channelId, reactions };
-    });
+    };
 
-    // --- MEMBERS (isolated per platform/tenant, with explicit platform & project roles) ---
-    app.get('/v1/community/members', async (req) => {
-        const platformId = getPlatformId(req);
-        if (!platformId) return [];
-
+    // --- MEMBERS HANDLER ---
+    const getMembersHandler = async (req) => {
+        const ds = await getDb();
+        const platformId = await resolvePlatformId(req, ds);
         let projectId = req.query?.projectId;
         if (!projectId && req.principal?.projectId) {
             projectId = req.principal.projectId;
@@ -619,7 +635,6 @@ async function setupCommunityApi(app) {
             } catch (e) {}
         }
 
-        const ds = await getDb();
         if (ds) {
             try {
                 const users = await ds.query(`
@@ -647,7 +662,7 @@ async function setupCommunityApi(app) {
                             END ASC
                         LIMIT 1
                     ) pm_info ON true
-                    WHERE u."platformId" = $1
+                    WHERE u."platformId" = $1 OR $1 IS NULL
                     ORDER BY 
                         CASE 
                             WHEN u."platformRole" = 'ADMIN' THEN 1
@@ -699,6 +714,213 @@ async function setupCommunityApi(app) {
             }
         }
         return [];
-    });
+    };
+
+    // --- BOT WEBHOOK HANDLER (For external automations, Activepieces Pieces, cURL, GitHub Actions) ---
+    const botWebhookHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const body = req.body || {};
+        const content = typeof body.content === 'string' ? body.content.trim() : (body.message ? String(body.message).trim() : '');
+        const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+
+        if (!content && attachments.length === 0) {
+            return reply.status(400).send({
+                success: false,
+                message: 'Pesan kosong: harus menyertakan "content" teks atau "attachments".',
+                documentation: 'Kirim POST JSON ke /api/v1/community/webhook atau /api/v1/messages/webhook',
+                examplePayload: {
+                    content: "Halo dari Activepieces automation! 🚀",
+                    channel: "general",
+                    botName: "Anticeil Bot",
+                    botAvatar: "https://api.dicebear.com/7.x/bottts/svg?seed=AnticeilBot"
+                }
+            });
+        }
+
+        const platformId = await resolvePlatformId(req, ds);
+        const hubId = body.hubId || 'anticeil';
+        let targetChannel = null;
+
+        // 1. Resolve target channel by channelId or channel name
+        const rawTarget = body.channelId || body.channel || 'general';
+
+        if (ds && dbReady) {
+            try {
+                // Try finding by exact id first
+                let rows = await ds.query(
+                    'SELECT * FROM anticeil_community_channels WHERE id = $1 AND (platform_id = $2 OR platform_id IS NULL) LIMIT 1',
+                    [rawTarget, platformId]
+                );
+                if (rows && rows[0]) {
+                    targetChannel = rows[0];
+                } else {
+                    // Try finding by name (strip leading # and slugify)
+                    const cleanSearchName = String(rawTarget).replace(/^#/, '').toLowerCase().trim().replace(/[^a-z0-9-_]/g, '-');
+                    rows = await ds.query(
+                        'SELECT * FROM anticeil_community_channels WHERE (platform_id = $1 OR platform_id IS NULL) AND (LOWER(name) = $2 OR LOWER(name) = $3) LIMIT 1',
+                        [platformId, cleanSearchName, String(rawTarget).replace(/^#/, '').toLowerCase().trim()]
+                    );
+                    if (rows && rows[0]) {
+                        targetChannel = rows[0];
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // Check memoryChannels if not found in db
+        if (!targetChannel) {
+            targetChannel = memoryChannels.find(c => c.id === rawTarget || c.name.toLowerCase() === String(rawTarget).replace(/^#/, '').toLowerCase());
+        }
+
+        // 2. If channel doesn't exist yet, auto-create it!
+        if (!targetChannel) {
+            const rawName = String(body.channel || rawTarget).replace(/^#/, '').trim() || 'general';
+            const cleanName = rawName.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'general';
+            const newChannelId = `ch-${cleanName}-${Date.now().toString(36)}`;
+            
+            const newChannelObj = {
+                id: newChannelId,
+                name: cleanName,
+                description: `Saluran bot otomatis untuk #${cleanName}`,
+                category: 'CHANNELS',
+                hub_id: hubId,
+                is_direct_message: false,
+                platform_id: platformId
+            };
+
+            if (ds && dbReady) {
+                try {
+                    await ds.query(
+                        'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
+                        [newChannelObj.id, newChannelObj.name, newChannelObj.description, newChannelObj.category, newChannelObj.hub_id, false, platformId]
+                    );
+                } catch (e) {}
+            }
+
+            const formattedNewChannel = {
+                id: newChannelObj.id,
+                name: newChannelObj.name,
+                description: newChannelObj.description,
+                category: newChannelObj.category,
+                hubId: newChannelObj.hub_id,
+                isDirectMessage: false
+            };
+
+            memoryChannels.push(formattedNewChannel);
+            targetChannel = formattedNewChannel;
+
+            if (app.io) {
+                app.io.emit('COMMUNITY_CHANNEL_CREATED', formattedNewChannel);
+            }
+        }
+
+        const channelId = targetChannel.id;
+        const botName = String(body.botName || body.senderName || 'Anticeil Bot').trim();
+        const cleanBotSlug = botName.toLowerCase().replace(/[^a-z0-9-_]/g, '-').slice(0, 30) || 'automasi';
+        const botId = `bot-${cleanBotSlug}`;
+        const msgId = `msg-bot-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const nowIso = new Date().toISOString();
+
+        const newMessage = {
+            id: msgId,
+            channelId,
+            senderId: botId,
+            senderName: botName,
+            senderEmail: body.senderEmail || `${cleanBotSlug}@anticeil.internal`,
+            senderAvatar: body.botAvatar || body.senderAvatar || null,
+            senderRole: 'bot',
+            content,
+            createdAt: nowIso,
+            attachments,
+            reactions: {}
+        };
+
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_community_messages (id, channel_id, sender_id, sender_name, sender_email, sender_avatar, sender_role, content, attachments, reactions, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+                    [
+                        newMessage.id,
+                        newMessage.channelId,
+                        newMessage.senderId,
+                        newMessage.senderName,
+                        newMessage.senderEmail,
+                        newMessage.senderAvatar,
+                        newMessage.senderRole,
+                        newMessage.content,
+                        JSON.stringify(newMessage.attachments),
+                        JSON.stringify(newMessage.reactions),
+                        newMessage.createdAt
+                    ]
+                );
+            } catch (e) {
+                app.log.error({ e }, '[Bot Webhook] Failed to insert message to DB');
+            }
+        }
+
+        if (!memoryMessages[channelId]) memoryMessages[channelId] = [];
+        memoryMessages[channelId].push(newMessage);
+
+        if (app.io) {
+            app.io.emit('COMMUNITY_CHAT_MESSAGE', newMessage);
+        }
+
+        return reply.status(201).send({
+            success: true,
+            channel: {
+                id: targetChannel.id,
+                name: targetChannel.name,
+                hubId: targetChannel.hubId || targetChannel.hub_id || 'anticeil'
+            },
+            message: newMessage
+        });
+    };
+
+    const webhookDocHandler = async (req, reply) => {
+        return reply.send({
+            name: 'Anticeil Realtime Chat Bot Webhook API',
+            status: 'online',
+            description: 'Kirim pesan instan langsung ke saluran Anticeil Chat / Messages via webhook HTTP POST.',
+            endpoints: [
+                'POST /api/v1/community/webhook',
+                'POST /api/v1/messages/webhook',
+                'POST /api/v1/community/bot/message',
+                'POST /api/v1/messages/bot/message'
+            ],
+            payloadExample: {
+                content: 'Halo! Pesan ini dikirim secara otomatis dari workflow Anticeil. 🤖',
+                channel: 'general',
+                botName: 'Activepieces Flow Bot',
+                botAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=FlowBot',
+                attachments: []
+            }
+        });
+    };
+
+    // --- REGISTER ROUTE ALIASES (Supports both /v1/community/* and /v1/messages/*) ---
+    const routePrefixes = ['/v1/community', '/v1/messages'];
+    for (const prefix of routePrefixes) {
+        // Channels
+        app.get(`${prefix}/channels`, getChannelsHandler);
+        app.post(`${prefix}/channels`, createChannelHandler);
+        app.put(`${prefix}/channels/:id`, updateChannelHandler);
+        app.delete(`${prefix}/channels/:id`, deleteChannelHandler);
+
+        // Messages
+        app.get(`${prefix}/channels/:channelId/messages`, getMessagesHandler);
+        app.post(`${prefix}/channels/:channelId/messages`, createMessageHandler);
+        app.delete(`${prefix}/messages/:id`, deleteMessageHandler);
+        app.post(`${prefix}/messages/:id/reactions`, toggleReactionHandler);
+
+        // Members
+        app.get(`${prefix}/members`, getMembersHandler);
+
+        // Bot Webhook Ingestion
+        app.get(`${prefix}/webhook`, webhookDocHandler);
+        app.post(`${prefix}/webhook`, botWebhookHandler);
+        app.post(`${prefix}/bot/message`, botWebhookHandler);
+        app.post(`${prefix}/bot`, botWebhookHandler);
+    }
 }
 

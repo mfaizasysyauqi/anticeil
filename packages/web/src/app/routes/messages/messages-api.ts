@@ -18,6 +18,15 @@ import {
 export const messagesApi = {
   // ── Channels ──────────────────────────────────────────────────────────
   async getChannels(hubId?: string): Promise<CommunityChannel[]> {
+    try {
+      const res = await api.get<CommunityChannel[]>('/v1/community/channels', {
+        params: hubId ? { hubId } : undefined,
+      });
+      if (Array.isArray(res) && res.length > 0) {
+        saveStoredChannels(res);
+        return res;
+      }
+    } catch {}
     const stored = loadStoredChannels();
     return hubId ? stored.filter((c) => (c.hubId || 'anticeil') === hubId) : stored;
   },
@@ -28,6 +37,15 @@ export const messagesApi = {
     category: 'CHANNELS' | 'DIRECT MESSAGES';
     hubId?: string;
   }): Promise<CommunityChannel> {
+    try {
+      const res = await api.post<CommunityChannel>('/v1/community/channels', payload);
+      if (res && res.id) {
+        const stored = loadStoredChannels();
+        const updated = [...stored.filter((c) => c.id !== res.id), res];
+        saveStoredChannels(updated);
+        return res;
+      }
+    } catch {}
     const newChannel: CommunityChannel = {
       id: `ch_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       name: payload.name,
@@ -45,6 +63,14 @@ export const messagesApi = {
     id: string,
     payload: { name?: string; description?: string },
   ): Promise<CommunityChannel> {
+    try {
+      const res = await api.put<CommunityChannel>(`/v1/community/channels/${id}`, payload);
+      if (res && res.id) {
+        const stored = loadStoredChannels();
+        saveStoredChannels(stored.map((c) => (c.id === id ? res : c)));
+        return res;
+      }
+    } catch {}
     const stored = loadStoredChannels();
     let target = stored.find((c) => c.id === id);
     if (target) {
@@ -64,6 +90,9 @@ export const messagesApi = {
   },
 
   async deleteChannel(id: string): Promise<{ success: boolean; id: string }> {
+    try {
+      await api.delete(`/v1/community/channels/${id}`);
+    } catch {}
     const stored = loadStoredChannels();
     saveStoredChannels(stored.filter((c) => c.id !== id));
     return { success: true, id };
@@ -71,6 +100,15 @@ export const messagesApi = {
 
   // ── Messages ──────────────────────────────────────────────────────────
   async getMessages(channelId: string): Promise<CommunityMessage[]> {
+    try {
+      const res = await api.get<CommunityMessage[]>(`/v1/community/channels/${channelId}/messages`);
+      if (Array.isArray(res)) {
+        const stored = loadStoredMessages();
+        stored[channelId] = res;
+        saveStoredMessages(stored);
+        return res;
+      }
+    } catch {}
     const stored = loadStoredMessages();
     return stored[channelId] || [];
   },
@@ -79,7 +117,7 @@ export const messagesApi = {
     channelId: string,
     payload: Partial<CommunityMessage>,
   ): Promise<CommunityMessage> {
-    const newMsg: CommunityMessage = {
+    const fallbackMsg: CommunityMessage = {
       id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       channelId,
       senderId: payload.senderId || 'me',
@@ -90,16 +128,32 @@ export const messagesApi = {
       content: payload.content || '',
       attachments: payload.attachments,
       reactions: {},
-      created: new Date().toISOString(),
-      updated: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     };
+
+    try {
+      const res = await api.post<CommunityMessage>(`/v1/community/channels/${channelId}/messages`, {
+        ...payload,
+        channelId,
+      });
+      if (res && res.id) {
+        const stored = loadStoredMessages();
+        stored[channelId] = [...(stored[channelId] || []).filter((m) => m.id !== res.id), res];
+        saveStoredMessages(stored);
+        return res;
+      }
+    } catch {}
+
     const stored = loadStoredMessages();
-    stored[channelId] = [...(stored[channelId] || []), newMsg];
+    stored[channelId] = [...(stored[channelId] || []), fallbackMsg];
     saveStoredMessages(stored);
-    return newMsg;
+    return fallbackMsg;
   },
 
   async deleteMessage(messageId: string): Promise<{ success: boolean; id: string }> {
+    try {
+      await api.delete(`/v1/community/messages/${messageId}`);
+    } catch {}
     const stored = loadStoredMessages();
     for (const chId in stored) {
       stored[chId] = stored[chId].filter((m) => m.id !== messageId);
@@ -113,6 +167,15 @@ export const messagesApi = {
     emoji: string,
     userId: string,
   ): Promise<{ id: string; channelId?: string; reactions: Record<string, string[]> }> {
+    try {
+      const res = await api.post<{ id: string; channelId?: string; reactions: Record<string, string[]> }>(
+        `/v1/community/messages/${messageId}/reactions`,
+        { emoji, userId }
+      );
+      if (res && res.reactions) {
+        return res;
+      }
+    } catch {}
     const stored = loadStoredMessages();
     let targetMsg: CommunityMessage | null = null;
     for (const chId in stored) {
