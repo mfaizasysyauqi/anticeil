@@ -69,7 +69,7 @@ const AboveTriggerButton = ({
             className={cn(
               'h-8 bg-background border-input hover:border-border  border p-2.5 border-solid rounded-lg animate-fade',
               {
-                'bg-primary-100/50! dark:text-primary-foreground  text-primary hover:text-primary disabled:pointer-events-auto hover:border-primary!  border-primary/50':
+                'bg-primary! text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground disabled:pointer-events-auto hover:border-primary!  border-primary':
                   showPrimaryBg,
               },
             )}
@@ -84,7 +84,7 @@ const AboveTriggerButton = ({
                   className={cn(
                     'text-[10px] bg-muted h-[20px] flex items-center justify-center px-1 rounded-sm tracking-widest whitespace-nowrap text-muted-foreground',
                     {
-                      'bg-primary/13 text-primary': showPrimaryBg,
+                      'bg-primary-foreground/20 text-primary-foreground': showPrimaryBg,
                     },
                   )}
                 >

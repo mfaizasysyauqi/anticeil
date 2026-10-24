@@ -253,13 +253,42 @@ export const createRunState = (
         });
       };
       socket.on(WebsocketClientEvent.TEST_STEP_PROGRESS, handleOnProgress);
+      // Auto-cancel after 2 minutes if no response arrives
+      const timeoutId = setTimeout(() => {
+        if (get().stepTestListeners[stepName]) {
+          get().removeStepTestListener(stepName);
+          get().revertSampleDataLocallyCallbacks[stepName]?.();
+          get().setErrorLogs(stepName, 'Test timed out. The step did not respond within 2 minutes. Please check your configuration and try again.');
+          set((state) => {
+            const timedOutStep = flowStructureUtil.getStep(
+              stepName,
+              state.flowVersion.trigger,
+            );
+            return {
+              flowVersion: flowOperations.apply(state.flowVersion, {
+                type: FlowOperationType.UPDATE_SAMPLE_DATA_INFO,
+                request: {
+                  stepName,
+                  sampleDataSettings: timedOutStep?.settings.sampleData ?? {},
+                },
+              }),
+            };
+          });
+        }
+      }, 120_000);
       set((state) => ({
         stepTestListeners: {
           ...state.stepTestListeners,
           [stepName]: {
             onProgress: handleOnProgress,
-            onFinish: handleStepFinished,
-            error: handleError,
+            onFinish: (response: StepRunResponse) => {
+              clearTimeout(timeoutId);
+              handleStepFinished(response);
+            },
+            error: (error: any) => {
+              clearTimeout(timeoutId);
+              handleError(error);
+            },
           },
         },
       }));
