@@ -370,11 +370,8 @@ export function CommunityPage() {
 
   // Channels filtered by selected Hub
   const hubChannels = useMemo(() => {
-    if (activeHubId === 'direct-messages') {
-      return channels.filter((c) => c.category === 'DIRECT MESSAGES');
-    }
-    return channels.filter((c) => (c.hubId || 'anticeil') === activeHubId && c.category === 'CHANNELS');
-  }, [channels, activeHubId]);
+    return channels.filter((c) => (c.hubId || 'anticeil') === 'anticeil' && c.category === 'CHANNELS');
+  }, [channels]);
 
   const dmChannels = useMemo(() => {
     return channels.filter((c) => c.category === 'DIRECT MESSAGES');
@@ -583,13 +580,12 @@ export function CommunityPage() {
         name: member.name,
         description: `Percakapan langsung dengan ${member.name} (${member.customStatus || member.role})`,
         category: 'DIRECT MESSAGES',
-        hubId: 'direct-messages',
+        hubId: 'anticeil',
         isDirectMessage: true,
         dmUserId: member.id,
       };
       setChannels((prev) => [...prev, newDMChannel]);
     }
-    setActiveHubId('direct-messages');
     setActiveChannelId(dmId);
     setIsMobileChannelsOpen(false);
     setIsMobileMembersOpen(false);
@@ -662,6 +658,17 @@ export function CommunityPage() {
   // Render Hub Icon Helper (Discord style)
   const renderHubIcon = (hub: CommunityHub) => {
     switch (hub.iconType) {
+      case 'logo':
+        return (
+          <img
+            src="/logo.png"
+            alt="Anticeil"
+            className="size-6 object-contain pointer-events-none drop-shadow-xs"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = '/favicon.ico';
+            }}
+          />
+        );
       case 'spark':
         return <Sparkles className="w-4 h-4 text-amber-400" />;
       case 'bot':
@@ -726,9 +733,9 @@ export function CommunityPage() {
 
   // Component: Discord Mini Server/Hub Rail (compact, theme-consistent & non-overflowing)
   const renderDiscordHubRail = () => (
-    <div className="w-[54px] shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-2.5 select-none z-10 h-full overflow-hidden">
-      {/* Scrollable list of hubs if many */}
-      <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col items-center gap-1.5 py-0.5">
+    <div className="w-[58px] shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-3 select-none z-10 h-full overflow-hidden">
+      {/* List of hubs */}
+      <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col items-center gap-2 py-0.5">
         {hubs.map((hub) => {
           const isActive = activeHubId === hub.id;
           return (
@@ -738,8 +745,8 @@ export function CommunityPage() {
                 className={cn(
                   'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
                   isActive
-                    ? 'h-7'
-                    : 'h-0 group-hover:h-3.5 opacity-80',
+                    ? 'h-8'
+                    : 'h-0 group-hover:h-4 opacity-80',
                 )}
               />
 
@@ -757,10 +764,10 @@ export function CommunityPage() {
                       }
                     }}
                     className={cn(
-                      'relative size-10 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
+                      'relative size-11 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
                       isActive
-                        ? 'rounded-[12px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
-                        : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[12px] hover:bg-sidebar-accent/80',
+                        ? 'rounded-[14px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
+                        : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[14px] hover:bg-sidebar-accent/80',
                     )}
                   >
                     {renderHubIcon(hub)}
@@ -774,7 +781,7 @@ export function CommunityPage() {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
-                  {hub.name}
+                  {platform?.name ? `${platform.name} (${hub.name})` : `${hub.name} Workspace`}
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -782,16 +789,16 @@ export function CommunityPage() {
         })}
 
         {/* Discord separator bar */}
-        <div className="w-6 h-[2px] bg-sidebar-border my-1 rounded-full shrink-0" />
+        <div className="w-8 h-[2px] bg-sidebar-border my-1 rounded-full shrink-0" />
 
         {/* Add Channel / Hub (+) Button */}
         <Tooltip delayDuration={150}>
           <TooltipTrigger asChild>
             <button
               onClick={() => setIsCreateChannelOpen(true)}
-              className="group relative size-10 rounded-full bg-sidebar-accent text-emerald-500 hover:rounded-[12px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
+              className="group relative size-11 rounded-full bg-sidebar-accent text-emerald-500 hover:rounded-[14px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
             >
-              <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
+              <Plus className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
@@ -804,9 +811,9 @@ export function CommunityPage() {
           <TooltipTrigger asChild>
             <Link
               to="/templates"
-              className="group relative size-10 rounded-full bg-sidebar-accent text-muted-foreground hover:rounded-[12px] hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
+              className="group relative size-11 rounded-full bg-sidebar-accent text-muted-foreground hover:rounded-[14px] hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
             >
-              <Compass className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+              <Compass className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
             </Link>
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
@@ -1195,7 +1202,11 @@ export function CommunityPage() {
                 <Menu className="w-5 h-5" />
               </Button>
 
-              <Hash className="w-5 h-5 text-muted-foreground shrink-0" />
+              {activeChannel?.category === 'DIRECT MESSAGES' || activeChannel?.isDirectMessage ? (
+                <span className="text-muted-foreground font-bold text-base shrink-0 select-none">@</span>
+              ) : (
+                <Hash className="w-5 h-5 text-muted-foreground shrink-0" />
+              )}
               <span className="text-sm font-semibold truncate text-foreground">
                 {activeChannel ? activeChannel.name : t('Belum ada channel')}
               </span>

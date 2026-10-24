@@ -3,38 +3,10 @@ import { CommunityChannel, CommunityHub, CommunityMember, CommunityMessage } fro
 export const DEFAULT_HUBS: CommunityHub[] = [
   {
     id: 'anticeil',
-    name: 'Workspace Channels',
-    iconType: 'spark',
-    initials: 'WS',
+    name: 'Anticeil',
+    iconType: 'logo',
+    initials: 'AC',
     description: 'Saluran obrolan tim untuk kolaborasi alur kerja dan otomasi.',
-  },
-  {
-    id: 'ai-agents',
-    name: 'AI & Automations',
-    iconType: 'bot',
-    initials: 'AI',
-    description: 'Diskusi autonomous agents, tool calling, dan server MCP tim.',
-  },
-  {
-    id: 'templates',
-    name: 'Shared Templates',
-    iconType: 'templates',
-    initials: 'TM',
-    description: 'Koleksi alur kerja siap pakai dan template tim.',
-  },
-  {
-    id: 'developers',
-    name: 'Developer & Webhooks',
-    iconType: 'code',
-    initials: 'DEV',
-    description: 'Custom pieces development, webhook pipelines, dan integrasi API.',
-  },
-  {
-    id: 'direct-messages',
-    name: 'Direct Messages',
-    iconType: 'dm',
-    initials: 'DM',
-    description: 'Pesan langsung antar rekan tim dan anggota workspace.',
   },
 ];
 

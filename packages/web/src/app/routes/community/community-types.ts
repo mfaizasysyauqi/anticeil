@@ -1,11 +1,11 @@
 export type CommunityRole = 'admin' | 'creator' | 'pro' | 'member';
 
-export type CommunityHubId = 'anticeil' | 'ai-agents' | 'templates' | 'developers' | 'direct-messages' | string;
+export type CommunityHubId = 'anticeil' | 'direct-messages' | string;
 
 export type CommunityHub = {
   id: CommunityHubId;
   name: string;
-  iconType: 'spark' | 'bot' | 'templates' | 'code' | 'dm';
+  iconType: 'logo' | 'spark' | 'bot' | 'templates' | 'code' | 'dm';
   initials: string;
   description: string;
   unreadCount?: number;
