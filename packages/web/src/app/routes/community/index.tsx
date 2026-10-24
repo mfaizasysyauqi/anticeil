@@ -249,6 +249,10 @@ export function CommunityPage() {
   const [isMobileMembersOpen, setIsMobileMembersOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
 
+  // DM Search Dialog (Discord-style "Find or start a conversation")
+  const [isDmSearchOpen, setIsDmSearchOpen] = useState(false);
+  const [dmSearchQuery, setDmSearchQuery] = useState('');
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1043,58 +1047,56 @@ export function CommunityPage() {
   const renderChannelsSidebarContent = (onItemClick?: () => void) => (
     <div className="flex flex-col h-full bg-sidebar select-none flex-1 min-w-0 overflow-hidden">
       {/* Header: Different for Home (DMs) vs Server (Channels) */}
-      <div className="h-12 border-b border-sidebar-border px-3.5 flex items-center justify-between font-semibold shadow-2xs shrink-0 bg-sidebar z-10">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-semibold truncate tracking-tight text-foreground">
-            {isHome ? t('Pesan Langsung') : (activeHub?.name || t('Server'))}
-          </span>
-        </div>
-
+      <div className="h-12 border-b border-sidebar-border px-2.5 flex items-center font-semibold shadow-2xs shrink-0 bg-sidebar z-10">
         {isHome ? (
-          /* Home: no server dropdown, just a + to start new DM */
-          <Tooltip delayDuration={150}>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
-                <Plus className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={4} className="font-semibold text-xs">
-              {t('Pesan Langsung Baru')}
-            </TooltipContent>
-          </Tooltip>
+          /* Home: Discord-style search bar "Find or start a conversation" */
+          <button
+            onClick={() => { setIsDmSearchOpen(true); setDmSearchQuery(''); }}
+            className="w-full h-7 px-2 flex items-center gap-1.5 rounded-[4px] bg-sidebar-accent/80 hover:bg-sidebar-accent text-muted-foreground text-[11px] transition-colors cursor-pointer"
+          >
+            <Search className="w-3 h-3 shrink-0 opacity-60" />
+            <span className="truncate">{t('Cari atau mulai percakapan...')}</span>
+          </button>
         ) : (
-          /* Server: dropdown with channel/server actions */
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
-                <ChevronDown className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={() => setIsCreateChannelOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" /> {t('Buat Channel Baru')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsCreateHubOpen(true)}>
-                <Layers className="w-4 h-4 mr-2" /> {t('Buat Server Baru')}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleOpenEditHub(activeHub)}>
-                <Edit2 className="w-4 h-4 mr-2" /> {t('Ganti Nama Server')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setHubToDelete(activeHub)}
-                className="text-red-500 focus:text-red-500 focus:bg-red-500/10 cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4 mr-2" /> {t('Hapus Server')}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/templates">
-                  <ExternalLink className="w-4 h-4 mr-2" /> Jelajahi Marketplace
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          /* Server: Title + dropdown with channel/server actions */
+          <div className="flex items-center justify-between w-full px-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm font-semibold truncate tracking-tight text-foreground">
+                {activeHub?.name || t('Server')}
+              </span>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => setIsCreateChannelOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" /> {t('Buat Channel Baru')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsCreateHubOpen(true)}>
+                  <Layers className="w-4 h-4 mr-2" /> {t('Buat Server Baru')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleOpenEditHub(activeHub)}>
+                  <Edit2 className="w-4 h-4 mr-2" /> {t('Ganti Nama Server')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setHubToDelete(activeHub)}
+                  className="text-red-500 focus:text-red-500 focus:bg-red-500/10 cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" /> {t('Hapus Server')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/templates">
+                    <ExternalLink className="w-4 h-4 mr-2" /> Jelajahi Marketplace
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
       </div>
 
@@ -2122,6 +2124,147 @@ export function CommunityPage() {
                 Hapus Channel
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* DIALOG: DM SEARCH (Discord-style "Find or start a conversation") */}
+        <Dialog open={isDmSearchOpen} onOpenChange={setIsDmSearchOpen}>
+          <DialogContent className="sm:max-w-[480px] p-0 gap-0 overflow-hidden">
+            <DialogHeader className="sr-only">
+              <DialogTitle>{t('Cari atau mulai percakapan')}</DialogTitle>
+              <DialogDescription>{t('Cari anggota atau channel untuk memulai percakapan.')}</DialogDescription>
+            </DialogHeader>
+
+            {/* Search Input */}
+            <div className="px-4 py-3 border-b border-border">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={dmSearchQuery}
+                  onChange={(e) => setDmSearchQuery(e.target.value)}
+                  placeholder={t('Mau pergi ke mana?')}
+                  className="pl-9 text-sm bg-transparent border-none shadow-none focus-visible:ring-0 h-9"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Results */}
+            <div className="max-h-[320px] overflow-y-auto [scrollbar-width:thin]">
+              {(() => {
+                const q = dmSearchQuery.trim().toLowerCase();
+
+                // Existing DM channels
+                const filteredDms = dmChannels.filter((dm) =>
+                  !q || dm.name.toLowerCase().includes(q),
+                );
+
+                // Members not yet in DM (excluding self)
+                const filteredMembers = members.filter((m) => {
+                  if (m.id === currentUser?.id) return false;
+                  const hasDm = dmChannels.some((dm) => dm.id === `dm-${m.id}`);
+                  if (hasDm) return false;
+                  return !q || m.name.toLowerCase().includes(q);
+                });
+
+                const hasResults = filteredDms.length > 0 || filteredMembers.length > 0;
+
+                if (!hasResults) {
+                  return (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      {t('Tidak ada hasil ditemukan.')}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="py-1">
+                    {/* Existing DM Channels */}
+                    {filteredDms.length > 0 && (
+                      <div>
+                        <div className="px-4 py-1.5 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">
+                          {t('Percakapan Sebelumnya')}
+                        </div>
+                        {filteredDms.map((dm) => {
+                          const member = members.find((m) => `dm-${m.id}` === dm.id);
+                          return (
+                            <button
+                              key={dm.id}
+                              onClick={() => {
+                                setActiveHubId('anticeil');
+                                setActiveChannelId(dm.id);
+                                setIsDmSearchOpen(false);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-accent transition-colors"
+                            >
+                              {member ? (
+                                <CommunityAvatar
+                                  name={member.name}
+                                  imageUrl={member.avatar}
+                                  size={28}
+                                  status={member.status}
+                                  showStatus
+                                />
+                              ) : (
+                                <div className="size-7 rounded-full bg-muted flex items-center justify-center">
+                                  <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+                                </div>
+                              )}
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-medium truncate text-foreground">{dm.name}</span>
+                                {member?.customStatus && (
+                                  <span className="text-[10px] text-muted-foreground truncate">{member.customStatus}</span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* New DM - members without existing conversation */}
+                    {filteredMembers.length > 0 && (
+                      <div>
+                        <div className="px-4 py-1.5 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">
+                          {t('Mulai Percakapan Baru')}
+                        </div>
+                        {filteredMembers.map((member) => (
+                          <button
+                            key={member.id}
+                            onClick={() => {
+                              handleStartDM(member);
+                              setIsDmSearchOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-accent transition-colors"
+                          >
+                            <CommunityAvatar
+                              name={member.name}
+                              imageUrl={member.avatar}
+                              size={28}
+                              status={member.status}
+                              showStatus
+                            />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs font-medium truncate text-foreground">{member.name}</span>
+                              {member.customStatus && (
+                                <span className="text-[10px] text-muted-foreground truncate">{member.customStatus}</span>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Footer tip */}
+            <div className="px-4 py-2 border-t border-border">
+              <p className="text-[10px] text-muted-foreground">
+                <span className="text-primary font-semibold">Tip:</span> {t('Ketik nama anggota untuk mencari dan memulai percakapan langsung.')}
+              </p>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
