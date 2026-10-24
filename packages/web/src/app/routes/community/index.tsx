@@ -74,6 +74,8 @@ import { userHooks } from '@/hooks/user-hooks';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+import { InviteUserDialog } from '@/features/members';
+
 import { communityApi } from './community-api';
 import { CommunityAvatar } from './community-avatar';
 import {
@@ -230,6 +232,7 @@ export function CommunityPage() {
   // Responsive state for Mobile/Tablet sheets
   const [isMobileChannelsOpen, setIsMobileChannelsOpen] = useState(false);
   const [isMobileMembersOpen, setIsMobileMembersOpen] = useState(false);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1059,6 +1062,9 @@ export function CommunityPage() {
         {/* Header: NON-SCROLLABLE APP BAR */}
         <div className="h-12 border-b border-sidebar-border px-4 flex items-center justify-between font-semibold text-xs text-muted-foreground uppercase tracking-wider shrink-0 bg-sidebar z-10">
           <span>{t('Daftar Anggota')} ({displayMembers.length})</span>
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => setIsInviteOpen(true)} title={t('Undang Anggota')}>
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
         </div>
 
         {/* Members List: SCROLLABLE DAFTAR ANGGOTA */}
@@ -1708,6 +1714,7 @@ export function CommunityPage() {
         </Dialog>
       </div>
     </TooltipProvider>
+    <InviteUserDialog open={isInviteOpen} setOpen={setIsInviteOpen} />
     </LockedFeatureGuard>
   );
 }

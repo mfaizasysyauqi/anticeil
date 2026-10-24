@@ -228,6 +228,24 @@ async function setupCommunityApi(app) {
     const memoryMessages = {};
     const members = [];
 
+    function getPlatformId(req) {
+        if (req.principal && req.principal.platform && req.principal.platform.id) {
+            return req.principal.platform.id;
+        }
+        try {
+            const auth = req.headers && req.headers.authorization;
+            if (auth && auth.startsWith('Bearer ')) {
+                const parts = auth.substring(7).split('.');
+                if (parts.length === 3) {
+                    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                    if (payload && payload.platform && payload.platform.id) return payload.platform.id;
+                    if (payload && payload.platformId) return payload.platformId;
+                }
+            }
+        } catch (e) {}
+        return null;
+    }
+
     async function getDb() {
         try {
             const { databaseConnection } = require("../../../database/database-connection");
@@ -271,22 +289,16 @@ async function setupCommunityApi(app) {
                 );
             `);
 
-            // Clean up any previously seeded dummy/placeholder channels and messages
-            const dummyChannelIds = [
-                'umum', 'showcase-template', 'jual-beli-template', 'tanya-jawab',
-                'ai-agents-discussion', 'prompt-engineering', 'mcp-builders',
-                'free-workflows', 'enterprise-solutions', 'workflow-critique',
-                'custom-pieces', 'webhook-integration', 'bug-reports'
-            ];
+            // Add platform_id column for tenant isolation
+            await ds.query(`
+                ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS platform_id VARCHAR(128);
+                CREATE INDEX IF NOT EXISTS idx_acc_platform ON anticeil_community_channels (platform_id);
+            `);
+
+            // Clean up legacy un-isolated data (no platform_id) and old dummy channels
             try {
-                await ds.query(
-                    `DELETE FROM anticeil_community_messages WHERE channel_id = ANY($1) OR sender_id LIKE 'user-%' OR sender_id = 'anticeil-community'`,
-                    [dummyChannelIds]
-                );
-                await ds.query(
-                    `DELETE FROM anticeil_community_channels WHERE id = ANY($1)`,
-                    [dummyChannelIds]
-                );
+                await ds.query(`DELETE FROM anticeil_community_messages WHERE channel_id IN (SELECT id FROM anticeil_community_channels WHERE platform_id IS NULL)`);
+                await ds.query(`DELETE FROM anticeil_community_channels WHERE platform_id IS NULL`);
             } catch (cleanErr) {}
 
             dbReady = true;
@@ -302,13 +314,15 @@ async function setupCommunityApi(app) {
         await ensureTables();
         const ds = await getDb();
         const hubId = req.query?.hubId;
+        const platformId = getPlatformId(req);
+        if (!platformId) return [];
         if (ds && dbReady) {
             try {
                 let rows;
                 if (hubId) {
-                    rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE hub_id = $1 ORDER BY created_at ASC', [hubId]);
+                    rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE platform_id = $1 AND hub_id = $2 ORDER BY created_at ASC', [platformId, hubId]);
                 } else {
-                    rows = await ds.query('SELECT * FROM anticeil_community_channels ORDER BY created_at ASC');
+                    rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE platform_id = $1 ORDER BY created_at ASC', [platformId]);
                 }
                 return rows.map(r => ({
                     id: r.id,
@@ -321,7 +335,7 @@ async function setupCommunityApi(app) {
                 }));
             } catch (e) {}
         }
-        return hubId ? memoryChannels.filter(c => c.hub_id === hubId) : memoryChannels;
+        return [];
     });
 
     app.post('/v1/community/channels', async (req, reply) => {
@@ -330,8 +344,10 @@ async function setupCommunityApi(app) {
         if (!name) {
             return reply.status(400).send({ message: 'Channel name is required' });
         }
+        const platformId = getPlatformId(req);
+        if (!platformId) return reply.status(401).send({ message: 'Unauthorized' });
         const cleanName = name.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || `channel-${Date.now()}`;
-        const id = cleanName;
+        const id = `ch-${Date.now().toString(36)}-${cleanName.substring(0, 20)}`;
         const newChannel = {
             id,
             name: cleanName,
@@ -345,13 +361,10 @@ async function setupCommunityApi(app) {
         if (ds && dbReady) {
             try {
                 await ds.query(
-                    'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name=$2, description=$3',
-                    [id, cleanName, description, category, hubId, false]
+                    'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO UPDATE SET name=$2, description=$3',
+                    [id, cleanName, description, category, hubId, false, platformId]
                 );
             } catch (e) {}
-        }
-        if (!memoryChannels.some(c => c.id === id)) {
-            memoryChannels.push({ ...newChannel, hub_id: hubId, is_direct_message: false });
         }
         if (app.io) {
             app.io.emit('COMMUNITY_CHANNEL_CREATED', newChannel);
@@ -367,9 +380,10 @@ async function setupCommunityApi(app) {
         let updatedChannel = null;
         if (ds && dbReady) {
             try {
+                const platformId = getPlatformId(req);
                 const res = await ds.query(
-                    'UPDATE anticeil_community_channels SET name = COALESCE($1, name), description = COALESCE($2, description), updated_at = NOW() WHERE id = $3 RETURNING *',
-                    [name, description, id]
+                    'UPDATE anticeil_community_channels SET name = COALESCE($1, name), description = COALESCE($2, description), updated_at = NOW() WHERE id = $3 AND platform_id = $4 RETURNING *',
+                    [name, description, id, platformId]
                 );
                 if (res && res[0]) {
                     updatedChannel = {
@@ -410,7 +424,7 @@ async function setupCommunityApi(app) {
         if (ds && dbReady) {
             try {
                 await ds.query('DELETE FROM anticeil_community_messages WHERE channel_id = $1', [id]);
-                await ds.query('DELETE FROM anticeil_community_channels WHERE id = $1', [id]);
+                await ds.query('DELETE FROM anticeil_community_channels WHERE id = $1 AND platform_id = $2', [id, getPlatformId(req)]);
             } catch (e) {}
         }
         const memIdx = memoryChannels.findIndex(c => c.id === id);
@@ -583,8 +597,10 @@ async function setupCommunityApi(app) {
         return { id, channelId, reactions };
     });
 
-    // --- MEMBERS ---
-    app.get('/v1/community/members', async () => {
+    // --- MEMBERS (isolated per platform/tenant) ---
+    app.get('/v1/community/members', async (req) => {
+        const platformId = getPlatformId(req);
+        if (!platformId) return [];
         const ds = await getDb();
         if (ds) {
             try {
@@ -592,8 +608,10 @@ async function setupCommunityApi(app) {
                     SELECT u.id, u."platformRole", ui."firstName", ui."lastName", ui.email, ui."imageUrl"
                     FROM "user" u
                     LEFT JOIN "user_identity" ui ON u."identityId" = ui.id
+                    WHERE u."platformId" = $1
+                    ORDER BY u."platformRole" ASC, ui."firstName" ASC
                     LIMIT 200
-                `);
+                `, [platformId]);
                 return (users || []).map(u => ({
                     id: u.id,
                     name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'User',
