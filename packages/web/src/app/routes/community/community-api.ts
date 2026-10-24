@@ -79,10 +79,13 @@ export const communityApi = {
     });
   },
 
-  async getMembers(projectId?: string): Promise<CommunityMember[]> {
+  async getMembers(projectId?: string, hubId?: string): Promise<CommunityMember[]> {
     try {
       const members = await api.get<CommunityMember[]>('/v1/community/members', {
-        params: projectId ? { projectId } : undefined,
+        params: {
+          ...(projectId ? { projectId } : {}),
+          ...(hubId ? { hubId } : {}),
+        },
       });
       if (Array.isArray(members)) {
         return members;
@@ -92,5 +95,92 @@ export const communityApi = {
       console.warn('communityApi.getMembers error', err);
       return [];
     }
+  },
+
+  // ── Hubs (Servers) & Invites ──────────────────────────────────────────
+  async getHubs(): Promise<CommunityHub[]> {
+    try {
+      const hubs = await api.get<any[]>('/v1/community/hubs');
+      if (Array.isArray(hubs)) {
+        return hubs.map((h) => ({
+          id: h.id,
+          name: h.name,
+          iconType: (h.icon as any) || 'code',
+          initials: h.name.slice(0, 2).toUpperCase(),
+          description: h.description || '',
+          inviteCode: h.inviteCode,
+          membersCount: h.membersCount || 1,
+          color: h.color || 'bg-indigo-600',
+          role: h.role || 'member',
+        }));
+      }
+      return [];
+    } catch (err) {
+      console.warn('communityApi.getHubs error', err);
+      return [];
+    }
+  },
+
+  async createHub(payload: {
+    name: string;
+    description?: string;
+    color?: string;
+    icon?: string;
+  }): Promise<CommunityHub> {
+    const h = await api.post<any>('/v1/community/hubs', payload);
+    return {
+      id: h.id,
+      name: h.name,
+      iconType: (h.icon as any) || 'code',
+      initials: h.name.slice(0, 2).toUpperCase(),
+      description: h.description || '',
+      inviteCode: h.inviteCode,
+      membersCount: h.membersCount || 1,
+      color: h.color || 'bg-indigo-600',
+      role: 'owner',
+    };
+  },
+
+  async updateHub(
+    id: string,
+    payload: { name?: string; description?: string; color?: string; icon?: string },
+  ): Promise<CommunityHub> {
+    const h = await api.put<any>(`/v1/community/hubs/${id}`, payload);
+    return {
+      id: h.id,
+      name: h.name,
+      iconType: (h.icon as any) || 'code',
+      initials: h.name.slice(0, 2).toUpperCase(),
+      description: h.description || '',
+      inviteCode: h.inviteCode,
+      membersCount: h.membersCount || 1,
+      color: h.color || 'bg-indigo-600',
+      role: h.role,
+    };
+  },
+
+  async deleteHub(id: string): Promise<{ success: boolean; id: string }> {
+    return api.delete<{ success: boolean; id: string }>(`/v1/community/hubs/${id}`);
+  },
+
+  async getInvite(
+    inviteCode: string,
+  ): Promise<{ id: string; name: string; description: string; membersCount: number; color?: string }> {
+    return api.get(`/v1/community/invite/${inviteCode}`);
+  },
+
+  async joinHub(inviteCode: string): Promise<CommunityHub> {
+    const h = await api.post<any>(`/v1/community/invite/${inviteCode}/join`);
+    return {
+      id: h.id,
+      name: h.name,
+      iconType: (h.icon as any) || 'code',
+      initials: h.name.slice(0, 2).toUpperCase(),
+      description: h.description || '',
+      inviteCode: h.inviteCode,
+      membersCount: h.membersCount || 1,
+      color: h.color || 'bg-indigo-600',
+      role: h.role || 'member',
+    };
   },
 };

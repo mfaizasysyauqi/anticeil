@@ -18,6 +18,10 @@ export type CommunityHub = {
   initials: string;
   description: string;
   unreadCount?: number;
+  inviteCode?: string;
+  membersCount?: number;
+  color?: string;
+  role?: 'owner' | 'admin' | 'member';
 };
 
 export type CommunityChannel = {

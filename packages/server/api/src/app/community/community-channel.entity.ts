@@ -6,6 +6,7 @@ export type CommunityChannelRow = {
     created: string
     updated: string
     platformId: string
+    hubId: string | null
     name: string
     description: string
     category: 'CHANNELS' | 'DIRECT MESSAGES'
@@ -21,6 +22,10 @@ export const CommunityChannelEntity = new EntitySchema<CommunityChannelRow>({
         platformId: {
             ...ApIdSchema,
             nullable: false,
+        },
+        hubId: {
+            ...ApIdSchema,
+            nullable: true,
         },
         name: {
             type: String,
@@ -49,6 +54,10 @@ export const CommunityChannelEntity = new EntitySchema<CommunityChannelRow>({
         {
             name: 'idx_community_channel_platform',
             columns: ['platformId', 'created'],
+        },
+        {
+            name: 'idx_community_channel_hub',
+            columns: ['hubId', 'created'],
         },
         {
             name: 'idx_community_channel_dm_pair',

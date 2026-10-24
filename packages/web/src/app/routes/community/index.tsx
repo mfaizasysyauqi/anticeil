@@ -26,6 +26,8 @@ import {
   Headphones,
   Smile,
   Check,
+  Share2,
+  UserPlus,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -34,6 +36,7 @@ import { useSocket } from '@/components/providers/socket-provider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -206,10 +209,12 @@ export function CommunityPage() {
   const [hubs, setHubs] = useState<CommunityHub[]>(() => loadStoredHubs());
   const [activeHubId, setActiveHubId] = useState<CommunityHubId>('anticeil');
 
-  // Server / Hub Creation Modal state (ala Discord "Tambah Server")
+  // Server / Hub Creation & Join Modal state (ala Discord "Tambah Server")
   const [isCreateHubOpen, setIsCreateHubOpen] = useState(false);
   const [newHubName, setNewHubName] = useState('');
   const [newHubDesc, setNewHubDesc] = useState('');
+  const [joinInviteCode, setJoinInviteCode] = useState('');
+  const [isJoiningHub, setIsJoiningHub] = useState(false);
 
   // Server Edit & Delete state
   const [hubToEdit, setHubToEdit] = useState<CommunityHub | null>(null);
@@ -262,9 +267,10 @@ export function CommunityPage() {
     const loadData = async () => {
       try {
         const currentProjectId = authenticationSession.getProjectId();
-        const [channelsRes, membersRes] = await Promise.all([
+        const [channelsRes, membersRes, hubsRes] = await Promise.all([
           communityApi.getChannels(),
           communityApi.getMembers(currentProjectId || undefined),
+          communityApi.getHubs(),
         ]);
         if (mounted) {
           if (Array.isArray(channelsRes)) {
@@ -276,12 +282,28 @@ export function CommunityPage() {
           if (Array.isArray(membersRes)) {
             setMembers(membersRes);
           }
+          if (Array.isArray(hubsRes) && hubsRes.length > 0) {
+            setHubs((prev) => {
+              const home = prev.find((h) => h.id === 'anticeil') || DEFAULT_HUBS[0];
+              const merged = [home, ...hubsRes.filter((s) => s.id !== 'anticeil')];
+              saveStoredHubs(merged);
+              return merged;
+            });
+          }
         }
       } catch (err) {
         console.warn('Initial community load fallback', err);
       }
     };
     loadData();
+
+    // Check if user came from an invite link: /messages?invite=xyz
+    const params = new URLSearchParams(window.location.search);
+    const inviteParam = params.get('invite');
+    if (inviteParam) {
+      handleJoinHub(inviteParam);
+    }
+
     return () => {
       mounted = false;
     };
@@ -531,55 +553,95 @@ export function CommunityPage() {
     }
   };
 
+  // Join Server via Invite Code/Link
+  const handleJoinHub = async (codeToJoin?: string) => {
+    const rawCode = (codeToJoin || joinInviteCode).trim();
+    if (!rawCode) {
+      toast.error(t('Masukkan kode atau link undangan yang valid.'));
+      return;
+    }
+
+    let code = rawCode;
+    if (rawCode.includes('invite=')) {
+      code = rawCode.split('invite=')[1].split('&')[0];
+    } else if (rawCode.includes('/')) {
+      code = rawCode.split('/').pop() || rawCode;
+    }
+
+    try {
+      setIsJoiningHub(true);
+      const joinedHub = await communityApi.joinHub(code);
+      setHubs((prev) => {
+        const next = [...prev.filter((h) => h.id !== joinedHub.id), joinedHub];
+        saveStoredHubs(next);
+        return next;
+      });
+      setActiveHubId(joinedHub.id);
+
+      // fetch channels for joined server
+      const hubChannels = await communityApi.getChannels(joinedHub.id);
+      if (hubChannels && hubChannels.length > 0) {
+        setChannels((prev) => [...prev.filter((c) => c.hubId !== joinedHub.id), ...hubChannels]);
+        setActiveChannelId(hubChannels[0].id);
+      }
+
+      setIsCreateHubOpen(false);
+      setJoinInviteCode('');
+      toast.success(t(`Berhasil bergabung ke server ${joinedHub.name}! 🎉`));
+    } catch {
+      toast.error(t('Kode undangan tidak valid atau server tidak ditemukan.'));
+    } finally {
+      setIsJoiningHub(false);
+    }
+  };
+
   // Create Server / Hub (Discord style Server CRUD)
   const handleCreateHubSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newHubName.trim()) return;
 
-    const newId = `hub_${Date.now()}`;
-    const newHub: CommunityHub = {
-      id: newId,
-      name: newHubName.trim(),
-      iconType: undefined as any,
-      initials: newHubName.trim().slice(0, 2).toUpperCase() || 'SV',
-      description: newHubDesc.trim() || '',
-    };
-
-    const updatedHubs = [...hubs, newHub];
-    setHubs(updatedHubs);
-    saveStoredHubs(updatedHubs);
-    setActiveHubId(newId);
-
     try {
-      const createdCh = await communityApi.createChannel({
-        name: 'general',
-        description: `Channel obrolan umum untuk server ${newHub.name}`,
-        category: 'CHANNELS',
-        hubId: newId,
+      const createdHub = await communityApi.createHub({
+        name: newHubName.trim(),
+        description: newHubDesc.trim() || undefined,
       });
-      setChannels((prev) => {
-        if (prev.some((c) => c.id === createdCh.id)) return prev;
-        return [...prev, createdCh];
-      });
-      setActiveChannelId(createdCh.id);
-    } catch {
-      const fallbackCh: CommunityChannel = {
-        id: `ch_${Date.now()}`,
-        name: 'general',
-        description: `Channel obrolan umum untuk server ${newHub.name}`,
-        category: 'CHANNELS',
-        hubId: newId,
-        isGeneral: true,
-        unreadCount: 0,
-      };
-      setChannels((prev) => [...prev, fallbackCh]);
-      setActiveChannelId(fallbackCh.id);
-    }
 
-    setIsCreateHubOpen(false);
-    setNewHubName('');
-    setNewHubDesc('');
-    toast.success(t('Server baru berhasil dibuat!'));
+      const updatedHubs = [...hubs.filter((h) => h.id !== createdHub.id), createdHub];
+      setHubs(updatedHubs);
+      saveStoredHubs(updatedHubs);
+      setActiveHubId(createdHub.id);
+
+      const hubChannels = await communityApi.getChannels(createdHub.id);
+      if (hubChannels && hubChannels.length > 0) {
+        setChannels((prev) => [...prev.filter((c) => c.hubId !== createdHub.id), ...hubChannels]);
+        setActiveChannelId(hubChannels[0].id);
+      }
+
+      setIsCreateHubOpen(false);
+      setNewHubName('');
+      setNewHubDesc('');
+      toast.success(t('Server baru berhasil dibuat!'));
+    } catch (err) {
+      console.warn('API createHub fallback', err);
+      const newId = `hub_${Date.now()}`;
+      const newHub: CommunityHub = {
+        id: newId,
+        name: newHubName.trim(),
+        iconType: undefined as any,
+        initials: newHubName.trim().slice(0, 2).toUpperCase() || 'SV',
+        description: newHubDesc.trim() || '',
+      };
+
+      const updatedHubs = [...hubs, newHub];
+      setHubs(updatedHubs);
+      saveStoredHubs(updatedHubs);
+      setActiveHubId(newId);
+
+      setIsCreateHubOpen(false);
+      setNewHubName('');
+      setNewHubDesc('');
+      toast.success(t('Server baru berhasil dibuat!'));
+    }
   };
 
   // Edit / Rename Server (Hub CRUD: Update)
@@ -589,36 +651,54 @@ export function CommunityPage() {
     setEditHubDesc(hub.description || '');
   };
 
-  const handleEditHubSubmit = (e: React.FormEvent) => {
+  const handleEditHubSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hubToEdit || !editHubName.trim()) return;
 
     const newName = editHubName.trim();
-    const updatedHubs = hubs.map((h) => {
-      if (h.id === hubToEdit.id) {
-        return {
-          ...h,
-          name: newName,
-          initials: newName.slice(0, 2).toUpperCase() || 'SV',
-          description: editHubDesc.trim() || undefined,
-        };
-      }
-      return h;
-    });
+    try {
+      const updated = await communityApi.updateHub(hubToEdit.id, {
+        name: newName,
+        description: editHubDesc.trim() || undefined,
+      });
+      const updatedHubs = hubs.map((h) => (h.id === updated.id ? { ...h, ...updated } : h));
+      setHubs(updatedHubs);
+      saveStoredHubs(updatedHubs);
+      setHubToEdit(null);
+      toast.success(t('Nama server berhasil diperbarui!'));
+    } catch {
+      const updatedHubs = hubs.map((h) => {
+        if (h.id === hubToEdit.id) {
+          return {
+            ...h,
+            name: newName,
+            initials: newName.slice(0, 2).toUpperCase() || 'SV',
+            description: editHubDesc.trim() || undefined,
+          };
+        }
+        return h;
+      });
 
-    setHubs(updatedHubs);
-    saveStoredHubs(updatedHubs);
-    setHubToEdit(null);
-    toast.success(t('Nama server berhasil diperbarui!'));
+      setHubs(updatedHubs);
+      saveStoredHubs(updatedHubs);
+      setHubToEdit(null);
+      toast.success(t('Nama server berhasil diperbarui!'));
+    }
   };
 
   // Delete Server (Hub CRUD: Delete)
-  const handleDeleteHubConfirm = () => {
+  const handleDeleteHubConfirm = async () => {
     if (!hubToDelete) return;
     if (hubToDelete.id === 'anticeil') {
       toast.error(t('Server default tidak dapat dihapus.'));
       setHubToDelete(null);
       return;
+    }
+
+    try {
+      await communityApi.deleteHub(hubToDelete.id);
+    } catch (err) {
+      console.warn('API deleteHub error', err);
     }
 
     const updatedHubs = hubs.filter((h) => h.id !== hubToDelete.id);
@@ -1072,6 +1152,18 @@ export function CommunityPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem
+                  onClick={() => {
+                    const code = activeHub?.inviteCode || activeHub?.id;
+                    const url = `${window.location.origin}/messages?invite=${code}`;
+                    navigator.clipboard.writeText(url);
+                    toast.success(t('Link undangan berhasil disalin! 📋'));
+                  }}
+                  className="text-primary font-medium focus:text-primary cursor-pointer"
+                >
+                  <Share2 className="w-4 h-4 mr-2" /> {t('Undang Orang (Salin Link)')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setIsCreateChannelOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" /> {t('Buat Channel Baru')}
                 </DropdownMenuItem>
@@ -1867,54 +1959,96 @@ export function CommunityPage() {
           </div>
         )}
 
-        {/* DIALOG: BUAT SERVER BARU (Hub / Server CRUD: Create ala Discord) */}
+        {/* DIALOG: BUAT ATAU GABUNG SERVER (Ala Discord) */}
         <Dialog open={isCreateHubOpen} onOpenChange={setIsCreateHubOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <form onSubmit={handleCreateHubSubmit}>
-              <DialogHeader>
-                <DialogTitle>{t('Buat Server Baru')}</DialogTitle>
+          <DialogContent className="sm:max-w-[440px]">
+            <Tabs defaultValue="create" className="w-full">
+              <DialogHeader className="pb-2">
+                <DialogTitle>{t('Server Komunitas')}</DialogTitle>
                 <DialogDescription>
-                  {t('Beri nama server atau ruang kerja tim baru Anda untuk mengelompokkan channel diskusi.')}
+                  {t('Buat server baru untuk proyek Anda atau gabung ke server lain menggunakan kode/link undangan.')}
                 </DialogDescription>
+                <TabsList className="grid w-full grid-cols-2 mt-2">
+                  <TabsTrigger value="create">{t('Buat Server Baru')}</TabsTrigger>
+                  <TabsTrigger value="join">{t('Gabung via Link/Kode')}</TabsTrigger>
+                </TabsList>
               </DialogHeader>
 
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold">{t('Nama Server')}</label>
-                  <Input
-                    value={newHubName}
-                    onChange={(e) => setNewHubName(e.target.value)}
-                    placeholder="contoh: Tim Otomasi / Proyek Alpha"
-                    className="text-xs"
-                    required
-                    autoFocus
-                  />
+              <TabsContent value="create">
+                <form onSubmit={handleCreateHubSubmit}>
+                  <div className="grid gap-3 py-3">
+                    <div className="grid gap-1.5">
+                      <label className="text-xs font-semibold">{t('Nama Server')}</label>
+                      <Input
+                        value={newHubName}
+                        onChange={(e) => setNewHubName(e.target.value)}
+                        placeholder="contoh: Komunitas AI & Bot / Proyek Alpha"
+                        className="text-xs"
+                        required
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      <label className="text-xs font-semibold">{t('Deskripsi (Opsional)')}</label>
+                      <Input
+                        value={newHubDesc}
+                        onChange={(e) => setNewHubDesc(e.target.value)}
+                        placeholder="Ruang diskusi untuk alur kerja dan bot..."
+                        className="text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <DialogFooter className="pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsCreateHubOpen(false)}
+                    >
+                      {t('Batal')}
+                    </Button>
+                    <Button type="submit">
+                      {t('Buat Server')}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="join">
+                <div className="grid gap-3 py-3">
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-semibold">{t('Kode atau Link Undangan')}</label>
+                    <Input
+                      value={joinInviteCode}
+                      onChange={(e) => setJoinInviteCode(e.target.value)}
+                      placeholder="contoh: inv_9f2a1b atau https://.../messages?invite=..."
+                      className="text-xs"
+                      autoFocus
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {t('Tempel link undangan dari pembuat server untuk langsung bergabung ke komunitas mereka.')}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold">{t('Deskripsi (Opsional)')}</label>
-                  <Input
-                    value={newHubDesc}
-                    onChange={(e) => setNewHubDesc(e.target.value)}
-                    placeholder="Ruang diskusi untuk alur kerja..."
-                    className="text-xs"
-                  />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreateHubOpen(false)}
-                >
-                  {t('Batal')}
-                </Button>
-                <Button type="submit">
-                  {t('Buat Server')}
-                </Button>
-              </DialogFooter>
-            </form>
+                <DialogFooter className="pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsCreateHubOpen(false)}
+                  >
+                    {t('Batal')}
+                  </Button>
+                  <Button
+                    onClick={() => handleJoinHub()}
+                    disabled={isJoiningHub || !joinInviteCode.trim()}
+                  >
+                    {isJoiningHub ? t('Bergabung...') : t('Gabung Server')}
+                  </Button>
+                </DialogFooter>
+              </TabsContent>
+            </Tabs>
           </DialogContent>
         </Dialog>
 

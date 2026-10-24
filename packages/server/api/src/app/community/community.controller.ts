@@ -1,10 +1,8 @@
-import { ActivepiecesError, ErrorCode, PrincipalType } from '@activepieces/shared'
-import { FastifyBaseLogger } from 'fastify'
+import { PrincipalType } from '@activepieces/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { securityAccess } from '../core/security/authorization/fastify-security'
-import { platformService } from '../platform/platform.service'
 import { communityService } from './community.service'
 
 const COMMUNITY_PRINCIPALS = [PrincipalType.USER] as const
@@ -13,12 +11,112 @@ const communitySecurity = {
     security: securityAccess.publicPlatform(COMMUNITY_PRINCIPALS),
 }
 
-async function assertTeamChatAllowed(_platformId: string, _log: FastifyBaseLogger): Promise<void> {
-    // Chat is subsidized and free for all users to grow the open community & bot ecosystem
-    return
-}
-
 export const communityController: FastifyPluginAsyncZod = async (fastify) => {
+
+    // ── Hubs (Discord Servers) ──────────────────────────────────────────
+
+    // GET /v1/community/hubs — list all servers the user belongs to
+    fastify.get('/hubs', {
+        config: communitySecurity,
+        schema: { tags: ['community'] },
+    }, async (request, reply) => {
+        const hubs = await communityService(request.log).listHubsForUser(request.principal.id)
+        return reply.send(hubs)
+    })
+
+    // POST /v1/community/hubs — create a new server
+    fastify.post('/hubs', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            body: z.object({
+                name: z.string().min(1).max(80),
+                description: z.string().max(300).optional(),
+                color: z.string().optional(),
+                icon: z.string().optional(),
+            }),
+        },
+    }, async (request, reply) => {
+        const hub = await communityService(request.log).createHub({
+            ownerId: request.principal.id,
+            platformId: request.principal.platform.id,
+            name: request.body.name,
+            description: request.body.description,
+            color: request.body.color,
+            icon: request.body.icon,
+        })
+        return reply.status(StatusCodes.CREATED).send(hub)
+    })
+
+    // PUT /v1/community/hubs/:id — update server name/color/description
+    fastify.put('/hubs/:id', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ id: z.string() }),
+            body: z.object({
+                name: z.string().min(1).max(80).optional(),
+                description: z.string().max(300).optional(),
+                color: z.string().optional(),
+                icon: z.string().optional(),
+            }),
+        },
+    }, async (request, reply) => {
+        const updated = await communityService(request.log).updateHub({
+            id: request.params.id,
+            userId: request.principal.id,
+            ...request.body,
+        })
+        if (!updated) return reply.status(StatusCodes.FORBIDDEN).send({ message: 'Forbidden or Hub not found' })
+        return reply.send(updated)
+    })
+
+    // DELETE /v1/community/hubs/:id — delete server (owner only)
+    fastify.delete('/hubs/:id', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ id: z.string() }),
+        },
+    }, async (request, reply) => {
+        const deleted = await communityService(request.log).deleteHub({
+            id: request.params.id,
+            userId: request.principal.id,
+        })
+        if (!deleted) return reply.status(StatusCodes.FORBIDDEN).send({ message: 'Only server owner can delete' })
+        return reply.send({ success: true, id: request.params.id })
+    })
+
+    // GET /v1/community/invite/:inviteCode — preview server invite
+    fastify.get('/invite/:inviteCode', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ inviteCode: z.string() }),
+        },
+    }, async (request, reply) => {
+        const hub = await communityService(request.log).getHubByInviteCode(request.params.inviteCode)
+        if (!hub) return reply.status(StatusCodes.NOT_FOUND).send({ message: 'Invite code invalid or expired' })
+        return reply.send(hub)
+    })
+
+    // POST /v1/community/invite/:inviteCode/join — join server via invite code
+    fastify.post('/invite/:inviteCode/join', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ inviteCode: z.string() }),
+        },
+    }, async (request, reply) => {
+        const hub = await communityService(request.log).joinHubByInviteCode({
+            inviteCode: request.params.inviteCode,
+            userId: request.principal.id,
+        })
+        if (!hub) return reply.status(StatusCodes.NOT_FOUND).send({ message: 'Invite code invalid' })
+        return reply.send(hub)
+    })
+
+    // ── Channels ──────────────────────────────────────────────────────────
 
     // GET /v1/community/channels
     fastify.get('/channels', {
@@ -28,7 +126,10 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             querystring: z.object({ hubId: z.string().optional() }),
         },
     }, async (request, reply) => {
-        const channels = await communityService(request.log).listChannels(request.principal.platform.id)
+        const channels = await communityService(request.log).listChannels(
+            request.principal.platform.id,
+            request.query.hubId,
+        )
         return reply.send(channels)
     })
 
@@ -45,9 +146,9 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             }),
         },
     }, async (request, reply) => {
-        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const channel = await communityService(request.log).createChannel({
             platformId: request.principal.platform.id,
+            hubId: request.body.hubId,
             name: request.body.name,
             description: request.body.description,
             category: request.body.category,
@@ -67,7 +168,6 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             }),
         },
     }, async (request, reply) => {
-        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const updated = await communityService(request.log).updateChannel({
             id: request.params.id,
             platformId: request.principal.platform.id,
@@ -85,13 +185,14 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             params: z.object({ id: z.string() }),
         },
     }, async (request, reply) => {
-        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const deleted = await communityService(request.log).deleteChannel(
             request.params.id,
             request.principal.platform.id,
         )
         return reply.send({ success: deleted, id: request.params.id })
     })
+
+    // ── Messages ──────────────────────────────────────────────────────────
 
     // GET /v1/community/channels/:channelId/messages
     fastify.get('/channels/:channelId/messages', {
@@ -117,24 +218,22 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             params: z.object({ channelId: z.string() }),
             body: z.object({
                 content: z.string().min(1).max(4000),
-                senderName: z.string(),
-                senderEmail: z.string().email(),
+                senderName: z.string().optional(),
                 senderAvatar: z.string().nullable().optional(),
-                senderRole: z.string().default('member'),
-                attachments: z.array(z.any()).nullable().optional(),
+                senderRole: z.string().optional(),
+                attachments: z.record(z.string(), z.unknown()).nullable().optional(),
             }),
         },
     }, async (request, reply) => {
-        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const msg = await communityService(request.log).sendMessage({
             channelId: request.params.channelId,
             senderId: request.principal.id,
-            senderName: request.body.senderName,
-            senderEmail: request.body.senderEmail,
+            senderName: request.body.senderName || 'Anonymous',
+            senderEmail: '',
             senderAvatar: request.body.senderAvatar ?? null,
-            senderRole: request.body.senderRole,
+            senderRole: request.body.senderRole || 'member',
             content: request.body.content,
-            attachments: request.body.attachments as object | null,
+            attachments: request.body.attachments ?? null,
         })
         return reply.status(StatusCodes.CREATED).send(msg)
     })
@@ -147,7 +246,6 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             params: z.object({ messageId: z.string() }),
         },
     }, async (request, reply) => {
-        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const deleted = await communityService(request.log).deleteMessage(
             request.params.messageId,
             request.principal.id,
@@ -164,27 +262,34 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             params: z.object({ messageId: z.string() }),
             body: z.object({
                 emoji: z.string().min(1).max(10),
-                userId: z.string(),
+                userId: z.string().optional(),
             }),
         },
     }, async (request, reply) => {
-        await assertTeamChatAllowed(request.principal.platform.id, request.log)
+        const uid = request.body.userId || request.principal.id
         const updated = await communityService(request.log).toggleReaction({
             messageId: request.params.messageId,
             emoji: request.body.emoji,
-            userId: request.body.userId,
+            userId: uid,
             platformId: request.principal.platform.id,
         })
-        if (!updated) return reply.status(StatusCodes.NOT_FOUND).send({ message: 'Message not found' })
-        return reply.send({ id: updated.id, channelId: updated.channelId, reactions: updated.reactions })
+        return reply.send(updated)
     })
+
+    // ── Members ────────────────────────────────────────────────────────────
 
     // GET /v1/community/members
     fastify.get('/members', {
         config: communitySecurity,
-        schema: { tags: ['community'] },
+        schema: {
+            tags: ['community'],
+            querystring: z.object({ hubId: z.string().optional() }),
+        },
     }, async (request, reply) => {
-        const members = await communityService(request.log).listMembers(request.principal.platform.id)
+        const members = await communityService(request.log).listMembers(
+            request.principal.platform.id,
+            request.query.hubId,
+        )
         return reply.send(members)
     })
 
@@ -196,7 +301,6 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             body: z.object({ targetUserId: z.string() }),
         },
     }, async (request, reply) => {
-        await assertTeamChatAllowed(request.principal.platform.id, request.log)
         const channel = await communityService(request.log).getOrCreateDm({
             platformId: request.principal.platform.id,
             userId1: request.principal.id,
