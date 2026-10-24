@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/activepieces/activepieces:0.92.2
+    image: anticeil:latest
     container_name: activepieces-app
     restart: unless-stopped
     ports:
@@ -11,18 +11,20 @@ services:
     env_file: .env
     environment:
       - AP_CONTAINER_TYPE=APP
+      - AP_INTERNAL_URL=http://app
     volumes:
       - ./cache:/usr/src/app/cache
     networks:
       - activepieces
   worker:
-    image: ghcr.io/activepieces/activepieces:0.92.2
+    image: anticeil:latest
     restart: unless-stopped
     depends_on:
       - app
     env_file: .env
     environment:
       - AP_CONTAINER_TYPE=WORKER
+      - AP_INTERNAL_URL=http://app
     deploy:
       replicas: 5
     volumes:

@@ -80,6 +80,7 @@ export const sendChannelMessage = createAction({
     const candidates: string[] = [];
     if (targetUrl.includes('anticeil.com')) {
       const parsedPath = targetUrl.replace(/https?:\/\/[^\/]+/, '');
+      candidates.push(`http://app:80${parsedPath}`);
       candidates.push(`http://activepieces-app:80${parsedPath}`);
       candidates.push(`http://127.0.0.1:8080${parsedPath}`);
     }
@@ -92,7 +93,7 @@ export const sendChannelMessage = createAction({
           method: HttpMethod.POST,
           url,
           body: payload,
-          timeout: 8000,
+          timeout: 4000,
         });
         return response.body || response;
       } catch (err) {

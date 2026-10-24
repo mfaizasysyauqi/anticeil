@@ -35,5 +35,6 @@ COPY packages/server/api/src/assets/prompts/ /usr/src/app/packages/server/api/sr
 # Layer custom Anticeil native pieces onto official image
 COPY packages/pieces/community/anticeil-chat /usr/src/app/packages/pieces/community/anticeil-chat
 COPY packages/pieces/community/anticeil-chat/dist /usr/src/app/dist/packages/pieces/community/anticeil-chat
+COPY packages/pieces/community/anticeil-chat/activepieces-piece-anticeil-chat-0.1.0.tgz /usr/src/app/activepieces-piece-anticeil-chat-0.1.0.tgz
 
 

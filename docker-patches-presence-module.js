@@ -950,13 +950,16 @@ async function setupCommunityApi(app) {
     }
 
     // --- INTERCEPT PIECE BUNDLE DOWNLOAD FOR ANTICEIL CHAT (WORKER ENGINE) ---
-    app.addHook('onRequest', async (req, reply) => {
-        if (req.url && req.url.includes('/pieces/bundle') && req.query && req.query.name === '@activepieces/piece-anticeil-chat') {
+    const interceptPieceBundle = async (req, reply) => {
+        const rawUrl = decodeURIComponent(req.raw?.url || req.url || '');
+        if (rawUrl.includes('/pieces/bundle') && rawUrl.includes('anticeil-chat')) {
             const fs = require('fs');
             const path = require('path');
             const candidatePaths = [
                 '/usr/src/app/packages/pieces/community/anticeil-chat/activepieces-piece-anticeil-chat-0.1.0.tgz',
+                '/usr/src/app/activepieces-piece-anticeil-chat-0.1.0.tgz',
                 path.resolve('packages/pieces/community/anticeil-chat/activepieces-piece-anticeil-chat-0.1.0.tgz'),
+                path.resolve('activepieces-piece-anticeil-chat-0.1.0.tgz'),
                 path.join(__dirname, '../../../../../../packages/pieces/community/anticeil-chat/activepieces-piece-anticeil-chat-0.1.0.tgz')
             ];
             for (const p of candidatePaths) {
@@ -969,6 +972,8 @@ async function setupCommunityApi(app) {
                 }
             }
         }
-    });
+    };
+    app.addHook('onRequest', interceptPieceBundle);
+    app.addHook('preHandler', interceptPieceBundle);
 }
 
