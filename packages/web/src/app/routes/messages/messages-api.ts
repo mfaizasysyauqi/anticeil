@@ -1,10 +1,10 @@
 import { api } from '@/lib/api';
-import { CommunityChannel, CommunityMember, CommunityMessage } from './community-types';
+import { CommunityChannel, CommunityMember, CommunityMessage, CommunityHub } from './messages-types';
 
-export const communityApi = {
+export const messagesApi = {
   async getChannels(hubId?: string): Promise<CommunityChannel[]> {
     try {
-      const channels = await api.get<CommunityChannel[]>('/v1/community/channels', {
+      const channels = await api.get<CommunityChannel[]>('/v1/messages/channels', {
         params: hubId ? { hubId } : undefined,
       });
       if (Array.isArray(channels)) {
@@ -23,24 +23,24 @@ export const communityApi = {
     category: 'CHANNELS' | 'DIRECT MESSAGES';
     hubId?: string;
   }): Promise<CommunityChannel> {
-    return api.post<CommunityChannel>('/v1/community/channels', payload);
+    return api.post<CommunityChannel>('/v1/messages/channels', payload);
   },
 
   async updateChannel(
     id: string,
     payload: { name?: string; description?: string },
   ): Promise<CommunityChannel> {
-    return api.put<CommunityChannel>(`/v1/community/channels/${id}`, payload);
+    return api.put<CommunityChannel>(`/v1/messages/channels/${id}`, payload);
   },
 
   async deleteChannel(id: string): Promise<{ success: boolean; id: string }> {
-    return api.delete<{ success: boolean; id: string }>(`/v1/community/channels/${id}`);
+    return api.delete<{ success: boolean; id: string }>(`/v1/messages/channels/${id}`);
   },
 
   async getMessages(channelId: string): Promise<CommunityMessage[]> {
     try {
       const messages = await api.get<CommunityMessage[]>(
-        `/v1/community/channels/${channelId}/messages`,
+        `/v1/messages/channels/${channelId}/messages`,
       );
       if (Array.isArray(messages)) {
         return messages;
@@ -57,14 +57,14 @@ export const communityApi = {
     payload: Partial<CommunityMessage>,
   ): Promise<CommunityMessage> {
     return api.post<CommunityMessage>(
-      `/v1/community/channels/${channelId}/messages`,
+      `/v1/messages/channels/${channelId}/messages`,
       payload,
     );
   },
 
   async deleteMessage(messageId: string): Promise<{ success: boolean; id: string }> {
     return api.delete<{ success: boolean; id: string }>(
-      `/v1/community/messages/${messageId}`,
+      `/v1/messages/messages/${messageId}`,
     );
   },
 
@@ -73,7 +73,7 @@ export const communityApi = {
     emoji: string,
     userId: string,
   ): Promise<{ id: string; channelId?: string; reactions: Record<string, string[]> }> {
-    return api.post(`/v1/community/messages/${messageId}/reactions`, {
+    return api.post(`/v1/messages/messages/${messageId}/reactions`, {
       emoji,
       userId,
     });
@@ -81,7 +81,7 @@ export const communityApi = {
 
   async getMembers(projectId?: string, hubId?: string): Promise<CommunityMember[]> {
     try {
-      const members = await api.get<CommunityMember[]>('/v1/community/members', {
+      const members = await api.get<CommunityMember[]>('/v1/messages/members', {
         params: {
           ...(projectId ? { projectId } : {}),
           ...(hubId ? { hubId } : {}),
@@ -100,7 +100,7 @@ export const communityApi = {
   // ── Hubs (Servers) & Invites ──────────────────────────────────────────
   async getHubs(): Promise<CommunityHub[]> {
     try {
-      const hubs = await api.get<any[]>('/v1/community/hubs');
+      const hubs = await api.get<any[]>('/v1/messages/hubs');
       if (Array.isArray(hubs)) {
         return hubs.map((h) => ({
           id: h.id,
@@ -127,7 +127,7 @@ export const communityApi = {
     color?: string;
     icon?: string;
   }): Promise<CommunityHub> {
-    const h = await api.post<any>('/v1/community/hubs', payload);
+    const h = await api.post<any>('/v1/messages/hubs', payload);
     return {
       id: h.id,
       name: h.name,
@@ -145,7 +145,7 @@ export const communityApi = {
     id: string,
     payload: { name?: string; description?: string; color?: string; icon?: string },
   ): Promise<CommunityHub> {
-    const h = await api.put<any>(`/v1/community/hubs/${id}`, payload);
+    const h = await api.put<any>(`/v1/messages/hubs/${id}`, payload);
     return {
       id: h.id,
       name: h.name,
@@ -160,17 +160,17 @@ export const communityApi = {
   },
 
   async deleteHub(id: string): Promise<{ success: boolean; id: string }> {
-    return api.delete<{ success: boolean; id: string }>(`/v1/community/hubs/${id}`);
+    return api.delete<{ success: boolean; id: string }>(`/v1/messages/hubs/${id}`);
   },
 
   async getInvite(
     inviteCode: string,
   ): Promise<{ id: string; name: string; description: string; membersCount: number; color?: string }> {
-    return api.get(`/v1/community/invite/${inviteCode}`);
+    return api.get(`/v1/messages/invite/${inviteCode}`);
   },
 
   async joinHub(inviteCode: string): Promise<CommunityHub> {
-    const h = await api.post<any>(`/v1/community/invite/${inviteCode}/join`);
+    const h = await api.post<any>(`/v1/messages/invite/${inviteCode}/join`);
     return {
       id: h.id,
       name: h.name,
@@ -184,3 +184,5 @@ export const communityApi = {
     };
   },
 };
+
+export const communityApi = messagesApi;

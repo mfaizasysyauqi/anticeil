@@ -1,4 +1,4 @@
-import { CommunityChannel, CommunityHub, CommunityMember, CommunityMessage } from './community-types';
+import { CommunityChannel, CommunityHub, CommunityMember, CommunityMessage } from './messages-types';
 
 export const DEFAULT_HUBS: CommunityHub[] = [
   {

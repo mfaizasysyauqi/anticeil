@@ -3,7 +3,7 @@ import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { securityAccess } from '../core/security/authorization/fastify-security'
-import { communityService } from './community.service'
+import { messagesService } from './messages.service'
 
 const COMMUNITY_PRINCIPALS = [PrincipalType.USER] as const
 
@@ -11,7 +11,7 @@ const communitySecurity = {
     security: securityAccess.publicPlatform(COMMUNITY_PRINCIPALS),
 }
 
-export const communityController: FastifyPluginAsyncZod = async (fastify) => {
+export const messagesController: FastifyPluginAsyncZod = async (fastify) => {
 
     // ── Hubs (Discord Servers) ──────────────────────────────────────────
 
@@ -20,7 +20,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
         config: communitySecurity,
         schema: { tags: ['community'] },
     }, async (request, reply) => {
-        const hubs = await communityService(request.log).listHubsForUser(request.principal.id)
+        const hubs = await messagesService(request.log).listHubsForUser(request.principal.id)
         return reply.send(hubs)
     })
 
@@ -37,7 +37,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             }),
         },
     }, async (request, reply) => {
-        const hub = await communityService(request.log).createHub({
+        const hub = await messagesService(request.log).createHub({
             ownerId: request.principal.id,
             platformId: request.principal.platform.id,
             name: request.body.name,
@@ -62,7 +62,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             }),
         },
     }, async (request, reply) => {
-        const updated = await communityService(request.log).updateHub({
+        const updated = await messagesService(request.log).updateHub({
             id: request.params.id,
             userId: request.principal.id,
             ...request.body,
@@ -79,7 +79,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             params: z.object({ id: z.string() }),
         },
     }, async (request, reply) => {
-        const deleted = await communityService(request.log).deleteHub({
+        const deleted = await messagesService(request.log).deleteHub({
             id: request.params.id,
             userId: request.principal.id,
         })
@@ -95,7 +95,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             params: z.object({ inviteCode: z.string() }),
         },
     }, async (request, reply) => {
-        const hub = await communityService(request.log).getHubByInviteCode(request.params.inviteCode)
+        const hub = await messagesService(request.log).getHubByInviteCode(request.params.inviteCode)
         if (!hub) return reply.status(StatusCodes.NOT_FOUND).send({ message: 'Invite code invalid or expired' })
         return reply.send(hub)
     })
@@ -108,7 +108,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             params: z.object({ inviteCode: z.string() }),
         },
     }, async (request, reply) => {
-        const hub = await communityService(request.log).joinHubByInviteCode({
+        const hub = await messagesService(request.log).joinHubByInviteCode({
             inviteCode: request.params.inviteCode,
             userId: request.principal.id,
         })
@@ -126,7 +126,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             querystring: z.object({ hubId: z.string().optional() }),
         },
     }, async (request, reply) => {
-        const channels = await communityService(request.log).listChannels(
+        const channels = await messagesService(request.log).listChannels(
             request.principal.platform.id,
             request.query.hubId,
         )
@@ -146,7 +146,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             }),
         },
     }, async (request, reply) => {
-        const channel = await communityService(request.log).createChannel({
+        const channel = await messagesService(request.log).createChannel({
             platformId: request.principal.platform.id,
             hubId: request.body.hubId,
             name: request.body.name,
@@ -168,7 +168,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             }),
         },
     }, async (request, reply) => {
-        const updated = await communityService(request.log).updateChannel({
+        const updated = await messagesService(request.log).updateChannel({
             id: request.params.id,
             platformId: request.principal.platform.id,
             ...request.body,
@@ -185,7 +185,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             params: z.object({ id: z.string() }),
         },
     }, async (request, reply) => {
-        const deleted = await communityService(request.log).deleteChannel(
+        const deleted = await messagesService(request.log).deleteChannel(
             request.params.id,
             request.principal.platform.id,
         )
@@ -203,7 +203,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             querystring: z.object({ limit: z.coerce.number().min(1).max(200).default(100) }),
         },
     }, async (request, reply) => {
-        const messages = await communityService(request.log).listMessages(
+        const messages = await messagesService(request.log).listMessages(
             request.params.channelId,
             request.query.limit,
         )
@@ -225,7 +225,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             }),
         },
     }, async (request, reply) => {
-        const msg = await communityService(request.log).sendMessage({
+        const msg = await messagesService(request.log).sendMessage({
             channelId: request.params.channelId,
             senderId: request.principal.id,
             senderName: request.body.senderName || 'Anonymous',
@@ -246,7 +246,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             params: z.object({ messageId: z.string() }),
         },
     }, async (request, reply) => {
-        const deleted = await communityService(request.log).deleteMessage(
+        const deleted = await messagesService(request.log).deleteMessage(
             request.params.messageId,
             request.principal.id,
             request.principal.platform.id,
@@ -267,7 +267,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
         },
     }, async (request, reply) => {
         const uid = request.body.userId || request.principal.id
-        const updated = await communityService(request.log).toggleReaction({
+        const updated = await messagesService(request.log).toggleReaction({
             messageId: request.params.messageId,
             emoji: request.body.emoji,
             userId: uid,
@@ -286,7 +286,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             querystring: z.object({ hubId: z.string().optional() }),
         },
     }, async (request, reply) => {
-        const members = await communityService(request.log).listMembers(
+        const members = await messagesService(request.log).listMembers(
             request.principal.platform.id,
             request.query.hubId,
         )
@@ -301,7 +301,7 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
             body: z.object({ targetUserId: z.string() }),
         },
     }, async (request, reply) => {
-        const channel = await communityService(request.log).getOrCreateDm({
+        const channel = await messagesService(request.log).getOrCreateDm({
             platformId: request.principal.platform.id,
             userId1: request.principal.id,
             userId2: request.body.targetUserId,
@@ -314,10 +314,12 @@ export const communityController: FastifyPluginAsyncZod = async (fastify) => {
         config: communitySecurity,
         schema: { tags: ['community'] },
     }, async (request, reply) => {
-        const channels = await communityService(request.log).listDmChannelsForUser(
+        const channels = await messagesService(request.log).listDmChannelsForUser(
             request.principal.platform.id,
             request.principal.id,
         )
         return reply.send(channels)
     })
 }
+
+export const communityController = messagesController

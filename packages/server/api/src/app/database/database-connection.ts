@@ -3,10 +3,10 @@ import {
     DataSource,
     EntitySchema,
 } from 'typeorm'
-import { CommunityChannelEntity } from '../community/community-channel.entity'
-import { CommunityMessageEntity } from '../community/community-message.entity'
-import { CommunityHubEntity } from '../community/community-hub.entity'
-import { CommunityHubMemberEntity } from '../community/community-hub-member.entity'
+import { CommunityChannelEntity } from '../messages/community-channel.entity'
+import { CommunityMessageEntity } from '../messages/community-message.entity'
+import { CommunityHubEntity } from '../messages/community-hub.entity'
+import { CommunityHubMemberEntity } from '../messages/community-hub-member.entity'
 import { AIProviderEntity } from '../ai/ai-provider-entity'
 import { AiToolConfigEntity } from '../ai/ai-tool-config-entity'
 import { PlatformAnalyticsReportEntity } from '../analytics/platform-analytics-report.entity'

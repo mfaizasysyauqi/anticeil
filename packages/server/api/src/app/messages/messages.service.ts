@@ -12,7 +12,7 @@ const messageRepo = repoFactory(CommunityMessageEntity)
 const hubRepo = repoFactory(CommunityHubEntity)
 const hubMemberRepo = repoFactory(CommunityHubMemberEntity)
 
-export const communityService = (_log: FastifyBaseLogger) => ({
+export const messagesService = (_log: FastifyBaseLogger) => ({
 
     // ── Hubs (Discord Servers) ──────────────────────────────────────────
     async listHubsForUser(userId: string): Promise<Array<CommunityHubRow & { membersCount: number; role: string }>> {
@@ -393,3 +393,5 @@ export const communityService = (_log: FastifyBaseLogger) => ({
         })
     },
 })
+
+export const communityService = messagesService

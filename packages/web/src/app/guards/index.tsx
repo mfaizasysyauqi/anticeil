@@ -32,12 +32,12 @@ const ChatWithAIPage = lazyWithRetry(
   'chat-with-ai',
 );
 
-const CommunityPage = lazyWithRetry(
+const MessagesPage = lazyWithRetry(
   () =>
-    import('@/app/routes/community').then((m) => ({
-      default: m.CommunityPage,
+    import('@/app/routes/messages').then((m) => ({
+      default: m.default || m.CommunityPage,
     })),
-  'community',
+  'messages',
 );
 
 function chatElement() {
@@ -60,7 +60,7 @@ function communityElement() {
       <ProjectDashboardLayout>
         <PageTitle title="Chat">
           <Suspense fallback={<RouteLoadingBar />}>
-            <CommunityPage />
+            <MessagesPage />
           </Suspense>
         </PageTitle>
       </ProjectDashboardLayout>

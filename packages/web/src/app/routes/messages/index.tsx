@@ -81,14 +81,14 @@ import { InviteUserDialog } from '@/features/members';
 import { authenticationSession } from '@/lib/authentication-session';
 import { PlatformRole } from '@activepieces/shared';
 
-import { communityApi } from './community-api';
-import { CommunityAvatar } from './community-avatar';
+import { messagesApi, communityApi } from './messages-api';
+import { CommunityAvatar } from './messages-avatar';
 import {
   DEFAULT_CHANNELS,
   DEFAULT_HUBS,
   loadStoredHubs,
   saveStoredHubs,
-} from './community-data';
+} from './messages-data';
 import {
   CommunityAttachment,
   CommunityChannel,
@@ -97,7 +97,7 @@ import {
   CommunityMember,
   CommunityMessage,
   CommunityRole,
-} from './community-types';
+} from './messages-types';
 
 // Preset realistic templates for sharing
 const SHAREABLE_TEMPLATES = [
@@ -2407,4 +2407,5 @@ export function CommunityPage() {
     </LockedFeatureGuard>
   );
 }
+export { CommunityPage as MessagesPage };
 export default CommunityPage;
