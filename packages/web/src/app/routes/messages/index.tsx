@@ -242,6 +242,7 @@ export function CommunityPage() {
   // Friends panel state (Discord-style, shown when isHome)
   type FriendsTab = 'online' | 'all' | 'pending' | 'add';
   const [friendsTab, setFriendsTab] = useState<FriendsTab>('online');
+  const [friendsSearchQuery, setFriendsSearchQuery] = useState('');
   const [addFriendInput, setAddFriendInput] = useState('');
   const [isAddingFriend, setIsAddingFriend] = useState(false);
   type FriendRequest = {
@@ -459,13 +460,17 @@ export function CommunityPage() {
 
   const isHome = activeHubId === 'anticeil';
 
-  // Active channel resolution: Home prefers DMs, Servers prefer channels
+  // Active channel resolution: Home prefers explicit activeChannelId (DM chat) or null (Friends page). Servers prefer activeChannelId or first hub channel.
   const activeChannel = useMemo(() => {
     if (channels.length === 0) return null;
-    const current = channels.find((c) => c.id === activeChannelId);
-    if (current) return current;
-    return isHome ? dmChannels[0] || null : hubChannels[0] || null;
-  }, [channels, activeChannelId, isHome, dmChannels, hubChannels]);
+    if (activeChannelId) {
+      const current = channels.find((c) => c.id === activeChannelId);
+      if (current) return current;
+    }
+    return isHome ? null : hubChannels[0] || null;
+  }, [channels, activeChannelId, isHome, hubChannels]);
+
+  const isFriendsView = isHome && !activeChannel;
 
   // Active messages & filter
   const currentMessages = activeChannel ? messagesMap[activeChannel.id] || [] : [];
@@ -1140,11 +1145,8 @@ export function CommunityPage() {
                 <button
                   onClick={() => {
                     setActiveHubId(mainHub.id);
-                    // Home hub = DMs, switch to first DM
-                    if (activeHubId !== mainHub.id) {
-                      const firstDm = channels.find((c) => c.category === 'DIRECT MESSAGES');
-                      setActiveChannelId(firstDm?.id || '');
-                    }
+                    // Home hub (Discord Home): switch to Friends main page
+                    setActiveChannelId('');
                   }}
                   className={cn(
                     'relative size-9 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
@@ -1330,16 +1332,62 @@ export function CommunityPage() {
       {/* Scroll Area: Home=DMs only, Server=Channels only */}
       <div className="flex-1 min-h-0 overflow-y-auto px-2 py-3 [scrollbar-width:thin]">
         {isHome ? (
-          /* ===== HOME: DIRECT MESSAGES ONLY ===== */
+          /* ===== HOME: DIRECT MESSAGES & FRIENDS NAVIGATION ===== */
           <div>
+            {/* Discord-style Friends button at top of Direct Messages column */}
+            <button
+              onClick={() => {
+                setActiveChannelId('');
+                onItemClick?.();
+              }}
+              className={cn(
+                'w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-all text-left mb-3 cursor-pointer group',
+                isFriendsView
+                  ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
+                  : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              )}
+            >
+              <Users className={cn('w-4 h-4 shrink-0 transition-colors', isFriendsView ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
+              <span className="flex-1 font-medium">{t('Teman')}</span>
+              {friendRequests.length > 0 && (
+                <span className="size-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  {friendRequests.length}
+                </span>
+              )}
+            </button>
+
             <div className="px-2 mb-1.5 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase">
-              <span>{t('Direct Messages')}</span>
-              <span className="text-[10px] text-muted-foreground/60">{dmChannels.length}</span>
+              <span>{t('Pesan Langsung')}</span>
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => {
+                      setIsDmSearchOpen(true);
+                      setDmSearchQuery('');
+                    }}
+                    className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={4} className="font-semibold text-xs">
+                  {t('Mulai DM Baru')}
+                </TooltipContent>
+              </Tooltip>
             </div>
 
             {dmChannels.length === 0 ? (
-              <div className="px-2.5 py-2 text-[11px] text-muted-foreground/60 leading-relaxed">
-                Buka panel Teman di kanan untuk memulai chat pribadi.
+              <div className="px-2.5 py-3 text-[11px] text-muted-foreground/60 leading-relaxed text-center">
+                <p>{t('Belum ada pesan langsung.')}</p>
+                <button
+                  onClick={() => {
+                    setActiveChannelId('');
+                    setFriendsTab('all');
+                  }}
+                  className="mt-1.5 text-primary hover:underline font-semibold cursor-pointer block mx-auto text-[11px]"
+                >
+                  {t('Buka Halaman Teman →')}
+                </button>
               </div>
             ) : (
               <div className="space-y-0.5">
@@ -1562,243 +1610,452 @@ export function CommunityPage() {
     </div>
   );
 
-  // Component: Friends Sidebar Content (Discord-style, shown when isHome)
-  const renderFriendsSidebarContent = () => {
-    const onlineFriends = displayMembers.filter((m) => m.id !== currentUser?.id && m.email !== currentUser?.email && m.status !== 'offline');
-    const allFriends = displayMembers.filter((m) => m.id !== currentUser?.id && m.email !== currentUser?.email);
-    const pendingRequests = friendRequests;
+  // Friends Page helpers and state
+  const onlineFriends = useMemo(() => {
+    return displayMembers.filter(
+      (m) => m.id !== currentUser?.id && m.email !== currentUser?.email && m.status !== 'offline',
+    );
+  }, [displayMembers, currentUser]);
 
-    const handleAddFriend = async () => {
-      if (!addFriendInput.trim()) return;
-      setIsAddingFriend(true);
-      try {
-        // Simulate adding friend by username
-        await new Promise((r) => setTimeout(r, 600));
-        const found = members.find(
-          (m) =>
-            m.username === addFriendInput.trim().replace(/^@/, '') ||
-            m.name.toLowerCase() === addFriendInput.trim().toLowerCase(),
-        );
-        if (found) {
-          setFriendRequests((prev) => [
-            ...prev.filter((r) => r.id !== found.id),
-            {
-              id: found.id,
-              name: found.name,
-              username: found.username || null,
-              avatar: found.avatar || null,
-              direction: 'outgoing' as const,
-              status: 'pending' as const,
-            },
-          ]);
-          toast.success(t('Permintaan pertemanan terkirim ke') + ` ${found.name}!`);
-          setAddFriendInput('');
-        } else {
-          toast.error(t('Pengguna tidak ditemukan. Periksa username dan coba lagi.'));
+  const allFriends = useMemo(() => {
+    return displayMembers.filter(
+      (m) => m.id !== currentUser?.id && m.email !== currentUser?.email,
+    );
+  }, [displayMembers, currentUser]);
+
+  const filteredFriends = useMemo(() => {
+    const list = friendsTab === 'online' ? onlineFriends : allFriends;
+    if (!friendsSearchQuery.trim()) return list;
+    const q = friendsSearchQuery.toLowerCase();
+    return list.filter(
+      (f) =>
+        f.name.toLowerCase().includes(q) ||
+        (f.username && f.username.toLowerCase().includes(q)),
+    );
+  }, [friendsTab, onlineFriends, allFriends, friendsSearchQuery]);
+
+  const handleAddFriend = async () => {
+    if (!addFriendInput.trim()) return;
+    setIsAddingFriend(true);
+    try {
+      await new Promise((r) => setTimeout(r, 600));
+      const cleanInput = addFriendInput.trim().replace(/^@/, '').toLowerCase();
+      const found = members.find(
+        (m) =>
+          (m.username && m.username.toLowerCase() === cleanInput) ||
+          m.name.toLowerCase() === cleanInput,
+      );
+      if (found) {
+        if (found.id === currentUser?.id || found.email === currentUser?.email) {
+          toast.error(t('Kamu tidak bisa menambahkan diri sendiri sebagai teman.'));
+          return;
         }
-      } catch {
-        toast.error(t('Gagal mengirim permintaan pertemanan.'));
-      } finally {
-        setIsAddingFriend(false);
+        setFriendRequests((prev) => [
+          ...prev.filter((r) => r.id !== found.id),
+          {
+            id: found.id,
+            name: found.name,
+            username: found.username || null,
+            avatar: found.avatar || null,
+            direction: 'outgoing' as const,
+            status: 'pending' as const,
+          },
+        ]);
+        toast.success(t('Permintaan pertemanan terkirim ke') + ` ${found.name}!`);
+        setAddFriendInput('');
+      } else {
+        toast.error(t('Pengguna tidak ditemukan. Periksa username dan coba lagi.'));
       }
-    };
+    } catch {
+      toast.error(t('Gagal mengirim permintaan pertemanan.'));
+    } finally {
+      setIsAddingFriend(false);
+    }
+  };
 
-    const handleAcceptRequest = (req: FriendRequest) => {
-      setFriendRequests((prev) => prev.filter((r) => r.id !== req.id));
-      toast.success(t('Permintaan pertemanan dari') + ` ${req.name} ` + t('diterima!'));
-    };
+  const handleAcceptRequest = (req: FriendRequest) => {
+    setFriendRequests((prev) => prev.filter((r) => r.id !== req.id));
+    toast.success(t('Permintaan pertemanan dari') + ` ${req.name} ` + t('diterima!'));
+  };
 
-    const handleRejectRequest = (req: FriendRequest) => {
-      setFriendRequests((prev) => prev.filter((r) => r.id !== req.id));
-      toast(t('Permintaan pertemanan ditolak.'));
-    };
+  const handleRejectRequest = (req: FriendRequest) => {
+    setFriendRequests((prev) => prev.filter((r) => r.id !== req.id));
+    toast(t('Permintaan pertemanan ditolak.'));
+  };
 
-    const tabs: { key: FriendsTab; label: string }[] = [
-      { key: 'online', label: t('Online') },
-      { key: 'all', label: t('Semua') },
-      { key: 'pending', label: t('Tertunda') },
-      { key: 'add', label: t('Tambah Teman') },
-    ];
-
+  // Component: Discord-Style Friends Main Page (rendered in the primary content area)
+  const renderFriendsMainPage = () => {
     return (
-      <div className="flex flex-col h-full bg-sidebar border-l border-sidebar-border select-none w-60 shrink-0 overflow-hidden">
-        {/* Header */}
-        <div className="h-12 border-b border-sidebar-border px-3 flex items-center gap-2 font-semibold text-xs shrink-0 bg-sidebar z-10">
-          <Users className="w-4 h-4 text-muted-foreground" />
-          <span className="text-foreground text-sm font-semibold">{t('Teman')}</span>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex items-center gap-1 px-2 py-1.5 border-b border-sidebar-border bg-sidebar shrink-0">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setFriendsTab(tab.key)}
-              className={cn(
-                'px-2 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer',
-                friendsTab === tab.key
-                  ? tab.key === 'add'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-accent text-accent-foreground font-semibold'
-                  : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-              )}
+      <div className="flex flex-col flex-1 h-full min-h-0 min-w-0 bg-background/50 overflow-hidden">
+        {/* Top Header: Discord Friends Bar */}
+        <div className="h-12 border-b border-border/60 px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
+          <div className="flex items-center gap-3 min-w-0 overflow-x-auto [scrollbar-width:none]">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsMobileChannelsOpen(true)}
+              className="lg:hidden h-8 w-8 -ml-1 text-muted-foreground shrink-0 cursor-pointer"
+              title="Buka Menu"
             >
-              {tab.label}
-              {tab.key === 'pending' && pendingRequests.length > 0 && (
-                <span className="ml-1 inline-flex items-center justify-center size-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold">
-                  {pendingRequests.length}
-                </span>
-              )}
-            </button>
-          ))}
+              <Menu className="w-5 h-5" />
+            </Button>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Users className="w-5 h-5 text-muted-foreground" />
+              <span className="text-sm font-bold text-foreground">{t('Teman')}</span>
+            </div>
+
+            <Separator orientation="vertical" className="h-4 mx-1 shrink-0" />
+
+            {/* Tabs: Online, Semua, Tertunda, Tambah Teman */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => setFriendsTab('online')}
+                className={cn(
+                  'px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5',
+                  friendsTab === 'online'
+                    ? 'bg-accent text-accent-foreground shadow-2xs'
+                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground',
+                )}
+              >
+                <span>{t('Online')}</span>
+                {onlineFriends.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground/70">({onlineFriends.length})</span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setFriendsTab('all')}
+                className={cn(
+                  'px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5',
+                  friendsTab === 'all'
+                    ? 'bg-accent text-accent-foreground shadow-2xs'
+                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground',
+                )}
+              >
+                <span>{t('Semua')}</span>
+                {allFriends.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground/70">({allFriends.length})</span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setFriendsTab('pending')}
+                className={cn(
+                  'px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5',
+                  friendsTab === 'pending'
+                    ? 'bg-accent text-accent-foreground shadow-2xs'
+                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground',
+                )}
+              >
+                <span>{t('Tertunda')}</span>
+                {friendRequests.length > 0 && (
+                  <span className="size-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {friendRequests.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setFriendsTab('add')}
+                className={cn(
+                  'px-2.5 py-1 rounded-[4px] text-xs font-semibold transition-colors cursor-pointer ml-1',
+                  friendsTab === 'add'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'bg-emerald-600/90 hover:bg-emerald-600 text-white',
+                )}
+              >
+                {t('Tambah Teman')}
+              </button>
+            </div>
+          </div>
+
+          {/* Right Top Header Actions */}
+          <div className="flex items-center gap-2">
+            <Tooltip delayDuration={150}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    setIsDmSearchOpen(true);
+                    setDmSearchQuery('');
+                  }}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
+                {t('Mulai DM Baru')}
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 [scrollbar-width:thin]">
-          {friendsTab === 'add' ? (
-            /* Add Friend Tab */
-            <div className="p-2">
-              <div className="mb-3">
-                <h3 className="text-xs font-semibold text-foreground mb-1">{t('Tambah Teman')}</h3>
-                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  {t('Kamu bisa menambahkan teman menggunakan username mereka.')}
+        {/* Body Content */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* Main Friends Column */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 [scrollbar-width:thin]">
+            {friendsTab === 'add' ? (
+              /* ===== TAMBAH TEMAN TAB ===== */
+              <div className="max-w-xl">
+                <h2 className="text-sm font-bold text-foreground uppercase tracking-wider mb-1">
+                  {t('Tambah Teman')}
+                </h2>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {t('Kamu bisa menambahkan teman menggunakan nama pengguna mereka.')}
+                </p>
+
+                <div className="relative flex items-center rounded-lg bg-sidebar-accent/50 border border-border/80 focus-within:border-emerald-500 transition-colors p-2 shadow-2xs">
+                  <Input
+                    value={addFriendInput}
+                    onChange={(e) => setAddFriendInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddFriend()}
+                    placeholder={t('Kamu bisa menambahkan teman menggunakan nama pengguna mereka')}
+                    className="border-0 bg-transparent shadow-none focus-visible:ring-0 text-xs px-2 h-8 placeholder:text-muted-foreground/60 flex-1"
+                  />
+                  <Button
+                    onClick={handleAddFriend}
+                    disabled={!addFriendInput.trim() || isAddingFriend}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs h-8 px-4 shrink-0 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isAddingFriend ? t('Mengirim...') : t('Kirim Permintaan Pertemanan')}
+                  </Button>
+                </div>
+
+                <Separator className="my-8" />
+
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 mb-3">
+                    <Sparkles className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-foreground mb-1">
+                    {t('Wumpus menunggu teman!')}
+                  </h3>
+                  <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+                    {t('Bagikan username Anda kepada teman atau masukkan username mereka di atas untuk mulai mengobrol dan berkolaborasi.')}
+                  </p>
+                </div>
+              </div>
+            ) : friendsTab === 'pending' ? (
+              /* ===== TERTUNDA TAB ===== */
+              <div className="max-w-3xl">
+                <div className="text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase mb-3">
+                  {t('Tertunda')} — {friendRequests.length}
+                </div>
+
+                {friendRequests.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-muted/40 border border-border/50 flex items-center justify-center text-muted-foreground/40 mb-3">
+                      <Inbox className="w-8 h-8" />
+                    </div>
+                    <p className="text-xs text-muted-foreground font-medium">
+                      {t('Tidak ada permintaan pertemanan yang tertunda.')}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {friendRequests.map((req) => (
+                      <div
+                        key={req.id}
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-sidebar-accent/60 border-t border-border/40 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <CommunityAvatar name={req.name} imageUrl={req.avatar} size={40} />
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-semibold text-foreground truncate">
+                              {req.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground truncate">
+                              {req.username ? `@${req.username} • ` : ''}
+                              {req.direction === 'incoming' ? t('Permintaan Pertemanan Masuk') : t('Permintaan Pertemanan Keluar')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {req.direction === 'incoming' ? (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Tooltip delayDuration={150}>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => handleAcceptRequest(req)}
+                                  className="size-9 rounded-full bg-emerald-500/10 hover:bg-emerald-600 text-emerald-500 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                >
+                                  <UserCheck className="w-4 h-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" sideOffset={4} className="font-semibold text-xs">
+                                {t('Terima')}
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip delayDuration={150}>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => handleRejectRequest(req)}
+                                  className="size-9 rounded-full bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                >
+                                  <UserX className="w-4 h-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" sideOffset={4} className="font-semibold text-xs">
+                                {t('Tolak')}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        ) : (
+                          <Tooltip delayDuration={150}>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleRejectRequest(req)}
+                                className="size-9 rounded-full bg-sidebar-accent hover:bg-red-500 text-muted-foreground hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" sideOffset={4} className="font-semibold text-xs">
+                              {t('Batalkan')}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* ===== ONLINE / SEMUA TAB ===== */
+              <div className="max-w-3xl">
+                {/* Search Bar */}
+                <div className="relative mb-5">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
+                  <Input
+                    value={friendsSearchQuery}
+                    onChange={(e) => setFriendsSearchQuery(e.target.value)}
+                    placeholder={t('Cari...')}
+                    className="pl-9 h-9 text-xs bg-sidebar-accent/50 border-sidebar-border rounded-md"
+                  />
+                  {friendsSearchQuery && (
+                    <button
+                      onClick={() => setFriendsSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase mb-3">
+                  {friendsTab === 'online' ? t('Online') : t('Semua Teman')} — {filteredFriends.length}
+                </div>
+
+                {filteredFriends.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-muted/40 border border-border/50 flex items-center justify-center text-muted-foreground/40 mb-3">
+                      <Users className="w-8 h-8" />
+                    </div>
+                    <p className="text-xs text-muted-foreground font-medium mb-1">
+                      {friendsTab === 'online'
+                        ? t('Tidak ada teman yang sedang online saat ini.')
+                        : t('Belum ada teman. Tambahkan teman untuk memulai!')}
+                    </p>
+                    {friendsTab !== 'online' && (
+                      <Button
+                        size="sm"
+                        onClick={() => setFriendsTab('add')}
+                        className="mt-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs shadow-2xs cursor-pointer"
+                      >
+                        <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                        {t('Tambah Teman')}
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {filteredFriends.map((member) => (
+                      <div
+                        key={member.id}
+                        onClick={() => handleStartDM(member)}
+                        className="flex items-center justify-between p-2.5 rounded-lg hover:bg-sidebar-accent/60 border-t border-border/40 transition-colors group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <CommunityAvatar
+                            name={member.name}
+                            imageUrl={member.avatar}
+                            size={40}
+                            status={member.status}
+                            showStatus
+                          />
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                              {member.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground truncate">
+                              {member.username ? `@${member.username}` : (member.customStatus || (member.status === 'online' ? t('Online') : t('Offline')))}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <Tooltip delayDuration={150}>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleStartDM(member)}
+                                className="size-9 rounded-full bg-sidebar-accent hover:bg-accent hover:text-foreground text-muted-foreground flex items-center justify-center transition-colors cursor-pointer"
+                              >
+                                <MessageSquare className="w-4 h-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" sideOffset={4} className="font-semibold text-xs">
+                              {t('Pesan')}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Discord Desktop "Sedang Aktif" (Active Now) */}
+          <div className="hidden xl:flex flex-col w-80 border-l border-border/50 p-4 bg-background/30 shrink-0">
+            <h3 className="text-sm font-bold text-foreground mb-3">{t('Sedang Aktif')}</h3>
+            {onlineFriends.length === 0 ? (
+              <div className="p-4 rounded-xl border border-dashed border-border/60 text-center">
+                <p className="text-xs font-semibold text-foreground mb-1">{t('Saat ini sepi...')}</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  {t('Saat teman Anda online atau berkolaborasi di proyek, status mereka akan muncul di sini!')}
                 </p>
               </div>
-              <div className="flex gap-1.5">
-                <Input
-                  value={addFriendInput}
-                  onChange={(e) => setAddFriendInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddFriend()}
-                  placeholder={t('Masukkan username...')}
-                  className="h-8 text-xs flex-1"
-                />
-                <Button
-                  size="sm"
-                  onClick={handleAddFriend}
-                  disabled={!addFriendInput.trim() || isAddingFriend}
-                  className="h-8 text-xs px-3 gap-1 shrink-0"
-                >
-                  <UserPlus className="w-3 h-3" />
-                  {t('Kirim')}
-                </Button>
-              </div>
-            </div>
-          ) : friendsTab === 'pending' ? (
-            /* Pending Tab */
-            <div>
-              <div className="px-2 mb-1.5 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">
-                {t('Tertunda')} — {pendingRequests.length}
-              </div>
-              {pendingRequests.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <Inbox className="w-8 h-8 text-muted-foreground/30 mb-2" />
-                  <p className="text-[11px] text-muted-foreground/60">{t('Tidak ada permintaan pertemanan.')}</p>
-                </div>
-              ) : (
-                <div className="space-y-0.5">
-                  {pendingRequests.map((req) => (
-                    <div
-                      key={req.id}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent group"
-                    >
-                      <CommunityAvatar name={req.name} imageUrl={req.avatar} size={28} />
+            ) : (
+              <div className="space-y-2">
+                {onlineFriends.slice(0, 5).map((f) => (
+                  <div
+                    key={f.id}
+                    onClick={() => handleStartDM(f)}
+                    className="p-3 rounded-xl bg-sidebar-accent/40 hover:bg-sidebar-accent border border-border/50 transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <CommunityAvatar name={f.name} imageUrl={f.avatar} size={32} status={f.status} showStatus />
                       <div className="flex flex-col min-w-0 flex-1">
-                        <span className="text-xs font-medium truncate text-foreground">{req.name}</span>
-                        <span className="text-[10px] text-muted-foreground/60 truncate">
-                          {req.direction === 'incoming' ? t('Permintaan masuk') : t('Permintaan keluar')}
+                        <span className="text-xs font-semibold text-foreground group-hover:text-primary truncate">
+                          {f.name}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {f.username ? `@${f.username}` : t('Online')}
                         </span>
                       </div>
-                      {req.direction === 'incoming' ? (
-                        <div className="flex items-center gap-0.5 shrink-0">
-                          <button
-                            onClick={() => handleAcceptRequest(req)}
-                            className="p-1 rounded text-emerald-500 hover:bg-emerald-500/10 transition-colors"
-                            title={t('Terima')}
-                          >
-                            <UserCheck className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleRejectRequest(req)}
-                            className="p-1 rounded text-red-400 hover:bg-red-500/10 transition-colors"
-                            title={t('Tolak')}
-                          >
-                            <UserX className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground/50 shrink-0">
-                          <Clock className="w-3 h-3" />
-                        </span>
-                      )}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Online / All Tab */
-            <div>
-              {(() => {
-                const list = friendsTab === 'online' ? onlineFriends : allFriends;
-                const label = friendsTab === 'online' ? t('Online') : t('Semua Teman');
-                return (
-                  <>
-                    <div className="px-2 mb-1.5 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">
-                      {label} — {list.length}
+                    <div className="text-[11px] text-muted-foreground/80 flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-emerald-500 shrink-0 inline-block" />
+                      <span className="truncate">{t('Sedang aktif di workspace')}</span>
                     </div>
-                    {list.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <Users className="w-8 h-8 text-muted-foreground/30 mb-2" />
-                        <p className="text-[11px] text-muted-foreground/60">
-                          {friendsTab === 'online'
-                            ? t('Tidak ada teman yang online saat ini.')
-                            : t('Belum ada teman. Tambahkan teman untuk memulai!')}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-0.5">
-                        {list.map((member) => (
-                          <button
-                            key={member.id}
-                            onClick={() => handleStartDM(member)}
-                            className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-sidebar-accent group"
-                          >
-                            <CommunityAvatar
-                              name={member.name}
-                              imageUrl={member.avatar}
-                              size={28}
-                              status={member.status}
-                              showStatus
-                            />
-                            <div className="flex flex-col min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <span
-                                  className={cn(
-                                    'text-xs font-medium truncate',
-                                    member.status === 'offline'
-                                      ? 'text-muted-foreground/60'
-                                      : 'text-foreground group-hover:text-primary',
-                                  )}
-                                >
-                                  {member.name}
-                                </span>
-                              </div>
-                              {member.username && (
-                                <span className="text-[10px] text-muted-foreground/60 truncate font-mono leading-none mt-0.5">
-                                  @{member.username}
-                                </span>
-                              )}
-                            </div>
-                            <MessageSquare className="w-3.5 h-3.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -1957,18 +2214,21 @@ export function CommunityPage() {
           </SheetContent>
         </Sheet>
 
-        {/* MOBILE MEMBERS / FRIENDS DRAWER */}
+        {/* MOBILE MEMBERS DRAWER (Server Context) */}
         <Sheet open={isMobileMembersOpen} onOpenChange={setIsMobileMembersOpen}>
           <SheetContent side="right" className="p-0 w-72">
             <SheetHeader className="sr-only">
-              <SheetTitle>{isHome ? t('Teman') : t('Anggota Server')}</SheetTitle>
+              <SheetTitle>{t('Anggota Server')}</SheetTitle>
             </SheetHeader>
-            {isHome ? renderFriendsSidebarContent() : renderMembersSidebarContent()}
+            {renderMembersSidebarContent()}
           </SheetContent>
         </Sheet>
 
-        {/* MAIN CHAT AREA */}
-        <div className="flex flex-1 flex-col h-full min-h-0 min-w-0 bg-background/50 overflow-hidden">
+        {/* MAIN CONTENT AREA: DISCORD-STYLE FRIENDS HUB OR CHANNEL CHAT */}
+        {isFriendsView ? (
+          renderFriendsMainPage()
+        ) : (
+          <div className="flex flex-1 flex-col h-full min-h-0 min-w-0 bg-background/50 overflow-hidden">
           {/* Channel Top Header Bar: NON-SCROLLABLE APP BAR */}
           <div className="h-12 border-b border-border/60 px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
             <div className="flex items-center gap-2 min-w-0">
@@ -2382,11 +2642,12 @@ export function CommunityPage() {
             </div>
           </div>
         </div>
+        )}
 
-        {/* DESKTOP MEMBERS / FRIENDS SIDEBAR (w-60) */}
-        {showMemberList && (
+        {/* DESKTOP MEMBERS SIDEBAR (w-60) */}
+        {showMemberList && !isFriendsView && (
           <div className="hidden lg:flex shrink-0">
-            {isHome ? renderFriendsSidebarContent() : renderMembersSidebarContent()}
+            {renderMembersSidebarContent()}
           </div>
         )}
 
