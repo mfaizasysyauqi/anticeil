@@ -83,6 +83,8 @@ import { CommunityAvatar } from './community-avatar';
 import {
   DEFAULT_CHANNELS,
   DEFAULT_HUBS,
+  loadStoredHubs,
+  saveStoredHubs,
 } from './community-data';
 import {
   CommunityAttachment,
@@ -201,8 +203,13 @@ export function CommunityPage() {
   const isPlusOrAbove = planName.includes('plus') || isTeamOrEnterprise;
 
   // Discord Hubs & Channels state
-  const [hubs] = useState<CommunityHub[]>(DEFAULT_HUBS);
+  const [hubs, setHubs] = useState<CommunityHub[]>(() => loadStoredHubs());
   const [activeHubId, setActiveHubId] = useState<CommunityHubId>('anticeil');
+
+  // Server / Hub Creation Modal state (ala Discord "Tambah Server")
+  const [isCreateHubOpen, setIsCreateHubOpen] = useState(false);
+  const [newHubName, setNewHubName] = useState('');
+  const [newHubDesc, setNewHubDesc] = useState('');
 
   const [channels, setChannels] = useState<CommunityChannel[]>(DEFAULT_CHANNELS);
   const [activeChannelId, setActiveChannelId] = useState<string>('');
@@ -371,10 +378,16 @@ export function CommunityPage() {
     };
   }, [socket, activeChannelId]);
 
+  const activeHub = useMemo(() => {
+    return hubs.find((h) => h.id === activeHubId) || hubs[0];
+  }, [hubs, activeHubId]);
+
   // Channels filtered by selected Hub
   const hubChannels = useMemo(() => {
-    return channels.filter((c) => (c.hubId || 'anticeil') === 'anticeil' && c.category === 'CHANNELS');
-  }, [channels]);
+    return channels.filter(
+      (c) => (c.hubId || 'anticeil') === (activeHubId || 'anticeil') && c.category === 'CHANNELS',
+    );
+  }, [channels, activeHubId]);
 
   const dmChannels = useMemo(() => {
     return channels.filter((c) => c.category === 'DIRECT MESSAGES');
@@ -507,6 +520,57 @@ export function CommunityPage() {
     } catch (err) {
       console.error('Failed to toggle reaction', err);
     }
+  };
+
+  // Create Server / Hub (Discord style Server CRUD)
+  const handleCreateHubSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHubName.trim()) return;
+
+    const newId = `hub_${Date.now()}`;
+    const newHub: CommunityHub = {
+      id: newId,
+      name: newHubName.trim(),
+      iconType: undefined as any,
+      initials: newHubName.trim().slice(0, 2).toUpperCase() || 'SV',
+      description: newHubDesc.trim() || '',
+    };
+
+    const updatedHubs = [...hubs, newHub];
+    setHubs(updatedHubs);
+    saveStoredHubs(updatedHubs);
+    setActiveHubId(newId);
+
+    try {
+      const createdCh = await communityApi.createChannel({
+        name: 'general',
+        description: `Channel obrolan umum untuk server ${newHub.name}`,
+        category: 'CHANNELS',
+        hubId: newId,
+      });
+      setChannels((prev) => {
+        if (prev.some((c) => c.id === createdCh.id)) return prev;
+        return [...prev, createdCh];
+      });
+      setActiveChannelId(createdCh.id);
+    } catch {
+      const fallbackCh: CommunityChannel = {
+        id: `ch_${Date.now()}`,
+        name: 'general',
+        description: `Channel obrolan umum untuk server ${newHub.name}`,
+        category: 'CHANNELS',
+        hubId: newId,
+        isGeneral: true,
+        unreadCount: 0,
+      };
+      setChannels((prev) => [...prev, fallbackCh]);
+      setActiveChannelId(fallbackCh.id);
+    }
+
+    setIsCreateHubOpen(false);
+    setNewHubName('');
+    setNewHubDesc('');
+    toast.success(t('Server baru berhasil dibuat!'));
   };
 
   // Create Channel (Channel CRUD)
@@ -879,18 +943,18 @@ export function CommunityPage() {
             );
           })}
 
-          {/* Add Channel / Hub (+) Button */}
+          {/* Add Server (+) Button - Ala Discord */}
           <Tooltip delayDuration={150}>
             <TooltipTrigger asChild>
               <button
-                onClick={() => setIsCreateChannelOpen(true)}
+                onClick={() => setIsCreateHubOpen(true)}
                 className="group relative size-9 rounded-full bg-sidebar-accent text-emerald-500 hover:rounded-[10px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
-              {t('Buat Channel Baru')}
+              {t('Buat Server Baru')}
             </TooltipContent>
           </Tooltip>
 
@@ -920,7 +984,7 @@ export function CommunityPage() {
       <div className="h-12 border-b border-sidebar-border px-3.5 flex items-center justify-between font-semibold shadow-2xs shrink-0 bg-sidebar z-10">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-semibold truncate tracking-tight text-foreground">
-            {t('Team Chat')}
+            {activeHub?.name || t('Team Chat')}
           </span>
         </div>
 
@@ -933,6 +997,9 @@ export function CommunityPage() {
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem onClick={() => setIsCreateChannelOpen(true)}>
               <Plus className="w-4 h-4 mr-2" /> {t('Buat Channel Baru')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setIsCreateHubOpen(true)}>
+              <Layers className="w-4 h-4 mr-2" /> {t('Buat Server Baru')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
@@ -953,13 +1020,22 @@ export function CommunityPage() {
               <span>{t('Channels')}</span>
               <span className="text-[10px] text-muted-foreground/60">({hubChannels.length})</span>
             </div>
-            <button
-              onClick={() => setIsCreateChannelOpen(true)}
-              className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
-              title="Buat Channel"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+            <Tooltip delayDuration={150}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    setNewChannelCategory('CHANNELS');
+                    setIsCreateChannelOpen(true);
+                  }}
+                  className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={4} className="font-semibold text-xs">
+                {t('Buat Channel Baru')}
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           {hubChannels.length === 0 ? (
@@ -1701,6 +1777,57 @@ export function CommunityPage() {
             {renderMembersSidebarContent()}
           </div>
         )}
+
+        {/* DIALOG: BUAT SERVER BARU (Hub / Server CRUD: Create ala Discord) */}
+        <Dialog open={isCreateHubOpen} onOpenChange={setIsCreateHubOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <form onSubmit={handleCreateHubSubmit}>
+              <DialogHeader>
+                <DialogTitle>{t('Buat Server Baru')}</DialogTitle>
+                <DialogDescription>
+                  {t('Beri nama server atau ruang kerja tim baru Anda untuk mengelompokkan channel diskusi.')}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold">{t('Nama Server')}</label>
+                  <Input
+                    value={newHubName}
+                    onChange={(e) => setNewHubName(e.target.value)}
+                    placeholder="contoh: Tim Otomasi / Proyek Alpha"
+                    className="text-xs"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold">{t('Deskripsi (Opsional)')}</label>
+                  <Input
+                    value={newHubDesc}
+                    onChange={(e) => setNewHubDesc(e.target.value)}
+                    placeholder="Ruang diskusi untuk alur kerja..."
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCreateHubOpen(false)}
+                >
+                  {t('Batal')}
+                </Button>
+                <Button type="submit">
+                  {t('Buat Server')}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* DIALOG: BUAT CHANNEL BARU (Channel CRUD: Create) */}
         <Dialog open={isCreateChannelOpen} onOpenChange={setIsCreateChannelOpen}>

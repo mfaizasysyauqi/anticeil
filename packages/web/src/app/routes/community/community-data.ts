@@ -55,3 +55,24 @@ export function saveStoredChannels(channels: CommunityChannel[]): void {
   }
 }
 
+const STORAGE_KEY_HUBS = 'anticeil_community_hubs_v3';
+
+export function loadStoredHubs(): CommunityHub[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_HUBS);
+    if (!raw) return DEFAULT_HUBS;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_HUBS;
+  } catch {
+    return DEFAULT_HUBS;
+  }
+}
+
+export function saveStoredHubs(hubs: CommunityHub[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_HUBS, JSON.stringify(hubs));
+  } catch (err) {
+    console.error('Failed to save community hubs to storage', err);
+  }
+}
+
