@@ -84,11 +84,17 @@ const ANTICEIL_CHAT_METADATA = {
             requireAuth: false,
             props: {
                 channel: {
-                    displayName: 'Filter Channel (Opsional)',
-                    description: 'Nama atau ID saluran (contoh: general, alerts). Kosongkan untuk semua saluran.',
+                    displayName: 'Filter Saluran / Channel (Opsional)',
+                    description: 'Nama atau ID saluran (contoh: halo atau ch-mvmmfi3o-halo). Kosongkan untuk semua saluran.',
                     type: 'SHORT_TEXT',
                     required: false,
-                    defaultValue: 'general'
+                    defaultValue: ''
+                },
+                hubId: {
+                    displayName: 'Filter ID Server / Hub ID (Opsional)',
+                    description: 'ID Server Anticeil Chat tempat saluran berada. Kosongkan untuk semua server.',
+                    type: 'SHORT_TEXT',
+                    required: false
                 }
             },
             sampleData: {

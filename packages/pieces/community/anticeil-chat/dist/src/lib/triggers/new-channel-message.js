@@ -9,8 +9,13 @@ exports.newChannelMessage = (0, pieces_framework_1.createTrigger)({
     description: 'Memicu alur kerja ketika pesan baru dikirim atau diterima di saluran Anticeil Chat.',
     props: {
         channel: pieces_framework_1.Property.ShortText({
-            displayName: 'Filter Channel (Opsional)',
-            description: 'Nama atau ID saluran (contoh: general, alerts). Kosongkan untuk menerima pesan dari semua saluran.',
+            displayName: 'Filter Saluran / Channel (Opsional)',
+            description: 'Nama atau ID saluran (contoh: halo atau ch-mvmmfi3o-halo). Kosongkan untuk menerima pesan dari semua saluran.',
+            required: false,
+        }),
+        hubId: pieces_framework_1.Property.ShortText({
+            displayName: 'Filter ID Server / Hub ID (Opsional)',
+            description: 'ID Server Anticeil Chat tempat saluran berada. Kosongkan untuk menerima dari semua server.',
             required: false,
         }),
     },
@@ -35,13 +40,19 @@ exports.newChannelMessage = (0, pieces_framework_1.createTrigger)({
     },
     run(context) {
         return tslib_1.__awaiter(this, void 0, void 0, function* () {
-            var _a;
+            var _a, _b;
             const payload = context.payload.body;
             const filterChannel = (_a = context.propsValue.channel) === null || _a === void 0 ? void 0 : _a.trim();
+            const filterHubId = (_b = context.propsValue.hubId) === null || _b === void 0 ? void 0 : _b.trim();
             if (filterChannel &&
                 (payload === null || payload === void 0 ? void 0 : payload.channel) &&
                 payload.channel !== filterChannel &&
                 (payload === null || payload === void 0 ? void 0 : payload.channelId) !== filterChannel) {
+                return [];
+            }
+            if (filterHubId &&
+                (payload === null || payload === void 0 ? void 0 : payload.hubId) &&
+                payload.hubId !== filterHubId) {
                 return [];
             }
             return [payload];

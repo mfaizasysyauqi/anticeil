@@ -6,8 +6,13 @@ export const newChannelMessage = createTrigger({
   description: 'Memicu alur kerja ketika pesan baru dikirim atau diterima di saluran Anticeil Chat.',
   props: {
     channel: Property.ShortText({
-      displayName: 'Filter Channel (Opsional)',
-      description: 'Nama atau ID saluran (contoh: general, alerts). Kosongkan untuk menerima pesan dari semua saluran.',
+      displayName: 'Filter Saluran / Channel (Opsional)',
+      description: 'Nama atau ID saluran (contoh: halo atau ch-mvmmfi3o-halo). Kosongkan untuk menerima pesan dari semua saluran.',
+      required: false,
+    }),
+    hubId: Property.ShortText({
+      displayName: 'Filter ID Server / Hub ID (Opsional)',
+      description: 'ID Server Anticeil Chat tempat saluran berada. Kosongkan untuk menerima dari semua server.',
       required: false,
     }),
   },
@@ -29,11 +34,19 @@ export const newChannelMessage = createTrigger({
   async run(context) {
     const payload = context.payload.body as any;
     const filterChannel = context.propsValue.channel?.trim();
+    const filterHubId = context.propsValue.hubId?.trim();
     if (
       filterChannel &&
       payload?.channel &&
       payload.channel !== filterChannel &&
       payload?.channelId !== filterChannel
+    ) {
+      return [];
+    }
+    if (
+      filterHubId &&
+      payload?.hubId &&
+      payload.hubId !== filterHubId
     ) {
       return [];
     }

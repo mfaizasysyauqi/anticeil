@@ -50,8 +50,14 @@ export const ANTICEIL_CHAT_PIECE_MODEL: PieceMetadataModel = {
       requireAuth: false,
       props: {
         channel: {
-          displayName: 'Filter Channel (Opsional)',
-          description: 'Nama atau ID saluran (contoh: general, alerts). Kosongkan untuk menerima pesan dari semua saluran.',
+          displayName: 'Filter Saluran / Channel (Opsional)',
+          description: 'Nama atau ID saluran (contoh: halo atau ch-mvmmfi3o-halo). Kosongkan untuk menerima pesan dari semua saluran.',
+          type: PropertyType.SHORT_TEXT,
+          required: false,
+        },
+        hubId: {
+          displayName: 'Filter ID Server / Hub ID (Opsional)',
+          description: 'ID Server Anticeil Chat tempat saluran berada. Kosongkan untuk menerima dari semua server.',
           type: PropertyType.SHORT_TEXT,
           required: false,
         },
