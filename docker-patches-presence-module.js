@@ -597,29 +597,103 @@ async function setupCommunityApi(app) {
         return { id, channelId, reactions };
     });
 
-    // --- MEMBERS (isolated per platform/tenant) ---
+    // --- MEMBERS (isolated per platform/tenant, with explicit platform & project roles) ---
     app.get('/v1/community/members', async (req) => {
         const platformId = getPlatformId(req);
         if (!platformId) return [];
+
+        let projectId = req.query?.projectId;
+        if (!projectId && req.principal?.projectId) {
+            projectId = req.principal.projectId;
+        }
+        if (!projectId) {
+            try {
+                const auth = req.headers && req.headers.authorization;
+                if (auth && auth.startsWith('Bearer ')) {
+                    const parts = auth.substring(7).split('.');
+                    if (parts.length === 3) {
+                        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                        if (payload && payload.projectId) projectId = payload.projectId;
+                    }
+                }
+            } catch (e) {}
+        }
+
         const ds = await getDb();
         if (ds) {
             try {
                 const users = await ds.query(`
-                    SELECT u.id, u."platformRole", ui."firstName", ui."lastName", ui.email, ui."imageUrl"
+                    SELECT 
+                        u.id, 
+                        u."platformRole", 
+                        ui."firstName", 
+                        ui."lastName", 
+                        ui.email, 
+                        ui."imageUrl",
+                        pm_info."projectRoleName"
                     FROM "user" u
                     LEFT JOIN "user_identity" ui ON u."identityId" = ui.id
+                    LEFT JOIN LATERAL (
+                        SELECT pr.name as "projectRoleName"
+                        FROM "project_member" pm
+                        LEFT JOIN "project_role" pr ON pm."projectRoleId" = pr.id
+                        WHERE pm."userId" = u.id AND (pm."projectId" = $2 OR $2 IS NULL)
+                        ORDER BY 
+                            CASE 
+                                WHEN pr.name = 'Admin' THEN 1
+                                WHEN pr.name = 'Editor' THEN 2
+                                WHEN pr.name = 'Viewer' THEN 3
+                                ELSE 4
+                            END ASC
+                        LIMIT 1
+                    ) pm_info ON true
                     WHERE u."platformId" = $1
-                    ORDER BY u."platformRole" ASC, ui."firstName" ASC
+                    ORDER BY 
+                        CASE 
+                            WHEN u."platformRole" = 'ADMIN' THEN 1
+                            WHEN u."platformRole" = 'OPERATOR' THEN 2
+                            WHEN pm_info."projectRoleName" = 'Admin' THEN 3
+                            WHEN pm_info."projectRoleName" = 'Editor' THEN 4
+                            WHEN pm_info."projectRoleName" = 'Viewer' THEN 5
+                            ELSE 6
+                        END ASC,
+                        ui."firstName" ASC
                     LIMIT 200
-                `, [platformId]);
-                return (users || []).map(u => ({
-                    id: u.id,
-                    name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'User',
-                    email: u.email || '',
-                    avatar: u.imageUrl || null,
-                    role: u.platformRole === 'ADMIN' ? 'admin' : 'member',
-                    status: 'online'
-                }));
+                `, [platformId, projectId || null]);
+
+                return (users || []).map(u => {
+                    let role = 'member';
+                    let roleLabel = 'Anggota Platform';
+
+                    if (u.platformRole === 'ADMIN') {
+                        role = 'platform_admin';
+                        roleLabel = 'Admin Platform';
+                    } else if (u.platformRole === 'OPERATOR') {
+                        role = 'platform_operator';
+                        roleLabel = 'Operator Platform';
+                    } else if (u.projectRoleName === 'Admin') {
+                        role = 'project_admin';
+                        roleLabel = 'Admin Proyek';
+                    } else if (u.projectRoleName === 'Editor') {
+                        role = 'project_editor';
+                        roleLabel = 'Editor Proyek';
+                    } else if (u.projectRoleName === 'Viewer') {
+                        role = 'project_viewer';
+                        roleLabel = 'Viewer Proyek';
+                    }
+
+                    return {
+                        id: u.id,
+                        name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'User',
+                        email: u.email || '',
+                        avatar: u.imageUrl || null,
+                        role,
+                        roleLabel,
+                        platformRole: u.platformRole,
+                        projectRole: u.projectRoleName || null,
+                        status: 'online'
+                    };
+                });
             } catch (e) {
                 return [];
             }

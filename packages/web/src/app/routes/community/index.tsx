@@ -75,6 +75,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 import { InviteUserDialog } from '@/features/members';
+import { authenticationSession } from '@/lib/authentication-session';
 
 import { communityApi } from './community-api';
 import { CommunityAvatar } from './community-avatar';
@@ -242,9 +243,10 @@ export function CommunityPage() {
     let mounted = true;
     const loadData = async () => {
       try {
+        const currentProjectId = authenticationSession.getProjectId();
         const [channelsRes, membersRes] = await Promise.all([
           communityApi.getChannels(),
-          communityApi.getMembers(),
+          communityApi.getMembers(currentProjectId || undefined),
         ]);
         if (mounted) {
           if (Array.isArray(channelsRes)) {
@@ -418,13 +420,23 @@ export function CommunityPage() {
       currentUser?.email?.split('@')[0] ||
       'Pengguna Anticeil';
 
+    const myMemberInfo = members.find((m) => m.id === currentUserId || m.email === currentUser?.email);
+    let myRole: CommunityRole = myMemberInfo?.role || 'member';
+    if (!myMemberInfo) {
+      if (currentUser?.platformRole === 'ADMIN' || currentUser?.platformRole === 'OWNER') {
+        myRole = 'platform_admin';
+      } else if (currentUser?.platformRole === 'OPERATOR') {
+        myRole = 'platform_operator';
+      }
+    }
+
     const payload: Partial<CommunityMessage> = {
       channelId: activeChannel.id,
       senderId: currentUserId,
       senderName: currentUserName,
       senderEmail: currentUser?.email || 'user@anticeil.com',
       senderAvatar: currentUser?.imageUrl ?? null,
-      senderRole: (currentUser?.platformRole === 'ADMIN' ? 'admin' : 'creator') as CommunityRole,
+      senderRole: myRole,
       content: inputText.trim(),
       attachments: stagedAttachment ? [stagedAttachment] : undefined,
     };
@@ -684,25 +696,38 @@ export function CommunityPage() {
     }
   };
 
-  // Role Badge Helper
-  const renderRoleBadge = (role: CommunityRole) => {
+  // Role Badge Helper (Explicit Platform & Project Roles)
+  const renderRoleBadge = (role: CommunityRole, roleLabel?: string) => {
     switch (role) {
+      case 'platform_admin':
       case 'admin':
         return (
-          <Badge className="bg-red-500/15 text-red-400 hover:bg-red-500/25 border-red-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1">
-            <Shield className="w-2.5 h-2.5" /> Staff
+          <Badge className="bg-red-500/15 text-red-400 hover:bg-red-500/25 border-red-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1 shrink-0">
+            <Shield className="w-2.5 h-2.5" /> {roleLabel || t('Admin Platform')}
           </Badge>
         );
-      case 'creator':
+      case 'platform_operator':
         return (
-          <Badge className="bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 border-purple-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1">
-            <Sparkles className="w-2.5 h-2.5" /> Creator
+          <Badge className="bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 border-amber-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1 shrink-0">
+            <Shield className="w-2.5 h-2.5" /> {roleLabel || t('Operator Platform')}
           </Badge>
         );
-      case 'pro':
+      case 'project_admin':
         return (
-          <Badge className="bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border-emerald-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1">
-            <Crown className="w-2.5 h-2.5" /> Pro
+          <Badge className="bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 border-purple-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1 shrink-0">
+            <Crown className="w-2.5 h-2.5" /> {roleLabel || t('Admin Proyek')}
+          </Badge>
+        );
+      case 'project_editor':
+        return (
+          <Badge className="bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border-blue-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1 shrink-0">
+            <Edit2 className="w-2.5 h-2.5" /> {roleLabel || t('Editor Proyek')}
+          </Badge>
+        );
+      case 'project_viewer':
+        return (
+          <Badge className="bg-slate-500/15 text-slate-400 hover:bg-slate-500/25 border-slate-500/20 text-[10px] px-1.5 py-0 uppercase font-semibold gap-1 shrink-0">
+            <Users className="w-2.5 h-2.5" /> {roleLabel || t('Viewer Proyek')}
           </Badge>
         );
       default:
@@ -718,12 +743,23 @@ export function CommunityPage() {
   const displayMembers: CommunityMember[] = useMemo(() => {
     const list = [...members];
     if (currentUser && !list.some((m) => m.id === currentUser.id || m.email === currentUser.email)) {
+      let currentRole: CommunityRole = 'member';
+      let currentLabel = 'Anggota Platform';
+      if (currentUser.platformRole === 'ADMIN' || currentUser.platformRole === 'OWNER') {
+        currentRole = 'platform_admin';
+        currentLabel = 'Admin Platform';
+      } else if (currentUser.platformRole === 'OPERATOR') {
+        currentRole = 'platform_operator';
+        currentLabel = 'Operator Platform';
+      }
       list.unshift({
         id: currentUser.id,
         name: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email,
         email: currentUser.email,
         avatar: currentUser.imageUrl ?? null,
-        role: (currentUser.platformRole === 'ADMIN' || currentUser.platformRole === 'OWNER' ? 'admin' : 'member') as CommunityRole,
+        role: currentRole,
+        roleLabel: currentLabel,
+        platformRole: currentUser.platformRole,
         status: 'online',
         customStatus: undefined,
       });
@@ -1057,11 +1093,13 @@ export function CommunityPage() {
 
   // Component: Members Sidebar Content
   const renderMembersSidebarContent = () => {
-    const roles: { key: CommunityRole; title: string; count: number }[] = [
-      { key: 'admin', title: 'Staff', count: displayMembers.filter((m) => m.role === 'admin').length },
-      { key: 'creator', title: 'Kreator Template', count: displayMembers.filter((m) => m.role === 'creator').length },
-      { key: 'pro', title: 'Pro Member', count: displayMembers.filter((m) => m.role === 'pro').length },
-      { key: 'member', title: 'Anggota Lainnya', count: displayMembers.filter((m) => m.role === 'member').length },
+    const roleGroups: { key: CommunityRole; title: string; count: number }[] = [
+      { key: 'platform_admin', title: t('Admin Platform'), count: displayMembers.filter((m) => m.role === 'platform_admin' || m.role === 'admin').length },
+      { key: 'platform_operator', title: t('Operator Platform'), count: displayMembers.filter((m) => m.role === 'platform_operator').length },
+      { key: 'project_admin', title: t('Admin Proyek'), count: displayMembers.filter((m) => m.role === 'project_admin').length },
+      { key: 'project_editor', title: t('Editor Proyek'), count: displayMembers.filter((m) => m.role === 'project_editor').length },
+      { key: 'project_viewer', title: t('Viewer Proyek'), count: displayMembers.filter((m) => m.role === 'project_viewer').length },
+      { key: 'member', title: t('Anggota Platform'), count: displayMembers.filter((m) => m.role === 'member' || !m.role || m.role === 'pro' || m.role === 'creator').length },
     ];
 
     return (
@@ -1082,7 +1120,7 @@ export function CommunityPage() {
               <p className="text-xs text-muted-foreground/60">{t('Belum ada anggota')}</p>
             </div>
           ) : (
-            roles.map((r) =>
+            roleGroups.map((r) =>
               r.count > 0 ? (
                 <div key={r.key} className="mb-4">
                   <div className="px-2 mb-1.5 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider flex items-center justify-between">
@@ -1091,7 +1129,11 @@ export function CommunityPage() {
                   </div>
                   <div className="space-y-0.5">
                     {displayMembers
-                      .filter((m) => m.role === r.key)
+                      .filter((m) => {
+                        if (r.key === 'platform_admin') return m.role === 'platform_admin' || m.role === 'admin';
+                        if (r.key === 'member') return m.role === 'member' || !m.role || m.role === 'pro' || m.role === 'creator';
+                        return m.role === r.key;
+                      })
                       .map((member) => (
                         <button
                           key={member.id}
@@ -1117,7 +1159,7 @@ export function CommunityPage() {
                               >
                                 {member.name}
                               </span>
-                              {renderRoleBadge(member.role)}
+                              {renderRoleBadge(member.role, member.roleLabel)}
                             </div>
                             {member.customStatus && (
                               <span className="text-[10px] text-muted-foreground/70 truncate">

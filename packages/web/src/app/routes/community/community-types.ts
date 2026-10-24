@@ -1,4 +1,13 @@
-export type CommunityRole = 'admin' | 'creator' | 'pro' | 'member';
+export type CommunityRole =
+  | 'platform_admin'
+  | 'platform_operator'
+  | 'project_admin'
+  | 'project_editor'
+  | 'project_viewer'
+  | 'member'
+  | 'admin'
+  | 'creator'
+  | 'pro';
 
 export type CommunityHubId = 'anticeil' | 'direct-messages' | string;
 
@@ -56,6 +65,9 @@ export type CommunityMember = {
   email: string;
   avatar?: string | null;
   role: CommunityRole;
+  roleLabel?: string;
+  platformRole?: string;
+  projectRole?: string | null;
   status: 'online' | 'idle' | 'offline';
   customStatus?: string;
 };

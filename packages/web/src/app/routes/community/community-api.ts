@@ -79,9 +79,11 @@ export const communityApi = {
     });
   },
 
-  async getMembers(): Promise<CommunityMember[]> {
+  async getMembers(projectId?: string): Promise<CommunityMember[]> {
     try {
-      const members = await api.get<CommunityMember[]>('/v1/community/members');
+      const members = await api.get<CommunityMember[]>('/v1/community/members', {
+        params: projectId ? { projectId } : undefined,
+      });
       if (Array.isArray(members)) {
         return members;
       }
