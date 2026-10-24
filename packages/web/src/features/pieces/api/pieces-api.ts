@@ -13,6 +13,7 @@ import {
   ListPiecesRequestQuery,
   PackageType,
   PieceOptionRequest,
+  TriggerTestStrategy,
 } from '@activepieces/shared';
 import { t } from 'i18next';
 
@@ -47,6 +48,7 @@ export const ANTICEIL_CHAT_PIECE_MODEL: PieceMetadataModel = {
       displayName: 'Pesan Baru di Saluran',
       description: 'Memicu alur kerja ketika pesan baru dikirim atau diterima di saluran Anticeil Chat.',
       type: 'WEBHOOK' as any,
+      testStrategy: TriggerTestStrategy.TEST_FUNCTION,
       requireAuth: false,
       props: {
         channel: {
