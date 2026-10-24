@@ -78,24 +78,32 @@ export const userIdentityService = (log: FastifyBaseLogger) => ({
     },
     async getIdentityByEmail(email: string): Promise<UserIdentity | null> {
         const cleanedEmail = email.toLowerCase().trim()
-        return userIdentityRepository().findOneBy({ email: cleanedEmail })
+        const identity = await userIdentityRepository().findOneBy({ email: cleanedEmail })
+        if (!identity) {
+            return null
+        }
+        return ensureUsername(identity)
     },
     async getOneOrFail(params: GetOneOrFailParams): Promise<UserIdentity> {
         const userIdentity = await userIdentityRepository().findOneByOrFail({ id: params.id })
-        return userIdentity
+        return ensureUsername(userIdentity)
     },
     async getBasicInformation(id: string): Promise<Pick<UserIdentity, 'email' | 'firstName' | 'lastName' | 'trackEvents' | 'newsLetter' | 'imageUrl' | 'username' | 'usernameUpdatedAt'>> {
         const user = await userIdentityRepository().findOneByOrFail({ id })
+        const resolved = await ensureUsername(user)
         return {
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            trackEvents: user.trackEvents,
-            newsLetter: user.newsLetter,
-            imageUrl: user.imageUrl,
-            username: user.username,
-            usernameUpdatedAt: user.usernameUpdatedAt,
+            email: resolved.email,
+            firstName: resolved.firstName,
+            lastName: resolved.lastName,
+            trackEvents: resolved.trackEvents,
+            newsLetter: resolved.newsLetter,
+            imageUrl: resolved.imageUrl,
+            username: resolved.username,
+            usernameUpdatedAt: resolved.usernameUpdatedAt,
         }
+    },
+    async ensureUsername(identity: UserIdentity): Promise<UserIdentity> {
+        return ensureUsername(identity)
     },
     async updatePassword(params: UpdatePasswordParams): Promise<void> {
         const hashedPassword = await passwordHasher.hash(params.newPassword)
@@ -214,6 +222,23 @@ async function generateUniqueUsername(email: string): Promise<string> {
         attempt++
     }
     return `${trimmed}_${nanoid(6).toLowerCase()}`
+}
+
+async function ensureUsername(identity: UserIdentity): Promise<UserIdentity> {
+    if (identity.username && identity.username.trim().length >= 3) {
+        return identity
+    }
+    const newUsername = await generateUniqueUsername(identity.email)
+    try {
+        await userIdentityRepository().update(identity.id, {
+            username: newUsername,
+        })
+        identity.username = newUsername
+    } catch (e) {
+        // In case of any concurrent write race, fallback in-memory so response is never null
+        identity.username = newUsername
+    }
+    return identity
 }
 
 type GetOneOrFailParams = {

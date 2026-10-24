@@ -44,15 +44,20 @@ export function AccountSettingsDialog({
       ? user?.firstName ?? ''
       : `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
 
+  const emailUsername = user?.email
+    ? user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')
+    : 'user';
+  const effectiveUsername = user?.username || emailUsername;
+
   const [displayNameInput, setDisplayNameInput] = useState('');
   const [usernameInput, setUsernameInput] = useState('');
 
   useEffect(() => {
     if (user) {
       setDisplayNameInput(currentDisplayName);
-      setUsernameInput(user.username ?? '');
+      setUsernameInput(user.username || emailUsername);
     }
-  }, [user, open, currentDisplayName]);
+  }, [user, open, currentDisplayName, emailUsername]);
 
   const usernameCooldownEnd = user?.usernameUpdatedAt
     ? dayjs(user.usernameUpdatedAt).add(14, 'day')
@@ -175,7 +180,7 @@ export function AccountSettingsDialog({
                 </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-1.5 truncate mt-0.5">
                   <span className="font-mono text-primary font-medium">
-                    @{user?.username || 'username'}
+                    @{effectiveUsername}
                   </span>
                   <span>•</span>
                   <Mail className="w-3.5 h-3.5 shrink-0" />

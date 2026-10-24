@@ -96,6 +96,8 @@ export const federatedAuthnService = (log: FastifyBaseLogger) => ({
                 password: crypto.randomBytes(32).toString('hex'),
                 imageUrl,
             })
+        } else if (!identity.username || identity.username.trim().length < 3) {
+            identity = await identityService.ensureUsername(identity)
         }
 
         // 2. Provision any pending invitations for this email

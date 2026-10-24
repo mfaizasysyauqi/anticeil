@@ -95,6 +95,10 @@ const federatedAuthnService = (log) => ({
                 password: crypto.randomBytes(32).toString('hex'),
                 imageUrl,
             });
+        } else if (!identity.username || identity.username.trim().length < 3) {
+            if (typeof identityService.ensureUsername === 'function') {
+                identity = await identityService.ensureUsername(identity);
+            }
         }
 
         // 2. Provision any pending invitations for this email

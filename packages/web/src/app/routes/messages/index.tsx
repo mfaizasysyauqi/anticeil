@@ -1479,8 +1479,9 @@ export function CommunityPage() {
             <button
               type="button"
               onClick={() => {
+                const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
                 setEditDisplayNameInput(currentUserName);
-                setEditUsernameInput(currentUser?.username || '');
+                setEditUsernameInput(currentUser?.username || fallback);
                 setIsEditProfileOpen(true);
               }}
               className="text-xs font-semibold truncate leading-tight text-foreground text-left hover:text-primary transition-colors flex items-center gap-1 group/name"
@@ -1492,15 +1493,18 @@ export function CommunityPage() {
             <button
               type="button"
               onClick={() => {
+                const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
                 setEditDisplayNameInput(currentUserName);
-                setEditUsernameInput(currentUser?.username || '');
+                setEditUsernameInput(currentUser?.username || fallback);
                 setIsEditProfileOpen(true);
               }}
               className="text-[10px] text-muted-foreground hover:text-primary transition-colors font-mono leading-none mt-0.5 truncate text-left flex items-center gap-1 group/user"
               title={t('Ubah nama tampilan atau username')}
             >
               <span className="truncate">
-                {currentUser?.username ? `@${currentUser.username}` : t('@atur_username')}
+                {currentUser?.username || currentUser?.email
+                  ? `@${currentUser?.username || currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')}`
+                  : t('@atur_username')}
               </span>
               <Edit2 className="w-2 h-2 opacity-0 group-hover/user:opacity-60 transition-opacity shrink-0" />
             </button>
