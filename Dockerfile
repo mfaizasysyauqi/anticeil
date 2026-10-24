@@ -32,4 +32,8 @@ COPY dist/packages/web/ /usr/src/app/dist/packages/web/
 # Layer custom Anticeil prompts onto official image
 COPY packages/server/api/src/assets/prompts/ /usr/src/app/packages/server/api/src/assets/prompts/
 
+# Layer custom Anticeil native pieces onto official image
+COPY packages/pieces/community/anticeil-chat /usr/src/app/packages/pieces/community/anticeil-chat
+COPY packages/pieces/community/anticeil-chat/dist /usr/src/app/dist/packages/pieces/community/anticeil-chat
+
 

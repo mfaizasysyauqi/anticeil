@@ -21,8 +21,87 @@ const CLOUD_API_URL = 'https://cloud.activepieces.com/api/v1/pieces';
 const syncMode = system_1.system.get(system_props_1.AppSystemProp.PIECES_SYNC_MODE);
 const CACHE_INVALIDATION_INTERVAL_MS = 15_000;
 
+const ANTICEIL_CHAT_METADATA = {
+    name: '@activepieces/piece-anticeil-chat',
+    displayName: 'Anticeil Chat',
+    logoUrl: 'https://cdn.activepieces.com/pieces/discord.png',
+    description: 'Kirim pesan dan notifikasi otomatis ke saluran Anticeil Chat / Messages.',
+    version: '0.1.0',
+    minimumSupportedRelease: '0.0.1',
+    maximumSupportedRelease: '99.99.99',
+    packageType: shared_1.PackageType?.REGISTRY || 'REGISTRY',
+    pieceType: shared_1.PieceType?.OFFICIAL || 'OFFICIAL',
+    categories: ['COMMUNICATION'],
+    authors: ['Anticeil Team'],
+    actions: {
+        send_channel_message: {
+            name: 'send_channel_message',
+            displayName: 'Kirim Pesan ke Channel',
+            description: 'Kirim pesan bot otomatis dengan format Markdown ke saluran obrolan Anticeil Chat.',
+            requireAuth: false,
+            props: {
+                channel: {
+                    displayName: 'Channel',
+                    description: 'Nama channel (contoh: general, alerts, dev) atau ID channel.',
+                    type: 'SHORT_TEXT',
+                    required: true,
+                    defaultValue: 'general'
+                },
+                content: {
+                    displayName: 'Isi Pesan (Markdown)',
+                    description: 'Pesan yang ingin dikirim. Mendukung format Markdown (bold, italic, list, link, code).',
+                    type: 'LONG_TEXT',
+                    required: true
+                },
+                botName: {
+                    displayName: 'Nama Bot',
+                    description: 'Nama bot pengirim yang akan ditampilkan dengan badge [BOT] ungu.',
+                    type: 'SHORT_TEXT',
+                    required: false,
+                    defaultValue: 'Anticeil Bot'
+                },
+                botAvatar: {
+                    displayName: 'Avatar URL',
+                    description: 'URL gambar avatar bot.',
+                    type: 'SHORT_TEXT',
+                    required: false
+                },
+                webhookUrl: {
+                    displayName: 'Custom Webhook URL',
+                    description: 'Opsional: URL endpoint webhook jika workflow dijalankan di luar instance lokal. Default: http://127.0.0.1:3000/api/v1/community/webhook',
+                    type: 'SHORT_TEXT',
+                    required: false
+                }
+            }
+        }
+    },
+    triggers: {}
+};
+
+async function ensureAnticeilChatPiece(log) {
+    try {
+        const repo = (0, piece_metadata_service_1.pieceRepos)();
+        const existing = await repo.findOne({
+            where: { name: ANTICEIL_CHAT_METADATA.name }
+        });
+        if (!existing) {
+            log.info('[Anticeil Decoupling] Seeding native @activepieces/piece-anticeil-chat piece into database');
+            await (0, piece_metadata_service_1.pieceMetadataService)(log).create({
+                pieceMetadata: ANTICEIL_CHAT_METADATA,
+                packageType: ANTICEIL_CHAT_METADATA.packageType,
+                pieceType: ANTICEIL_CHAT_METADATA.pieceType,
+                publishCacheRefresh: true,
+            });
+            await (0, piece_cache_1.pieceCache)(log).invalidate();
+        }
+    } catch (e) {
+        log.warn({ err: e?.message }, '[Anticeil Decoupling] Warning while ensuring native piece-anticeil-chat');
+    }
+}
+
 const pieceSyncService = (log) => ({
     async setup() {
+        await ensureAnticeilChatPiece(log);
         job_handlers_1.systemJobHandlers.registerJobHandler(common_1.SystemJobName.PIECES_SYNC, async function syncPiecesJobHandler() {
             await (0, exports.pieceSyncService)(log).sync({ publishCacheRefresh: true });
         });
@@ -40,6 +119,7 @@ const pieceSyncService = (log) => ({
         });
     },
     async sync({ publishCacheRefresh }) {
+        await ensureAnticeilChatPiece(log);
         if (syncMode !== shared_1.PieceSyncMode.OFFICIAL_AUTO) {
             log.info('[Anticeil Decoupling] Piece sync service is disabled or in manual mode');
             return;
