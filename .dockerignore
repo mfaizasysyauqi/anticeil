@@ -17,5 +17,7 @@ dist
 !dist/packages/web
 **/dist
 !dist/packages/web/**
+!packages/pieces/community/anticeil-chat/dist
+!packages/pieces/community/anticeil-chat/dist/**
 docs
 **/node_modules
