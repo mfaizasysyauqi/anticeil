@@ -667,7 +667,7 @@ export function CommunityPage() {
       setHubToEdit(null);
       toast.success(t('Nama server berhasil diperbarui!'));
     } catch {
-      const updatedHubs = hubs.map((h) => {
+      const updatedHubs: CommunityHub[] = hubs.map((h) => {
         if (h.id === hubToEdit.id) {
           return {
             ...h,

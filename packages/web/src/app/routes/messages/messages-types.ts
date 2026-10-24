@@ -16,7 +16,7 @@ export type CommunityHub = {
   name: string;
   iconType: 'logo' | 'spark' | 'bot' | 'templates' | 'code' | 'dm';
   initials: string;
-  description: string;
+  description?: string;
   unreadCount?: number;
   inviteCode?: string;
   membersCount?: number;
