@@ -1,10 +1,8 @@
 import { PlatformBillingInformation } from '@activepieces/shared';
 import { t } from 'i18next';
 
-import nonFreePlanBg from '@/assets/img/custom/non-free-plan-bg.jpg';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 import { billingUtils } from '../utils/billing-utils';
 
@@ -20,41 +18,30 @@ export const CurrentSubscriptionCard = ({
   const isPaid = billingUtils.isPaidPlan(info.plan.plan);
   const isYearly = billingUtils.isYearlyPlan(info);
 
-  if (isPaid) {
-    return (
-      <div
-        className="flex flex-col gap-6 rounded-xl bg-cover bg-center p-5"
-        style={{ backgroundImage: `url(${nonFreePlanBg})` }}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <span className="text-2xl font-bold text-neutral-900">
+  return (
+    <div className="flex flex-col justify-between gap-6 rounded-xl border bg-card p-5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-muted-foreground">
+            {t('Current plan')}
+          </span>
+          <span className="text-2xl font-bold text-foreground">
             {planTitle(info)}
           </span>
-          <Badge className="rounded-full border-0 bg-white px-3 py-1 text-primary shadow-sm hover:bg-white">
+        </div>
+        {isPaid && (
+          <Badge
+            variant="outline"
+            className="rounded-full px-3 py-1 text-xs font-medium border-border text-muted-foreground bg-muted/40"
+          >
             {isYearly ? t('Yearly') : t('Monthly')}
           </Badge>
-        </div>
-        <Button
-          className="w-full bg-white text-neutral-900 hover:bg-white/90 dark:bg-neutral-950 dark:text-white dark:hover:bg-neutral-900 border-0 shadow-sm font-semibold transition-all"
-          onClick={onExplorePlans}
-        >
-          {t('Upgrade')}
-        </Button>
+        )}
       </div>
-    );
-  }
-
-  return (
-    <div
-      className={cn(
-        'flex flex-col gap-4 rounded-xl border border-primary/20 p-5',
-        'bg-gradient-to-r from-amber-50 to-primary/10',
-        'dark:border-primary/20 dark:from-muted/40 dark:to-primary/10',
-      )}
-    >
-      <span className="text-sm text-muted-foreground">{t('Current plan')}</span>
-      <div className="text-2xl font-semibold">{planTitle(info)}</div>
-      <Button className="w-full" onClick={onExplorePlans}>
+      <Button
+        className="w-full font-semibold"
+        onClick={onExplorePlans}
+      >
         {t('Upgrade')}
       </Button>
     </div>
