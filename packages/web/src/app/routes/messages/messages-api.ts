@@ -350,6 +350,17 @@ export const messagesApi = {
     }
     return { found: false };
   },
+
+  // ── Bot Webhooks ──────────────────────────────────────────────────────
+  async testWebhook(payload: {
+    channelId?: string;
+    channel?: string;
+    hubId?: string;
+    botName?: string;
+    content: string;
+  }): Promise<any> {
+    return api.post('/v1/community/webhook', payload);
+  },
 };
 
 export const communityApi = messagesApi;

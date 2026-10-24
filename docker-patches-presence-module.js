@@ -739,43 +739,69 @@ async function setupCommunityApi(app) {
         }
 
         const platformId = await resolvePlatformId(req, ds);
-        const hubId = body.hubId || 'anticeil';
+        const hubId = body.hubId || req.query?.hubId || 'anticeil';
         let targetChannel = null;
 
         // 1. Resolve target channel by channelId or channel name
-        const rawTarget = body.channelId || body.channel || 'general';
+        const rawTargetId = body.channelId || req.query?.channelId;
+        const rawTargetName = body.channel || req.query?.channel || (!rawTargetId ? (body.channelId || req.query?.channelId) : null);
 
         if (ds && dbReady) {
             try {
-                // Try finding by exact id first
-                let rows = await ds.query(
-                    'SELECT * FROM anticeil_community_channels WHERE id = $1 AND (platform_id = $2 OR platform_id IS NULL) LIMIT 1',
-                    [rawTarget, platformId]
-                );
-                if (rows && rows[0]) {
-                    targetChannel = rows[0];
-                } else {
-                    // Try finding by name (strip leading # and slugify)
-                    const cleanSearchName = String(rawTarget).replace(/^#/, '').toLowerCase().trim().replace(/[^a-z0-9-_]/g, '-');
-                    rows = await ds.query(
-                        'SELECT * FROM anticeil_community_channels WHERE (platform_id = $1 OR platform_id IS NULL) AND (LOWER(name) = $2 OR LOWER(name) = $3) LIMIT 1',
-                        [platformId, cleanSearchName, String(rawTarget).replace(/^#/, '').toLowerCase().trim()]
+                // Step A: If channelId is provided, find by exact ID first (primary key is globally unique)
+                if (rawTargetId) {
+                    let rows = await ds.query(
+                        'SELECT * FROM anticeil_community_channels WHERE id = $1 LIMIT 1',
+                        [rawTargetId]
                     );
                     if (rows && rows[0]) {
                         targetChannel = rows[0];
                     }
                 }
-            } catch (e) {}
+
+                // Step B: If not found by ID, try finding by channel name within the specified server/hub
+                if (!targetChannel && rawTargetName) {
+                    const cleanSearchName = String(rawTargetName).replace(/^#/, '').toLowerCase().trim().replace(/[^a-z0-9-_]/g, '-');
+                    const rawCleanName = String(rawTargetName).replace(/^#/, '').toLowerCase().trim();
+
+                    if (hubId && hubId !== 'anticeil') {
+                        let rows = await ds.query(
+                            'SELECT * FROM anticeil_community_channels WHERE hub_id = $1 AND (LOWER(name) = $2 OR LOWER(name) = $3) LIMIT 1',
+                            [hubId, cleanSearchName, rawCleanName]
+                        );
+                        if (rows && rows[0]) {
+                            targetChannel = rows[0];
+                        }
+                    }
+
+                    // Step C: Fallback search by name across all channels
+                    if (!targetChannel) {
+                        let rows = await ds.query(
+                            'SELECT * FROM anticeil_community_channels WHERE (LOWER(name) = $1 OR LOWER(name) = $2) LIMIT 1',
+                            [cleanSearchName, rawCleanName]
+                        );
+                        if (rows && rows[0]) {
+                            targetChannel = rows[0];
+                        }
+                    }
+                }
+            } catch (e) {
+                app.log.error({ e }, '[Bot Webhook] Error resolving channel from DB');
+            }
         }
 
         // Check memoryChannels if not found in db
         if (!targetChannel) {
-            targetChannel = memoryChannels.find(c => c.id === rawTarget || c.name.toLowerCase() === String(rawTarget).replace(/^#/, '').toLowerCase());
+            targetChannel = memoryChannels.find(c =>
+                (rawTargetId && c.id === rawTargetId) ||
+                (rawTargetName && (c.hubId === hubId || c.hub_id === hubId) && c.name.toLowerCase() === String(rawTargetName).replace(/^#/, '').toLowerCase()) ||
+                (rawTargetName && c.name.toLowerCase() === String(rawTargetName).replace(/^#/, '').toLowerCase())
+            );
         }
 
-        // 2. If channel doesn't exist yet, auto-create it!
+        // 2. ONLY auto-create channel if targetChannel is truly NOT found
         if (!targetChannel) {
-            const rawName = String(body.channel || rawTarget).replace(/^#/, '').trim() || 'general';
+            const rawName = String(rawTargetName || rawTargetId || 'general').replace(/^#/, '').trim() || 'general';
             const cleanName = rawName.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'general';
             const newChannelId = `ch-${cleanName}-${Date.now().toString(36)}`;
             

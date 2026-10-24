@@ -3113,19 +3113,17 @@ export function CommunityPage() {
                               onClick={async () => {
                                 setIsTestingWebhook(true);
                                 try {
-                                  await fetch('/api/v1/community/webhook', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                      channelId,
-                                      channel: channelName,
-                                      hubId: serverId,
-                                      botName: 'Anticeil Ping Bot',
-                                      content: `👋 **Tes Webhook Berhasil!** Terkoneksi ke saluran **#${channelName}** (ID Server: \`${serverId}\`). Automasi Flow Builder Anda siap mengirim pesan ke sini! 🚀`,
-                                    }),
+                                  await communityApi.testWebhook({
+                                    channelId,
+                                    channel: channelName,
+                                    hubId: serverId,
+                                    botName: 'Anticeil Ping Bot',
+                                    content: `👋 **Tes Webhook Berhasil!** Terkoneksi ke saluran **#${channelName}** (ID Server: \`${serverId}\`). Automasi Flow Builder Anda siap mengirim pesan ke sini! 🚀`,
                                   });
+                                  toast.success(`Pesan tes bot berhasil dikirim ke #${channelName} 🚀`);
                                 } catch (err) {
                                   console.error('Failed to test webhook', err);
+                                  toast.error('Gagal mengirim pesan tes webhook');
                                 } finally {
                                   setIsTestingWebhook(false);
                                 }
