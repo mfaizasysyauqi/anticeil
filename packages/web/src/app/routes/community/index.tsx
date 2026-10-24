@@ -210,7 +210,7 @@ export function CommunityPage() {
 
   const [inputText, setInputText] = useState('');
   const [stagedAttachment, setStagedAttachment] = useState<CommunityAttachment | null>(null);
-  const [showMemberList, setShowMemberList] = useState(true);
+  const [showMemberList, setShowMemberList] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isTemplatePopoverOpen, setIsTemplatePopoverOpen] = useState(false);
 
@@ -1315,8 +1315,36 @@ export function CommunityPage() {
               )}
             </div>
 
-            {/* Top Bar Actions: Search & Members Toggle */}
+            {/* Top Bar Actions: Members Toggle & Search (Search on right) */}
             <div className="flex items-center gap-2">
+              {/* Members Toggle Button */}
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      if (window.innerWidth < 1024) {
+                        setIsMobileMembersOpen(true);
+                      } else {
+                        setShowMemberList(!showMemberList);
+                      }
+                    }}
+                    className={cn(
+                      'h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer',
+                      showMemberList && 'text-primary bg-primary/10 hover:bg-primary/15 hover:text-primary',
+                    )}
+                    title="Daftar Anggota"
+                  >
+                    <Users className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
+                  {showMemberList ? t('Sembunyikan Daftar Anggota') : t('Tampilkan Daftar Anggota')}
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Search Form on the Right */}
               <div className="relative w-36 sm:w-56">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -1328,29 +1356,12 @@ export function CommunityPage() {
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
                   >
                     <X className="w-3 h-3" />
                   </button>
                 )}
               </div>
-
-              {/* Members Toggle Button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  if (window.innerWidth < 1024) {
-                    setIsMobileMembersOpen(true);
-                  } else {
-                    setShowMemberList(!showMemberList);
-                  }
-                }}
-                className={cn('h-8 w-8', showMemberList && 'text-primary bg-primary/10')}
-                title="Daftar Anggota"
-              >
-                <Users className="w-4 h-4" />
-              </Button>
             </div>
           </div>
 
