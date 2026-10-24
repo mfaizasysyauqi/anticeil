@@ -675,7 +675,7 @@ export function CommunityPage() {
           <img
             src="/logo.png"
             alt="Anticeil"
-            className="size-6 object-contain pointer-events-none drop-shadow-xs"
+            className="size-5 object-contain pointer-events-none drop-shadow-xs"
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).src = '/favicon.ico';
             }}
@@ -768,97 +768,149 @@ export function CommunityPage() {
   }, [members, currentUser]);
 
   // Component: Discord Mini Server/Hub Rail (compact, theme-consistent & non-overflowing)
-  const renderDiscordHubRail = () => (
-    <div className="w-[58px] shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-3 select-none z-10 h-full overflow-hidden">
-      {/* List of hubs */}
-      <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col items-center gap-2 py-0.5">
-        {hubs.map((hub) => {
-          const isActive = activeHubId === hub.id;
-          return (
-            <div key={hub.id} className="relative group w-full flex items-center justify-center">
-              {/* Discord signature left pill indicator */}
-              <span
-                className={cn(
-                  'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
-                  isActive
-                    ? 'h-8'
-                    : 'h-0 group-hover:h-4 opacity-80',
-                )}
-              />
+  const renderDiscordHubRail = () => {
+    const mainHub = hubs[0];
+    const otherHubs = hubs.slice(1);
 
-              <Tooltip delayDuration={150}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      setActiveHubId(hub.id);
-                      // Switch to first channel in that hub if needed
-                      const firstCh = channels.find(
-                        (c) => (c.hubId || 'anticeil') === hub.id && c.category === 'CHANNELS',
-                      );
-                      if (firstCh && activeHubId !== hub.id) {
-                        setActiveChannelId(firstCh.id);
-                      }
-                    }}
-                    className={cn(
-                      'relative size-11 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
-                      isActive
-                        ? 'rounded-[14px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
-                        : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[14px] hover:bg-sidebar-accent/80',
-                    )}
-                  >
-                    {renderHubIcon(hub)}
+    return (
+      <div className="w-12 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col items-center select-none z-10 h-full overflow-hidden">
+        {/* Top Hub (Workspace / Home) - Exactly h-12 (48px) to match App Bar height */}
+        {mainHub && (
+          <div className="h-12 w-12 shrink-0 flex items-center justify-center relative group">
+            {/* Discord signature left pill indicator */}
+            <span
+              className={cn(
+                'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
+                activeHubId === mainHub.id
+                  ? 'h-6'
+                  : 'h-0 group-hover:h-3.5 opacity-80',
+              )}
+            />
 
-                    {/* Unread badge pill */}
-                    {hub.unreadCount && hub.unreadCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-sidebar">
-                        {hub.unreadCount}
-                      </span>
-                    )}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
-                  {platform?.name ? `${platform.name} (${hub.name})` : `${hub.name} Workspace`}
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          );
-        })}
+            <Tooltip delayDuration={150}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    setActiveHubId(mainHub.id);
+                    // Switch to first channel in that hub if needed
+                    const firstCh = channels.find(
+                      (c) => (c.hubId || 'anticeil') === mainHub.id && c.category === 'CHANNELS',
+                    );
+                    if (firstCh && activeHubId !== mainHub.id) {
+                      setActiveChannelId(firstCh.id);
+                    }
+                  }}
+                  className={cn(
+                    'relative size-9 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
+                    activeHubId === mainHub.id
+                      ? 'rounded-[10px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
+                      : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[10px] hover:bg-sidebar-accent/80',
+                  )}
+                >
+                  {renderHubIcon(mainHub)}
 
-        {/* Discord separator bar */}
-        <div className="w-8 h-[2px] bg-sidebar-border my-1 rounded-full shrink-0" />
+                  {/* Unread badge pill */}
+                  {mainHub.unreadCount && mainHub.unreadCount > 0 ? (
+                    <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center border-2 border-sidebar">
+                      {mainHub.unreadCount}
+                    </span>
+                  ) : null}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
+                {platform?.name ? `${platform.name} (${mainHub.name})` : `${mainHub.name} Workspace`}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
 
-        {/* Add Channel / Hub (+) Button */}
-        <Tooltip delayDuration={150}>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => setIsCreateChannelOpen(true)}
-              className="group relative size-11 rounded-full bg-sidebar-accent text-emerald-500 hover:rounded-[14px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
-            >
-              <Plus className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
-            {t('Buat Channel Baru')}
-          </TooltipContent>
-        </Tooltip>
+        {/* Discord separator bar - Symmetrically aligned with the bottom border of the h-12 App Bar */}
+        <div className="w-full flex items-center justify-center h-0 relative shrink-0 z-20">
+          <div className="w-6 h-[2px] bg-sidebar-border rounded-full" />
+        </div>
 
-        {/* Discover / Templates Compass */}
-        <Tooltip delayDuration={150}>
-          <TooltipTrigger asChild>
-            <Link
-              to="/templates"
-              className="group relative size-11 rounded-full bg-sidebar-accent text-muted-foreground hover:rounded-[14px] hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
-            >
-              <Compass className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
-            {t('Jelajahi Template Otomasi')}
-          </TooltipContent>
-        </Tooltip>
+        {/* Scrollable lower hub rail: other hubs (if any), plus buttons */}
+        <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col items-center gap-2 pt-2.5 pb-2">
+          {otherHubs.map((hub) => {
+            const isActive = activeHubId === hub.id;
+            return (
+              <div key={hub.id} className="relative group w-full flex items-center justify-center">
+                <span
+                  className={cn(
+                    'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
+                    isActive ? 'h-6' : 'h-0 group-hover:h-3.5 opacity-80',
+                  )}
+                />
+
+                <Tooltip delayDuration={150}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => {
+                        setActiveHubId(hub.id);
+                        const firstCh = channels.find(
+                          (c) => (c.hubId || 'anticeil') === hub.id && c.category === 'CHANNELS',
+                        );
+                        if (firstCh && activeHubId !== hub.id) {
+                          setActiveChannelId(firstCh.id);
+                        }
+                      }}
+                      className={cn(
+                        'relative size-9 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
+                        isActive
+                          ? 'rounded-[10px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
+                          : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[10px] hover:bg-sidebar-accent/80',
+                      )}
+                    >
+                      {renderHubIcon(hub)}
+
+                      {hub.unreadCount && hub.unreadCount > 0 ? (
+                        <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center border-2 border-sidebar">
+                          {hub.unreadCount}
+                        </span>
+                      ) : null}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
+                    {hub.name}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            );
+          })}
+
+          {/* Add Channel / Hub (+) Button */}
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setIsCreateChannelOpen(true)}
+                className="group relative size-9 rounded-full bg-sidebar-accent text-emerald-500 hover:rounded-[10px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
+              >
+                <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
+              {t('Buat Channel Baru')}
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Discover / Templates Compass */}
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <Link
+                to="/templates"
+                className="group relative size-9 rounded-full bg-sidebar-accent text-muted-foreground hover:rounded-[10px] hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
+              >
+                <Compass className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
+              {t('Jelajahi Template Otomasi')}
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Component: Channels Sidebar Content (reusable for desktop & mobile drawer)
   const renderChannelsSidebarContent = (onItemClick?: () => void) => (
@@ -1191,7 +1243,7 @@ export function CommunityPage() {
       <TooltipProvider delayDuration={200}>
       <div className="flex h-full w-full overflow-hidden bg-background">
         {/* DESKTOP COMBINED LEFT SIDEBAR (Mini Hub Rail + Channels List + Full-width Bottom Dock) */}
-        <div className="hidden lg:flex flex-col h-full shrink-0 border-r border-sidebar-border bg-sidebar select-none w-[294px] overflow-hidden">
+        <div className="hidden lg:flex flex-col h-full shrink-0 border-r border-sidebar-border bg-sidebar select-none w-[284px] overflow-hidden">
           {/* Top section: Split Rail + Channels */}
           <div className="flex flex-1 min-h-0 w-full overflow-hidden">
             {renderDiscordHubRail()}
