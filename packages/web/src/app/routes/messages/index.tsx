@@ -1576,13 +1576,13 @@ export function CommunityPage() {
           </div>
         </div>
 
-        {/* Discord Mic, Headphones, Settings */}
+        {/* Discord Mic & Headphones */}
         <div className="flex items-center gap-0.5 text-muted-foreground shrink-0">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsMuted(!isMuted)}
-            className="h-7 w-7 hover:text-foreground"
+            className="h-7 w-7 hover:text-foreground cursor-pointer"
             title={isMuted ? 'Unmute' : 'Mute'}
           >
             {isMuted ? <MicOff className="w-3.5 h-3.5 text-red-400" /> : <Mic className="w-3.5 h-3.5" />}
@@ -1591,19 +1591,10 @@ export function CommunityPage() {
             variant="ghost"
             size="icon"
             onClick={() => setIsDeafened(!isDeafened)}
-            className="h-7 w-7 hover:text-foreground"
+            className="h-7 w-7 hover:text-foreground cursor-pointer"
             title={isDeafened ? 'Undeafen' : 'Deafen'}
           >
             <Headphones className={cn('w-3.5 h-3.5', isDeafened && 'text-red-400')} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsEditProfileOpen(true)}
-            className="h-7 w-7 hover:text-foreground"
-            title={t('Pengaturan Akun & Profil')}
-          >
-            <Settings className="w-3.5 h-3.5" />
           </Button>
         </div>
       </div>
