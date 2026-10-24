@@ -175,6 +175,30 @@ export function PrimaryRail() {
               collapsed && 'items-center',
             )}
           >
+            <RailNavButton
+              collapsed={collapsed}
+              to="/messages"
+              icon={MessagesSquare}
+              label={t('Chat')}
+              isActive={({ pathname }) =>
+                pathname.startsWith('/community') || pathname.startsWith('/messages')
+              }
+            />
+          </div>
+
+          <div
+            className={cn(
+              'my-1.5 h-px shrink-0 bg-sidebar-border',
+              collapsed ? 'w-6' : 'mx-1',
+            )}
+          />
+
+          <div
+            className={cn(
+              'flex shrink-0 flex-col gap-1',
+              collapsed && 'items-center',
+            )}
+          >
             {(platform?.plan?.chatEnabled ?? true) && (
               <RailNavButton
                 collapsed={collapsed}
@@ -187,15 +211,6 @@ export function PrimaryRail() {
                 }
               />
             )}
-            <RailNavButton
-              collapsed={collapsed}
-              to="/messages"
-              icon={MessagesSquare}
-              label={t('Chat')}
-              isActive={({ pathname }) =>
-                pathname.startsWith('/community') || pathname.startsWith('/messages')
-              }
-            />
             {checkAccess(Permission.READ_MCP) && (
               <RailNavButton
                 collapsed={collapsed}
@@ -284,6 +299,21 @@ export function PrimaryRail() {
 
           <div className="mt-2 flex min-h-0 flex-1 flex-col px-2">
             <div className="flex shrink-0 flex-col gap-1">
+              <RailNavButton
+                collapsed={false}
+                to="/messages"
+                icon={MessagesSquare}
+                label={t('Chat')}
+                isActive={({ pathname }) =>
+                  pathname.startsWith('/community') || pathname.startsWith('/messages')
+                }
+                onClick={() => setHovered(false)}
+              />
+            </div>
+
+            <div className="my-1.5 mx-1 h-px shrink-0 bg-sidebar-border" />
+
+            <div className="flex shrink-0 flex-col gap-1">
               {(platform?.plan?.chatEnabled ?? true) && (
                 <RailNavButton
                   collapsed={false}
@@ -297,16 +327,6 @@ export function PrimaryRail() {
                   }}
                 />
               )}
-              <RailNavButton
-                collapsed={false}
-                to="/messages"
-                icon={MessagesSquare}
-                label={t('Chat')}
-                isActive={({ pathname }) =>
-                  pathname.startsWith('/community') || pathname.startsWith('/messages')
-                }
-                onClick={() => setHovered(false)}
-              />
               {checkAccess(Permission.READ_MCP) && (
                 <RailNavButton
                   collapsed={false}
@@ -415,6 +435,21 @@ export function MobilePrimaryRailSheet({
 
           <div className="mt-2 flex min-h-0 flex-1 flex-col px-2">
             <div className="flex shrink-0 flex-col gap-1">
+              <RailNavButton
+                collapsed={false}
+                to="/messages"
+                icon={MessagesSquare}
+                label={t('Chat')}
+                isActive={({ pathname }) =>
+                  pathname.startsWith('/community') || pathname.startsWith('/messages')
+                }
+                onClick={handleNavigate}
+              />
+            </div>
+
+            <div className="my-1.5 mx-1 h-px shrink-0 bg-sidebar-border" />
+
+            <div className="flex shrink-0 flex-col gap-1">
               {(platform?.plan?.chatEnabled ?? true) && (
                 <RailNavButton
                   collapsed={false}
@@ -428,16 +463,6 @@ export function MobilePrimaryRailSheet({
                   }}
                 />
               )}
-              <RailNavButton
-                collapsed={false}
-                to="/messages"
-                icon={MessagesSquare}
-                label={t('Chat')}
-                isActive={({ pathname }) =>
-                  pathname.startsWith('/community') || pathname.startsWith('/messages')
-                }
-                onClick={handleNavigate}
-              />
               {checkAccess(Permission.READ_MCP) && (
                 <RailNavButton
                   collapsed={false}
