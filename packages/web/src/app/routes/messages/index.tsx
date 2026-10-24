@@ -264,8 +264,9 @@ export function CommunityPage() {
   const [userNotFound, setUserNotFound] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Edit Username dialog state (with 14-day cooldown)
-  const [isEditUsernameOpen, setIsEditUsernameOpen] = useState(false);
+  // Edit Profile dialog state (Display Name & Username with 14-day cooldown)
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editDisplayNameInput, setEditDisplayNameInput] = useState('');
   const [editUsernameInput, setEditUsernameInput] = useState('');
 
   // DM Search Dialog (Discord-style "Find or start a conversation")
@@ -664,11 +665,39 @@ export function CommunityPage() {
     : null;
   const isUsernameCooldownActive = usernameCooldownEnd ? new Date() < usernameCooldownEnd : false;
 
+  const updateNameMutation = userMutations.useUpdateName({
+    onSuccess: (data: any) => {
+      userHooks.invalidateCurrentUser(queryClient);
+      const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.email;
+      toast.success(t(`Nama tampilan berhasil diperbarui menjadi ${fullName}! 🎉`));
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === currentUser?.id || m.email === currentUser?.email
+            ? { ...m, name: fullName }
+            : m,
+        ),
+      );
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || t('Gagal mengubah nama tampilan.');
+      toast.error(msg);
+    },
+  });
+
+  const handleSaveDisplayName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = editDisplayNameInput.trim();
+    if (!cleaned) {
+      toast.error(t('Nama tampilan tidak boleh kosong.'));
+      return;
+    }
+    updateNameMutation.mutate({ name: cleaned });
+  };
+
   const updateUsernameMutation = userMutations.useUpdateUsername({
     onSuccess: (data) => {
       userHooks.invalidateCurrentUser(queryClient);
       toast.success(t(`Username berhasil diperbarui menjadi @${data.username}! 🎉`));
-      setIsEditUsernameOpen(false);
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message || err?.message || t('Gagal mengubah username.');
@@ -1447,22 +1476,33 @@ export function CommunityPage() {
             className="shrink-0"
           />
           <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-xs font-semibold truncate leading-tight text-foreground">
-              {currentUserName}
-            </span>
             <button
               type="button"
               onClick={() => {
+                setEditDisplayNameInput(currentUserName);
                 setEditUsernameInput(currentUser?.username || '');
-                setIsEditUsernameOpen(true);
+                setIsEditProfileOpen(true);
               }}
-              className="text-[10px] text-muted-foreground hover:text-primary transition-colors font-mono leading-none mt-0.5 truncate text-left flex items-center gap-1 group"
-              title={t('Ubah username')}
+              className="text-xs font-semibold truncate leading-tight text-foreground text-left hover:text-primary transition-colors flex items-center gap-1 group/name"
+              title={t('Ubah nama tampilan atau username')}
+            >
+              <span className="truncate">{currentUserName}</span>
+              <Edit2 className="w-2.5 h-2.5 opacity-0 group-hover/name:opacity-60 transition-opacity shrink-0" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditDisplayNameInput(currentUserName);
+                setEditUsernameInput(currentUser?.username || '');
+                setIsEditProfileOpen(true);
+              }}
+              className="text-[10px] text-muted-foreground hover:text-primary transition-colors font-mono leading-none mt-0.5 truncate text-left flex items-center gap-1 group/user"
+              title={t('Ubah nama tampilan atau username')}
             >
               <span className="truncate">
                 {currentUser?.username ? `@${currentUser.username}` : t('@atur_username')}
               </span>
-              <Edit2 className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
+              <Edit2 className="w-2 h-2 opacity-0 group-hover/user:opacity-60 transition-opacity shrink-0" />
             </button>
           </div>
         </div>
@@ -1490,13 +1530,11 @@ export function CommunityPage() {
           <Button
             variant="ghost"
             size="icon"
-            asChild
+            onClick={() => setIsEditProfileOpen(true)}
             className="h-7 w-7 hover:text-foreground"
-            title="Pengaturan Akun"
+            title={t('Pengaturan Akun & Profil')}
           >
-            <Link to="/settings">
-              <Settings className="w-3.5 h-3.5" />
-            </Link>
+            <Settings className="w-3.5 h-3.5" />
           </Button>
         </div>
       </div>
@@ -2675,24 +2713,71 @@ export function CommunityPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Edit Username Dialog (With 14-day Cooldown) */}
-        <Dialog open={isEditUsernameOpen} onOpenChange={setIsEditUsernameOpen}>
+        {/* Edit Profile & Identity Dialog (Display Name + Username with 14-day Cooldown) */}
+        <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-base font-semibold">
                 <AtSign className="w-5 h-5 text-primary" />
-                {t('Ubah Username')}
+                {t('Profil & Identitas Akun')}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                {t('Username unik Anda digunakan untuk mempermudah teman mengundang Anda ke server obrolan.')}
+                {t('Kelola Nama Tampilan Anda dan Username unik untuk obrolan serta server.')}
               </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={handleSaveUsername} className="space-y-4 py-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground">
-                  {t('Username Baru')}
-                </label>
+            <div className="space-y-5 py-2">
+              {/* Section 1: Display Name (Full Name) - Change anytime with rate limit */}
+              <form onSubmit={handleSaveDisplayName} className="space-y-3 p-3.5 rounded-xl border border-border bg-muted/20">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground">
+                      {t('Nama Tampilan (Display Name)')}
+                    </label>
+                    <span className="text-[10px] text-emerald-500 font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                      {t('Bebas Diubah Kapan Saja')}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t('Nama yang dilihat teman di server obrolan. Tidak perlu unik, bebas spasi & karakter.')}
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Input
+                    value={editDisplayNameInput}
+                    onChange={(e) => setEditDisplayNameInput(e.target.value)}
+                    placeholder="Nama Lengkap Anda"
+                    maxLength={100}
+                    className="text-xs font-medium"
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={updateNameMutation.isPending || !editDisplayNameInput.trim() || editDisplayNameInput.trim() === currentUserName}
+                    className="shrink-0"
+                  >
+                    {updateNameMutation.isPending ? t('Menyimpan...') : t('Simpan')}
+                  </Button>
+                </div>
+              </form>
+
+              {/* Section 2: Unique Username (@handle) with 14-day Cooldown */}
+              <form onSubmit={handleSaveUsername} className="space-y-3 p-3.5 rounded-xl border border-border bg-muted/20">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <span>{t('Username Unik')}</span>
+                    </label>
+                    <span className="text-[10px] text-amber-500 font-medium bg-amber-500/10 px-1.5 py-0.5 rounded">
+                      {t('Cooldown 14 Hari')}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t('Identifier unik sistem untuk mention (@username) dan undangan tanpa membocorkan email.')}
+                  </p>
+                </div>
+
                 <div className="relative">
                   <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground font-mono">@</span>
                   <Input
@@ -2704,58 +2789,55 @@ export function CommunityPage() {
                     className="pl-7 text-xs font-mono"
                   />
                 </div>
-                <p className="text-[10px] text-muted-foreground">
-                  {t('3-32 karakter: huruf kecil (a-z), angka (0-9), dan garis bawah (_).')}
-                </p>
-              </div>
 
-              {/* Cooldown Information / Warning Card */}
-              {isUsernameCooldownActive ? (
-                <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs space-y-1">
-                  <div className="flex items-center gap-1.5 text-amber-500 font-semibold">
-                    <Clock className="w-4 h-4 shrink-0" />
-                    <span>{t('Cooldown Perubahan Username Aktif')}</span>
+                {/* Cooldown Information / Warning Card */}
+                {isUsernameCooldownActive ? (
+                  <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs space-y-1">
+                    <div className="flex items-center gap-1.5 text-amber-500 font-semibold text-[11px]">
+                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                      <span>{t('Cooldown Aktif')}</span>
+                    </div>
+                    <p className="text-muted-foreground text-[10px] leading-relaxed">
+                      {t('Username dapat diubah kembali pada:')}{' '}
+                      <strong className="text-foreground">
+                        {dayjs(usernameCooldownEnd).format('DD MMMM YYYY, HH:mm')}
+                      </strong>
+                      .
+                    </p>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">
-                    {t('Anda baru saja mengubah username. Username dapat diubah kembali pada:')}{' '}
-                    <strong className="text-foreground">
-                      {dayjs(usernameCooldownEnd).format('DD MMMM YYYY, HH:mm')}
-                    </strong>
-                    .
-                  </p>
-                </div>
-              ) : (
-                <div className="p-2.5 rounded-lg border border-border bg-muted/40 text-[11px] text-muted-foreground flex items-start gap-2">
-                  <Clock className="w-3.5 h-3.5 shrink-0 text-primary mt-0.5" />
-                  <span>
-                    {t('Username hanya dapat diubah sekali setiap 14 hari (cooldown 2 minggu) untuk menjaga keamanan dan identitas pengguna.')}
-                  </span>
-                </div>
-              )}
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] text-muted-foreground">
+                      {t('3-32 karakter: huruf kecil, angka, dan underscore (_).')}
+                    </p>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={
+                        isUsernameCooldownActive ||
+                        updateUsernameMutation.isPending ||
+                        !editUsernameInput.trim() ||
+                        editUsernameInput.trim() === currentUser?.username
+                      }
+                      className="shrink-0"
+                    >
+                      {updateUsernameMutation.isPending ? t('Menyimpan...') : t('Simpan Username')}
+                    </Button>
+                  </div>
+                )}
+              </form>
+            </div>
 
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditUsernameOpen(false)}
-                >
-                  {t('Batal')}
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={
-                    isUsernameCooldownActive ||
-                    updateUsernameMutation.isPending ||
-                    !editUsernameInput.trim() ||
-                    editUsernameInput.trim() === currentUser?.username
-                  }
-                >
-                  {updateUsernameMutation.isPending ? t('Menyimpan...') : t('Simpan Username')}
-                </Button>
-              </DialogFooter>
-            </form>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditProfileOpen(false)}
+              >
+                {t('Tutup')}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
     </LockedFeatureGuard>

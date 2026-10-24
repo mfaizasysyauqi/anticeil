@@ -26,4 +26,8 @@ export const userApi = {
   updateUsername(username: string): Promise<{ username: string; usernameUpdatedAt: string | null }> {
     return api.patch('/v1/users/me/username', { username });
   },
+  updateName(payload: { name?: string; firstName?: string; lastName?: string } | string): Promise<UpdateMeResponse> {
+    const body = typeof payload === 'string' ? { name: payload } : payload;
+    return api.patch('/v1/users/me/name', body);
+  },
 };

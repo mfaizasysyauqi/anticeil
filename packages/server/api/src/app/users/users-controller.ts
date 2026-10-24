@@ -1,4 +1,4 @@
-import { ApId, ApMultipartFile, isNil } from '@activepieces/core-utils'
+import { ActivepiecesError, ApId, ApMultipartFile, ErrorCode, isNil } from '@activepieces/core-utils'
 import { AP_MAXIMUM_PROFILE_PICTURE_SIZE, FileType, PrincipalType, PROFILE_PICTURE_ALLOWED_TYPES, SERVICE_KEY_SECURITY_OPENAPI, UpdateMeResponse, UpdateUsernameRequest, UserWithMetaInformation } from '@activepieces/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
@@ -74,6 +74,93 @@ export const usersController: FastifyPluginAsyncZod = async (app) => {
         }
     })
 
+    app.patch('/me/name', UpdateNameRequestOptions, async (req) => {
+        const userId = req.principal.id
+        const rateCheck = checkNameUpdateRateLimit(userId)
+        if (!rateCheck.allowed) {
+            throw new ActivepiecesError({
+                code: ErrorCode.VALIDATION,
+                params: {
+                    message: `Terlalu sering mengubah nama. Silakan tunggu ${rateCheck.resetInSeconds} detik sebelum mencoba lagi.`,
+                },
+            })
+        }
+
+        const user = await userService(req.log).getOrThrow({ id: userId })
+        const identityId = user.identityId
+
+        let firstName = req.body.firstName
+        let lastName = req.body.lastName ?? ''
+
+        if (req.body.name) {
+            const trimmed = req.body.name.trim()
+            const parts = trimmed.split(/\s+/)
+            firstName = parts[0]
+            lastName = parts.slice(1).join(' ')
+        }
+
+        if (!firstName || firstName.trim().length === 0) {
+            throw new ActivepiecesError({
+                code: ErrorCode.VALIDATION,
+                params: {
+                    message: 'Nama depan / display name tidak boleh kosong.',
+                },
+            })
+        }
+
+        await userIdentityService(app.log).update(identityId, {
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+        })
+
+        const basic = await userIdentityService(app.log).getBasicInformation(identityId)
+        return {
+            email: basic.email,
+            firstName: basic.firstName,
+            lastName: basic.lastName,
+            trackEvents: basic.trackEvents,
+            newsLetter: basic.newsLetter,
+            imageUrl: basic.imageUrl,
+            username: basic.username,
+            usernameUpdatedAt: basic.usernameUpdatedAt,
+        }
+    })
+
+}
+
+const nameUpdateRateLimitMap = new Map<string, { count: number; resetAt: number }>()
+
+function checkNameUpdateRateLimit(userId: string): { allowed: boolean; resetInSeconds?: number } {
+    const now = Date.now()
+    const windowMs = 15 * 60 * 1000 // 15 minutes
+    const maxRequests = 10
+    const current = nameUpdateRateLimitMap.get(userId)
+    if (!current || now > current.resetAt) {
+        nameUpdateRateLimitMap.set(userId, { count: 1, resetAt: now + windowMs })
+        return { allowed: true }
+    }
+    if (current.count >= maxRequests) {
+        const resetInSeconds = Math.ceil((current.resetAt - now) / 1000)
+        return { allowed: false, resetInSeconds }
+    }
+    current.count++
+    return { allowed: true }
+}
+
+const UpdateNameRequestOptions = {
+    config: {
+        security: securityAccess.publicPlatform([PrincipalType.USER]),
+    },
+    schema: {
+        body: z.object({
+            name: z.string().min(1).max(100).optional(),
+            firstName: z.string().min(1).max(64).optional(),
+            lastName: z.string().max(64).optional(),
+        }),
+        response: {
+            [StatusCodes.OK]: UpdateMeResponse,
+        },
+    },
 }
 
 const GetUserByIdRequest = {
