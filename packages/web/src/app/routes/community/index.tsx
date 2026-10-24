@@ -211,6 +211,12 @@ export function CommunityPage() {
   const [newHubName, setNewHubName] = useState('');
   const [newHubDesc, setNewHubDesc] = useState('');
 
+  // Server Edit & Delete state
+  const [hubToEdit, setHubToEdit] = useState<CommunityHub | null>(null);
+  const [editHubName, setEditHubName] = useState('');
+  const [editHubDesc, setEditHubDesc] = useState('');
+  const [hubToDelete, setHubToDelete] = useState<CommunityHub | null>(null);
+
   const [channels, setChannels] = useState<CommunityChannel[]>(DEFAULT_CHANNELS);
   const [activeChannelId, setActiveChannelId] = useState<string>('');
   const [messagesMap, setMessagesMap] = useState<Record<string, CommunityMessage[]>>({});
@@ -571,6 +577,69 @@ export function CommunityPage() {
     setNewHubName('');
     setNewHubDesc('');
     toast.success(t('Server baru berhasil dibuat!'));
+  };
+
+  // Edit / Rename Server (Hub CRUD: Update)
+  const handleOpenEditHub = (hub: CommunityHub) => {
+    setHubToEdit(hub);
+    setEditHubName(hub.name);
+    setEditHubDesc(hub.description || '');
+  };
+
+  const handleEditHubSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!hubToEdit || !editHubName.trim()) return;
+
+    const newName = editHubName.trim();
+    const updatedHubs = hubs.map((h) => {
+      if (h.id === hubToEdit.id) {
+        return {
+          ...h,
+          name: newName,
+          initials: newName.slice(0, 2).toUpperCase() || 'SV',
+          description: editHubDesc.trim() || undefined,
+        };
+      }
+      return h;
+    });
+
+    setHubs(updatedHubs);
+    saveStoredHubs(updatedHubs);
+    setHubToEdit(null);
+    toast.success(t('Nama server berhasil diperbarui!'));
+  };
+
+  // Delete Server (Hub CRUD: Delete)
+  const handleDeleteHubConfirm = () => {
+    if (!hubToDelete) return;
+    if (hubToDelete.id === 'anticeil') {
+      toast.error(t('Server default tidak dapat dihapus.'));
+      setHubToDelete(null);
+      return;
+    }
+
+    const updatedHubs = hubs.filter((h) => h.id !== hubToDelete.id);
+    setHubs(updatedHubs);
+    saveStoredHubs(updatedHubs);
+
+    // Filter out channels that belonged to this deleted hub
+    setChannels((prev) => prev.filter((c) => c.hubId !== hubToDelete.id));
+
+    // Switch active hub to default 'anticeil'
+    setActiveHubId('anticeil');
+
+    // Also switch active channel to the first channel in anticeil hub (if any)
+    const firstAnticeilCh = channels.find(
+      (c) => (c.hubId || 'anticeil') === 'anticeil' && c.category === 'CHANNELS',
+    );
+    if (firstAnticeilCh) {
+      setActiveChannelId(firstAnticeilCh.id);
+    } else {
+      setActiveChannelId('');
+    }
+
+    setHubToDelete(null);
+    toast.success(t('Server berhasil dihapus!'));
   };
 
   // Create Channel (Channel CRUD)
@@ -994,13 +1063,25 @@ export function CommunityPage() {
               <ChevronDown className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem onClick={() => setIsCreateChannelOpen(true)}>
               <Plus className="w-4 h-4 mr-2" /> {t('Buat Channel Baru')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setIsCreateHubOpen(true)}>
               <Layers className="w-4 h-4 mr-2" /> {t('Buat Server Baru')}
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleOpenEditHub(activeHub)}>
+              <Edit2 className="w-4 h-4 mr-2" /> {t('Ganti Nama Server')}
+            </DropdownMenuItem>
+            {activeHub?.id !== 'anticeil' && (
+              <DropdownMenuItem
+                onClick={() => setHubToDelete(activeHub)}
+                className="text-red-500 focus:text-red-500 focus:bg-red-500/10 cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4 mr-2" /> {t('Hapus Server')}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link to="/templates">
@@ -1826,6 +1907,87 @@ export function CommunityPage() {
                 </Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* DIALOG: EDIT SERVER (Hub CRUD: Update) */}
+        <Dialog open={!!hubToEdit} onOpenChange={(open) => !open && setHubToEdit(null)}>
+          <DialogContent className="sm:max-w-[425px]">
+            <form onSubmit={handleEditHubSubmit}>
+              <DialogHeader>
+                <DialogTitle>{t('Ganti Nama Server')}</DialogTitle>
+                <DialogDescription>
+                  {t('Perbarui nama dan deskripsi server atau workspace ini.')}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold">{t('Nama Server')}</label>
+                  <Input
+                    value={editHubName}
+                    onChange={(e) => setEditHubName(e.target.value)}
+                    placeholder="Nama server..."
+                    className="text-xs"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold">{t('Deskripsi (Opsional)')}</label>
+                  <Input
+                    value={editHubDesc}
+                    onChange={(e) => setEditHubDesc(e.target.value)}
+                    placeholder="Deskripsi server..."
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setHubToEdit(null)}
+                >
+                  {t('Batal')}
+                </Button>
+                <Button type="submit">
+                  {t('Simpan Perubahan')}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* DIALOG: DELETE SERVER (Hub CRUD: Delete) */}
+        <Dialog open={!!hubToDelete} onOpenChange={(open) => !open && setHubToDelete(null)}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle className="text-red-500">{t('Hapus Server?')}</DialogTitle>
+              <DialogDescription>
+                {t(
+                  'Apakah Anda yakin ingin menghapus server "{{name}}"? Semua channel dan riwayat pesan di server ini akan dihapus.',
+                  { name: hubToDelete?.name },
+                )}
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter className="mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setHubToDelete(null)}
+              >
+                {t('Batal')}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteHubConfirm}
+              >
+                {t('Hapus Server')}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
