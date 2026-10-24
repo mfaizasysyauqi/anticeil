@@ -22,13 +22,18 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+import { formatUtils } from '@/lib/format-utils';
+
 import { UserRowData } from './index';
 
 type ColumnDefWithAccessorKey = ColumnDef<RowDataWithActions<UserRowData>> & {
   accessorKey: string;
 };
 
-export const createUsersTableColumns = (platformOwnerId?: string): ColumnDefWithAccessorKey[] => [
+export const createUsersTableColumns = (
+  platformOwnerId?: string,
+  maskEmails: boolean = true,
+): ColumnDefWithAccessorKey[] => [
   {
     accessorKey: 'identity',
     size: 320,
@@ -45,6 +50,8 @@ export const createUsersTableColumns = (platformOwnerId?: string): ColumnDefWith
         row.original.type === 'user' ? row.original.data.externalId : undefined;
       const email = row.original.data.email;
       const showEmail = email?.includes('@');
+      const displayEmail =
+        showEmail && maskEmails ? formatUtils.maskEmail(email) : email;
 
       return (
         <div className="flex items-center gap-2">
@@ -67,8 +74,10 @@ export const createUsersTableColumns = (platformOwnerId?: string): ColumnDefWith
               <div className="flex items-center gap-1.5">
                 <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <TruncatedColumnTextValue
-                  value={email}
-                  className="max-w-[200px] 2xl:max-w-[280px]"
+                  value={displayEmail}
+                  className={`max-w-[200px] 2xl:max-w-[280px] ${
+                    maskEmails ? 'font-mono text-xs' : ''
+                  }`}
                 />
               </div>
             )}

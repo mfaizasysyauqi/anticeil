@@ -4,7 +4,7 @@ import {
   UserWithMetaInformation,
 } from '@activepieces/shared';
 import { t } from 'i18next';
-import { User } from 'lucide-react';
+import { Eye, EyeOff, User } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { DashboardPageHeader } from '@/app/components/dashboard-page-header';
@@ -39,6 +39,19 @@ export type UserRowData =
 
 export default function UsersPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [maskEmails, setMaskEmails] = useState<boolean>(() => {
+    const saved = localStorage.getItem('anticeil_mask_platform_emails');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const toggleMaskEmails = () => {
+    setMaskEmails((prev) => {
+      const next = !prev;
+      localStorage.setItem('anticeil_mask_platform_emails', String(next));
+      return next;
+    });
+  };
+
   const { handleSeatLimitError, ensureSeatsAvailable, seatLimitDialog } =
     useSeatLimitGuard();
 
@@ -118,7 +131,10 @@ export default function UsersPage() {
   };
 
   const { platform } = platformHooks.useCurrentPlatform();
-  const columns = useMemo(() => createUsersTableColumns(platform?.ownerId), [platform?.ownerId]);
+  const columns = useMemo(
+    () => createUsersTableColumns(platform?.ownerId, maskEmails),
+    [platform?.ownerId, maskEmails],
+  );
 
   return (
     <LockedFeatureGuard
@@ -150,6 +166,26 @@ export default function UsersPage() {
           errorStateEntity={t('users')}
           onRetry={refetch}
           toolbarButtons={[
+            <Button
+              key="toggle-mask"
+              variant="outline"
+              size="sm"
+              className="gap-2 cursor-pointer border-border"
+              onClick={toggleMaskEmails}
+              title={maskEmails ? t('Tampilkan email lengkap') : t('Sensor email')}
+            >
+              {maskEmails ? (
+                <>
+                  <Eye className="size-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{t('Buka Sensor')}</span>
+                </>
+              ) : (
+                <>
+                  <EyeOff className="size-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{t('Sensor Email')}</span>
+                </>
+              )}
+            </Button>,
             <Button
               key="invite"
               className="gap-2"
