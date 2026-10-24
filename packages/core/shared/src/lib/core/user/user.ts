@@ -52,7 +52,7 @@ export const UserWithMetaInformation = z.object({
     platformRole: z.enum(PlatformRole),
     lastName: z.string(),
     username: z.string().default(''),
-    usernameUpdatedAt: Nullable(DateOrString).optional(),
+    usernameUpdatedAt: Nullable(DateOrString),
     created: DateOrString,
     updated: DateOrString,
     lastActiveDate: Nullable(DateOrString),
@@ -84,7 +84,7 @@ export const UpdateMeResponse = z.object({
     newsLetter: z.boolean(),
     imageUrl: Nullable(z.string()),
     username: z.string(),
-    usernameUpdatedAt: Nullable(DateOrString).optional(),
+    usernameUpdatedAt: Nullable(DateOrString),
 })
 
 export type UpdateMeResponse = z.infer<typeof UpdateMeResponse>

@@ -14,7 +14,7 @@ export const UserIdentity = z.object({
     firstName: z.string(),
     lastName: z.string(),
     username: z.string().default(''),
-    usernameUpdatedAt: Nullable(z.string()).optional(),
+    usernameUpdatedAt: Nullable(z.string()),
     email: z.string(),
     password: z.string(),
     trackEvents: z.boolean(),

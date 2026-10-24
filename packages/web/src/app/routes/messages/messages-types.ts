@@ -1,11 +1,13 @@
 export type CommunityRole =
+  | 'owner'
+  | 'admin'
+  | 'member'
+  | 'bot'
   | 'platform_admin'
   | 'platform_operator'
   | 'project_admin'
   | 'project_editor'
   | 'project_viewer'
-  | 'member'
-  | 'admin'
   | 'creator'
   | 'pro';
 
