@@ -399,16 +399,15 @@ export function CommunityPage() {
     return channels.filter((c) => c.category === 'DIRECT MESSAGES');
   }, [channels]);
 
-  // Active channel resolution
+  const isHome = activeHubId === 'anticeil';
+
+  // Active channel resolution: Home prefers DMs, Servers prefer channels
   const activeChannel = useMemo(() => {
     if (channels.length === 0) return null;
-    return (
-      channels.find((c) => c.id === activeChannelId) ||
-      hubChannels[0] ||
-      channels[0] ||
-      null
-    );
-  }, [channels, activeChannelId, hubChannels]);
+    const current = channels.find((c) => c.id === activeChannelId);
+    if (current) return current;
+    return isHome ? dmChannels[0] || null : hubChannels[0] || null;
+  }, [channels, activeChannelId, isHome, dmChannels, hubChannels]);
 
   // Active messages & filter
   const currentMessages = activeChannel ? messagesMap[activeChannel.id] || [] : [];
@@ -628,15 +627,9 @@ export function CommunityPage() {
     // Switch active hub to default 'anticeil'
     setActiveHubId('anticeil');
 
-    // Also switch active channel to the first channel in anticeil hub (if any)
-    const firstAnticeilCh = channels.find(
-      (c) => (c.hubId || 'anticeil') === 'anticeil' && c.category === 'CHANNELS',
-    );
-    if (firstAnticeilCh) {
-      setActiveChannelId(firstAnticeilCh.id);
-    } else {
-      setActiveChannelId('');
-    }
+    // Home hub = DMs, switch to first DM
+    const firstDm = channels.find((c) => c.category === 'DIRECT MESSAGES');
+    setActiveChannelId(firstDm?.id || '');
 
     setHubToDelete(null);
     toast.success(t('Server berhasil dihapus!'));
@@ -732,6 +725,8 @@ export function CommunityPage() {
       };
       setChannels((prev) => [...prev, newDMChannel]);
     }
+    // DMs live in Home hub, auto-switch
+    setActiveHubId('anticeil');
     setActiveChannelId(dmId);
     setIsMobileChannelsOpen(false);
     setIsMobileMembersOpen(false);
@@ -926,12 +921,10 @@ export function CommunityPage() {
                 <button
                   onClick={() => {
                     setActiveHubId(mainHub.id);
-                    // Switch to first channel in that hub if needed
-                    const firstCh = channels.find(
-                      (c) => (c.hubId || 'anticeil') === mainHub.id && c.category === 'CHANNELS',
-                    );
-                    if (firstCh && activeHubId !== mainHub.id) {
-                      setActiveChannelId(firstCh.id);
+                    // Home hub = DMs, switch to first DM
+                    if (activeHubId !== mainHub.id) {
+                      const firstDm = channels.find((c) => c.category === 'DIRECT MESSAGES');
+                      setActiveChannelId(firstDm?.id || '');
                     }
                   }}
                   className={cn(
@@ -1049,196 +1042,209 @@ export function CommunityPage() {
   // Component: Channels Sidebar Content (reusable for desktop & mobile drawer)
   const renderChannelsSidebarContent = (onItemClick?: () => void) => (
     <div className="flex flex-col h-full bg-sidebar select-none flex-1 min-w-0 overflow-hidden">
-      {/* Header: Team Chat Title (NON-SCROLLABLE APP BAR) */}
+      {/* Header: Different for Home (DMs) vs Server (Channels) */}
       <div className="h-12 border-b border-sidebar-border px-3.5 flex items-center justify-between font-semibold shadow-2xs shrink-0 bg-sidebar z-10">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-semibold truncate tracking-tight text-foreground">
-            {activeHub?.name || t('Team Chat')}
+            {isHome ? t('Pesan Langsung') : (activeHub?.name || t('Server'))}
           </span>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
-              <ChevronDown className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={() => setIsCreateChannelOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" /> {t('Buat Channel Baru')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIsCreateHubOpen(true)}>
-              <Layers className="w-4 h-4 mr-2" /> {t('Buat Server Baru')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handleOpenEditHub(activeHub)}>
-              <Edit2 className="w-4 h-4 mr-2" /> {t('Ganti Nama Server')}
-            </DropdownMenuItem>
-            {activeHub?.id !== 'anticeil' && (
+        {isHome ? (
+          /* Home: no server dropdown, just a + to start new DM */
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                <Plus className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={4} className="font-semibold text-xs">
+              {t('Pesan Langsung Baru')}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          /* Server: dropdown with channel/server actions */
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => setIsCreateChannelOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" /> {t('Buat Channel Baru')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsCreateHubOpen(true)}>
+                <Layers className="w-4 h-4 mr-2" /> {t('Buat Server Baru')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleOpenEditHub(activeHub)}>
+                <Edit2 className="w-4 h-4 mr-2" /> {t('Ganti Nama Server')}
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setHubToDelete(activeHub)}
                 className="text-red-500 focus:text-red-500 focus:bg-red-500/10 cursor-pointer"
               >
                 <Trash2 className="w-4 h-4 mr-2" /> {t('Hapus Server')}
               </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link to="/templates">
-                <ExternalLink className="w-4 h-4 mr-2" /> Jelajahi Marketplace
-              </Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/templates">
+                  <ExternalLink className="w-4 h-4 mr-2" /> Jelajahi Marketplace
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
-      {/* Channels & DMs Scroll Area (SCROLLABLE LIST CHANNEL) */}
+      {/* Scroll Area: Home=DMs only, Server=Channels only */}
       <div className="flex-1 min-h-0 overflow-y-auto px-2 py-3 [scrollbar-width:thin]">
-        {/* Section CHANNELS */}
-        <div className="mb-4">
-          <div className="px-2 mb-1.5 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase">
-            <div className="flex items-center gap-1">
-              <span>{t('Channels')}</span>
-              <span className="text-[10px] text-muted-foreground/60">({hubChannels.length})</span>
+        {isHome ? (
+          /* ===== HOME: DIRECT MESSAGES ONLY ===== */
+          <div>
+            <div className="px-2 mb-1.5 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase">
+              <span>{t('Direct Messages')}</span>
+              <span className="text-[10px] text-muted-foreground/60">{dmChannels.length}</span>
             </div>
-            <Tooltip delayDuration={150}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => {
-                    setNewChannelCategory('CHANNELS');
-                    setIsCreateChannelOpen(true);
-                  }}
-                  className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={4} className="font-semibold text-xs">
-                {t('Buat Channel Baru')}
-              </TooltipContent>
-            </Tooltip>
-          </div>
 
-          {hubChannels.length === 0 ? (
-            <div className="px-2.5 py-4 text-center">
-              <p className="text-[11px] text-muted-foreground/60 leading-relaxed mb-2">
-                {t('Belum ada channel')}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsCreateChannelOpen(true)}
-                className="h-7 text-xs px-2.5 gap-1 w-full"
-              >
-                <Plus className="w-3 h-3" />
-                {t('Buat Channel')}
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-0.5">
-              {hubChannels.map((ch) => {
-                const isActive = activeChannelId === ch.id;
-                return (
-                  <div
-                    key={ch.id}
-                    onClick={() => {
-                      setActiveChannelId(ch.id);
-                      onItemClick?.();
-                    }}
-                    className={cn(
-                      'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all text-left group cursor-pointer relative',
-                      isActive
-                        ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
-                        : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                    )}
-                  >
-                    <Hash
+            {dmChannels.length === 0 ? (
+              <div className="px-2.5 py-2 text-[11px] text-muted-foreground/60 leading-relaxed">
+                Pilih anggota di panel kanan untuk memulai chat pribadi.
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                {dmChannels.map((dm) => {
+                  const isActiveDm = activeChannelId === dm.id;
+                  const member = members.find((m) => `dm-${m.id}` === dm.id);
+                  return (
+                    <button
+                      key={dm.id}
+                      onClick={() => {
+                        setActiveChannelId(dm.id);
+                        onItemClick?.();
+                      }}
                       className={cn(
-                        'w-4 h-4 shrink-0 transition-colors',
-                        isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
+                        'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all text-left group',
+                        isActiveDm
+                          ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
+                          : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                       )}
-                    />
-                    <span className="truncate flex-1">{ch.name}</span>
-
-                    {/* Channel action buttons (Edit & Delete CRUD) */}
-                    <div className="hidden group-hover:flex items-center gap-0.5 ml-auto shrink-0">
-                      <button
-                        onClick={(e) => handleOpenEditChannel(ch, e)}
-                        title="Edit Channel"
-                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
-                      >
-                        <Edit2 className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => handleOpenDeleteChannel(ch, e)}
-                        title="Hapus Channel"
-                        className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <Separator className="my-2 bg-sidebar-border/60" />
-
-        {/* Section DIRECT MESSAGES */}
-        <div>
-          <div className="px-2 mb-1.5 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase">
-            <span>{t('Direct Messages')}</span>
-            <span className="text-[10px] text-muted-foreground/60">{dmChannels.length}</span>
+                    >
+                      {member ? (
+                        <CommunityAvatar
+                          name={member.name}
+                          imageUrl={member.avatar}
+                          size={18}
+                          status={member.status}
+                          showStatus
+                        />
+                      ) : (
+                        <MessageSquare
+                          className={cn(
+                            'w-3.5 h-3.5 shrink-0 transition-colors',
+                            isActiveDm ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
+                          )}
+                        />
+                      )}
+                      <span className="truncate flex-1">{dm.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-
-          {dmChannels.length === 0 ? (
-            <div className="px-2.5 py-2 text-[11px] text-muted-foreground/60 leading-relaxed">
-              Pilih anggota di panel kanan untuk memulai chat pribadi.
-            </div>
-          ) : (
-            <div className="space-y-0.5">
-              {dmChannels.map((dm) => {
-                const isActive = activeChannelId === dm.id;
-                const member = members.find((m) => `dm-${m.id}` === dm.id);
-                return (
+        ) : (
+          /* ===== SERVER: CHANNELS ONLY ===== */
+          <div>
+            <div className="px-2 mb-1.5 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase">
+              <div className="flex items-center gap-1">
+                <span>{t('Channels')}</span>
+                <span className="text-[10px] text-muted-foreground/60">({hubChannels.length})</span>
+              </div>
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
                   <button
-                    key={dm.id}
                     onClick={() => {
-                      setActiveChannelId(dm.id);
-                      onItemClick?.();
+                      setNewChannelCategory('CHANNELS');
+                      setIsCreateChannelOpen(true);
                     }}
-                    className={cn(
-                      'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all text-left group',
-                      isActive
-                        ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
-                        : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                    )}
+                    className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors cursor-pointer"
                   >
-                    {member ? (
-                      <CommunityAvatar
-                        name={member.name}
-                        imageUrl={member.avatar}
-                        size={18}
-                        status={member.status}
-                        showStatus
-                      />
-                    ) : (
-                      <MessageSquare
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={4} className="font-semibold text-xs">
+                  {t('Buat Channel Baru')}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
+            {hubChannels.length === 0 ? (
+              <div className="px-2.5 py-4 text-center">
+                <p className="text-[11px] text-muted-foreground/60 leading-relaxed mb-2">
+                  {t('Belum ada channel')}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCreateChannelOpen(true)}
+                  className="h-7 text-xs px-2.5 gap-1 w-full"
+                >
+                  <Plus className="w-3 h-3" />
+                  {t('Buat Channel')}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                {hubChannels.map((ch) => {
+                  const isActiveCh = activeChannelId === ch.id;
+                  return (
+                    <div
+                      key={ch.id}
+                      onClick={() => {
+                        setActiveChannelId(ch.id);
+                        onItemClick?.();
+                      }}
+                      className={cn(
+                        'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all text-left group cursor-pointer relative',
+                        isActiveCh
+                          ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
+                          : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                      )}
+                    >
+                      <Hash
                         className={cn(
-                          'w-3.5 h-3.5 shrink-0 transition-colors',
-                          isActive ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
+                          'w-4 h-4 shrink-0 transition-colors',
+                          isActiveCh ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
                         )}
                       />
-                    )}
-                    <span className="truncate flex-1">{dm.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                      <span className="truncate flex-1">{ch.name}</span>
+
+                      {/* Channel action buttons (Edit & Delete CRUD) */}
+                      <div className="hidden group-hover:flex items-center gap-0.5 ml-auto shrink-0">
+                        <button
+                          onClick={(e) => handleOpenEditChannel(ch, e)}
+                          title="Edit Channel"
+                          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={(e) => handleOpenDeleteChannel(ch, e)}
+                          title="Hapus Channel"
+                          className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

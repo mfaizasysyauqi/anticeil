@@ -3,10 +3,10 @@ import { CommunityChannel, CommunityHub, CommunityMember, CommunityMessage } fro
 export const DEFAULT_HUBS: CommunityHub[] = [
   {
     id: 'anticeil',
-    name: 'Anticeil',
+    name: 'Pesan Langsung',
     iconType: 'logo',
-    initials: 'AC',
-    description: 'Saluran obrolan tim untuk kolaborasi alur kerja dan otomasi.',
+    initials: 'DM',
+    description: 'Saluran pesan langsung untuk obrolan pribadi dengan rekan tim.',
   },
 ];
 
