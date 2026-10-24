@@ -33,6 +33,8 @@ import {
   Clock,
   AtSign,
   UserCheck,
+  UserX,
+  Inbox,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -236,6 +238,21 @@ export function CommunityPage() {
   const [inputText, setInputText] = useState('');
   const [stagedAttachment, setStagedAttachment] = useState<CommunityAttachment | null>(null);
   const [showMemberList, setShowMemberList] = useState(false);
+
+  // Friends panel state (Discord-style, shown when isHome)
+  type FriendsTab = 'online' | 'all' | 'pending' | 'add';
+  const [friendsTab, setFriendsTab] = useState<FriendsTab>('online');
+  const [addFriendInput, setAddFriendInput] = useState('');
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
+  type FriendRequest = {
+    id: string;
+    name: string;
+    username: string | null;
+    avatar: string | null;
+    direction: 'incoming' | 'outgoing';
+    status: 'pending';
+  };
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isTemplatePopoverOpen, setIsTemplatePopoverOpen] = useState(false);
 
@@ -1322,7 +1339,7 @@ export function CommunityPage() {
 
             {dmChannels.length === 0 ? (
               <div className="px-2.5 py-2 text-[11px] text-muted-foreground/60 leading-relaxed">
-                Pilih anggota di panel kanan untuk memulai chat pribadi.
+                Buka panel Teman di kanan untuk memulai chat pribadi.
               </div>
             ) : (
               <div className="space-y-0.5">
@@ -1545,6 +1562,248 @@ export function CommunityPage() {
     </div>
   );
 
+  // Component: Friends Sidebar Content (Discord-style, shown when isHome)
+  const renderFriendsSidebarContent = () => {
+    const onlineFriends = displayMembers.filter((m) => m.id !== currentUser?.id && m.email !== currentUser?.email && m.status !== 'offline');
+    const allFriends = displayMembers.filter((m) => m.id !== currentUser?.id && m.email !== currentUser?.email);
+    const pendingRequests = friendRequests;
+
+    const handleAddFriend = async () => {
+      if (!addFriendInput.trim()) return;
+      setIsAddingFriend(true);
+      try {
+        // Simulate adding friend by username
+        await new Promise((r) => setTimeout(r, 600));
+        const found = members.find(
+          (m) =>
+            m.username === addFriendInput.trim().replace(/^@/, '') ||
+            m.name.toLowerCase() === addFriendInput.trim().toLowerCase(),
+        );
+        if (found) {
+          setFriendRequests((prev) => [
+            ...prev.filter((r) => r.id !== found.id),
+            {
+              id: found.id,
+              name: found.name,
+              username: found.username || null,
+              avatar: found.avatar || null,
+              direction: 'outgoing' as const,
+              status: 'pending' as const,
+            },
+          ]);
+          toast.success(t('Permintaan pertemanan terkirim ke') + ` ${found.name}!`);
+          setAddFriendInput('');
+        } else {
+          toast.error(t('Pengguna tidak ditemukan. Periksa username dan coba lagi.'));
+        }
+      } catch {
+        toast.error(t('Gagal mengirim permintaan pertemanan.'));
+      } finally {
+        setIsAddingFriend(false);
+      }
+    };
+
+    const handleAcceptRequest = (req: FriendRequest) => {
+      setFriendRequests((prev) => prev.filter((r) => r.id !== req.id));
+      toast.success(t('Permintaan pertemanan dari') + ` ${req.name} ` + t('diterima!'));
+    };
+
+    const handleRejectRequest = (req: FriendRequest) => {
+      setFriendRequests((prev) => prev.filter((r) => r.id !== req.id));
+      toast(t('Permintaan pertemanan ditolak.'));
+    };
+
+    const tabs: { key: FriendsTab; label: string }[] = [
+      { key: 'online', label: t('Online') },
+      { key: 'all', label: t('Semua') },
+      { key: 'pending', label: t('Tertunda') },
+      { key: 'add', label: t('Tambah Teman') },
+    ];
+
+    return (
+      <div className="flex flex-col h-full bg-sidebar border-l border-sidebar-border select-none w-60 shrink-0 overflow-hidden">
+        {/* Header */}
+        <div className="h-12 border-b border-sidebar-border px-3 flex items-center gap-2 font-semibold text-xs shrink-0 bg-sidebar z-10">
+          <Users className="w-4 h-4 text-muted-foreground" />
+          <span className="text-foreground text-sm font-semibold">{t('Teman')}</span>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex items-center gap-1 px-2 py-1.5 border-b border-sidebar-border bg-sidebar shrink-0">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setFriendsTab(tab.key)}
+              className={cn(
+                'px-2 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer',
+                friendsTab === tab.key
+                  ? tab.key === 'add'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-accent text-accent-foreground font-semibold'
+                  : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              )}
+            >
+              {tab.label}
+              {tab.key === 'pending' && pendingRequests.length > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center size-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold">
+                  {pendingRequests.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 [scrollbar-width:thin]">
+          {friendsTab === 'add' ? (
+            /* Add Friend Tab */
+            <div className="p-2">
+              <div className="mb-3">
+                <h3 className="text-xs font-semibold text-foreground mb-1">{t('Tambah Teman')}</h3>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  {t('Kamu bisa menambahkan teman menggunakan username mereka.')}
+                </p>
+              </div>
+              <div className="flex gap-1.5">
+                <Input
+                  value={addFriendInput}
+                  onChange={(e) => setAddFriendInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddFriend()}
+                  placeholder={t('Masukkan username...')}
+                  className="h-8 text-xs flex-1"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleAddFriend}
+                  disabled={!addFriendInput.trim() || isAddingFriend}
+                  className="h-8 text-xs px-3 gap-1 shrink-0"
+                >
+                  <UserPlus className="w-3 h-3" />
+                  {t('Kirim')}
+                </Button>
+              </div>
+            </div>
+          ) : friendsTab === 'pending' ? (
+            /* Pending Tab */
+            <div>
+              <div className="px-2 mb-1.5 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">
+                {t('Tertunda')} — {pendingRequests.length}
+              </div>
+              {pendingRequests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Inbox className="w-8 h-8 text-muted-foreground/30 mb-2" />
+                  <p className="text-[11px] text-muted-foreground/60">{t('Tidak ada permintaan pertemanan.')}</p>
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  {pendingRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent group"
+                    >
+                      <CommunityAvatar name={req.name} imageUrl={req.avatar} size={28} />
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-xs font-medium truncate text-foreground">{req.name}</span>
+                        <span className="text-[10px] text-muted-foreground/60 truncate">
+                          {req.direction === 'incoming' ? t('Permintaan masuk') : t('Permintaan keluar')}
+                        </span>
+                      </div>
+                      {req.direction === 'incoming' ? (
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <button
+                            onClick={() => handleAcceptRequest(req)}
+                            className="p-1 rounded text-emerald-500 hover:bg-emerald-500/10 transition-colors"
+                            title={t('Terima')}
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleRejectRequest(req)}
+                            className="p-1 rounded text-red-400 hover:bg-red-500/10 transition-colors"
+                            title={t('Tolak')}
+                          >
+                            <UserX className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground/50 shrink-0">
+                          <Clock className="w-3 h-3" />
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Online / All Tab */
+            <div>
+              {(() => {
+                const list = friendsTab === 'online' ? onlineFriends : allFriends;
+                const label = friendsTab === 'online' ? t('Online') : t('Semua Teman');
+                return (
+                  <>
+                    <div className="px-2 mb-1.5 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">
+                      {label} — {list.length}
+                    </div>
+                    {list.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <Users className="w-8 h-8 text-muted-foreground/30 mb-2" />
+                        <p className="text-[11px] text-muted-foreground/60">
+                          {friendsTab === 'online'
+                            ? t('Tidak ada teman yang online saat ini.')
+                            : t('Belum ada teman. Tambahkan teman untuk memulai!')}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {list.map((member) => (
+                          <button
+                            key={member.id}
+                            onClick={() => handleStartDM(member)}
+                            className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-sidebar-accent group"
+                          >
+                            <CommunityAvatar
+                              name={member.name}
+                              imageUrl={member.avatar}
+                              size={28}
+                              status={member.status}
+                              showStatus
+                            />
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className={cn(
+                                    'text-xs font-medium truncate',
+                                    member.status === 'offline'
+                                      ? 'text-muted-foreground/60'
+                                      : 'text-foreground group-hover:text-primary',
+                                  )}
+                                >
+                                  {member.name}
+                                </span>
+                              </div>
+                              {member.username && (
+                                <span className="text-[10px] text-muted-foreground/60 truncate font-mono leading-none mt-0.5">
+                                  @{member.username}
+                                </span>
+                              )}
+                            </div>
+                            <MessageSquare className="w-3.5 h-3.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // Component: Members Sidebar Content
   const renderMembersSidebarContent = () => {
     const roleGroups: {
@@ -1583,7 +1842,7 @@ export function CommunityPage() {
       <div className="flex flex-col h-full bg-sidebar border-l border-sidebar-border select-none w-60 shrink-0 overflow-hidden">
         {/* Header: NON-SCROLLABLE APP BAR */}
         <div className="h-12 border-b border-sidebar-border px-4 flex items-center justify-between font-semibold text-xs text-muted-foreground uppercase tracking-wider shrink-0 bg-sidebar z-10">
-          <span>{t('Daftar Anggota')} ({displayMembers.length})</span>
+          <span>{t('Anggota Server')} ({displayMembers.length})</span>
           <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => setIsInviteOpen(true)} title={t('Undang Anggota')}>
             <Plus className="w-3.5 h-3.5" />
           </Button>
@@ -1698,13 +1957,13 @@ export function CommunityPage() {
           </SheetContent>
         </Sheet>
 
-        {/* MOBILE MEMBERS DRAWER */}
+        {/* MOBILE MEMBERS / FRIENDS DRAWER */}
         <Sheet open={isMobileMembersOpen} onOpenChange={setIsMobileMembersOpen}>
           <SheetContent side="right" className="p-0 w-72">
             <SheetHeader className="sr-only">
-              <SheetTitle>{t('Daftar Anggota')}</SheetTitle>
+              <SheetTitle>{isHome ? t('Teman') : t('Anggota Server')}</SheetTitle>
             </SheetHeader>
-            {renderMembersSidebarContent()}
+            {isHome ? renderFriendsSidebarContent() : renderMembersSidebarContent()}
           </SheetContent>
         </Sheet>
 
@@ -1744,7 +2003,7 @@ export function CommunityPage() {
 
             {/* Top Bar Actions: Members Toggle & Search (Search on right) */}
             <div className="flex items-center gap-2">
-              {/* Members Toggle Button */}
+              {/* Members/Friends Toggle Button */}
               <Tooltip delayDuration={150}>
                 <TooltipTrigger asChild>
                   <Button
@@ -1761,13 +2020,16 @@ export function CommunityPage() {
                       'h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer',
                       showMemberList && 'text-primary bg-primary/10 hover:bg-primary/15 hover:text-primary',
                     )}
-                    title="Daftar Anggota"
+                    title={isHome ? 'Teman' : 'Anggota Server'}
                   >
                     <Users className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
-                  {showMemberList ? t('Sembunyikan Daftar Anggota') : t('Tampilkan Daftar Anggota')}
+                  {isHome
+                    ? (showMemberList ? t('Sembunyikan Teman') : t('Tampilkan Teman'))
+                    : (showMemberList ? t('Sembunyikan Anggota') : t('Tampilkan Anggota'))
+                  }
                 </TooltipContent>
               </Tooltip>
 
@@ -2121,10 +2383,10 @@ export function CommunityPage() {
           </div>
         </div>
 
-        {/* DESKTOP MEMBERS SIDEBAR (w-60) */}
+        {/* DESKTOP MEMBERS / FRIENDS SIDEBAR (w-60) */}
         {showMemberList && (
           <div className="hidden lg:flex shrink-0">
-            {renderMembersSidebarContent()}
+            {isHome ? renderFriendsSidebarContent() : renderMembersSidebarContent()}
           </div>
         )}
 
