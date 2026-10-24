@@ -308,7 +308,7 @@ export function CommunityPage() {
         if (mounted) {
           if (Array.isArray(channelsRes)) {
             setChannels(channelsRes);
-            if (channelsRes.length > 0) {
+            if (channelsRes.length > 0 && activeHubId !== 'anticeil') {
               setActiveChannelId((curr) => curr || channelsRes[0].id);
             }
           }
