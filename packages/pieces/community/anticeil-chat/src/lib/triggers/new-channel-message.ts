@@ -31,6 +31,24 @@ export const newChannelMessage = createTrigger({
   },
   async onEnable() {},
   async onDisable() {},
+  async test(context) {
+    const channel = context.propsValue.channel?.trim() || 'halo';
+    const hubId = context.propsValue.hubId?.trim() || 'anticeil';
+    return [
+      {
+        id: `msg-sample-${Date.now().toString(36)}`,
+        content: '👋 Halo! Ini adalah contoh data pesan dari Anticeil Chat untuk pengujian alur.',
+        channel,
+        channelId: channel,
+        hubId,
+        author: {
+          id: 'usr-bot-sample',
+          name: 'Pengguna Anticeil',
+        },
+        created_at: new Date().toISOString(),
+      },
+    ];
+  },
   async run(context) {
     const payload = context.payload.body as any;
     const filterChannel = context.propsValue.channel?.trim();

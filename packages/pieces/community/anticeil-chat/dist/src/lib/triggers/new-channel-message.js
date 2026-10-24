@@ -38,6 +38,27 @@ exports.newChannelMessage = (0, pieces_framework_1.createTrigger)({
     onDisable() {
         return tslib_1.__awaiter(this, void 0, void 0, function* () { });
     },
+    test(context) {
+        return tslib_1.__awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
+            const channel = ((_a = context.propsValue.channel) === null || _a === void 0 ? void 0 : _a.trim()) || 'halo';
+            const hubId = ((_b = context.propsValue.hubId) === null || _b === void 0 ? void 0 : _b.trim()) || 'anticeil';
+            return [
+                {
+                    id: `msg-sample-${Date.now().toString(36)}`,
+                    content: '👋 Halo! Ini adalah contoh data pesan dari Anticeil Chat untuk pengujian alur.',
+                    channel,
+                    channelId: channel,
+                    hubId,
+                    author: {
+                        id: 'usr-bot-sample',
+                        name: 'Pengguna Anticeil',
+                    },
+                    created_at: new Date().toISOString(),
+                },
+            ];
+        });
+    },
     run(context) {
         return tslib_1.__awaiter(this, void 0, void 0, function* () {
             var _a, _b;
