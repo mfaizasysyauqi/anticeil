@@ -75,7 +75,35 @@ const ANTICEIL_CHAT_METADATA = {
             }
         }
     },
-    triggers: {}
+    triggers: {
+        new_channel_message: {
+            name: 'new_channel_message',
+            displayName: 'Pesan Baru di Saluran',
+            description: 'Memicu alur kerja ketika pesan baru dikirim di saluran Anticeil Chat.',
+            type: 'WEBHOOK',
+            requireAuth: false,
+            props: {
+                channel: {
+                    displayName: 'Filter Channel (Opsional)',
+                    description: 'Nama atau ID saluran (contoh: general, alerts). Kosongkan untuk semua saluran.',
+                    type: 'SHORT_TEXT',
+                    required: false,
+                    defaultValue: 'general'
+                }
+            },
+            sampleData: {
+                id: 'msg-example-1',
+                content: 'Halo dari Anticeil Chat!',
+                channel: 'general',
+                hubId: 'anticeil',
+                author: {
+                    id: 'usr-1',
+                    name: 'Faiz'
+                },
+                timestamp: '2026-10-24T15:00:00.000Z'
+            }
+        }
+    }
 };
 
 async function ensureAnticeilChatPiece(log) {
@@ -84,16 +112,17 @@ async function ensureAnticeilChatPiece(log) {
         const existing = await repo.findOne({
             where: { name: ANTICEIL_CHAT_METADATA.name }
         });
-        if (!existing) {
-            log.info('[Anticeil Decoupling] Seeding native @activepieces/piece-anticeil-chat piece into database');
-            await (0, piece_metadata_service_1.pieceMetadataService)(log).create({
-                pieceMetadata: ANTICEIL_CHAT_METADATA,
-                packageType: ANTICEIL_CHAT_METADATA.packageType,
-                pieceType: ANTICEIL_CHAT_METADATA.pieceType,
-                publishCacheRefresh: true,
-            });
-            await (0, piece_cache_1.pieceCache)(log).invalidate();
+        if (existing) {
+            await repo.delete({ name: ANTICEIL_CHAT_METADATA.name });
         }
+        log.info('[Anticeil Decoupling] Seeding native @activepieces/piece-anticeil-chat piece into database');
+        await (0, piece_metadata_service_1.pieceMetadataService)(log).create({
+            pieceMetadata: ANTICEIL_CHAT_METADATA,
+            packageType: ANTICEIL_CHAT_METADATA.packageType,
+            pieceType: ANTICEIL_CHAT_METADATA.pieceType,
+            publishCacheRefresh: true,
+        });
+        await (0, piece_cache_1.pieceCache)(log).invalidate();
     } catch (e) {
         log.warn({ err: e?.message }, '[Anticeil Decoupling] Warning while ensuring native piece-anticeil-chat');
     }

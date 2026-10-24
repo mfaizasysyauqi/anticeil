@@ -1,5 +1,6 @@
 import { createPiece, PieceCategory } from '@activepieces/pieces-framework';
 import { sendChannelMessage } from './lib/actions/send-channel-message';
+import { newChannelMessage } from './lib/triggers/new-channel-message';
 
 export const anticeilChat = createPiece({
   displayName: 'Anticeil Chat',
@@ -12,7 +13,9 @@ export const anticeilChat = createPiece({
     sendChannelMessage,
   ],
   authors: ['Anticeil Team'],
-  triggers: [],
+  triggers: [
+    newChannelMessage,
+  ],
 });
 
 export default anticeilChat;

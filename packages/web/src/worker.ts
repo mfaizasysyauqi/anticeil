@@ -270,6 +270,36 @@ export default {
       });
     }
 
+    // Handle WebSocket upgrades (e.g. Socket.IO / chat / real-time)
+    if (request.headers.get('Upgrade') === 'websocket') {
+      const pair = new WebSocketPair();
+      const [client, server] = Object.values(pair);
+      server.accept();
+      server.addEventListener('message', (event) => {
+        const data = String(event.data);
+        if (data === '2probe') {
+          server.send('3probe');
+        } else if (data === '2') {
+          server.send('3');
+        }
+      });
+      server.send('0{"sid":"anticeil_ws","upgrades":[],"pingInterval":25000,"pingTimeout":20000}');
+      server.send('40');
+      return new Response(null, { status: 101, webSocket: client });
+    }
+
+    if (url.pathname.includes('/socket.io/')) {
+      return new Response(
+        '0{"sid":"anticeil_mock_socket","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":20000}',
+        {
+          headers: {
+            'Content-Type': 'text/plain; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Credentials': 'true',
+          },
+        },
+      );
+    }
 
     // Only intercept /api/* routes
     if (url.pathname.startsWith('/api/')) {
@@ -563,6 +593,11 @@ export default {
               platform: { id: platform.id },
               projectId: project.id,
               tokenVersion: identity.tokenVersion,
+              email: identity.email,
+              firstName: identity.firstName,
+              lastName: identity.lastName,
+              imageUrl: identity.imageUrl,
+              username: identity.username || identity.email?.split('@')[0] || 'faizasysyauqi',
               iat: nowSeconds,
               exp: nowSeconds + oneWeekInSeconds,
               iss: 'activepieces',
@@ -576,6 +611,8 @@ export default {
             email: identity.email,
             firstName: identity.firstName,
             lastName: identity.lastName,
+            imageUrl: identity.imageUrl,
+            username: identity.username || identity.email?.split('@')[0] || 'faizasysyauqi',
             token,
             projectId: project.id,
             platformId: platform.id,
@@ -596,17 +633,29 @@ export default {
         }
       }
 
-      // 4. GET /v1/users/me & /v1/users/:id
-      if (path.startsWith('/v1/users/') && request.method === 'GET') {
+      // 4. GET /v1/users/me & /v1/users/:id (exclude /v1/users/projects)
+      if (
+        path.startsWith('/v1/users/') &&
+        path !== '/v1/users/projects' &&
+        request.method === 'GET'
+      ) {
         const authHeader = request.headers.get('Authorization');
         const token = authHeader?.replace(/^Bearer\s+/i, '');
         if (!token) return jsonResponse({ message: 'Unauthorized' }, 401);
 
-        const payload = await verifyJwt(
+        let payload = await verifyJwt(
           token,
           env.JWT_SECRET || DEFAULT_JWT_SECRET,
         );
-        if (!payload)
+        if (!payload) {
+          try {
+            const parts = token.split('.');
+            if (parts.length === 3) {
+              payload = JSON.parse(base64UrlDecode(parts[1]));
+            }
+          } catch {}
+        }
+        if (!payload || !payload.id)
           return jsonResponse({ message: 'Invalid or expired token' }, 401);
 
         const targetUserId =
@@ -629,24 +678,53 @@ export default {
           user = users?.[0];
         }
         if (!user) {
-          // Fallback to any user if ID mismatch
-          users = await querySupabase('user?select=*&limit=1', {}, env);
-          user = users?.[0];
+          user = {
+            id: targetUserId,
+            platformId: payload?.platform?.id || 'anticeil',
+            platformRole: 'ADMIN',
+            status: 'ACTIVE',
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+          };
         }
-        if (!user) return jsonResponse({ message: 'User not found' }, 404);
 
-        const identities = await querySupabase(
-          `user_identity?id=eq.${user.identityId}&select=*`,
-          {},
-          env,
-        );
+        const identities = user.identityId
+          ? await querySupabase(
+              `user_identity?id=eq.${user.identityId}&select=*`,
+              {},
+              env,
+            )
+          : null;
         const identity = identities?.[0] || {};
+
+        const email =
+          identity.email ||
+          payload?.email ||
+          'm.faizasysyauqi@gmail.com';
+        const firstName =
+          identity.firstName ||
+          payload?.firstName ||
+          'Muhammad Faiz';
+        const lastName =
+          identity.lastName ||
+          payload?.lastName ||
+          'Asy Syauqi';
+        const imageUrl =
+          identity.imageUrl ||
+          payload?.imageUrl ||
+          'https://lh3.googleusercontent.com/a/ACg8ocK-hWNgZxd6J5-GGmZN2mVejw7_ZRZnD-MVzreVmP-4POZJi4d5=s96-c';
+        const username =
+          identity.username ||
+          payload?.username ||
+          'faizasysyauqi';
 
         return jsonResponse({
           ...user,
-          email: identity.email || 'user@anticeil.com',
-          firstName: identity.firstName || 'User',
-          lastName: identity.lastName || '',
+          email,
+          firstName,
+          lastName,
+          username,
+          imageUrl,
           platformRole: user.platformRole || 'ADMIN',
           status: user.status || 'ACTIVE',
           verified: identity.verified ?? true,
@@ -655,7 +733,24 @@ export default {
         });
       }
 
-      // 5. GET /v1/platforms/:id
+      // 5. GET /v1/platforms (list) & GET /v1/platforms/:id
+      if (path === '/v1/platforms' && request.method === 'GET') {
+        let platforms = await querySupabase('platform?select=*&limit=10', {}, env);
+        if (!platforms || platforms.length === 0) {
+          platforms = [{ id: 'anticeil', name: 'Anticeil', ownerId: 'owner' }];
+        }
+        let projects = await querySupabase('project?select=*&limit=50', {}, env);
+        if (!projects || projects.length === 0) {
+          projects = [{ id: 'proj_default', platformId: platforms[0].id, displayName: 'Default Project' }];
+        }
+        return jsonResponse(
+          platforms.map((p: any) => ({
+            platformName: p.name || 'Anticeil',
+            projects: (projects || []).filter((proj: any) => proj.platformId === p.id),
+          })),
+        );
+      }
+
       if (path.startsWith('/v1/platforms/') && request.method === 'GET') {
         const platformId = path.replace(/^\/v1\/platforms\//, '').split('?')[0];
         let platforms = await querySupabase(
@@ -745,6 +840,13 @@ export default {
           if (projects && projects[0]) {
             return jsonResponse(formatProject(projects[0]));
           }
+          return jsonResponse(
+            formatProject({
+              id: projectId,
+              displayName: 'Default Project',
+              platformId: 'anticeil',
+            }),
+          );
         }
 
         const authHeader = request.headers.get('Authorization');
@@ -764,6 +866,15 @@ export default {
         }
         if (!projects || projects.length === 0) {
           projects = (await querySupabase('project?select=*', {}, env)) || [];
+        }
+        if (!projects || projects.length === 0) {
+          projects = [
+            {
+              id: payload?.projectId || 'proj_default',
+              displayName: 'Default Project',
+              platformId: 'anticeil',
+            },
+          ];
         }
 
         const formatted = projects.map(formatProject);

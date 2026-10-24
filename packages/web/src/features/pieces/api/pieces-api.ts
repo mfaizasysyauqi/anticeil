@@ -34,14 +34,41 @@ export const ANTICEIL_CHAT_PIECE_SUMMARY: PieceMetadataModelSummary = {
   categories: ['COMMUNICATION' as any],
   authors: ['Anticeil Team'],
   actions: 1,
-  triggers: 0,
+  triggers: 1,
   projectUsage: 0,
 };
 
 export const ANTICEIL_CHAT_PIECE_MODEL: PieceMetadataModel = {
   ...ANTICEIL_CHAT_PIECE_SUMMARY,
   contextInfo: undefined,
-  triggers: {},
+  triggers: {
+    new_channel_message: {
+      name: 'new_channel_message',
+      displayName: 'Pesan Baru di Saluran',
+      description: 'Memicu alur kerja ketika pesan baru dikirim atau diterima di saluran Anticeil Chat.',
+      type: 'WEBHOOK' as any,
+      requireAuth: false,
+      props: {
+        channel: {
+          displayName: 'Filter Channel (Opsional)',
+          description: 'Nama atau ID saluran (contoh: general, alerts). Kosongkan untuk menerima pesan dari semua saluran.',
+          type: PropertyType.SHORT_TEXT,
+          required: false,
+        },
+      },
+      sampleData: {
+        id: 'msg-example-1',
+        content: 'Halo dari Anticeil Chat!',
+        channel: 'general',
+        hubId: 'anticeil',
+        author: {
+          id: 'usr-1',
+          name: 'Faiz',
+        },
+        created_at: '2026-10-24T15:00:00.000Z',
+      },
+    } as any,
+  },
   actions: {
     send_channel_message: {
       name: 'send_channel_message',

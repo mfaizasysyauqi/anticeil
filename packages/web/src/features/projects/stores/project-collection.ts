@@ -306,7 +306,10 @@ export const projectHooks = {
       queryKey: ['projects-for-platforms'],
       queryFn: async () => {
         if (!token) return [];
-        return api.get<ProjectWithLimitsWithPlatform[]>('/v1/platforms');
+        const res = await api.get<any>('/v1/platforms');
+        if (Array.isArray(res)) return res;
+        if (res && Array.isArray(res.data)) return res.data;
+        return [];
       },
       enabled: !isNil(token),
     });

@@ -34,10 +34,10 @@ export function PlatformSwitcher({ children }: { children: React.ReactNode }) {
   }
 
   const platforms = React.useMemo(() => {
-    if (!allProjects) return [];
+    if (!Array.isArray(allProjects)) return [];
     return allProjects.map((platform) => ({
       name: platform.platformName,
-      id: platform.projects[0]?.platformId,
+      id: platform.projects?.[0]?.platformId,
     }));
   }, [allProjects]);
 
