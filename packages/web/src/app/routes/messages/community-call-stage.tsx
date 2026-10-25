@@ -52,6 +52,8 @@ import {
   Send,
   Sparkle,
   Compass,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -266,6 +268,7 @@ export function CommunityCallStage({
   const [isAppLauncherOpen, setIsAppLauncherOpen] = useState(false);
   const [appSearchQuery, setAppSearchQuery] = useState('');
   const [activeAppId, setActiveAppId] = useState<string | null>(null);
+  const [isFilmstripCollapsed, setIsFilmstripCollapsed] = useState(false);
 
   // Parent sync
   const internalActivityOpen = activeAppId !== null;
@@ -1285,13 +1288,31 @@ export function CommunityCallStage({
             <Radio className="w-4 h-4 animate-pulse" />
           </div>
           <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-sm font-bold text-white truncate">
                 #{channel.name}
               </span>
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 flex items-center gap-1">
-                <Signal className="w-3 h-3" /> Voice Terhubung
-              </span>
+              {activeAppId !== null && currentActiveApp ? (
+                <>
+                  <span className="text-muted-foreground text-xs font-medium">·</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-semibold text-white/95 truncate">
+                      {currentActiveApp.title}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-red-600 text-[10px] font-extrabold text-white flex items-center gap-1 tracking-wider shadow-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      LIVE
+                    </span>
+                    <span className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-white/70">
+                      720p 30FPS
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 flex items-center gap-1">
+                  <Signal className="w-3 h-3" /> Voice Terhubung
+                </span>
+              )}
             </div>
             <span className="text-[11px] text-muted-foreground truncate">
               {activeHub?.name || 'Komunitas Anticeil'} • {totalInCall} Peserta dalam panggilan
@@ -1351,96 +1372,9 @@ export function CommunityCallStage({
       {/* ── Discord Main Stage Layout ──────────────────────────────────── */}
       {/* CASE A: DISCORD SCREEN SHARE / ACTIVITY FULL STAGE MODE */}
       {activeAppId !== null && currentActiveApp ? (
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#111214]">
-          {/* ── 1. Top Filmstrip (Horizontal Row of Participant Tiles) ── */}
-          <div className="h-28 sm:h-32 px-4 py-2 bg-[#17181b] flex items-center gap-2.5 overflow-x-auto [scrollbar-width:thin] border-b border-white/10 shrink-0">
-            {/* Local Participant Tile */}
-            <div className="w-36 sm:w-44 h-full rounded-xl bg-[#2b2d31] border border-white/10 relative overflow-hidden shrink-0 flex items-center justify-center shadow-md">
-              {!isVideoOff && localStream && localStream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled) ? (
-                <LocalVideoView stream={localStream} />
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-1.5">
-                  <div
-                    className={cn(
-                      'w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all',
-                      isSpeakingLocal
-                        ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-[#2b2d31]'
-                        : 'ring-1 ring-white/10',
-                    )}
-                  >
-                    <CommunityAvatar
-                      name={currentUserName}
-                      imageUrl={currentUser?.imageUrl}
-                      email={currentUser?.email}
-                      size={48}
-                      showStatus={false}
-                      className="w-full h-full rounded-full"
-                    />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[100px]">
-                    {currentUserName}
-                  </span>
-                </div>
-              )}
-              {/* Bottom tag */}
-              <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-xs flex items-center gap-1 text-[9px] font-semibold text-white border border-white/5">
-                <span>Anda</span>
-                {isMuted ? <MicOff className="w-2.5 h-2.5 text-red-400" /> : <Mic className="w-2.5 h-2.5 text-emerald-400" />}
-              </div>
-            </div>
-
-            {/* Remote Participants Tiles */}
-            {participants.map((peer) => (
-              <div
-                key={peer.socketId}
-                className="w-36 sm:w-44 h-full rounded-xl bg-[#2b2d31] border border-white/10 relative overflow-hidden shrink-0 flex items-center justify-center shadow-md"
-              >
-                {peer.stream && peer.hasVideo && peer.stream.getVideoTracks().some((t) => t.readyState === 'live') ? (
-                  <RemoteVideoView stream={peer.stream} isMuted={false} />
-                ) : (
-                  <div className="flex flex-col items-center justify-center gap-1.5">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center ring-1 ring-white/10">
-                      <CommunityAvatar
-                        name={peer.userName}
-                        imageUrl={peer.userAvatar}
-                        size={48}
-                        showStatus={false}
-                        className="w-full h-full rounded-full"
-                      />
-                    </div>
-                    <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[100px]">
-                      {peer.userName}
-                    </span>
-                  </div>
-                )}
-                {/* Bottom tag */}
-                <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-xs flex items-center gap-1 text-[9px] font-semibold text-white border border-white/5">
-                  <span className="truncate max-w-[80px]">{peer.userName}</span>
-                  {!peer.hasAudio ? <MicOff className="w-2.5 h-2.5 text-red-400" /> : <Mic className="w-2.5 h-2.5 text-emerald-400" />}
-                </div>
-              </div>
-            ))}
-
-            {/* Solitary Invite Prompt in Filmstrip */}
-            {participants.length === 0 && (
-              <div className="h-full px-4 rounded-xl bg-[#2b2d31]/40 border border-dashed border-white/10 flex items-center gap-3 shrink-0">
-                <div className="flex flex-col">
-                  <span className="text-xs font-semibold text-white">Anda sendirian di panggung</span>
-                  <span className="text-[10px] text-muted-foreground">Undang rekan tim untuk menikmati aktivitas bersama</span>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={handleCopyCallLink}
-                  className="h-7 text-xs bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 gap-1.5"
-                >
-                  <Copy className="w-3 h-3" /> Salin Link
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* ── 2. Full-Stage Activity Container (Screen Share View) ──── */}
-          <div className="flex-1 min-h-0 m-3 rounded-2xl bg-[#1e1f22] border border-white/10 flex flex-col overflow-hidden shadow-2xl relative">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#111214] relative">
+          {/* ── 1. Full-Stage Activity Container (Fills main center/top area) ── */}
+          <div className="flex-1 min-h-0 m-2 sm:m-3 rounded-2xl bg-[#1e1f22] border border-white/10 flex flex-col overflow-hidden shadow-2xl relative">
             {/* Activity Window Top Bar */}
             <div className="h-12 px-4 bg-[#2b2d31] border-b border-white/10 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
@@ -2064,6 +1998,140 @@ export function CommunityCallStage({
                 </div>
               )}
             </div>
+          </div>
+
+          {/* ── 2. Discord Bottom Filmstrip (Participant Video/Avatar Tiles at BOTTOM) ── */}
+          <div className="shrink-0 flex flex-col items-center z-10 px-4 pb-1">
+            {/* Collapse / Expand Toggle Pill (Discord Style) */}
+            <button
+              onClick={() => setIsFilmstripCollapsed(!isFilmstripCollapsed)}
+              className="h-5 px-3 -mb-1 rounded-full bg-[#2b2d31] hover:bg-[#35373c] text-white/70 hover:text-white text-[10px] font-semibold flex items-center gap-1.5 transition-all border border-white/10 shadow-md cursor-pointer z-20"
+              title={isFilmstripCollapsed ? 'Tampilkan Kamera Peserta' : 'Sembunyikan Kamera Peserta'}
+            >
+              {isFilmstripCollapsed ? (
+                <>
+                  <ChevronUp className="w-3 h-3 text-emerald-400" />
+                  <Users className="w-2.5 h-2.5" />
+                  <span>Kamera & Peserta ({totalInCall})</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                  <Users className="w-2.5 h-2.5" />
+                  <span>Sembunyikan ({totalInCall})</span>
+                </>
+              )}
+            </button>
+
+            {/* Video Cards Filmstrip (Horizontally centered like Discord) */}
+            {!isFilmstripCollapsed && (
+              <div className="w-full max-w-5xl py-1.5 flex items-center justify-center gap-2.5 overflow-x-auto [scrollbar-width:thin] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                {/* Local Participant Tile */}
+                <div className="w-36 sm:w-44 h-24 sm:h-28 rounded-xl bg-[#2b2d31] border border-white/10 relative overflow-hidden shrink-0 flex items-center justify-center shadow-lg group">
+                  {!isVideoOff && localStream && localStream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled) ? (
+                    <LocalVideoView stream={localStream} />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-1">
+                      <div
+                        className={cn(
+                          'w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all',
+                          isSpeakingLocal
+                            ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-[#2b2d31]'
+                            : 'ring-1 ring-white/10',
+                        )}
+                      >
+                        <CommunityAvatar
+                          name={currentUserName}
+                          imageUrl={currentUser?.imageUrl}
+                          email={currentUser?.email}
+                          size={44}
+                          showStatus={false}
+                          className="w-full h-full rounded-full"
+                        />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[90px]">
+                        {currentUserName}
+                      </span>
+                    </div>
+                  )}
+                  {/* Bottom tag */}
+                  <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-xs flex items-center gap-1 text-[9px] font-semibold text-white border border-white/5">
+                    <span>Anda</span>
+                    {isMuted ? <MicOff className="w-2.5 h-2.5 text-red-400" /> : <Mic className="w-2.5 h-2.5 text-emerald-400" />}
+                  </div>
+                </div>
+
+                {/* Remote Participants Tiles */}
+                {participants.map((peer) => (
+                  <div
+                    key={peer.socketId}
+                    className="w-36 sm:w-44 h-24 sm:h-28 rounded-xl bg-[#2b2d31] border border-white/10 relative overflow-hidden shrink-0 flex items-center justify-center shadow-lg group"
+                  >
+                    {peer.stream && peer.hasVideo && peer.stream.getVideoTracks().some((t) => t.readyState === 'live') ? (
+                      <RemoteVideoView stream={peer.stream} isMuted={false} />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center ring-1 ring-white/10">
+                          <CommunityAvatar
+                            name={peer.userName}
+                            imageUrl={peer.userAvatar}
+                            size={44}
+                            showStatus={false}
+                            className="w-full h-full rounded-full"
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[90px]">
+                          {peer.userName}
+                        </span>
+                      </div>
+                    )}
+                    {/* Bottom tag */}
+                    <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-xs flex items-center gap-1 text-[9px] font-semibold text-white border border-white/5">
+                      <span className="truncate max-w-[75px]">{peer.userName}</span>
+                      {!peer.hasAudio ? <MicOff className="w-2.5 h-2.5 text-red-400" /> : <Mic className="w-2.5 h-2.5 text-emerald-400" />}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Screen Share Tile if sharing */}
+                {isScreenSharing && (
+                  <div className="w-36 sm:w-44 h-24 sm:h-28 rounded-xl bg-[#2b2d31] border border-emerald-500/40 relative overflow-hidden shrink-0 flex items-center justify-center shadow-lg group">
+                    <video
+                      ref={screenVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-red-600 text-[8px] font-extrabold text-white flex items-center gap-1 shadow-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      LIVE
+                    </div>
+                    <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-xs flex items-center gap-1 text-[9px] font-semibold text-white border border-white/5">
+                      <Monitor className="w-2.5 h-2.5 text-emerald-400" />
+                      <span className="truncate max-w-[80px]">Layar Anda</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Solitary Invite Prompt in Filmstrip */}
+                {participants.length === 0 && !isScreenSharing && (
+                  <div className="h-24 sm:h-28 px-4 rounded-xl bg-[#2b2d31]/40 border border-dashed border-white/10 flex items-center gap-3 shrink-0">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-semibold text-white">Anda sendirian di panggung</span>
+                      <span className="text-[10px] text-muted-foreground">Undang rekan tim untuk menikmati aktivitas bersama</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={handleCopyCallLink}
+                      className="h-7 text-xs bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 gap-1.5"
+                    >
+                      <Copy className="w-3 h-3" /> Salin Link
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       ) : (
