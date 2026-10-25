@@ -1322,6 +1322,28 @@ export function CommunityCallStage({
 
         {/* Top Header Controls: Plan Pill, Screen Mode & PiP */}
         <div className="flex items-center gap-2">
+          {/* Stop Activity Button (Compact in Header like Discord) */}
+          {activeAppId !== null && (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleStopActivity}
+                    className="h-7 px-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/20 gap-1.5 rounded-lg border border-red-500/20"
+                  >
+                    <PhoneOff className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Hentikan Aktivitas</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  Tutup aktivitas {currentActiveApp?.title}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
           {/* Freemium Limit Pill */}
           <div
             onClick={() => {
@@ -1375,46 +1397,8 @@ export function CommunityCallStage({
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#111214] relative">
           {/* ── 1. Full-Stage Activity Container (Fills available space above filmstrip) ── */}
           <div
-            className="flex-1 min-h-0 m-2 sm:m-3 rounded-2xl bg-[#1e1f22] border border-white/10 flex flex-col overflow-hidden shadow-2xl relative transition-all duration-200"
+            className="flex-1 min-h-0 m-1 sm:m-2 rounded-xl bg-[#111214] border border-white/10 flex flex-col overflow-hidden shadow-2xl relative transition-all duration-200"
           >
-            {/* Activity Window Top Bar */}
-            <div className="h-12 px-4 bg-[#2b2d31] border-b border-white/10 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center shadow-md', currentActiveApp.iconBg)}>
-                  <currentActiveApp.icon className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-white">{currentActiveApp.title}</span>
-                  <span className="bg-[#5865F2] text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded flex items-center gap-1 tracking-wider shadow-xs">
-                    <Check className="w-3 h-3 stroke-[3]" /> APP
-                  </span>
-                  <span className="text-xs text-muted-foreground hidden sm:inline">• {currentActiveApp.tagline}</span>
-                </div>
-              </div>
-
-              {/* Action buttons on Activity Bar */}
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setIsAppLauncherOpen(true)}
-                  className="h-8 text-xs bg-[#1e1f22] border-white/15 hover:bg-white/10 text-white gap-1.5"
-                >
-                  <Rocket className="w-3.5 h-3.5 text-primary" />
-                  Ganti Aktivitas
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleStopActivity}
-                  className="h-8 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/20 gap-1.5"
-                >
-                  <PhoneOff className="w-3.5 h-3.5" />
-                  Hentikan Aktivitas
-                </Button>
-              </div>
-            </div>
-
             {/* ── Activity Window Body (The App itself) ──────────────── */}
             <div className="flex-1 min-h-0 overflow-hidden relative flex flex-col bg-[#111214]">
               {/* APP 1: YOUTUBE WATCH TOGETHER */}
