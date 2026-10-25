@@ -19,19 +19,20 @@ export const PageHeader = ({
   return (
     <div
       className={cn(
-        'sticky top-0 z-30 flex flex-row items-center justify-between gap-2 py-2 px-4 w-full bg-background border-b border-border/40 overflow-hidden',
+        'sticky top-0 z-30 flex flex-row items-center justify-between gap-2 px-4 w-full bg-background border-b border-sidebar-border overflow-hidden shrink-0',
+        description ? 'py-1.5 min-h-12 h-auto' : 'h-12',
         className,
       )}
     >
       <div className="flex items-center gap-2 grow min-w-0">
         <div className="grow min-w-0">
           {typeof title === 'string' ? (
-            <h1 className="text-base font-semibold truncate">{title}</h1>
+            <h1 className="text-sm font-semibold truncate">{title}</h1>
           ) : (
             title
           )}
           {description && (
-            <p className="text-xs sm:text-sm text-muted-foreground truncate">{description}</p>
+            <p className="text-xs text-muted-foreground truncate">{description}</p>
           )}
         </div>
         {leftContent}

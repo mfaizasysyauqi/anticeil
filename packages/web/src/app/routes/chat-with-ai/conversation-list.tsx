@@ -220,29 +220,29 @@ export function ConversationList({
 
   return (
     <div className={cn('flex flex-col h-full shrink-0 w-[220px]', className)}>
-      <div className="px-2 pt-3 pb-2 space-y-2">
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            className={cn(
-              'flex grow items-center justify-between gap-1.5 px-2 py-1.5 rounded-md border border-border bg-transparent cursor-pointer text-xs text-foreground transition-colors hover:bg-accent',
-              mobile && 'px-3 py-2.5 text-sm',
-            )}
-            onClick={() => {
-              onNewChat?.();
-            }}
-          >
-            <span className="flex items-center gap-1.5">
-              <Plus size={mobile ? 16 : 14} />
-              {t('New chat')}
-            </span>
-            {!mobile && <span className="text-[11px] opacity-50">⇧⌘O</span>}
-          </button>
-          {onCollapse !== undefined && (
-            <ConversationsToggle open onClick={onCollapse} />
+      <div className="h-12 border-b border-sidebar-border px-2 flex items-center gap-1.5 shrink-0">
+        <button
+          type="button"
+          className={cn(
+            'flex grow items-center justify-between gap-1.5 px-2 py-1.5 rounded-md border border-border bg-transparent cursor-pointer text-xs text-foreground transition-colors hover:bg-accent',
+            mobile && 'px-3 py-2 text-sm',
           )}
-        </div>
-        {allConversations.length > 5 && (
+          onClick={() => {
+            onNewChat?.();
+          }}
+        >
+          <span className="flex items-center gap-1.5">
+            <Plus size={mobile ? 16 : 14} />
+            {t('New chat')}
+          </span>
+          {!mobile && <span className="text-[11px] opacity-50">⇧⌘O</span>}
+        </button>
+        {onCollapse !== undefined && (
+          <ConversationsToggle open onClick={onCollapse} />
+        )}
+      </div>
+      {allConversations.length > 5 && (
+        <div className="p-2 border-b border-sidebar-border">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
@@ -255,8 +255,8 @@ export function ConversationList({
               )}
             />
           </div>
-        )}
-      </div>
+        </div>
+      )}
       <div className="flex-1 relative min-h-0">
         {showTopFade && (
           <div className="absolute top-0 left-0 right-0 h-5 pointer-events-none z-[1] bg-gradient-to-b from-background to-transparent" />

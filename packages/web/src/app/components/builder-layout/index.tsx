@@ -45,7 +45,7 @@ function BuilderLayoutInner({ children }: { children: React.ReactNode }) {
 
       {/* Mobile / Tablet Top Navigation Bar (screens < 1024px) */}
       {!embedState.isEmbedded && (
-        <header className="sticky top-0 z-30 flex lg:hidden items-center justify-between h-13 px-3 bg-sidebar border-b border-sidebar-border shrink-0 w-full">
+        <header className="sticky top-0 z-30 flex lg:hidden items-center justify-between h-12 px-3 bg-sidebar border-b border-sidebar-border shrink-0 w-full">
           <div className="flex items-center gap-2 min-w-0">
             <Button
               variant="ghost"

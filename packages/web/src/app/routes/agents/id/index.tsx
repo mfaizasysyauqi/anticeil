@@ -74,7 +74,7 @@ const needsAModel = (agent: Agent): boolean => {
 
 const AgentEditorSkeleton = () => (
   <div className="flex h-full w-full flex-col">
-    <div className="flex h-[60px] shrink-0 items-center gap-[14px] border-b border-border px-6">
+    <div className="flex h-12 shrink-0 items-center gap-[14px] border-b border-sidebar-border px-6">
       <Skeleton className="size-12 rounded-[14px]" />
       <Skeleton className="h-5 w-[220px]" />
     </div>
@@ -183,8 +183,8 @@ const AgentEditorContent = () => {
       <div className="flex min-w-0 grow flex-col">
         <div
           className={cn(
-            'flex h-[60px] shrink-0 items-center gap-3 px-5',
-            !runsOpen && 'border-b border-border',
+            'flex h-12 shrink-0 items-center gap-3 px-5',
+            !runsOpen && 'border-b border-sidebar-border',
           )}
         >
           <button

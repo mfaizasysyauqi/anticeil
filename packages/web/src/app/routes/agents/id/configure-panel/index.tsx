@@ -616,7 +616,7 @@ const AgentConfigurePanel = ({
           defaultValue="behavior"
           className="flex min-h-0 grow flex-col gap-0"
         >
-          <div className="flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-border px-[18px]">
+          <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-sidebar-border px-[18px]">
             <div className="flex min-w-0 items-center gap-2">
               <span className="truncate text-base font-semibold leading-5 tracking-[-0.01em]">
                 {t('Configure')}

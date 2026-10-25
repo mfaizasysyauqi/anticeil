@@ -40,7 +40,7 @@ export const AgentChatView = ({
       <aside
         className={cn(
           SLIDING_ASIDE,
-          'border-r',
+          'border-r border-sidebar-border',
           conversationsOpen ? 'w-[220px]' : 'w-[46px]',
         )}
       >
@@ -55,7 +55,7 @@ export const AgentChatView = ({
             />
           </div>
         ) : (
-          <div className="flex h-full w-[46px] shrink-0 flex-col items-center pt-3">
+          <div className="flex h-12 w-[46px] shrink-0 items-center justify-center border-b border-sidebar-border">
             <ConversationsToggle open={false} onClick={onExpandConversations} />
           </div>
         )}
