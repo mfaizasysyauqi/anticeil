@@ -178,6 +178,9 @@ function ProjectDashboardLayoutInner({
   const isChatMode =
     location.pathname.startsWith('/community') ||
     location.pathname.startsWith('/messages');
+  const isFixedViewportRoute =
+    isChatMode ||
+    location.pathname.startsWith('/chat');
 
   const handleBurgerClick = () => {
     if (isChatMode) {
