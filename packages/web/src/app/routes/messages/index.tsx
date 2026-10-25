@@ -1890,7 +1890,7 @@ export function CommunityPage() {
             </div>
           </div>
         )}
-        <div className="w-full h-13 px-2 py-1.5 rounded-[12px] bg-[#111214] border border-white/10 shadow-2xl flex items-center justify-between">
+        <div className="w-full h-[52px] px-2 py-1.5 rounded-[12px] bg-[#111214] border border-white/10 shadow-2xl backdrop-blur-md flex items-center justify-between">
           <div
             onClick={() => {
               const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
