@@ -7,8 +7,9 @@ permissions:
 on:
   push:
     branches:
-      - feat/content-creator-templates
       - main
+      - 'deploy/*'
+      - 'feat/*'
   workflow_dispatch:
 
 jobs:
