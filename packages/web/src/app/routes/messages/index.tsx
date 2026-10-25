@@ -63,6 +63,7 @@ import {
   Minimize2,
   Camera,
   Upload,
+  Gift,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useTranslation } from 'react-i18next';
@@ -3084,13 +3085,13 @@ export function CommunityPage() {
           </div>
 
           {/* Chat Input Bar (FLOATING OVERLAY FORM CHAT - Discord Style) */}
-          <div className="shrink-0 px-2 pb-2 pt-1 bg-transparent z-10 flex flex-col gap-1.5">
+          <div className="shrink-0 px-4 pb-6 pt-0 bg-transparent z-10 flex flex-col gap-1.5">
             {/* Staged Attachment Indicator */}
             {stagedAttachment && (
               <div className="p-2 rounded-[8px] bg-[#383a40] border border-white/10 shadow-lg flex items-center justify-between text-xs animate-in slide-in-from-bottom-1">
                 <div className="flex items-center gap-2 truncate">
                   <Paperclip className="w-4 h-4 text-primary shrink-0" />
-                  <span className="font-medium truncate">{stagedAttachment.name}</span>
+                  <span className="font-medium truncate text-[#dbdee1]">{stagedAttachment.name}</span>
                   {stagedAttachment.size && (
                     <span className="text-[10px] text-muted-foreground">({stagedAttachment.size})</span>
                   )}
@@ -3107,7 +3108,7 @@ export function CommunityPage() {
             )}
 
             {/* Discord Signature Chat Input Box */}
-            <div className="w-full h-[44px] flex items-center gap-2 rounded-[8px] bg-[#383a40] px-4 transition-all">
+            <div className="w-full min-h-[44px] flex items-center gap-3 rounded-[8px] bg-[#383a40] px-4 transition-all">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -3116,14 +3117,14 @@ export function CommunityPage() {
                 className="hidden"
               />
 
-              {/* Upload file button: flat Plus icon ala Discord */}
+              {/* Upload file button: circular plus button ala Discord */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-6 h-6 text-[#b5bac1] hover:text-white flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                className="w-6 h-6 rounded-full bg-[#4e5058] hover:bg-[#6d6f78] text-[#dbdee1] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
                 title="Lampirkan Gambar atau Dokumen (Maks. 5 MB)"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4 stroke-[2.5]" />
               </button>
 
               {/* Text Input */}
@@ -3137,35 +3138,81 @@ export function CommunityPage() {
                   }
                 }}
                 disabled={!activeChannel}
-                placeholder={activeChannel ? `Pesan ke #${activeChannel.name}...` : t('Pilih atau buat channel terlebih dahulu...')}
-                className="border-0 shadow-none focus-visible:ring-0 text-sm px-1.5 h-full bg-transparent flex-1 placeholder:text-muted-foreground/60 text-foreground disabled:opacity-50"
+                placeholder={
+                  activeChannel
+                    ? activeChannel.category === 'DIRECT MESSAGES' || activeChannel.isDirectMessage
+                      ? `Message @${activeChannel.name}`
+                      : `Message #${activeChannel.name}`
+                    : t('Pilih atau buat channel terlebih dahulu...')
+                }
+                className="border-0 shadow-none focus-visible:ring-0 text-sm px-1 h-full bg-transparent flex-1 placeholder:text-[#80848e] text-[#dbdee1] disabled:opacity-50"
               />
 
-              {/* Right Action Icons: Emoji & Send (Discord style) */}
-              <div className="flex items-center gap-0.5 shrink-0">
-                {/* Emoji button */}
+              {/* Right Action Icons: Gift, GIF, Sticker, Emoji, Apps & Send (Discord style) */}
+              <div className="flex items-center gap-2 shrink-0">
+                {/* 1. Gift Icon */}
+                <button
+                  type="button"
+                  onClick={() => navigate('/platform/billing')}
+                  className="w-6 h-6 text-[#b5bac1] hover:text-[#dbdee1] flex items-center justify-center transition-colors cursor-pointer"
+                  title="Kirim Hadiah / Upgrade Paket"
+                >
+                  <Gift className="w-5 h-5" />
+                </button>
+
+                {/* 2. GIF Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsTemplatePopoverOpen(true)}
+                  className="h-6 px-0.5 flex items-center justify-center text-[#b5bac1] hover:text-[#dbdee1] transition-colors cursor-pointer"
+                  title="Buka pemilih GIF / Template"
+                >
+                  <span className="text-[9px] font-black tracking-tight border-[1.5px] border-current px-1 py-0.5 rounded-[4px] leading-none select-none">
+                    GIF
+                  </span>
+                </button>
+
+                {/* 3. Sticker Button */}
+                <button
+                  type="button"
+                  onClick={() => setInputText((prev) => prev + ' 🏷️')}
+                  className="w-6 h-6 text-[#b5bac1] hover:text-[#dbdee1] flex items-center justify-center transition-colors cursor-pointer"
+                  title="Buka pemilih stiker"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8l6-6V4a2 2 0 0 0-2-2z" />
+                    <path d="M14 2v6h6" />
+                    <circle cx="9" cy="11" r="1" fill="currentColor" />
+                    <circle cx="13" cy="11" r="1" fill="currentColor" />
+                    <path d="M8 15s1.5 1.5 3 1.5 3-1.5 3-1.5" />
+                  </svg>
+                </button>
+
+                {/* 4. Emoji Button */}
                 <button
                   type="button"
                   onClick={() => setInputText((prev) => prev + ' 😊')}
-                  className="w-6 h-6 text-[#b5bac1] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-                  title="Emoji"
+                  className="w-6 h-6 text-[#b5bac1] hover:text-[#dbdee1] flex items-center justify-center transition-colors cursor-pointer"
+                  title="Pilih emoji"
                 >
                   <Smile className="w-5 h-5" />
                 </button>
 
-                {/* Template/Apps icon (Discord-style activity icon) */}
+                {/* 5. Apps & Templates Button (Discord Activity Shapes) */}
                 <Popover open={isTemplatePopoverOpen} onOpenChange={setIsTemplatePopoverOpen}>
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className="w-6 h-6 ml-1 text-[#b5bac1] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-                      title="Bagikan Template Otomasi"
+                      className="w-6 h-6 text-[#b5bac1] hover:text-[#dbdee1] flex items-center justify-center transition-colors cursor-pointer"
+                      title="Aplikasi & Template Otomasi"
                     >
-                      <Layers className="w-5 h-5" />
+                      <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M7 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zm10 0a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zm-10 10a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zm10 0a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z" />
+                      </svg>
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent side="top" align="end" className="w-80 p-3">
-                    <div className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+                  <PopoverContent side="top" align="end" className="w-80 p-3 bg-[#2b2d31] border-[#1e1f22] text-[#dbdee1] shadow-xl">
+                    <div className="text-xs font-semibold mb-2 flex items-center gap-1.5 text-white">
                       <Sparkles className="w-3.5 h-3.5 text-primary" />
                       Pilih Template untuk Dibagikan
                     </div>
@@ -3182,9 +3229,9 @@ export function CommunityPage() {
                             });
                             setIsTemplatePopoverOpen(false);
                           }}
-                          className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors border border-transparent hover:border-border/60"
+                          className="w-full text-left p-2 rounded-md hover:bg-[#35373c] transition-colors border border-transparent hover:border-white/5"
                         >
-                          <div className="flex items-center justify-between text-xs font-medium">
+                          <div className="flex items-center justify-between text-xs font-medium text-white">
                             <span className="truncate">{tmpl.name}</span>
                             <span className="text-[10px] text-muted-foreground ml-2 shrink-0">{tmpl.price}</span>
                           </div>
@@ -3197,16 +3244,16 @@ export function CommunityPage() {
                   </PopoverContent>
                 </Popover>
 
-                {/* Send Button — only visible when there's content, like Discord */}
+                {/* Send Button — only visible when there's content */}
                 {(inputText.trim() || stagedAttachment) && (
                   <button
                     type="button"
                     onClick={handleSendMessage}
                     disabled={!activeChannel}
-                    className="w-6 h-6 ml-1 text-[#b5bac1] hover:text-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40"
+                    className="w-6 h-6 ml-1 text-[#5865f2] hover:text-[#4752c4] flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 animate-in zoom-in-75 duration-150"
                     title="Kirim Pesan (Enter)"
                   >
-                    <Send className="w-4 h-4" />
+                    <Send className="w-4 h-4 fill-current" />
                   </button>
                 )}
               </div>
