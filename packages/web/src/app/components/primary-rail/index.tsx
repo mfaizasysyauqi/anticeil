@@ -303,7 +303,7 @@ export function PrimaryRail() {
             <div className="w-6 h-[2px] bg-sidebar-border rounded-full my-1.5 shrink-0" />
 
             {/* 3. Scrollable Hubs / Servers List */}
-            <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col items-center gap-2 py-1">
+            <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col items-center gap-2 py-1 pb-16">
 
               {/* Other Servers */}
               {hubs.slice(1).map((hub) => {

@@ -1610,7 +1610,7 @@ export function CommunityPage() {
       </div>
 
       {/* Scroll Area: Home=DMs only, Server=Channels only */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-2 py-3 [scrollbar-width:thin]">
+      <div className="flex-1 min-h-0 overflow-y-auto px-2 py-3 pb-16 [scrollbar-width:thin]">
         {isHome ? (
           /* ===== HOME: DIRECT MESSAGES & FRIENDS NAVIGATION ===== */
           <div>
@@ -1840,13 +1840,20 @@ export function CommunityPage() {
     </div>
   );
 
-  // Component: User Footer Profile Dock across the entire left rail area (Discord layout)
-  const renderUserBottomDock = () => (
-    <div className="flex flex-col shrink-0 z-10 w-full select-none bg-sidebar border-t border-sidebar-border">
+  // Component: User Footer Profile Dock across the entire left rail area (Discord-style overlay card)
+  const renderUserBottomDock = (isOverlay = true) => (
+    <div
+      className={cn(
+        'select-none pointer-events-auto',
+        isOverlay
+          ? 'hidden lg:flex flex-col fixed bottom-2.5 left-2.5 z-40 w-[280px]'
+          : 'lg:hidden flex flex-col shrink-0 z-10 w-full bg-sidebar p-2 border-t border-sidebar-border',
+      )}
+    >
       {activeCallChannelId && (
-        <div className="px-3 py-2 bg-[#111214] border-b border-sidebar-border flex items-center justify-between animate-in slide-in-from-bottom-2">
+        <div className="mb-1.5 px-3 py-1.5 rounded-[10px] bg-[#111214]/95 border border-sidebar-border shadow-lg backdrop-blur-md flex items-center justify-between animate-in slide-in-from-bottom-2">
           <div className="flex items-center gap-2 min-w-0">
-            <Radio className="w-4 h-4 text-emerald-500 animate-pulse shrink-0" />
+            <Radio className="w-3.5 h-3.5 text-emerald-500 animate-pulse shrink-0" />
             <div className="flex flex-col min-w-0">
               <span className="text-[11px] font-bold text-emerald-400 leading-tight">
                 Voice Terhubung
@@ -1881,89 +1888,74 @@ export function CommunityPage() {
           </div>
         </div>
       )}
-      <div className="h-16 px-2 flex items-center w-full">
-        <div className="w-full h-11 px-2 rounded-lg bg-sidebar-accent/50 hover:bg-sidebar-accent/80 transition-colors flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0 flex-1 mr-1.5">
-            <CommunityAvatar
-              name={currentUserName}
-              email={currentUser?.email}
-              imageUrl={currentUser?.imageUrl}
-              size={30}
-              status="online"
-              showStatus
-              className="shrink-0"
-            />
-            <div className="flex flex-col min-w-0 flex-1">
-              <button
-                type="button"
-                onClick={() => {
-                  const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
-                  setEditDisplayNameInput(currentUserName);
-                  setEditUsernameInput(currentUser?.username || fallback);
-                  setIsEditProfileOpen(true);
-                }}
-                className="text-xs font-semibold truncate leading-tight text-foreground text-left hover:text-primary transition-colors flex items-center gap-1 group/name"
-                title={t('Ubah nama tampilan atau username')}
-              >
-                <span className="truncate">{currentUserName}</span>
-                <Edit2 className="w-2.5 h-2.5 opacity-0 group-hover/name:opacity-60 transition-opacity shrink-0" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
-                  setEditDisplayNameInput(currentUserName);
-                  setEditUsernameInput(currentUser?.username || fallback);
-                  setIsEditProfileOpen(true);
-                }}
-                className="text-[10px] text-muted-foreground hover:text-primary transition-colors font-mono leading-none mt-0.5 truncate text-left flex items-center gap-1 group/user"
-                title={t('Ubah nama tampilan atau username')}
-              >
-                <span className="truncate">
-                  {currentUser?.username || currentUser?.email
-                    ? `@${currentUser?.username || currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')}`
-                    : t('@atur_username')}
-                </span>
-                <Edit2 className="w-2 h-2 opacity-0 group-hover/user:opacity-60 transition-opacity shrink-0" />
-              </button>
-            </div>
+      <div className="w-full h-13 px-2.5 py-1.5 rounded-[12px] bg-[#111214]/95 border border-sidebar-border shadow-xl backdrop-blur-md flex items-center justify-between">
+        <div
+          onClick={() => {
+            const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
+            setEditDisplayNameInput(currentUserName);
+            setEditUsernameInput(currentUser?.username || fallback);
+            setIsEditProfileOpen(true);
+          }}
+          className="flex items-center gap-2 min-w-0 flex-1 mr-1 px-1.5 py-1 rounded-md hover:bg-white/5 cursor-pointer transition-colors group/user"
+          title={t('Ubah nama tampilan atau username')}
+        >
+          <CommunityAvatar
+            name={currentUserName}
+            email={currentUser?.email}
+            imageUrl={currentUser?.imageUrl}
+            size={32}
+            status="online"
+            showStatus
+            className="shrink-0"
+          />
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-xs font-semibold truncate leading-tight text-foreground group-hover/user:text-primary transition-colors">
+              {currentUserName}
+            </span>
+            <span className="text-[10px] text-muted-foreground font-mono leading-tight mt-0.5 truncate">
+              {currentUser?.username
+                ? `@${currentUser.username}`
+                : currentUser?.email
+                  ? `@${currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')}`
+                  : t('@atur_username')}
+            </span>
           </div>
+        </div>
 
-          {/* Discord Mic, Headphones & Settings */}
-          <div className="flex items-center gap-0.5 text-muted-foreground shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsMuted(!isMuted)}
-              className="h-7 w-7 hover:text-foreground cursor-pointer"
-              title={isMuted ? 'Unmute' : 'Mute'}
-            >
-              {isMuted ? <MicOff className="w-3.5 h-3.5 text-red-400" /> : <Mic className="w-3.5 h-3.5" />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsDeafened(!isDeafened)}
-              className="h-7 w-7 hover:text-foreground cursor-pointer"
-              title={isDeafened ? 'Undeafen' : 'Deafen'}
-            >
-              <Headphones className={cn('w-3.5 h-3.5', isDeafened && 'text-red-400')} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
-                setEditDisplayNameInput(currentUserName);
-                setEditUsernameInput(currentUser?.username || fallback);
-                setIsEditProfileOpen(true);
-              }}
-              className="h-7 w-7 hover:text-foreground cursor-pointer"
-              title={t('Pengaturan Akun')}
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </Button>
-          </div>
+        {/* Discord Mic, Headphones & Settings */}
+        <div className="flex items-center gap-0.5 text-muted-foreground shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsMuted(!isMuted)}
+            className="h-7 w-7 hover:text-foreground hover:bg-white/10 rounded-md cursor-pointer"
+            title={isMuted ? 'Unmute' : 'Mute'}
+          >
+            {isMuted ? <MicOff className="w-3.5 h-3.5 text-red-400" /> : <Mic className="w-3.5 h-3.5" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsDeafened(!isDeafened)}
+            className="h-7 w-7 hover:text-foreground hover:bg-white/10 rounded-md cursor-pointer"
+            title={isDeafened ? 'Undeafen' : 'Deafen'}
+          >
+            <Headphones className={cn('w-3.5 h-3.5', isDeafened && 'text-red-400')} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
+              setEditDisplayNameInput(currentUserName);
+              setEditUsernameInput(currentUser?.username || fallback);
+              setIsEditProfileOpen(true);
+            }}
+            className="h-7 w-7 hover:text-foreground hover:bg-white/10 rounded-md cursor-pointer"
+            title={t('Pengaturan Akun')}
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </Button>
         </div>
       </div>
     </div>
@@ -2539,8 +2531,10 @@ export function CommunityPage() {
           <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
             {renderChannelsSidebarContent()}
           </div>
-          {renderUserBottomDock()}
         </div>
+
+        {/* OVERLAY USER PROFILE DOCK (Discord-style: floating card stacking over rail + body container) */}
+        {renderUserBottomDock(true)}
 
         {/* MOBILE CHANNELS DRAWER */}
         <Sheet open={isMobileChannelsOpen} onOpenChange={setIsMobileChannelsOpen}>
@@ -2554,7 +2548,7 @@ export function CommunityPage() {
                 {renderChannelsSidebarContent(() => setIsMobileChannelsOpen(false))}
               </div>
             </div>
-            {renderUserBottomDock()}
+            {renderUserBottomDock(false)}
           </SheetContent>
         </Sheet>
 

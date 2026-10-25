@@ -253,11 +253,15 @@ function ProjectDashboardLayoutInner({
             className={cn(
               'flex-1 flex flex-col min-h-0 overflow-hidden',
               LAYOUT_BODY_CONTAINER.OUTER_PADDING,
+              isChatMode && 'lg:pl-0',
             )}
           >
             <div
               id="dashboard-content-container"
-              className={LAYOUT_BODY_CONTAINER.CONTENT_CONTAINER}
+              className={cn(
+                LAYOUT_BODY_CONTAINER.CONTENT_CONTAINER,
+                isChatMode && 'lg:border-l-0 lg:rounded-tl-none',
+              )}
             >
               {!hideHeader && (
                 <ProjectDashboardLayoutHeader key={currentProjectId} />
