@@ -3084,10 +3084,10 @@ export function CommunityPage() {
           </div>
 
           {/* Chat Input Bar (FLOATING OVERLAY FORM CHAT - Discord Style) */}
-          <div className="shrink-0 px-4 pb-2 pt-1 bg-transparent z-10 flex flex-col gap-1.5">
+          <div className="shrink-0 px-2 pb-2 pt-1 bg-transparent z-10 flex flex-col gap-1.5">
             {/* Staged Attachment Indicator */}
             {stagedAttachment && (
-              <div className="p-2 rounded-[10px] bg-[#111214] border border-white/10 shadow-xl backdrop-blur-md flex items-center justify-between text-xs animate-in slide-in-from-bottom-1">
+              <div className="p-2 rounded-[8px] bg-[#383a40] border border-white/10 shadow-lg flex items-center justify-between text-xs animate-in slide-in-from-bottom-1">
                 <div className="flex items-center gap-2 truncate">
                   <Paperclip className="w-4 h-4 text-primary shrink-0" />
                   <span className="font-medium truncate">{stagedAttachment.name}</span>
@@ -3106,7 +3106,8 @@ export function CommunityPage() {
               </div>
             )}
 
-            <div className="w-full h-[52px] flex items-center gap-1.5 rounded-[12px] bg-[#111214] border border-white/10 shadow-2xl backdrop-blur-md px-3 focus-within:border-primary/50 transition-colors">
+            {/* Discord Signature Chat Input Box */}
+            <div className="w-full h-[52px] flex items-center gap-2 rounded-[8px] bg-[#383a40] border border-white/[0.04] shadow-sm px-3.5 focus-within:ring-1 focus-within:ring-white/20 transition-all">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -3115,61 +3116,15 @@ export function CommunityPage() {
                 className="hidden"
               />
 
-              {/* Upload file button */}
-              <Button
-                variant="ghost"
-                size="icon"
+              {/* Upload file button: Circular Plus icon ala Discord */}
+              <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+                className="size-6 rounded-full bg-white/10 hover:bg-white/20 text-muted-foreground hover:text-white flex items-center justify-center shrink-0 transition-colors cursor-pointer"
                 title="Lampirkan Gambar atau Dokumen (Maks. 5 MB)"
               >
-                <Plus className="w-4 h-4" />
-              </Button>
-
-              {/* Share Template Popover */}
-              <Popover open={isTemplatePopoverOpen} onOpenChange={setIsTemplatePopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
-                    title="Bagikan Template Otomasi"
-                  >
-                    <Layers className="w-4 h-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent side="top" align="start" className="w-80 p-3">
-                  <div className="text-xs font-semibold mb-2 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-primary" />
-                    Pilih Template untuk Dibagikan
-                  </div>
-                  <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                    {SHAREABLE_TEMPLATES.map((tmpl, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setStagedAttachment({
-                            type: 'template',
-                            url: '/templates',
-                            name: tmpl.name,
-                            templateData: tmpl,
-                          });
-                          setIsTemplatePopoverOpen(false);
-                        }}
-                        className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors border border-transparent hover:border-border/60"
-                      >
-                        <div className="flex items-center justify-between text-xs font-medium">
-                          <span className="truncate">{tmpl.name}</span>
-                          <span className="text-[10px] text-muted-foreground ml-2 shrink-0">{tmpl.price}</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">
-                          {tmpl.description}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
+                <Plus className="w-3.5 h-3.5" />
+              </button>
 
               {/* Text Input */}
               <Input
@@ -3183,19 +3138,80 @@ export function CommunityPage() {
                 }}
                 disabled={!activeChannel}
                 placeholder={activeChannel ? `Pesan ke #${activeChannel.name}...` : t('Pilih atau buat channel terlebih dahulu...')}
-                className="border-0 shadow-none focus-visible:ring-0 text-xs px-2 h-full bg-transparent flex-1 disabled:opacity-50"
+                className="border-0 shadow-none focus-visible:ring-0 text-sm px-1.5 h-full bg-transparent flex-1 placeholder:text-muted-foreground/60 text-foreground disabled:opacity-50"
               />
 
-              {/* Send Button */}
-              <Button
-                variant={inputText.trim() || stagedAttachment ? 'default' : 'ghost'}
-                size="icon"
-                onClick={handleSendMessage}
-                disabled={!activeChannel || (!inputText.trim() && !stagedAttachment)}
-                className="h-8 w-8 shrink-0 cursor-pointer"
-              >
-                <Send className="w-3.5 h-3.5" />
-              </Button>
+              {/* Right Action Icons: Templates, Emoji & Send */}
+              <div className="flex items-center gap-1 shrink-0 text-muted-foreground">
+                {/* Share Template Popover */}
+                <Popover open={isTemplatePopoverOpen} onOpenChange={setIsTemplatePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="size-7 rounded-md hover:bg-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                      title="Bagikan Template Otomasi"
+                    >
+                      <Layers className="w-4 h-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent side="top" align="end" className="w-80 p-3">
+                    <div className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-primary" />
+                      Pilih Template untuk Dibagikan
+                    </div>
+                    <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                      {SHAREABLE_TEMPLATES.map((tmpl, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setStagedAttachment({
+                              type: 'template',
+                              url: '/templates',
+                              name: tmpl.name,
+                              templateData: tmpl,
+                            });
+                            setIsTemplatePopoverOpen(false);
+                          }}
+                          className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors border border-transparent hover:border-border/60"
+                        >
+                          <div className="flex items-center justify-between text-xs font-medium">
+                            <span className="truncate">{tmpl.name}</span>
+                            <span className="text-[10px] text-muted-foreground ml-2 shrink-0">{tmpl.price}</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">
+                            {tmpl.description}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                {/* Emoji button */}
+                <button
+                  type="button"
+                  onClick={() => setInputText((prev) => prev + ' 😊')}
+                  className="size-7 rounded-md hover:bg-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                  title="Emoji"
+                >
+                  <Smile className="w-4 h-4" />
+                </button>
+
+                {/* Send Button */}
+                <Button
+                  variant={inputText.trim() || stagedAttachment ? 'default' : 'ghost'}
+                  size="icon"
+                  onClick={handleSendMessage}
+                  disabled={!activeChannel || (!inputText.trim() && !stagedAttachment)}
+                  className={cn(
+                    'size-7 shrink-0 cursor-pointer transition-all',
+                    !(inputText.trim() || stagedAttachment) && 'opacity-40 hover:opacity-60 text-muted-foreground',
+                  )}
+                  title="Kirim Pesan (Enter)"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </Button>
+              </div>
             </div>
           </div>
           </>

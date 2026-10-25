@@ -270,12 +270,14 @@ export const messagesApi = {
     description?: string;
     color?: string;
     icon?: string;
+    iconUrl?: string;
   }): Promise<CommunityHub> {
     const newId = `hub_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const newHub: CommunityHub = {
       id: newId,
       name: payload.name,
-      iconType: 'code' as any,
+      iconType: payload.iconUrl ? (undefined as any) : ('code' as any),
+      iconUrl: payload.iconUrl,
       initials: payload.name.slice(0, 2).toUpperCase() || 'SV',
       description: payload.description || '',
       inviteCode: Math.random().toString(36).slice(2, 8).toUpperCase(),
