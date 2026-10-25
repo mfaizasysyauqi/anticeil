@@ -3006,30 +3006,30 @@ export function CommunityPage() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Staged Attachment Indicator */}
-          {stagedAttachment && (
-            <div className="mx-4 mb-2 p-2 rounded-md bg-sidebar border border-sidebar-border flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2 truncate">
-                <Paperclip className="w-4 h-4 text-primary shrink-0" />
-                <span className="font-medium truncate">{stagedAttachment.name}</span>
-                {stagedAttachment.size && (
-                  <span className="text-[10px] text-muted-foreground">({stagedAttachment.size})</span>
-                )}
+          {/* Chat Input Bar (FLOATING OVERLAY FORM CHAT - Discord Style) */}
+          <div className="shrink-0 px-4 pb-2 pt-1 bg-transparent z-10 flex flex-col gap-1.5">
+            {/* Staged Attachment Indicator */}
+            {stagedAttachment && (
+              <div className="p-2 rounded-[10px] bg-[#111214] border border-white/10 shadow-xl backdrop-blur-md flex items-center justify-between text-xs animate-in slide-in-from-bottom-1">
+                <div className="flex items-center gap-2 truncate">
+                  <Paperclip className="w-4 h-4 text-primary shrink-0" />
+                  <span className="font-medium truncate">{stagedAttachment.name}</span>
+                  {stagedAttachment.size && (
+                    <span className="text-[10px] text-muted-foreground">({stagedAttachment.size})</span>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setStagedAttachment(null)}
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setStagedAttachment(null)}
-                className="h-6 w-6 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          )}
+            )}
 
-          {/* Chat Input Bar (NON-SCROLLABLE FORM CHAT / BOTTOM BAR) */}
-          <div className="h-16 border-t border-sidebar-border px-4 flex items-center shrink-0 bg-background/90 backdrop-blur-xs z-10">
-            <div className="w-full h-11 flex items-center gap-1.5 bg-sidebar rounded-lg border border-sidebar-border px-2.5 focus-within:border-primary/50 transition-colors">
+            <div className="w-full h-[52px] flex items-center gap-1.5 rounded-[12px] bg-[#111214] border border-white/10 shadow-2xl backdrop-blur-md px-3 focus-within:border-primary/50 transition-colors">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -3043,7 +3043,7 @@ export function CommunityPage() {
                 variant="ghost"
                 size="icon"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
                 title="Lampirkan Gambar atau Dokumen (Maks. 5 MB)"
               >
                 <Plus className="w-4 h-4" />
@@ -3055,7 +3055,7 @@ export function CommunityPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
                     title="Bagikan Template Otomasi"
                   >
                     <Layers className="w-4 h-4" />
@@ -3106,7 +3106,7 @@ export function CommunityPage() {
                 }}
                 disabled={!activeChannel}
                 placeholder={activeChannel ? `Pesan ke #${activeChannel.name}...` : t('Pilih atau buat channel terlebih dahulu...')}
-                className="border-0 shadow-none focus-visible:ring-0 text-xs px-2 h-8 bg-transparent flex-1 disabled:opacity-50"
+                className="border-0 shadow-none focus-visible:ring-0 text-xs px-2 h-full bg-transparent flex-1 disabled:opacity-50"
               />
 
               {/* Send Button */}
@@ -3115,7 +3115,7 @@ export function CommunityPage() {
                 size="icon"
                 onClick={handleSendMessage}
                 disabled={!activeChannel || (!inputText.trim() && !stagedAttachment)}
-                className="h-7 w-7 shrink-0"
+                className="h-8 w-8 shrink-0 cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
               </Button>
