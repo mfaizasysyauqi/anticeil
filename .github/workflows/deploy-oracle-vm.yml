@@ -94,8 +94,15 @@ jobs:
             grep -q '^AP_GOOGLE_CLIENT_ID=' .env && sed -i "s|^AP_GOOGLE_CLIENT_ID=.*|AP_GOOGLE_CLIENT_ID=$G_CID|" .env || echo "AP_GOOGLE_CLIENT_ID=$G_CID" >> .env
             grep -q '^AP_GOOGLE_CLIENT_SECRET=' .env && sed -i "s|^AP_GOOGLE_CLIENT_SECRET=.*|AP_GOOGLE_CLIENT_SECRET=$G_SEC|" .env || echo "AP_GOOGLE_CLIENT_SECRET=$G_SEC" >> .env
 
+            # Purge stale cached pieces for anticeil-chat so the newly bundled tgz is freshly installed
+            sudo rm -rf ./cache/*/common/pieces/*anticeil-chat* ./cache/common/pieces/*anticeil-chat* 2>/dev/null || true
+
             # Recreate containers with new image
             docker compose up -d --force-recreate app worker
+
+            # Ensure stale cache inside container volume is completely removed
+            docker compose exec -T -u 0 worker rm -rf /usr/src/app/cache/v15/common/pieces/@activepieces/piece-anticeil-chat-0.1.0 2>/dev/null || true
+            docker compose exec -T -u 0 app rm -rf /usr/src/app/cache/v15/common/pieces/@activepieces/piece-anticeil-chat-0.1.0 2>/dev/null || true
 
             # Wait and inspect container status
             sleep 8
