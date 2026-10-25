@@ -1844,6 +1844,20 @@ export function CommunityPage() {
   // Component: User Footer Profile Dock across the entire left rail area (Discord-style overlay card)
   const renderUserBottomDock = (isOverlay = true) => {
     const dockNode = (
+      <>
+      {/* Gradient scrim behind the card — full width of rail+channels sidebar */}
+      {isOverlay && (
+        <div
+          aria-hidden
+          className="hidden lg:block fixed bottom-0 left-0 pointer-events-none"
+          style={{
+            width: '296px',
+            height: '80px',
+            zIndex: 49,
+            background: 'linear-gradient(to bottom, transparent 0%, var(--sidebar) 55%)',
+          }}
+        />
+      )}
       <div
         className={cn(
           'select-none pointer-events-auto',
@@ -1960,6 +1974,7 @@ export function CommunityPage() {
           </div>
         </div>
       </div>
+      </>
     );
 
     if (isOverlay) {
