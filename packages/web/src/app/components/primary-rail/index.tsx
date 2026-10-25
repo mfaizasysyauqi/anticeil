@@ -289,13 +289,8 @@ export function PrimaryRail() {
               </div>
             )}
 
-            {/* Separator bar - Perfectly aligned with the bottom border of the h-12 App Bar */}
-            <div className="w-full flex items-center justify-center h-0 relative shrink-0 z-20">
-              <div className="w-6 h-[2px] bg-sidebar-border rounded-full" />
-            </div>
-
             {/* 2. Mode Switcher: Automation Icon (dibawah logo Anticeil) */}
-            <div className="flex flex-col items-center shrink-0 px-2 pt-2">
+            <div className="flex flex-col items-center shrink-0 px-2">
               <Tooltip delayDuration={150}>
                 <TooltipTrigger asChild>
                   <Link
