@@ -1374,7 +1374,17 @@ export function CommunityCallStage({
       {activeAppId !== null && currentActiveApp ? (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#111214] relative">
           {/* ── 1. Full-Stage Activity Container (Fills main center/top area) ── */}
-          <div className="flex-1 min-h-0 m-2 sm:m-3 rounded-2xl bg-[#1e1f22] border border-white/10 flex flex-col overflow-hidden shadow-2xl relative">
+          <div
+            className={cn(
+              'm-2 sm:m-3 rounded-2xl bg-[#1e1f22] border border-white/10 flex flex-col overflow-hidden shadow-2xl relative transition-all duration-200',
+              // Cap height so the filmstrip (~115px) + dock (80px) always fit below.
+              // When filmstrip is expanded: 100vh - header(48) - filmstrip(115) - dock(80) - margins(24) ≈ calc(100vh - 267px)
+              // When filmstrip is collapsed: 100vh - header(48) - pill(20) - dock(80) - margins(24) ≈ calc(100vh - 172px)
+              !isFilmstripCollapsed
+                ? 'max-h-[calc(100vh-267px)]'
+                : 'max-h-[calc(100vh-172px)]',
+            )}
+          >
             {/* Activity Window Top Bar */}
             <div className="h-12 px-4 bg-[#2b2d31] border-b border-white/10 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">

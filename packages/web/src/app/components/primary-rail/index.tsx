@@ -35,8 +35,7 @@ import {
 import { motion, useReducedMotion } from 'motion/react';
 import { ComponentType, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { CommunityHub } from '../../routes/messages/messages-types';
-import { loadStoredHubs } from '../../routes/messages/messages-data';
+import { CommunityHub, loadStoredHubs } from '@/lib/community-hubs';
 
 import { UserAvatar } from '@/components/custom/user-avatar';
 import { useEmbedding } from '@/components/providers/embed-provider';

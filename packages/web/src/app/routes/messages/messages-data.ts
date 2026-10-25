@@ -1,14 +1,5 @@
 import { CommunityChannel, CommunityHub, CommunityMember, CommunityMessage } from './messages-types';
-
-export const DEFAULT_HUBS: CommunityHub[] = [
-  {
-    id: 'anticeil',
-    name: 'Pesan Langsung',
-    iconType: 'logo',
-    initials: 'DM',
-    description: 'Saluran pesan langsung untuk obrolan pribadi dengan rekan tim.',
-  },
-];
+export { DEFAULT_HUBS, loadStoredHubs, saveStoredHubs } from '@/lib/community-hubs';
 
 export const DEFAULT_CHANNELS: CommunityChannel[] = [];
 
@@ -55,27 +46,6 @@ export function saveStoredChannels(channels: CommunityChannel[]): void {
   }
 }
 
-const STORAGE_KEY_HUBS = 'anticeil_community_hubs_v3';
-
-export function loadStoredHubs(): CommunityHub[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_HUBS);
-    if (!raw) return DEFAULT_HUBS;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_HUBS;
-  } catch {
-    return DEFAULT_HUBS;
-  }
-}
-
-export function saveStoredHubs(hubs: CommunityHub[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY_HUBS, JSON.stringify(hubs));
-    window.dispatchEvent(new Event('anticeil_hubs_changed'));
-  } catch (err) {
-    console.error('Failed to save community hubs to storage', err);
-  }
-}
 
 // ── Extended Community Storage (Invites, Bans, Roles, Audit Log) ──
 const STORAGE_KEY_INVITES = 'anticeil_community_invites_v3';

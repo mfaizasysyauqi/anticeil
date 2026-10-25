@@ -12,32 +12,11 @@ export type CommunityRole =
   | 'creator'
   | 'pro';
 
-export type CommunityHubId = 'anticeil' | 'direct-messages' | string;
-
-export type CommunityCustomEmoji = {
-  id: string;
-  name: string;
-  char?: string;
-  url?: string;
-};
-
-export type CommunityHub = {
-  id: CommunityHubId;
-  name: string;
-  iconType?: 'logo' | 'spark' | 'bot' | 'templates' | 'code' | 'dm' | 'initials';
-  initials: string;
-  description?: string;
-  unreadCount?: number;
-  inviteCode?: string;
-  membersCount?: number;
-  color?: string;
-  iconUrl?: string;
-  role?: 'owner' | 'admin' | 'moderator' | 'member';
-  tags?: string[];
-  emojis?: CommunityCustomEmoji[];
-  boostsCount?: number;
-  boostTier?: number;
-};
+export type {
+  CommunityHubId,
+  CommunityCustomEmoji,
+  CommunityHub,
+} from '@/lib/community-hubs';
 
 export type CommunityChannel = {
   id: string;
