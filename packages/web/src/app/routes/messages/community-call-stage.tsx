@@ -2132,29 +2132,7 @@ export function CommunityCallStage({
                 participants.length >= 2 && 'grid-cols-2 md:grid-cols-3 max-w-6xl mx-auto',
               )}
             >
-              {/* Solitary Banner when user is alone */}
-              {participants.length === 0 && (
-                <div className="absolute top-4 inset-x-0 mx-auto w-fit z-20 px-4 py-2 rounded-full bg-black/70 backdrop-blur-md border border-white/10 flex items-center gap-3 shadow-xl animate-in fade-in slide-in-from-top-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs text-white/90">
-                    Anda sendirian di #{channel.name}.
-                  </span>
-                  <button
-                    onClick={() => setIsAppLauncherOpen(true)}
-                    className="px-3 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 border border-emerald-500/30 transition-all cursor-pointer"
-                  >
-                    <Rocket className="w-3.5 h-3.5" />
-                    Luncurkan Aktivitas (Apps)
-                  </button>
-                  <button
-                    onClick={handleCopyCallLink}
-                    className="px-3 py-1 rounded-full bg-primary/20 hover:bg-primary/30 text-primary text-xs font-semibold flex items-center gap-1.5 border border-primary/30 transition-all cursor-pointer"
-                  >
-                    <Copy className="w-3 h-3" />
-                    Salin Link Panggilan
-                  </button>
-                </div>
-              )}
+
 
               {/* LOCAL PARTICIPANT TILE */}
               <div
