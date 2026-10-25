@@ -2241,7 +2241,7 @@ export function CommunityPage() {
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 [scrollbar-width:thin]">
             {friendsTab === 'add' ? (
               /* ===== TAMBAH TEMAN TAB ===== */
-              <div className="max-w-xl">
+              <div className="w-full">
                 <h2 className="text-sm font-bold text-foreground uppercase tracking-wider mb-1">
                   {t('Tambah Teman')}
                 </h2>
@@ -2282,7 +2282,7 @@ export function CommunityPage() {
               </div>
             ) : friendsTab === 'pending' ? (
               /* ===== TERTUNDA TAB ===== */
-              <div className="max-w-3xl">
+              <div className="w-full">
                 <div className="text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase mb-3">
                   {t('Tertunda')} — {friendRequests.length}
                 </div>
@@ -2368,7 +2368,7 @@ export function CommunityPage() {
               </div>
             ) : (
               /* ===== ONLINE / SEMUA TAB ===== */
-              <div className="max-w-3xl">
+              <div className="w-full">
                 {/* Search Bar */}
                 <div className="relative mb-5">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
