@@ -3107,7 +3107,7 @@ export function CommunityPage() {
             )}
 
             {/* Discord Signature Chat Input Box */}
-            <div className="w-full h-[52px] flex items-center gap-2 rounded-[8px] bg-[#383a40] border border-white/[0.04] shadow-sm px-3.5 focus-within:ring-1 focus-within:ring-white/20 transition-all">
+            <div className="w-full h-[44px] flex items-center gap-2 rounded-[8px] bg-[#383a40] px-4 transition-all">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -3116,14 +3116,14 @@ export function CommunityPage() {
                 className="hidden"
               />
 
-              {/* Upload file button: Circular Plus icon ala Discord */}
+              {/* Upload file button: flat Plus icon ala Discord */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="size-6 rounded-full bg-white/10 hover:bg-white/20 text-muted-foreground hover:text-white flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                className="w-6 h-6 text-[#b5bac1] hover:text-white flex items-center justify-center shrink-0 transition-colors cursor-pointer"
                 title="Lampirkan Gambar atau Dokumen (Maks. 5 MB)"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-5 h-5" />
               </button>
 
               {/* Text Input */}
@@ -3141,17 +3141,27 @@ export function CommunityPage() {
                 className="border-0 shadow-none focus-visible:ring-0 text-sm px-1.5 h-full bg-transparent flex-1 placeholder:text-muted-foreground/60 text-foreground disabled:opacity-50"
               />
 
-              {/* Right Action Icons: Templates, Emoji & Send */}
-              <div className="flex items-center gap-1 shrink-0 text-muted-foreground">
-                {/* Share Template Popover */}
+              {/* Right Action Icons: Emoji & Send (Discord style) */}
+              <div className="flex items-center gap-0.5 shrink-0">
+                {/* Emoji button */}
+                <button
+                  type="button"
+                  onClick={() => setInputText((prev) => prev + ' 😊')}
+                  className="w-6 h-6 text-[#b5bac1] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                  title="Emoji"
+                >
+                  <Smile className="w-5 h-5" />
+                </button>
+
+                {/* Template/Apps icon (Discord-style activity icon) */}
                 <Popover open={isTemplatePopoverOpen} onOpenChange={setIsTemplatePopoverOpen}>
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className="size-7 rounded-md hover:bg-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                      className="w-6 h-6 ml-1 text-[#b5bac1] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
                       title="Bagikan Template Otomasi"
                     >
-                      <Layers className="w-4 h-4" />
+                      <Layers className="w-5 h-5" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent side="top" align="end" className="w-80 p-3">
@@ -3187,30 +3197,18 @@ export function CommunityPage() {
                   </PopoverContent>
                 </Popover>
 
-                {/* Emoji button */}
-                <button
-                  type="button"
-                  onClick={() => setInputText((prev) => prev + ' 😊')}
-                  className="size-7 rounded-md hover:bg-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
-                  title="Emoji"
-                >
-                  <Smile className="w-4 h-4" />
-                </button>
-
-                {/* Send Button */}
-                <Button
-                  variant={inputText.trim() || stagedAttachment ? 'default' : 'ghost'}
-                  size="icon"
-                  onClick={handleSendMessage}
-                  disabled={!activeChannel || (!inputText.trim() && !stagedAttachment)}
-                  className={cn(
-                    'size-7 shrink-0 cursor-pointer transition-all',
-                    !(inputText.trim() || stagedAttachment) && 'opacity-40 hover:opacity-60 text-muted-foreground',
-                  )}
-                  title="Kirim Pesan (Enter)"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </Button>
+                {/* Send Button — only visible when there's content, like Discord */}
+                {(inputText.trim() || stagedAttachment) && (
+                  <button
+                    type="button"
+                    onClick={handleSendMessage}
+                    disabled={!activeChannel}
+                    className="w-6 h-6 ml-1 text-[#b5bac1] hover:text-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40"
+                    title="Kirim Pesan (Enter)"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
