@@ -2122,8 +2122,8 @@ export function CommunityCallStage({
         </div>
       ) : (
         /* CASE B: NORMAL DISCORD VIDEO GRID STAGE */
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden p-2 sm:p-3 gap-2 w-full h-full">
-          <div className="flex-1 min-h-0 min-w-0 rounded-2xl bg-[#1e1f22]/50 border border-white/5 p-2 sm:p-3 flex flex-col overflow-hidden w-full h-full">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden w-full h-full">
+          <div className="flex-1 min-h-0 min-w-0 bg-transparent border-0 flex flex-col overflow-hidden w-full h-full">
             <div
               className={cn(
                 'flex-1 min-h-0 relative flex items-center justify-center p-2 w-full h-full',
@@ -2159,10 +2159,10 @@ export function CommunityCallStage({
               {/* LOCAL PARTICIPANT TILE */}
               <div
                 className={cn(
-                  'relative rounded-2xl bg-[#2b2d31] border border-white/5 overflow-hidden flex items-center justify-center shadow-lg group transition-all',
+                  'relative rounded-2xl overflow-hidden flex items-center justify-center transition-all',
                   participants.length === 0
-                    ? 'w-full h-full max-w-4xl'
-                    : 'w-full h-full',
+                    ? 'w-full h-full bg-transparent border-0 shadow-none'
+                    : 'w-full h-full bg-[#2b2d31] border border-white/5 shadow-lg group',
                 )}
               >
                 {!isVideoOff && localStream && localStream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled) ? (
@@ -2174,7 +2174,7 @@ export function CommunityCallStage({
                         className={cn(
                           'w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center transition-all duration-300 relative z-10',
                           isSpeakingLocal
-                            ? 'ring-4 ring-emerald-500 ring-offset-4 ring-offset-[#2b2d31] scale-105'
+                            ? 'ring-4 ring-emerald-500 ring-offset-4 ring-offset-[#111214] scale-105'
                             : 'ring-2 ring-white/10',
                         )}
                       >
