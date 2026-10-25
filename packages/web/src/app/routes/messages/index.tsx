@@ -277,6 +277,28 @@ export function CommunityPage() {
     return fromUrl || 'anticeil';
   });
 
+  // Server / Hub Creation & Join Modal state (ala Discord "Tambah Server")
+  const [isCreateHubOpen, setIsCreateHubOpen] = useState(false);
+  const [newHubName, setNewHubName] = useState('');
+  const [newHubDesc, setNewHubDesc] = useState('');
+  const [joinInviteCode, setJoinInviteCode] = useState('');
+  const [isJoiningHub, setIsJoiningHub] = useState(false);
+
+  // Server Edit & Delete state
+  const [hubToEdit, setHubToEdit] = useState<CommunityHub | null>(null);
+  const [editHubName, setEditHubName] = useState('');
+  const [editHubDesc, setEditHubDesc] = useState('');
+  const [hubToDelete, setHubToDelete] = useState<CommunityHub | null>(null);
+
+  const [channels, setChannels] = useState<CommunityChannel[]>(DEFAULT_CHANNELS);
+  const [activeChannelId, setActiveChannelId] = useState<string>('');
+  const [messagesMap, setMessagesMap] = useState<Record<string, CommunityMessage[]>>({});
+  const [members, setMembers] = useState<CommunityMember[]>([]);
+
+  const activeHub = useMemo(() => {
+    return hubs.find((h) => h.id === activeHubId) || hubs[0];
+  }, [hubs, activeHubId]);
+
   // Listen to switch_hub and open_create_hub events from the Unified Mini Rail
   useEffect(() => {
     const handleSwitchHub = (e: any) => {
@@ -308,28 +330,6 @@ export function CommunityPage() {
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('anticeil_active_hub_changed', { detail: activeHubId }));
   }, [activeHubId]);
-
-  const activeHub = useMemo(() => {
-    return hubs.find((h) => h.id === activeHubId) || hubs[0];
-  }, [hubs, activeHubId]);
-
-  // Server / Hub Creation & Join Modal state (ala Discord "Tambah Server")
-  const [isCreateHubOpen, setIsCreateHubOpen] = useState(false);
-  const [newHubName, setNewHubName] = useState('');
-  const [newHubDesc, setNewHubDesc] = useState('');
-  const [joinInviteCode, setJoinInviteCode] = useState('');
-  const [isJoiningHub, setIsJoiningHub] = useState(false);
-
-  // Server Edit & Delete state
-  const [hubToEdit, setHubToEdit] = useState<CommunityHub | null>(null);
-  const [editHubName, setEditHubName] = useState('');
-  const [editHubDesc, setEditHubDesc] = useState('');
-  const [hubToDelete, setHubToDelete] = useState<CommunityHub | null>(null);
-
-  const [channels, setChannels] = useState<CommunityChannel[]>(DEFAULT_CHANNELS);
-  const [activeChannelId, setActiveChannelId] = useState<string>('');
-  const [messagesMap, setMessagesMap] = useState<Record<string, CommunityMessage[]>>({});
-  const [members, setMembers] = useState<CommunityMember[]>([]);
 
   const [inputText, setInputText] = useState('');
   const [stagedAttachment, setStagedAttachment] = useState<CommunityAttachment | null>(null);
