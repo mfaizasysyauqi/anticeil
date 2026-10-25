@@ -1,14 +1,11 @@
 {
   "name": "@activepieces/piece-anticeil-chat",
   "version": "0.1.0",
-  "main": "./dist/src/index.js",
-  "types": "./dist/src/index.d.ts",
-  "scripts": {
-    "build": "tsc -p tsconfig.lib.json",
-    "lint": "eslint 'src/**/*.ts'"
-  },
-  "dependencies": {},
-  "devDependencies": {
-    "tslib": "2.6.2"
-  }
+  "main": "./src/index.js",
+  "files": [
+    "src/index.js",
+    "package.json",
+    "src/i18n"
+  ],
+  "dependencies": {}
 }

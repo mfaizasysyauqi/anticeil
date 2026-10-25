@@ -12,12 +12,13 @@ const piece_metadata_service_1 = require("./metadata/piece-metadata-service");
 const fs = require("fs");
 const path = require("path");
 
-// Local anticeil-chat bundle paths (inside Docker container)
 const ANTICEIL_CHAT_TGZ_CANDIDATES = [
     '/usr/src/app/activepieces-piece-anticeil-chat-0.1.0.tgz',
     '/usr/src/app/packages/pieces/community/anticeil-chat/activepieces-piece-anticeil-chat-0.1.0.tgz',
+    '/usr/src/app/packages/pieces/community/anticeil-chat/dist/activepieces-piece-anticeil-chat-0.1.0.tgz',
     path.resolve('activepieces-piece-anticeil-chat-0.1.0.tgz'),
     path.resolve('packages/pieces/community/anticeil-chat/activepieces-piece-anticeil-chat-0.1.0.tgz'),
+    path.resolve('packages/pieces/community/anticeil-chat/dist/activepieces-piece-anticeil-chat-0.1.0.tgz'),
 ];
 
 function findAnticeilChatTgz() {
