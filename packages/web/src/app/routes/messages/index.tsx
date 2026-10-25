@@ -2047,7 +2047,7 @@ export function CommunityPage() {
     return (
       <div className="flex flex-col flex-1 h-full min-h-0 min-w-0 bg-background/50 overflow-hidden">
         {/* Top Header: Discord Friends Bar */}
-        <div className="h-12 border-b border-border/60 px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
+        <div className="h-12 border-b border-sidebar-border px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
           <div className="flex items-center gap-3 min-w-0 overflow-x-auto [scrollbar-width:none]">
             <div className="flex items-center gap-2 shrink-0">
               <Users className="w-5 h-5 text-muted-foreground" />
@@ -2368,7 +2368,7 @@ export function CommunityPage() {
           </div>
 
           {/* Right Column: Discord Desktop "Sedang Aktif" (Active Now) */}
-          <div className="hidden xl:flex flex-col w-80 border-l border-border/50 p-4 bg-background/30 shrink-0">
+          <div className="hidden xl:flex flex-col w-80 border-l border-sidebar-border p-4 bg-background/30 shrink-0">
             <h3 className="text-sm font-bold text-foreground mb-3">{t('Sedang Aktif')}</h3>
             {onlineFriends.length === 0 ? (
               <div className="p-4 rounded-xl border border-dashed border-border/60 text-center">
@@ -2575,7 +2575,7 @@ export function CommunityPage() {
           <div className="flex flex-1 flex-col h-full min-h-0 min-w-0 bg-background/50 overflow-hidden">
           {/* Channel Top Header Bar: NON-SCROLLABLE APP BAR (Hidden during full stage call like Discord) */}
           {!(activeCallChannelId === activeChannel?.id && !isCallPiP) && (
-          <div className="h-12 border-b border-border/60 px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
+          <div className="h-12 border-b border-sidebar-border px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
             <div className="flex items-center gap-2 min-w-0">
               {activeChannel?.category === 'DIRECT MESSAGES' || activeChannel?.isDirectMessage ? (
                 <span className="text-muted-foreground font-bold text-base shrink-0 select-none">@</span>
@@ -2675,7 +2675,7 @@ export function CommunityPage() {
                       {isActivityOpen && activeCallChannelId === activeChannel.id ? 'Tutup Anticeil Activity' : 'Mulai Anticeil Activity'}
                     </TooltipContent>
                   </Tooltip>
-                  <div className="w-px h-5 bg-border/60 mx-0.5" />
+                  <div className="w-px h-5 bg-sidebar-border mx-0.5" />
                 </>
               )}
 
@@ -3008,7 +3008,7 @@ export function CommunityPage() {
           )}
 
           {/* Chat Input Bar (NON-SCROLLABLE FORM CHAT / BOTTOM BAR) */}
-          <div className="h-16 border-t border-border/40 px-4 flex items-center shrink-0 bg-background/90 backdrop-blur-xs z-10">
+          <div className="h-16 border-t border-sidebar-border px-4 flex items-center shrink-0 bg-background/90 backdrop-blur-xs z-10">
             <div className="w-full h-11 flex items-center gap-1.5 bg-sidebar rounded-lg border border-sidebar-border px-2.5 focus-within:border-primary/50 transition-colors">
               <input
                 type="file"
