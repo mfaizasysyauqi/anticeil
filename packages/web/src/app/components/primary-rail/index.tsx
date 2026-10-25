@@ -240,13 +240,53 @@ export function PrimaryRail() {
         {isChatMode ? (
           /* ── CHAT MODE: REPLACED WITH DISCORD SERVER & DMS RAIL ── */
           <>
-            {/* 1. Top Mode Switcher: Automation Icon */}
+            {/* 1. Top: Anticeil Logo / Direct Messages (Home Hub) */}
+            {hubs[0] && (
+              <div className="relative group w-full flex items-center justify-center shrink-0">
+                <span
+                  className={cn(
+                    'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
+                    activeHubId === 'anticeil'
+                      ? 'h-6'
+                      : 'h-0 group-hover:h-3.5 opacity-80',
+                  )}
+                />
+                <Tooltip delayDuration={150}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleSelectHub('anticeil')}
+                      className={cn(
+                        'relative size-10 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
+                        activeHubId === 'anticeil'
+                          ? 'rounded-[12px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
+                          : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[12px] hover:bg-sidebar-accent/80',
+                      )}
+                    >
+                      {renderHubIcon(hubs[0])}
+                      {hubs[0].unreadCount && hubs[0].unreadCount > 0 ? (
+                        <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center border-2 border-sidebar">
+                          {hubs[0].unreadCount}
+                        </span>
+                      ) : null}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
+                    {hubs[0].name}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            )}
+
+            {/* Separator bar */}
+            <div className="w-6 h-[2px] bg-sidebar-border rounded-full my-1.5 shrink-0" />
+
+            {/* 2. Mode Switcher: Automation Icon (dibawah logo Anticeil) */}
             <div className="flex flex-col items-center shrink-0 px-2">
               <Tooltip delayDuration={150}>
                 <TooltipTrigger asChild>
                   <Link
                     to="/"
-                    className="group relative size-10 rounded-[12px] bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground flex items-center justify-center transition-all duration-200 cursor-pointer shadow-xs"
+                    className="group relative size-10 rounded-full bg-sidebar-accent text-muted-foreground hover:rounded-[12px] hover:bg-primary/15 hover:text-primary flex items-center justify-center transition-all duration-200 cursor-pointer shadow-xs"
                   >
                     <Workflow className="size-5 transition-transform group-hover:scale-110" />
                   </Link>
@@ -258,49 +298,10 @@ export function PrimaryRail() {
             </div>
 
             {/* Separator bar */}
-            <div className="w-6 h-[2px] bg-sidebar-border rounded-full my-2 shrink-0" />
+            <div className="w-6 h-[2px] bg-sidebar-border rounded-full my-1.5 shrink-0" />
 
-            {/* 2. Scrollable Hubs / Servers List */}
+            {/* 3. Scrollable Hubs / Servers List */}
             <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col items-center gap-2 py-1">
-              {/* Main Hub (Direct Messages / Home) */}
-              {hubs[0] && (
-                <div className="relative group w-full flex items-center justify-center">
-                  <span
-                    className={cn(
-                      'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
-                      activeHubId === 'anticeil'
-                        ? 'h-6'
-                        : 'h-0 group-hover:h-3.5 opacity-80',
-                    )}
-                  />
-                  <Tooltip delayDuration={150}>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => handleSelectHub('anticeil')}
-                        className={cn(
-                          'relative size-9 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
-                          activeHubId === 'anticeil'
-                            ? 'rounded-[12px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
-                            : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[12px] hover:bg-sidebar-accent/80',
-                        )}
-                      >
-                        {renderHubIcon(hubs[0])}
-                        {hubs[0].unreadCount && hubs[0].unreadCount > 0 ? (
-                          <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center border-2 border-sidebar">
-                            {hubs[0].unreadCount}
-                          </span>
-                        ) : null}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
-                      {hubs[0].name}
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              )}
-
-              {/* Discord Separator Bar */}
-              <div className="w-6 h-[2px] bg-sidebar-border rounded-full my-0.5 shrink-0" />
 
               {/* Other Servers */}
               {hubs.slice(1).map((hub) => {
