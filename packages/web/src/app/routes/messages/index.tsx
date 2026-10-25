@@ -53,13 +53,22 @@ import {
   Award,
   Flame,
   ShieldAlert,
+  Video,
+  PhoneCall,
+  PhoneOff,
+  Radio,
+  Signal,
+  Rocket,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 
 import { useSocket } from '@/components/providers/socket-provider';
+import { CommunityCallStage } from './community-call-stage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -230,6 +239,7 @@ function renderFormattedMessage(content: string) {
 
 export function CommunityPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data: currentUser } = userHooks.useCurrentUser();
   const { platform } = platformHooks.useCurrentPlatform();
   const socket = useSocket();
@@ -237,6 +247,27 @@ export function CommunityPage() {
   const planName = (platform?.plan?.plan || 'free').toLowerCase();
   const isTeamOrEnterprise = planName.includes('team') || planName.includes('enterprise');
   const isPlusOrAbove = planName.includes('plus') || isTeamOrEnterprise;
+
+  // Discord Voice & Video Call State (Anticeil Call & Activity)
+  const [activeCallChannelId, setActiveCallChannelId] = useState<string | null>(null);
+  const [isCallPiP, setIsCallPiP] = useState(false);
+  const [activeCallCounts, setActiveCallCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleCallState = (data: { channelId: string; active: boolean; participantCount: number }) => {
+      if (data?.channelId) {
+        setActiveCallCounts((prev) => ({
+          ...prev,
+          [data.channelId]: data.active ? data.participantCount : 0,
+        }));
+      }
+    };
+    socket.on('COMMUNITY_CALL_STATE', handleCallState);
+    return () => {
+      socket.off('COMMUNITY_CALL_STATE', handleCallState);
+    };
+  }, [socket]);
 
   // Discord Hubs & Channels state
   const [hubs, setHubs] = useState<CommunityHub[]>(() => loadStoredHubs());
@@ -1628,6 +1659,12 @@ export function CommunityPage() {
                         />
                       )}
                       <span className="truncate flex-1">{dm.name}</span>
+                      {activeCallCounts[dm.id] && activeCallCounts[dm.id] > 0 ? (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 flex items-center gap-1 shrink-0 animate-pulse">
+                          <Radio className="w-2.5 h-2.5" />
+                          {activeCallCounts[dm.id]}
+                        </span>
+                      ) : null}
                     </button>
                   );
                 })}
@@ -1700,6 +1737,12 @@ export function CommunityPage() {
                         )}
                       />
                       <span className="truncate flex-1">{ch.name}</span>
+                      {activeCallCounts[ch.id] && activeCallCounts[ch.id] > 0 ? (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 flex items-center gap-1 shrink-0 animate-pulse">
+                          <Radio className="w-2.5 h-2.5" />
+                          {activeCallCounts[ch.id]}
+                        </span>
+                      ) : null}
 
                       {/* Channel action buttons (Webhook, Copy ID, Edit & Delete) */}
                       <div className="hidden group-hover:flex items-center gap-0.5 ml-auto shrink-0">
@@ -1753,74 +1796,114 @@ export function CommunityPage() {
 
   // Component: User Footer Profile Dock across the entire left rail area (Discord layout)
   const renderUserBottomDock = () => (
-    <div className="h-16 border-t border-sidebar-border px-2 flex items-center shrink-0 z-10 w-full select-none bg-sidebar">
-      <div className="w-full h-11 px-2 rounded-lg bg-sidebar-accent/50 hover:bg-sidebar-accent/80 transition-colors flex items-center justify-between">
-        <div className="flex items-center gap-2 min-w-0 flex-1 mr-1.5">
-          <CommunityAvatar
-            name={currentUserName}
-            email={currentUser?.email}
-            imageUrl={currentUser?.imageUrl}
-            size={30}
-            status="online"
-            showStatus
-            className="shrink-0"
-          />
-          <div className="flex flex-col min-w-0 flex-1">
-            <button
-              type="button"
-              onClick={() => {
-                const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
-                setEditDisplayNameInput(currentUserName);
-                setEditUsernameInput(currentUser?.username || fallback);
-                setIsEditProfileOpen(true);
-              }}
-              className="text-xs font-semibold truncate leading-tight text-foreground text-left hover:text-primary transition-colors flex items-center gap-1 group/name"
-              title={t('Ubah nama tampilan atau username')}
-            >
-              <span className="truncate">{currentUserName}</span>
-              <Edit2 className="w-2.5 h-2.5 opacity-0 group-hover/name:opacity-60 transition-opacity shrink-0" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
-                setEditDisplayNameInput(currentUserName);
-                setEditUsernameInput(currentUser?.username || fallback);
-                setIsEditProfileOpen(true);
-              }}
-              className="text-[10px] text-muted-foreground hover:text-primary transition-colors font-mono leading-none mt-0.5 truncate text-left flex items-center gap-1 group/user"
-              title={t('Ubah nama tampilan atau username')}
-            >
-              <span className="truncate">
-                {currentUser?.username || currentUser?.email
-                  ? `@${currentUser?.username || currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')}`
-                  : t('@atur_username')}
+    <div className="flex flex-col shrink-0 z-10 w-full select-none bg-sidebar border-t border-sidebar-border">
+      {activeCallChannelId && (
+        <div className="px-3 py-2 bg-[#111214] border-b border-sidebar-border flex items-center justify-between animate-in slide-in-from-bottom-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Radio className="w-4 h-4 text-emerald-500 animate-pulse shrink-0" />
+            <div className="flex flex-col min-w-0">
+              <span className="text-[11px] font-bold text-emerald-400 leading-tight">
+                Voice Terhubung
               </span>
-              <Edit2 className="w-2 h-2 opacity-0 group-hover/user:opacity-60 transition-opacity shrink-0" />
-            </button>
+              <span className="text-[10px] text-muted-foreground truncate">
+                {channels.find((c) => c.id === activeCallChannelId)?.name || 'Panggilan'} / {activeHub?.name || 'Workspace'}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setActiveChannelId(activeCallChannelId);
+                setIsCallPiP(false);
+              }}
+              className="h-6 w-6 text-muted-foreground hover:text-white"
+              title="Kembali ke Layar Panggilan"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setActiveCallChannelId(null)}
+              className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/20"
+              title="Putus Panggilan"
+            >
+              <PhoneOff className="w-3.5 h-3.5" />
+            </Button>
           </div>
         </div>
+      )}
+      <div className="h-16 px-2 flex items-center w-full">
+        <div className="w-full h-11 px-2 rounded-lg bg-sidebar-accent/50 hover:bg-sidebar-accent/80 transition-colors flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0 flex-1 mr-1.5">
+            <CommunityAvatar
+              name={currentUserName}
+              email={currentUser?.email}
+              imageUrl={currentUser?.imageUrl}
+              size={30}
+              status="online"
+              showStatus
+              className="shrink-0"
+            />
+            <div className="flex flex-col min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
+                  setEditDisplayNameInput(currentUserName);
+                  setEditUsernameInput(currentUser?.username || fallback);
+                  setIsEditProfileOpen(true);
+                }}
+                className="text-xs font-semibold truncate leading-tight text-foreground text-left hover:text-primary transition-colors flex items-center gap-1 group/name"
+                title={t('Ubah nama tampilan atau username')}
+              >
+                <span className="truncate">{currentUserName}</span>
+                <Edit2 className="w-2.5 h-2.5 opacity-0 group-hover/name:opacity-60 transition-opacity shrink-0" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
+                  setEditDisplayNameInput(currentUserName);
+                  setEditUsernameInput(currentUser?.username || fallback);
+                  setIsEditProfileOpen(true);
+                }}
+                className="text-[10px] text-muted-foreground hover:text-primary transition-colors font-mono leading-none mt-0.5 truncate text-left flex items-center gap-1 group/user"
+                title={t('Ubah nama tampilan atau username')}
+              >
+                <span className="truncate">
+                  {currentUser?.username || currentUser?.email
+                    ? `@${currentUser?.username || currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')}`
+                    : t('@atur_username')}
+                </span>
+                <Edit2 className="w-2 h-2 opacity-0 group-hover/user:opacity-60 transition-opacity shrink-0" />
+              </button>
+            </div>
+          </div>
 
-        {/* Discord Mic & Headphones */}
-        <div className="flex items-center gap-0.5 text-muted-foreground shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMuted(!isMuted)}
-            className="h-7 w-7 hover:text-foreground cursor-pointer"
-            title={isMuted ? 'Unmute' : 'Mute'}
-          >
-            {isMuted ? <MicOff className="w-3.5 h-3.5 text-red-400" /> : <Mic className="w-3.5 h-3.5" />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsDeafened(!isDeafened)}
-            className="h-7 w-7 hover:text-foreground cursor-pointer"
-            title={isDeafened ? 'Undeafen' : 'Deafen'}
-          >
-            <Headphones className={cn('w-3.5 h-3.5', isDeafened && 'text-red-400')} />
-          </Button>
+          {/* Discord Mic & Headphones */}
+          <div className="flex items-center gap-0.5 text-muted-foreground shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsMuted(!isMuted)}
+              className="h-7 w-7 hover:text-foreground cursor-pointer"
+              title={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? <MicOff className="w-3.5 h-3.5 text-red-400" /> : <Mic className="w-3.5 h-3.5" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsDeafened(!isDeafened)}
+              className="h-7 w-7 hover:text-foreground cursor-pointer"
+              title={isDeafened ? 'Undeafen' : 'Deafen'}
+            >
+              <Headphones className={cn('w-3.5 h-3.5', isDeafened && 'text-red-400')} />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -2477,8 +2560,90 @@ export function CommunityPage() {
               )}
             </div>
 
-            {/* Top Bar Actions: Webhook Integrations, Members Toggle & Search */}
-            <div className="flex items-center gap-2">
+            {/* Top Bar Actions: Call Buttons, Webhook, Members Toggle & Search */}
+            <div className="flex items-center gap-1">
+              {/* Voice/Video Call & Activity Buttons */}
+              {activeChannel && (
+                <>
+                  <Tooltip delayDuration={150}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          if (activeCallChannelId === activeChannel.id) {
+                            setIsCallPiP(false);
+                          } else {
+                            setActiveCallChannelId(activeChannel.id);
+                            setIsCallPiP(false);
+                          }
+                        }}
+                        className={cn(
+                          'h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer',
+                          activeCallChannelId === activeChannel.id && 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15 hover:text-emerald-300',
+                        )}
+                      >
+                        <PhoneCall className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
+                      {activeCallChannelId === activeChannel.id ? 'Kembali ke Panggilan' : 'Mulai Voice Call'}
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip delayDuration={150}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          if (activeCallChannelId === activeChannel.id) {
+                            setIsCallPiP(false);
+                          } else {
+                            setActiveCallChannelId(activeChannel.id);
+                            setIsCallPiP(false);
+                          }
+                        }}
+                        className={cn(
+                          'h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer',
+                          activeCallChannelId === activeChannel.id && 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15 hover:text-emerald-300',
+                        )}
+                      >
+                        <Video className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
+                      {activeCallChannelId === activeChannel.id ? 'Kembali ke Video Call' : 'Mulai Video Call'}
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip delayDuration={150}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          if (!isPlusOrAbove) {
+                            toast.error('Anticeil Activity memerlukan paket Plus atau lebih tinggi.');
+                            navigate('/platform/billing');
+                            return;
+                          }
+                          if (activeCallChannelId !== activeChannel.id) {
+                            setActiveCallChannelId(activeChannel.id);
+                          }
+                          setIsCallPiP(false);
+                        }}
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        <Rocket className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
+                      Anticeil Activity
+                    </TooltipContent>
+                  </Tooltip>
+                  <div className="w-px h-5 bg-border/60 mx-0.5" />
+                </>
+              )}
+
               {/* Webhook & Integrations Button (Ala Discord Webhook) */}
               {activeChannel && (
                 <Tooltip delayDuration={150}>
@@ -2550,6 +2715,24 @@ export function CommunityPage() {
             </div>
           </div>
 
+          {/* Call Stage (replaces messages when active on this channel and not PiP) */}
+          {activeCallChannelId === activeChannel?.id && !isCallPiP ? (
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <CommunityCallStage
+                channel={activeChannel!}
+                activeHub={activeHub}
+                currentUser={currentUser}
+                isPlusOrAbove={isPlusOrAbove}
+                socket={socket}
+                isCallActive={true}
+                isPiP={false}
+                onTogglePiP={() => setIsCallPiP(true)}
+                onEndCall={() => setActiveCallChannelId(null)}
+                onNavigateToBilling={() => navigate('/platform/billing')}
+              />
+            </div>
+          ) : (
+          <>
           {/* Messages Feed (SCROLLABLE CONVERSATION) */}
           <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 [scrollbar-width:thin]">
             {!activeChannel ? (
@@ -2877,6 +3060,8 @@ export function CommunityPage() {
               </Button>
             </div>
           </div>
+          </>
+          )}
         </div>
         )}
 
@@ -5287,6 +5472,31 @@ export function CommunityPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Floating PiP Call Stage */}
+        {activeCallChannelId && isCallPiP && (() => {
+          const pipChannel = channels.find((c) => c.id === activeCallChannelId);
+          if (!pipChannel) return null;
+          return (
+            <div className="fixed bottom-4 right-4 z-50 w-[380px] h-[260px] rounded-xl overflow-hidden shadow-2xl border border-border/80 bg-[#1e1f22] animate-in slide-in-from-bottom-4 fade-in">
+              <CommunityCallStage
+                channel={pipChannel}
+                activeHub={activeHub}
+                currentUser={currentUser}
+                isPlusOrAbove={isPlusOrAbove}
+                socket={socket}
+                isCallActive={true}
+                isPiP={true}
+                onTogglePiP={() => {
+                  setActiveChannelId(activeCallChannelId);
+                  setIsCallPiP(false);
+                }}
+                onEndCall={() => setActiveCallChannelId(null)}
+                onNavigateToBilling={() => navigate('/platform/billing')}
+              />
+            </div>
+          );
+        })()}
     </LockedFeatureGuard>
   );
 }
