@@ -1280,7 +1280,7 @@ export function CommunityCallStage({
 
   // ── Render Full Discord Stage View ────────────────────────────────────
   return (
-    <div className="flex-1 min-h-0 flex flex-col bg-[#111214] text-white select-none relative overflow-hidden group/stage">
+    <div className="w-full h-full flex-1 min-h-0 flex flex-col bg-[#111214] text-white select-none relative overflow-hidden group/stage">
       {/* ── Discord Top Stage Header Bar (Floating Overlay on Hover) ──── */}
       <div className="absolute top-0 inset-x-0 z-30 px-4 py-3 flex items-center justify-between bg-gradient-to-b from-black/90 via-black/50 to-transparent transition-all duration-200 opacity-0 -translate-y-1 group-hover/stage:opacity-100 group-hover/stage:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0 pointer-events-none">
         <div className="flex items-center gap-2.5 min-w-0 pointer-events-auto">
@@ -2122,12 +2122,12 @@ export function CommunityCallStage({
         </div>
       ) : (
         /* CASE B: NORMAL DISCORD VIDEO GRID STAGE */
-        <div className="flex-1 min-h-0 flex overflow-hidden p-3 gap-3">
-          <div className="flex-1 min-h-0 min-w-0 rounded-2xl bg-[#1e1f22]/50 border border-white/5 p-3 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden p-2 sm:p-3 gap-2 w-full h-full">
+          <div className="flex-1 min-h-0 min-w-0 rounded-2xl bg-[#1e1f22]/50 border border-white/5 p-2 sm:p-3 flex flex-col overflow-hidden w-full h-full">
             <div
               className={cn(
-                'flex-1 min-h-0 relative flex items-center justify-center p-2',
-                participants.length > 0 && 'grid gap-3 w-full',
+                'flex-1 min-h-0 relative flex items-center justify-center p-2 w-full h-full',
+                participants.length > 0 && 'grid gap-3 w-full h-full',
                 participants.length === 1 && 'grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto',
                 participants.length >= 2 && 'grid-cols-2 md:grid-cols-3 max-w-6xl mx-auto',
               )}
@@ -2269,7 +2269,7 @@ export function CommunityCallStage({
       )}
 
       {/* ── Discord Bottom Floating Control Dock ────────────────────────── */}
-      <div className="h-16 shrink-0 flex items-center justify-center px-4 bg-gradient-to-t from-[#111214] via-[#111214]/90 to-transparent z-20">
+      <div className="h-16 shrink-0 flex items-center justify-center px-4 bg-gradient-to-t from-[#111214] via-[#111214]/90 to-transparent z-20 pb-2">
         <div className="px-4 py-2 rounded-2xl bg-[#1e1f22] border border-white/10 shadow-2xl flex items-center gap-2.5">
           {/* Mute Button */}
           <TooltipProvider delayDuration={150}>

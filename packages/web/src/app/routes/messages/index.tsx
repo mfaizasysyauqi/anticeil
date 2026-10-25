@@ -2751,7 +2751,7 @@ export function CommunityPage() {
 
           {/* Call Stage (replaces messages when active on this channel and not PiP) */}
           {activeCallChannelId === activeChannel?.id && !isCallPiP ? (
-            <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col w-full h-full">
               <CommunityCallStage
                 channel={activeChannel!}
                 activeHub={activeHub}

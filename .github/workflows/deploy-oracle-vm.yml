@@ -70,9 +70,16 @@ jobs:
               git pull origin ${{ github.ref_name }}
             fi
 
-            # Login to GHCR and pull new image
+            # Login to GHCR and pull new image (with prune/retry fallback if daemon lease error occurs)
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ghcr.io/${{ github.repository_owner }}/anticeil:latest
+            docker pull ghcr.io/${{ github.repository_owner }}/anticeil:latest || {
+              echo "Pull failed, pruning and restarting docker daemon before retrying..."
+              docker image prune -f || true
+              sudo systemctl restart docker || true
+              sleep 3
+              echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+              docker pull ghcr.io/${{ github.repository_owner }}/anticeil:latest
+            }
 
             # Tag as local anticeil:latest
             docker tag ghcr.io/${{ github.repository_owner }}/anticeil:latest anticeil:latest
