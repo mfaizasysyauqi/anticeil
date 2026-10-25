@@ -3107,8 +3107,8 @@ export function CommunityPage() {
               </div>
             )}
 
-            {/* Discord Signature Chat Input Box - Aligned with Identity Card */}
-            <div className="w-full h-[52px] flex items-center gap-3 rounded-[12px] bg-[#111214] border border-white/10 shadow-2xl backdrop-blur-md px-4 transition-all">
+            {/* Discord Signature Chat Input Box - Transparent & Aligned with Identity Card */}
+            <div className="w-full h-[52px] flex items-center gap-3 rounded-[12px] bg-transparent border border-white/10 hover:border-white/15 focus-within:border-white/25 px-4 transition-all">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -3127,8 +3127,9 @@ export function CommunityPage() {
                 <Plus className="w-4 h-4 stroke-[2.5]" />
               </button>
 
-              {/* Text Input */}
-              <Input
+              {/* Text Input - 100% transparent to blend seamlessly with container */}
+              <input
+                type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={(e) => {
@@ -3145,7 +3146,7 @@ export function CommunityPage() {
                       : `Message #${activeChannel.name}`
                     : t('Pilih atau buat channel terlebih dahulu...')
                 }
-                className="border-0 shadow-none focus-visible:ring-0 text-sm px-1 h-full bg-transparent flex-1 placeholder:text-[#80848e] text-[#dbdee1] disabled:opacity-50"
+                className="border-0 outline-none focus:outline-none focus:ring-0 text-sm px-1 h-full bg-transparent flex-1 placeholder:text-[#80848e] text-[#dbdee1] disabled:opacity-50"
               />
 
               {/* Right Action Icons: Gift, GIF, Sticker, Emoji, Apps & Send (Discord style) */}
