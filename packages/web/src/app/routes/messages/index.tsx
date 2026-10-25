@@ -14,7 +14,6 @@ import {
   Crown,
   Paperclip,
   X,
-  Menu,
   Trash2,
   Edit2,
   Compass,
@@ -473,6 +472,17 @@ export function CommunityPage() {
     };
     loadServerSettingsData();
   }, [isServerSettingsOpen, activeHub?.id]);
+
+  // Listen to burger menu clicks from top app bar on mobile/tablet
+  useEffect(() => {
+    const handleToggleMobileChannels = () => {
+      setIsMobileChannelsOpen((prev) => !prev);
+    };
+    window.addEventListener('anticeil_toggle_mobile_channels', handleToggleMobileChannels);
+    return () => {
+      window.removeEventListener('anticeil_toggle_mobile_channels', handleToggleMobileChannels);
+    };
+  }, []);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2025,16 +2035,6 @@ export function CommunityPage() {
         {/* Top Header: Discord Friends Bar */}
         <div className="h-12 border-b border-border/60 px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
           <div className="flex items-center gap-3 min-w-0 overflow-x-auto [scrollbar-width:none]">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsMobileChannelsOpen(true)}
-              className="lg:hidden h-8 w-8 -ml-1 text-muted-foreground shrink-0 cursor-pointer"
-              title="Buka Menu"
-            >
-              <Menu className="w-5 h-5" />
-            </Button>
-
             <div className="flex items-center gap-2 shrink-0">
               <Users className="w-5 h-5 text-muted-foreground" />
               <span className="text-sm font-bold text-foreground">{t('Teman')}</span>
@@ -2562,16 +2562,6 @@ export function CommunityPage() {
           {/* Channel Top Header Bar: NON-SCROLLABLE APP BAR */}
           <div className="h-12 border-b border-border/60 px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
             <div className="flex items-center gap-2 min-w-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsMobileChannelsOpen(true)}
-                className="lg:hidden h-8 w-8 -ml-1 text-muted-foreground mr-1"
-                title="Buka Menu Channel"
-              >
-                <Menu className="w-5 h-5" />
-              </Button>
-
               {activeChannel?.category === 'DIRECT MESSAGES' || activeChannel?.isDirectMessage ? (
                 <span className="text-muted-foreground font-bold text-base shrink-0 select-none">@</span>
               ) : (

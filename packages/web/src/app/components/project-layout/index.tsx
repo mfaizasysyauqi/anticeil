@@ -175,10 +175,17 @@ function ProjectDashboardLayoutInner({
   const { data: currentUser } = userHooks.useCurrentUser();
 
   const location = useLocation();
-  const isFixedViewportRoute =
+  const isChatMode =
     location.pathname.startsWith('/community') ||
-    location.pathname.startsWith('/messages') ||
-    location.pathname.startsWith('/chat');
+    location.pathname.startsWith('/messages');
+
+  const handleBurgerClick = () => {
+    if (isChatMode) {
+      window.dispatchEvent(new CustomEvent('anticeil_toggle_mobile_channels'));
+    } else {
+      setMobileNavOpen(true);
+    }
+  };
 
   return (
     <div className="flex flex-col lg:flex-row h-svh w-full overflow-hidden">
@@ -199,8 +206,8 @@ function ProjectDashboardLayoutInner({
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setMobileNavOpen(true)}
-              aria-label="Toggle navigation menu"
+              onClick={handleBurgerClick}
+              aria-label={isChatMode ? 'Toggle chat navigation' : 'Toggle navigation menu'}
               className="size-9 shrink-0 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent cursor-pointer"
             >
               <Menu className="size-5" />
