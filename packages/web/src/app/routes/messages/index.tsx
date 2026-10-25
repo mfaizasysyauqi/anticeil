@@ -2573,7 +2573,8 @@ export function CommunityPage() {
           renderFriendsMainPage()
         ) : (
           <div className="flex flex-1 flex-col h-full min-h-0 min-w-0 bg-background/50 overflow-hidden">
-          {/* Channel Top Header Bar: NON-SCROLLABLE APP BAR */}
+          {/* Channel Top Header Bar: NON-SCROLLABLE APP BAR (Hidden during full stage call like Discord) */}
+          {!(activeCallChannelId === activeChannel?.id && !isCallPiP) && (
           <div className="h-12 border-b border-border/60 px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
             <div className="flex items-center gap-2 min-w-0">
               {activeChannel?.category === 'DIRECT MESSAGES' || activeChannel?.isDirectMessage ? (
@@ -2748,6 +2749,7 @@ export function CommunityPage() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Call Stage (replaces messages when active on this channel and not PiP) */}
           {activeCallChannelId === activeChannel?.id && !isCallPiP ? (
