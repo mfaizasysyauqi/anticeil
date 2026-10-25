@@ -24,6 +24,9 @@ import {
   X,
   Radio,
   ExternalLink,
+  Copy,
+  Share2,
+  UserPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -124,9 +127,7 @@ export function CommunityCallStage({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       setLocalStream(stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
+      setIsVideoOff(false);
       return stream;
     } catch (err) {
       console.warn('Camera failed, falling back to audio only', err);
@@ -137,6 +138,7 @@ export function CommunityCallStage({
         return audioOnly;
       } catch (audioErr) {
         toast.error('Tidak dapat mengakses mikrofon atau kamera. Pastikan izin perangkat diberikan.');
+        setIsVideoOff(true);
         return null;
       }
     }
@@ -427,17 +429,53 @@ export function CommunityCallStage({
     });
   };
 
-  const handleToggleVideo = () => {
-    if (!localStream) return;
+  const handleToggleVideo = async () => {
+    if (!localStream) {
+      const s = await startLocalMedia();
+      if (s) setIsVideoOff(false);
+      return;
+    }
     const next = !isVideoOff;
-    localStream.getVideoTracks().forEach((track) => {
-      track.enabled = !next;
-    });
+    const videoTracks = localStream.getVideoTracks();
+
+    if (!next && videoTracks.length === 0) {
+      try {
+        const camStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+        });
+        const newTrack = camStream.getVideoTracks()[0];
+        if (newTrack) {
+          localStream.addTrack(newTrack);
+          for (const sId in peerConnections.current) {
+            const pc = peerConnections.current[sId];
+            const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+            if (sender) {
+              sender.replaceTrack(newTrack);
+            } else {
+              pc.addTrack(newTrack, localStream);
+            }
+          }
+        }
+      } catch (err) {
+        toast.error('Tidak dapat mengakses kamera. Pastikan izin kamera aktif.');
+        return;
+      }
+    } else {
+      videoTracks.forEach((track) => {
+        track.enabled = !next;
+      });
+    }
+
     setIsVideoOff(next);
     socket?.emit('COMMUNITY_CALL_TOGGLE_MEDIA', {
       channelId: channel.id,
       hasVideo: !next,
     });
+  };
+
+  const handleCopyCallLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast.success('Link panggilan berhasil disalin! Buka di tab atau browser lain untuk menguji panggilan 2 orang.');
   };
 
   const handleToggleScreenShare = async () => {
@@ -549,14 +587,8 @@ export function CommunityCallStage({
         <div className="relative h-44 bg-[#1e1f22]/60 p-2 grid grid-cols-2 gap-1.5 items-center justify-center">
           {/* Local User Mini */}
           <div className="relative w-full h-full rounded-lg bg-[#2b2d31] overflow-hidden flex items-center justify-center border border-white/5">
-            {!isVideoOff && localStream ? (
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover -scale-x-100"
-              />
+            {!isVideoOff && localStream && localStream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled) ? (
+              <LocalVideoView stream={localStream} />
             ) : (
               <div
                 className={cn(
@@ -715,41 +747,78 @@ export function CommunityCallStage({
           {/* Dynamic Video Grid Layout */}
           <div
             className={cn(
-              'flex-1 min-h-0 grid gap-3 items-center justify-center p-1',
-              totalInCall === 1 && 'grid-cols-1 max-w-4xl mx-auto w-full',
-              totalInCall === 2 && 'grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto w-full',
-              totalInCall >= 3 && 'grid-cols-2 md:grid-cols-3 max-w-6xl mx-auto w-full',
+              'flex-1 min-h-0 relative flex items-center justify-center p-2',
+              participants.length > 0 && 'grid gap-3 w-full',
+              participants.length === 1 && 'grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto',
+              participants.length >= 2 && 'grid-cols-2 md:grid-cols-3 max-w-6xl mx-auto',
             )}
           >
+            {/* Solitary Banner when user is alone */}
+            {participants.length === 0 && (
+              <div className="absolute top-4 inset-x-0 mx-auto w-fit z-20 px-4 py-2 rounded-full bg-black/70 backdrop-blur-md border border-white/10 flex items-center gap-3 shadow-xl animate-in fade-in slide-in-from-top-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs text-white/90">
+                  Anda sendirian di #{channel.name}. Undang rekan untuk mulai mengobrol!
+                </span>
+                <button
+                  onClick={handleCopyCallLink}
+                  className="px-2.5 py-1 rounded-full bg-primary/20 hover:bg-primary/30 text-primary text-xs font-semibold flex items-center gap-1.5 border border-primary/30 transition-all cursor-pointer"
+                >
+                  <Copy className="w-3 h-3" />
+                  Salin Link Panggilan
+                </button>
+              </div>
+            )}
+
             {/* LOCAL PARTICIPANT TILE */}
-            <div className="relative w-full h-full min-h-[220px] rounded-2xl bg-[#2b2d31] border border-white/5 overflow-hidden flex items-center justify-center shadow-lg group">
-              {!isVideoOff && localStream ? (
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover -scale-x-100"
-                />
+            <div
+              className={cn(
+                'relative rounded-2xl bg-[#2b2d31] border border-white/5 overflow-hidden flex items-center justify-center shadow-lg group transition-all',
+                participants.length === 0
+                  ? 'w-full h-full max-w-4xl max-h-[80vh] min-h-[300px]'
+                  : 'w-full h-full min-h-[220px]',
+              )}
+            >
+              {!isVideoOff && localStream && localStream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled) ? (
+                <LocalVideoView stream={localStream} />
               ) : (
-                <div className="flex flex-col items-center justify-center gap-2">
-                  <div
-                    className={cn(
-                      'w-20 h-20 rounded-full flex items-center justify-center font-bold text-2xl text-white transition-all duration-200',
-                      isSpeakingLocal
-                        ? 'bg-emerald-600 ring-4 ring-emerald-500 ring-offset-4 ring-offset-[#2b2d31]'
-                        : 'bg-primary/30 text-primary border border-primary/40',
+                <div className="flex flex-col items-center justify-center gap-3 py-6">
+                  <div className="relative">
+                    <div
+                      className={cn(
+                        'w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center transition-all duration-300 relative z-10',
+                        isSpeakingLocal
+                          ? 'ring-4 ring-emerald-500 ring-offset-4 ring-offset-[#2b2d31] scale-105'
+                          : 'ring-2 ring-white/10',
+                      )}
+                    >
+                      <CommunityAvatar
+                        name={currentUserName}
+                        imageUrl={currentUser?.imageUrl}
+                        email={currentUser?.email}
+                        size={104}
+                        showStatus={false}
+                        className="w-full h-full rounded-full"
+                      />
+                    </div>
+                    {/* Ambient speaking glow behind avatar */}
+                    {isSpeakingLocal && (
+                      <div className="absolute inset-0 rounded-full bg-emerald-500/25 blur-xl animate-pulse -z-0" />
                     )}
-                  >
-                    {currentUserName.slice(0, 2).toUpperCase()}
                   </div>
-                  <span className="text-xs font-medium text-muted-foreground">Kamera Nonaktif</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-base font-bold text-white tracking-wide">{currentUserName}</span>
+                    <span className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                      {isVideoOff ? <VideoOff className="w-3.5 h-3.5 text-red-400" /> : <Mic className="w-3.5 h-3.5 text-emerald-400" />}
+                      {isVideoOff ? 'Kamera Mati' : 'Voice Aktif'}
+                    </span>
+                  </div>
                 </div>
               )}
 
               {/* Status Pill Bottom-Left */}
-              <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-xs flex items-center gap-2 text-xs font-semibold text-white border border-white/10">
-                <span className="truncate max-w-[120px]">{currentUserName} (Anda)</span>
+              <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-xs flex items-center gap-2 text-xs font-semibold text-white border border-white/10 z-10">
+                <span className="truncate max-w-[140px]">{currentUserName} (Anda)</span>
                 {isMuted ? (
                   <MicOff className="w-3.5 h-3.5 text-red-400" />
                 ) : isSpeakingLocal ? (
@@ -761,7 +830,7 @@ export function CommunityCallStage({
 
               {/* Screen Share Tag */}
               {isScreenSharing && (
-                <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-primary text-[10px] font-bold text-white flex items-center gap-1">
+                <div className="absolute top-3 left-3 px-2.5 py-0.5 rounded bg-primary text-[10px] font-bold text-white flex items-center gap-1 z-10">
                   <Monitor className="w-3 h-3" /> Berbagi Layar
                 </div>
               )}
@@ -773,20 +842,34 @@ export function CommunityCallStage({
                 key={peer.socketId}
                 className="relative w-full h-full min-h-[220px] rounded-2xl bg-[#2b2d31] border border-white/5 overflow-hidden flex items-center justify-center shadow-lg group"
               >
-                {peer.stream && peer.hasVideo ? (
+                {peer.stream && peer.hasVideo && peer.stream.getVideoTracks().some((t) => t.readyState === 'live') ? (
                   <RemoteVideoView stream={peer.stream} isMuted={false} />
                 ) : (
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <div className="w-20 h-20 rounded-full flex items-center justify-center bg-indigo-600/30 text-indigo-300 font-bold text-2xl border border-indigo-500/40">
-                      {peer.userName.slice(0, 2).toUpperCase()}
+                  <div className="flex flex-col items-center justify-center gap-3 py-6">
+                    <div className="relative">
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center ring-2 ring-white/10 relative z-10">
+                        <CommunityAvatar
+                          name={peer.userName}
+                          imageUrl={peer.userAvatar}
+                          size={104}
+                          showStatus={false}
+                          className="w-full h-full rounded-full"
+                        />
+                      </div>
                     </div>
-                    <span className="text-xs font-medium text-muted-foreground">Kamera Nonaktif</span>
+                    <div className="flex flex-col items-center">
+                      <span className="text-base font-bold text-white tracking-wide">{peer.userName}</span>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                        {!peer.hasAudio ? <MicOff className="w-3.5 h-3.5 text-red-400" /> : <Mic className="w-3.5 h-3.5 text-emerald-400" />}
+                        {!peer.hasAudio ? 'Muted' : 'Tersambung'}
+                      </span>
+                    </div>
                   </div>
                 )}
 
                 {/* Status Pill Bottom-Left */}
-                <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-xs flex items-center gap-2 text-xs font-semibold text-white border border-white/10">
-                  <span className="truncate max-w-[120px]">{peer.userName}</span>
+                <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-xs flex items-center gap-2 text-xs font-semibold text-white border border-white/10 z-10">
+                  <span className="truncate max-w-[140px]">{peer.userName}</span>
                   {!peer.hasAudio ? (
                     <MicOff className="w-3.5 h-3.5 text-red-400" />
                   ) : (
@@ -795,32 +878,12 @@ export function CommunityCallStage({
                 </div>
 
                 {peer.isScreenSharing && (
-                  <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-primary text-[10px] font-bold text-white flex items-center gap-1">
+                  <div className="absolute top-3 left-3 px-2.5 py-0.5 rounded bg-primary text-[10px] font-bold text-white flex items-center gap-1 z-10">
                     <Monitor className="w-3 h-3" /> Berbagi Layar
                   </div>
                 )}
               </div>
             ))}
-
-            {/* Empty Slot Callout (Invite Teammate) */}
-            {participants.length === 0 && (
-              <div className="w-full h-full min-h-[220px] rounded-2xl bg-[#1e1f22]/30 border border-dashed border-white/10 flex flex-col items-center justify-center p-6 text-center">
-                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-muted-foreground mb-3">
-                  <Users className="w-6 h-6" />
-                </div>
-                <h4 className="text-sm font-semibold text-white mb-1">
-                  Menunggu Rekan Bergabung
-                </h4>
-                <p className="text-xs text-muted-foreground max-w-xs mb-3">
-                  Panggilan aktif di #{channel.name}. Anggota tim lain dapat bergabung langsung dari channel ini.
-                </p>
-                {!isPlusOrAbove && (
-                  <span className="text-[11px] text-amber-300/80 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20">
-                    💡 Paket Free: Maksimal 2 Orang (1-on-1 Call)
-                  </span>
-                )}
-              </div>
-            )}
           </div>
         </div>
 
@@ -1007,6 +1070,23 @@ export function CommunityCallStage({
             </Tooltip>
           </TooltipProvider>
 
+          {/* Copy Call Link Button */}
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleCopyCallLink}
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md bg-[#2b2d31] hover:bg-white/15 text-white"
+                >
+                  <Share2 className="w-5 h-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs font-semibold">
+                Salin Link Panggilan
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <div className="w-[1px] h-6 bg-white/10 mx-1" />
 
           {/* Disconnect Call Button (Red Phone Off) */}
@@ -1099,19 +1179,56 @@ export function CommunityCallStage({
   );
 }
 
-// ── Helper Subcomponent to render Remote Video Streams cleanly ─────────
-function RemoteVideoView({
+// ── Helper Subcomponent to render Local Video Stream cleanly ─────────
+function LocalVideoView({
   stream,
-  isMuted = false,
+  className,
 }: {
-  stream: MediaStream;
-  isMuted?: boolean;
+  stream: MediaStream | null;
+  className?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    const video = videoRef.current;
+    if (video && stream) {
+      video.srcObject = stream;
+      video.play().catch((err) => {
+        console.warn('Local video play error:', err);
+      });
+    }
+  }, [stream]);
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      className={cn('w-full h-full object-cover -scale-x-100', className)}
+    />
+  );
+}
+
+// ── Helper Subcomponent to render Remote Video Streams cleanly ─────────
+function RemoteVideoView({
+  stream,
+  isMuted = false,
+  className,
+}: {
+  stream: MediaStream;
+  isMuted?: boolean;
+  className?: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && stream) {
+      video.srcObject = stream;
+      video.play().catch((err) => {
+        console.warn('Remote video play error:', err);
+      });
     }
   }, [stream]);
 
@@ -1121,7 +1238,7 @@ function RemoteVideoView({
       autoPlay
       playsInline
       muted={isMuted}
-      className="w-full h-full object-cover"
+      className={cn('w-full h-full object-cover', className)}
     />
   );
 }
