@@ -3085,10 +3085,10 @@ export function CommunityPage() {
           </div>
 
           {/* Chat Input Bar (FLOATING OVERLAY FORM CHAT - Discord Style) */}
-          <div className="shrink-0 px-4 pb-6 pt-0 bg-transparent z-10 flex flex-col gap-1.5">
+          <div className="shrink-0 px-4 pb-2 lg:pb-1 pt-0 bg-transparent z-10 flex flex-col gap-1.5">
             {/* Staged Attachment Indicator */}
             {stagedAttachment && (
-              <div className="p-2 rounded-[8px] bg-[#383a40] border border-white/10 shadow-lg flex items-center justify-between text-xs animate-in slide-in-from-bottom-1">
+              <div className="p-2 rounded-[12px] bg-[#111214] border border-white/10 shadow-2xl backdrop-blur-md flex items-center justify-between text-xs animate-in slide-in-from-bottom-1">
                 <div className="flex items-center gap-2 truncate">
                   <Paperclip className="w-4 h-4 text-primary shrink-0" />
                   <span className="font-medium truncate text-[#dbdee1]">{stagedAttachment.name}</span>
@@ -3107,8 +3107,8 @@ export function CommunityPage() {
               </div>
             )}
 
-            {/* Discord Signature Chat Input Box */}
-            <div className="w-full min-h-[44px] flex items-center gap-3 rounded-[8px] bg-[#383a40] px-4 transition-all">
+            {/* Discord Signature Chat Input Box - Aligned with Identity Card */}
+            <div className="w-full h-[52px] flex items-center gap-3 rounded-[12px] bg-[#111214] border border-white/10 shadow-2xl backdrop-blur-md px-4 transition-all">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -3121,7 +3121,7 @@ export function CommunityPage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-6 h-6 rounded-full bg-[#4e5058] hover:bg-[#6d6f78] text-[#dbdee1] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/15 text-[#dbdee1] hover:text-white flex items-center justify-center shrink-0 transition-colors cursor-pointer"
                 title="Lampirkan Gambar atau Dokumen (Maks. 5 MB)"
               >
                 <Plus className="w-4 h-4 stroke-[2.5]" />
