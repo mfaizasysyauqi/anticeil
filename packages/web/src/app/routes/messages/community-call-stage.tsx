@@ -1280,14 +1280,14 @@ export function CommunityCallStage({
 
   // ── Render Full Discord Stage View ────────────────────────────────────
   return (
-    <div className="flex-1 min-h-0 flex flex-col bg-[#111214] text-white select-none relative overflow-hidden">
-      {/* ── Discord Top Stage Header Bar ───────────────────────────────── */}
-      <div className="h-12 border-b border-white/10 px-4 flex items-center justify-between shrink-0 bg-[#1e1f22]/90 backdrop-blur-xs z-20">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+    <div className="flex-1 min-h-0 flex flex-col bg-[#111214] text-white select-none relative overflow-hidden group/stage">
+      {/* ── Discord Top Stage Header Bar (Floating Overlay on Hover) ──── */}
+      <div className="absolute top-0 inset-x-0 z-30 px-4 py-3 flex items-center justify-between bg-gradient-to-b from-black/90 via-black/50 to-transparent transition-all duration-200 opacity-0 -translate-y-1 group-hover/stage:opacity-100 group-hover/stage:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0 pointer-events-none">
+        <div className="flex items-center gap-2.5 min-w-0 pointer-events-auto">
+          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-sm backdrop-blur-sm">
             <Radio className="w-4 h-4 animate-pulse" />
           </div>
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col min-w-0 drop-shadow-md">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-sm font-bold text-white truncate">
                 #{channel.name}
@@ -1314,14 +1314,14 @@ export function CommunityCallStage({
                 </span>
               )}
             </div>
-            <span className="text-[11px] text-muted-foreground truncate">
+            <span className="text-[11px] text-white/70 truncate">
               {activeHub?.name || 'Komunitas Anticeil'} • {totalInCall} Peserta dalam panggilan
             </span>
           </div>
         </div>
 
         {/* Top Header Controls: Plan Pill, Screen Mode & PiP */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pointer-events-auto">
           {/* Stop Activity Button (Compact in Header like Discord) */}
           {activeAppId !== null && (
             <TooltipProvider delayDuration={150}>
@@ -1331,7 +1331,7 @@ export function CommunityCallStage({
                     size="sm"
                     variant="ghost"
                     onClick={handleStopActivity}
-                    className="h-7 px-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/20 gap-1.5 rounded-lg border border-red-500/20"
+                    className="h-7 px-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/30 gap-1.5 rounded-lg border border-red-500/40 bg-black/40 backdrop-blur-md shadow-sm"
                   >
                     <PhoneOff className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Hentikan Aktivitas</span>
@@ -1350,10 +1350,10 @@ export function CommunityCallStage({
               if (!isPlusOrAbove) setIsUpgradeModalOpen(true);
             }}
             className={cn(
-              'px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all border',
+              'px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all border backdrop-blur-md shadow-sm',
               isPlusOrAbove
-                ? 'bg-primary/20 text-primary border-primary/30'
-                : 'bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25',
+                ? 'bg-primary/30 text-primary border-primary/40'
+                : 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30',
             )}
             title={isPlusOrAbove ? 'Paket Plus / Unlimited Group Call' : 'Free Plan: Maks 2 Orang'}
           >
@@ -1378,7 +1378,7 @@ export function CommunityCallStage({
                   variant="ghost"
                   size="icon"
                   onClick={onTogglePiP}
-                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-white hover:bg-white/10"
+                  className="h-8 w-8 rounded-lg text-white/80 hover:text-white bg-black/40 hover:bg-white/10 backdrop-blur-md border border-white/10"
                 >
                   <Minimize2 className="w-4 h-4" />
                 </Button>
@@ -1394,10 +1394,10 @@ export function CommunityCallStage({
       {/* ── Discord Main Stage Layout ──────────────────────────────────── */}
       {/* CASE A: DISCORD SCREEN SHARE / ACTIVITY FULL STAGE MODE */}
       {activeAppId !== null && currentActiveApp ? (
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#111214] relative">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#111214] relative w-full h-full">
           {/* ── 1. Full-Stage Activity Container (Fills available space above filmstrip) ── */}
           <div
-            className="flex-1 min-h-0 m-1 sm:m-2 rounded-xl bg-[#111214] border border-white/10 flex flex-col overflow-hidden shadow-2xl relative transition-all duration-200"
+            className="flex-1 min-h-0 w-full flex flex-col overflow-hidden relative"
           >
             {/* ── Activity Window Body (The App itself) ──────────────── */}
             <div className="flex-1 min-h-0 overflow-hidden relative flex flex-col bg-[#111214]">
