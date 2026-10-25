@@ -246,7 +246,7 @@ function ProjectDashboardLayoutInner({
       <SidebarProvider
         defaultOpen={false}
         hoverMode={!searchOpen}
-        className="flex-1 min-w-0 w-full h-full min-h-0 will-change-transform"
+        className={cn('flex-1 min-w-0 w-full h-full min-h-0', !isChatMode && 'will-change-transform')}
       >
         <SidebarInset className="flex flex-col h-full flex-1 min-h-0 overflow-hidden bg-sidebar">
           <div

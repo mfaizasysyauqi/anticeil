@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Hash,
   MessageSquare,
@@ -1841,125 +1842,134 @@ export function CommunityPage() {
   );
 
   // Component: User Footer Profile Dock across the entire left rail area (Discord-style overlay card)
-  const renderUserBottomDock = (isOverlay = true) => (
-    <div
-      className={cn(
-        'select-none pointer-events-auto',
-        isOverlay
-          ? 'hidden lg:flex flex-col fixed bottom-2.5 left-2.5 z-40 w-[280px]'
-          : 'lg:hidden flex flex-col shrink-0 z-10 w-full bg-sidebar p-2 border-t border-sidebar-border',
-      )}
-    >
-      {activeCallChannelId && (
-        <div className="mb-1.5 px-3 py-1.5 rounded-[10px] bg-[#111214]/95 border border-sidebar-border shadow-lg backdrop-blur-md flex items-center justify-between animate-in slide-in-from-bottom-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Radio className="w-3.5 h-3.5 text-emerald-500 animate-pulse shrink-0" />
-            <div className="flex flex-col min-w-0">
-              <span className="text-[11px] font-bold text-emerald-400 leading-tight">
-                Voice Terhubung
-              </span>
-              <span className="text-[10px] text-muted-foreground truncate">
-                {channels.find((c) => c.id === activeCallChannelId)?.name || 'Panggilan'} / {activeHub?.name || 'Workspace'}
-              </span>
+  const renderUserBottomDock = (isOverlay = true) => {
+    const dockNode = (
+      <div
+        className={cn(
+          'select-none pointer-events-auto',
+          isOverlay
+            ? 'hidden lg:flex flex-col fixed bottom-2 left-2 z-50 w-[280px]'
+            : 'lg:hidden flex flex-col shrink-0 z-10 w-full bg-sidebar p-2 border-t border-sidebar-border',
+        )}
+      >
+        {activeCallChannelId && (
+          <div className="mb-1.5 px-3 py-1.5 rounded-[10px] bg-[#111214] border border-sidebar-border shadow-2xl backdrop-blur-md flex items-center justify-between animate-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Radio className="w-3.5 h-3.5 text-emerald-500 animate-pulse shrink-0" />
+              <div className="flex flex-col min-w-0">
+                <span className="text-[11px] font-bold text-emerald-400 leading-tight">
+                  Voice Terhubung
+                </span>
+                <span className="text-[10px] text-muted-foreground truncate">
+                  {channels.find((c) => c.id === activeCallChannelId)?.name || 'Panggilan'} / {activeHub?.name || 'Workspace'}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setActiveChannelId(activeCallChannelId);
+                  setIsCallPiP(false);
+                }}
+                className="h-6 w-6 text-muted-foreground hover:text-white"
+                title="Kembali ke Layar Panggilan"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setActiveCallChannelId(null)}
+                className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                title="Putus Panggilan"
+              >
+                <PhoneOff className="w-3.5 h-3.5" />
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-0.5">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setActiveChannelId(activeCallChannelId);
-                setIsCallPiP(false);
-              }}
-              className="h-6 w-6 text-muted-foreground hover:text-white"
-              title="Kembali ke Layar Panggilan"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setActiveCallChannelId(null)}
-              className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/20"
-              title="Putus Panggilan"
-            >
-              <PhoneOff className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
-      <div className="w-full h-13 px-2.5 py-1.5 rounded-[12px] bg-[#111214]/95 border border-sidebar-border shadow-xl backdrop-blur-md flex items-center justify-between">
-        <div
-          onClick={() => {
-            const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
-            setEditDisplayNameInput(currentUserName);
-            setEditUsernameInput(currentUser?.username || fallback);
-            setIsEditProfileOpen(true);
-          }}
-          className="flex items-center gap-2 min-w-0 flex-1 mr-1 px-1.5 py-1 rounded-md hover:bg-white/5 cursor-pointer transition-colors group/user"
-          title={t('Ubah nama tampilan atau username')}
-        >
-          <CommunityAvatar
-            name={currentUserName}
-            email={currentUser?.email}
-            imageUrl={currentUser?.imageUrl}
-            size={32}
-            status="online"
-            showStatus
-            className="shrink-0"
-          />
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-xs font-semibold truncate leading-tight text-foreground group-hover/user:text-primary transition-colors">
-              {currentUserName}
-            </span>
-            <span className="text-[10px] text-muted-foreground font-mono leading-tight mt-0.5 truncate">
-              {currentUser?.username
-                ? `@${currentUser.username}`
-                : currentUser?.email
-                  ? `@${currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')}`
-                  : t('@atur_username')}
-            </span>
-          </div>
-        </div>
-
-        {/* Discord Mic, Headphones & Settings */}
-        <div className="flex items-center gap-0.5 text-muted-foreground shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMuted(!isMuted)}
-            className="h-7 w-7 hover:text-foreground hover:bg-white/10 rounded-md cursor-pointer"
-            title={isMuted ? 'Unmute' : 'Mute'}
-          >
-            {isMuted ? <MicOff className="w-3.5 h-3.5 text-red-400" /> : <Mic className="w-3.5 h-3.5" />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsDeafened(!isDeafened)}
-            className="h-7 w-7 hover:text-foreground hover:bg-white/10 rounded-md cursor-pointer"
-            title={isDeafened ? 'Undeafen' : 'Deafen'}
-          >
-            <Headphones className={cn('w-3.5 h-3.5', isDeafened && 'text-red-400')} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
+        )}
+        <div className="w-full h-13 px-2 py-1.5 rounded-[12px] bg-[#111214] border border-white/10 shadow-2xl flex items-center justify-between">
+          <div
             onClick={() => {
               const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
               setEditDisplayNameInput(currentUserName);
               setEditUsernameInput(currentUser?.username || fallback);
               setIsEditProfileOpen(true);
             }}
-            className="h-7 w-7 hover:text-foreground hover:bg-white/10 rounded-md cursor-pointer"
-            title={t('Pengaturan Akun')}
+            className="flex items-center gap-2 min-w-0 flex-1 mr-1 px-1.5 py-1 rounded-md hover:bg-white/5 cursor-pointer transition-colors group/user"
+            title={t('Ubah nama tampilan atau username')}
           >
-            <Settings className="w-3.5 h-3.5" />
-          </Button>
+            <CommunityAvatar
+              name={currentUserName}
+              email={currentUser?.email}
+              imageUrl={currentUser?.imageUrl}
+              size={32}
+              status="online"
+              showStatus
+              className="shrink-0"
+            />
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-xs font-semibold truncate leading-tight text-foreground group-hover/user:text-primary transition-colors">
+                {currentUserName}
+              </span>
+              <span className="text-[10px] text-muted-foreground font-mono leading-tight mt-0.5 truncate">
+                {currentUser?.username
+                  ? `@${currentUser.username}`
+                  : currentUser?.email
+                    ? `@${currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')}`
+                    : t('@atur_username')}
+              </span>
+            </div>
+          </div>
+
+          {/* Discord Mic, Headphones & Settings */}
+          <div className="flex items-center gap-0.5 text-muted-foreground shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsMuted(!isMuted)}
+              className="h-7 px-1 text-muted-foreground hover:text-foreground hover:bg-white/10 rounded-md cursor-pointer flex items-center gap-0.5 transition-colors"
+              title={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? <MicOff className="w-3.5 h-3.5 text-red-400" /> : <Mic className="w-3.5 h-3.5" />}
+              <ChevronDown className="w-2.5 h-2.5 opacity-60" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsDeafened(!isDeafened)}
+              className="h-7 px-1 text-muted-foreground hover:text-foreground hover:bg-white/10 rounded-md cursor-pointer flex items-center gap-0.5 transition-colors"
+              title={isDeafened ? 'Undeafen' : 'Deafen'}
+            >
+              <Headphones className={cn('w-3.5 h-3.5', isDeafened && 'text-red-400')} />
+              <ChevronDown className="w-2.5 h-2.5 opacity-60" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
+                setEditDisplayNameInput(currentUserName);
+                setEditUsernameInput(currentUser?.username || fallback);
+                setIsEditProfileOpen(true);
+              }}
+              className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 rounded-md cursor-pointer transition-colors"
+              title={t('Pengaturan Akun')}
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+
+    if (isOverlay) {
+      if (typeof document !== 'undefined') {
+        return createPortal(dockNode, document.body);
+      }
+      return null;
+    }
+    return dockNode;
+  };
 
   // Friends Page helpers and state
   const onlineFriends = useMemo(() => {
