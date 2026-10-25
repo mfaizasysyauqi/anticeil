@@ -376,16 +376,6 @@ export function PrimaryRail() {
 
             {/* 3. Bottom: spacer to push list to top */}
             <div className="shrink-0 h-2" />
-
-            {/* Discord-style bottom fade scrim inside rail */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute bottom-0 left-0 right-0 h-24 z-10"
-              style={{
-                background:
-                  'linear-gradient(to top, var(--sidebar-background, #141414) 0px, var(--sidebar-background, #141414) 40px, color-mix(in srgb, var(--sidebar-background, #141414) 75%, transparent) 65px, transparent 96px)',
-              }}
-            />
           </>
         ) : (
           /* ── AUTOMATION MODE: STANDARD PRIMARY RAIL ── */
