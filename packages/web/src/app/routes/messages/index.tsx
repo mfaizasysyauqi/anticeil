@@ -572,15 +572,47 @@ export function CommunityPage() {
 
   const isHome = activeHubId === 'anticeil';
 
-  // Active channel resolution: Home prefers explicit activeChannelId (DM chat) or null (Friends page). Servers prefer activeChannelId or first hub channel.
+  // Active channel resolution: Home prefers explicit activeChannelId (DM chat) or null (Friends page).
+  // Servers MUST strictly isolate channels to the active server!
   const activeChannel = useMemo(() => {
-    if (channels.length === 0) return null;
+    if (isHome) {
+      if (!activeChannelId) return null;
+      return dmChannels.find((c) => c.id === activeChannelId) || null;
+    }
+    if (hubChannels.length === 0) return null;
     if (activeChannelId) {
-      const current = channels.find((c) => c.id === activeChannelId);
+      const current = hubChannels.find((c) => c.id === activeChannelId);
       if (current) return current;
     }
-    return isHome ? null : hubChannels[0] || null;
-  }, [channels, activeChannelId, isHome, hubChannels]);
+    return hubChannels[0] || null;
+  }, [isHome, activeChannelId, dmChannels, hubChannels]);
+
+  // Auto-fetch and sync channels when switching to a server
+  useEffect(() => {
+    if (!activeHubId || activeHubId === 'anticeil') return;
+    let mounted = true;
+    const loadHubChannels = async () => {
+      try {
+        const res = await communityApi.getChannels(activeHubId);
+        if (mounted && Array.isArray(res)) {
+          setChannels((prev) => {
+            const others = prev.filter((c) => (c.hubId || 'anticeil') !== activeHubId);
+            return [...others, ...res];
+          });
+          setActiveChannelId((curr) => {
+            const exists = res.some((c) => c.id === curr);
+            return exists ? curr : (res[0]?.id || '');
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to load channels for hub', activeHubId, err);
+      }
+    };
+    loadHubChannels();
+    return () => {
+      mounted = false;
+    };
+  }, [activeHubId]);
 
   const isFriendsView = isHome && !activeChannel;
 
@@ -869,11 +901,18 @@ export function CommunityPage() {
       saveStoredHubs(updatedHubs);
       setActiveHubId(createdHub.id);
 
-      const hubChannels = await communityApi.getChannels(createdHub.id);
-      if (hubChannels && hubChannels.length > 0) {
-        setChannels((prev) => [...prev.filter((c) => c.hubId !== createdHub.id), ...hubChannels]);
-        setActiveChannelId(hubChannels[0].id);
+      let hubChannels = await communityApi.getChannels(createdHub.id);
+      if (!hubChannels || hubChannels.length === 0) {
+        const defaultCh = await communityApi.createChannel({
+          name: 'general',
+          description: `Saluran obrolan umum untuk server ${createdHub.name}`,
+          category: 'CHANNELS',
+          hubId: createdHub.id,
+        });
+        hubChannels = [defaultCh];
       }
+      setChannels((prev) => [...prev.filter((c) => c.hubId !== createdHub.id), ...hubChannels]);
+      setActiveChannelId(hubChannels[0].id);
 
       setIsCreateHubOpen(false);
       setNewHubName('');
@@ -890,10 +929,20 @@ export function CommunityPage() {
         description: newHubDesc.trim() || '',
       };
 
+      const defaultCh: CommunityChannel = {
+        id: `ch_${Date.now()}_gen`,
+        name: 'general',
+        description: `Saluran obrolan umum untuk server ${newHub.name}`,
+        category: 'CHANNELS',
+        hubId: newId,
+      };
+
       const updatedHubs = [...hubs, newHub];
       setHubs(updatedHubs);
       saveStoredHubs(updatedHubs);
+      setChannels((prev) => [...prev, defaultCh]);
       setActiveHubId(newId);
+      setActiveChannelId(defaultCh.id);
 
       setIsCreateHubOpen(false);
       setNewHubName('');
@@ -1310,9 +1359,7 @@ export function CommunityPage() {
                         const firstCh = channels.find(
                           (c) => (c.hubId || 'anticeil') === hub.id && c.category === 'CHANNELS',
                         );
-                        if (firstCh && activeHubId !== hub.id) {
-                          setActiveChannelId(firstCh.id);
-                        }
+                        setActiveChannelId(firstCh?.id || '');
                       }}
                       className={cn(
                         'relative size-9 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',

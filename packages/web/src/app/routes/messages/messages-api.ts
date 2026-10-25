@@ -36,8 +36,14 @@ export const messagesApi = {
       const res = await api.get<CommunityChannel[]>('/v1/community/channels', {
         params: hubId ? { hubId } : undefined,
       });
-      if (Array.isArray(res) && res.length > 0) {
-        saveStoredChannels(res);
+      if (Array.isArray(res)) {
+        const stored = loadStoredChannels();
+        if (hubId) {
+          const others = stored.filter((c) => (c.hubId || 'anticeil') !== hubId);
+          saveStoredChannels([...others, ...res]);
+        } else {
+          saveStoredChannels(res);
+        }
         return res;
       }
     } catch {}

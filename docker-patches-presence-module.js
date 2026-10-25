@@ -409,10 +409,11 @@ async function setupCommunityApi(app) {
                 }
             } catch (seedErr) {}
 
-            // Clean up legacy un-isolated data (no platform_id) and old dummy channels
+            // Migrate legacy un-isolated data (no platform_id) to current platform so nothing gets deleted
             try {
-                await ds.query(`DELETE FROM anticeil_community_messages WHERE channel_id IN (SELECT id FROM anticeil_community_channels WHERE platform_id IS NULL)`);
-                await ds.query(`DELETE FROM anticeil_community_channels WHERE platform_id IS NULL`);
+                const defaultPlat = await resolvePlatformId({}, ds);
+                await ds.query(`UPDATE anticeil_community_channels SET platform_id = $1 WHERE platform_id IS NULL`, [defaultPlat]);
+                await ds.query(`UPDATE anticeil_community_hubs SET platform_id = $1 WHERE platform_id IS NULL`, [defaultPlat]);
             } catch (cleanErr) {}
 
             dbReady = true;
@@ -437,6 +438,28 @@ async function setupCommunityApi(app) {
                 } else {
                     rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE (platform_id = $1 OR platform_id IS NULL) ORDER BY created_at ASC', [platformId]);
                 }
+                
+                // If a specific server has no channels yet, auto-create its default general channel
+                if (hubId && hubId !== 'anticeil' && (!rows || rows.length === 0)) {
+                    const defaultChId = `ch-${Date.now().toString(36)}-general`;
+                    const defaultChannel = {
+                        id: defaultChId,
+                        name: 'general',
+                        description: 'Saluran obrolan umum',
+                        category: 'CHANNELS',
+                        hub_id: hubId,
+                        is_direct_message: false,
+                        platform_id: platformId
+                    };
+                    try {
+                        await ds.query(
+                            'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
+                            [defaultChannel.id, defaultChannel.name, defaultChannel.description, defaultChannel.category, defaultChannel.hub_id, false, platformId]
+                        );
+                        rows = [defaultChannel];
+                    } catch (e) {}
+                }
+
                 return (rows || []).map(r => ({
                     id: r.id,
                     name: r.name,
@@ -448,7 +471,20 @@ async function setupCommunityApi(app) {
                 }));
             } catch (e) {}
         }
-        return memoryChannels.filter(c => !hubId || c.hubId === hubId);
+        let filtered = memoryChannels.filter(c => !hubId || c.hubId === hubId);
+        if (hubId && hubId !== 'anticeil' && filtered.length === 0) {
+            const gen = {
+                id: `ch-${Date.now().toString(36)}-general`,
+                name: 'general',
+                description: 'Saluran obrolan umum',
+                category: 'CHANNELS',
+                hubId: hubId,
+                isDirectMessage: false
+            };
+            memoryChannels.push(gen);
+            filtered = [gen];
+        }
+        return filtered;
     };
 
     const createChannelHandler = async (req, reply) => {
@@ -1145,18 +1181,40 @@ async function setupCommunityApi(app) {
             platformId
         };
 
+        const defaultChannelId = `ch-${Date.now().toString(36)}-general`;
+        const defaultChannel = {
+            id: defaultChannelId,
+            name: 'general',
+            description: `Saluran obrolan umum untuk server ${name}`,
+            category: 'CHANNELS',
+            hubId: id,
+            isDirectMessage: false,
+            platformId
+        };
+
         if (ds && dbReady) {
             try {
                 await ds.query(
                     'INSERT INTO anticeil_community_hubs (id, name, description, icon_type, initials, icon_url, invite_code, color, tags, emojis, boosts_count, boost_tier, platform_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)',
                     [hub.id, hub.name, hub.description, hub.iconType, hub.initials, hub.iconUrl, hub.inviteCode, hub.color, JSON.stringify(hub.tags), JSON.stringify(hub.emojis), 0, 0, platformId]
                 );
+                await ds.query(
+                    'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
+                    [defaultChannel.id, defaultChannel.name, defaultChannel.description, defaultChannel.category, defaultChannel.hubId, false, platformId]
+                );
             } catch (e) {}
         }
         memoryHubs.push(hub);
+        memoryChannels.push(defaultChannel);
         await recordAuditLog(ds, id, 'HUB_CREATED', req.principal?.name || 'Admin', name);
-        if (app.io) app.io.emit('COMMUNITY_HUB_CREATED', hub);
-        return reply.status(201).send(hub);
+        if (app.io) {
+            app.io.emit('COMMUNITY_HUB_CREATED', hub);
+            app.io.emit('COMMUNITY_CHANNEL_CREATED', defaultChannel);
+        }
+        return reply.status(201).send({
+            ...hub,
+            defaultChannel
+        });
     };
 
     const updateHubHandler = async (req, reply) => {
