@@ -3085,7 +3085,7 @@ export function CommunityPage() {
           </div>
 
           {/* Chat Input Bar (FLOATING OVERLAY FORM CHAT - Discord Style) */}
-          <div className="shrink-0 px-4 pb-2 lg:pb-1 pt-0 bg-transparent z-10 flex flex-col gap-1.5">
+          <div className="shrink-0 px-2 pb-2 lg:pb-1 pt-0 bg-transparent z-10 flex flex-col gap-1.5">
             {/* Staged Attachment Indicator */}
             {stagedAttachment && (
               <div className="p-2 rounded-[12px] bg-[#111214] border border-white/10 shadow-2xl backdrop-blur-md flex items-center justify-between text-xs animate-in slide-in-from-bottom-1">
@@ -3108,7 +3108,7 @@ export function CommunityPage() {
             )}
 
             {/* Discord Signature Chat Input Box - Transparent & Aligned with Identity Card */}
-            <div className="w-full h-[52px] flex items-center gap-3 rounded-[12px] bg-transparent border border-white/10 hover:border-white/15 focus-within:border-white/25 px-4 transition-all">
+            <div className="w-full h-[52px] flex items-center gap-3 rounded-[12px] bg-transparent border border-white/10 hover:border-white/15 focus-within:border-white/25 px-2.5 transition-all">
               <input
                 type="file"
                 ref={fileInputRef}
