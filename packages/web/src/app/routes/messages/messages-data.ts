@@ -71,6 +71,7 @@ export function loadStoredHubs(): CommunityHub[] {
 export function saveStoredHubs(hubs: CommunityHub[]): void {
   try {
     localStorage.setItem(STORAGE_KEY_HUBS, JSON.stringify(hubs));
+    window.dispatchEvent(new Event('anticeil_hubs_changed'));
   } catch (err) {
     console.error('Failed to save community hubs to storage', err);
   }

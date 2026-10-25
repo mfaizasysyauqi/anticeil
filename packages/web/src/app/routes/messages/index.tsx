@@ -272,7 +272,42 @@ export function CommunityPage() {
 
   // Discord Hubs & Channels state
   const [hubs, setHubs] = useState<CommunityHub[]>(() => loadStoredHubs());
-  const [activeHubId, setActiveHubId] = useState<CommunityHubId>('anticeil');
+  const [activeHubId, setActiveHubId] = useState<CommunityHubId>(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get('hub');
+    return fromUrl || 'anticeil';
+  });
+
+  // Listen to switch_hub and open_create_hub events from the Unified Mini Rail
+  useEffect(() => {
+    const handleSwitchHub = (e: any) => {
+      const hubId = e.detail;
+      if (hubId) {
+        setActiveHubId(hubId);
+        if (hubId === 'anticeil') {
+          setActiveChannelId('');
+        } else {
+          const firstCh = channels.find(
+            (c) => (c.hubId || 'anticeil') === hubId && c.category === 'CHANNELS',
+          );
+          if (firstCh) setActiveChannelId(firstCh.id);
+        }
+      }
+    };
+    const handleOpenCreateHub = () => {
+      setIsCreateHubOpen(true);
+    };
+    window.addEventListener('anticeil_switch_hub', handleSwitchHub as EventListener);
+    window.addEventListener('anticeil_open_create_hub', handleOpenCreateHub);
+    return () => {
+      window.removeEventListener('anticeil_switch_hub', handleSwitchHub as EventListener);
+      window.removeEventListener('anticeil_open_create_hub', handleOpenCreateHub);
+    };
+  }, [channels]);
+
+  // Broadcast activeHubId to Unified Mini Rail
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('anticeil_active_hub_changed', { detail: activeHubId }));
+  }, [activeHubId]);
 
   const activeHub = useMemo(() => {
     return hubs.find((h) => h.id === activeHubId) || hubs[0];
@@ -2485,16 +2520,11 @@ export function CommunityPage() {
     >
       <TooltipProvider delayDuration={200}>
       <div className="flex h-full w-full overflow-hidden bg-background">
-        {/* DESKTOP COMBINED LEFT SIDEBAR (Mini Hub Rail + Channels List + Full-width Bottom Dock) */}
-        <div className="hidden lg:flex flex-col h-full shrink-0 border-r border-sidebar-border bg-sidebar select-none w-[284px] overflow-hidden">
-          {/* Top section: Split Rail + Channels */}
-          <div className="flex flex-1 min-h-0 w-full overflow-hidden">
-            {renderDiscordHubRail()}
-            <div className="flex-1 min-w-0 h-full flex flex-col">
-              {renderChannelsSidebarContent()}
-            </div>
+        {/* DESKTOP CHANNELS SIDEBAR (Clean single sidebar directly beside the Unified Mini Rail) */}
+        <div className="hidden lg:flex flex-col h-full shrink-0 border-r border-sidebar-border bg-sidebar select-none w-60 overflow-hidden">
+          <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
+            {renderChannelsSidebarContent()}
           </div>
-          {/* Bottom Dock: Spans across both Rail & Channels */}
           {renderUserBottomDock()}
         </div>
 

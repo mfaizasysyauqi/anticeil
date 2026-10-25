@@ -26,10 +26,17 @@ import {
   SquarePen,
   Unplug,
   UserCogIcon,
+  Workflow,
+  Plus,
+  Sparkles,
+  Terminal,
+  Layers,
 } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
-import { ComponentType, useCallback, useRef, useState } from 'react';
+import { ComponentType, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { CommunityHub } from '../../routes/messages/messages-types';
+import { loadStoredHubs } from '../../routes/messages/messages-data';
 
 import { UserAvatar } from '@/components/custom/user-avatar';
 import { useEmbedding } from '@/components/providers/embed-provider';
@@ -81,6 +88,34 @@ import { MCP_CLIENT_BRANDING } from '../../routes/mcp-server/mcp-client-display'
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { SidebarUsageLimits } from '@/features/billing/components/sidebar-usage-limits';
 
+function renderHubIcon(hub: CommunityHub) {
+  switch (hub.iconType) {
+    case 'logo':
+      return (
+        <img
+          src="/logo.png"
+          alt="Anticeil"
+          className="size-5 object-contain pointer-events-none drop-shadow-xs"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = '/favicon.ico';
+          }}
+        />
+      );
+    case 'spark':
+      return <Sparkles className="w-4 h-4 text-amber-400" />;
+    case 'bot':
+      return <Bot className="w-4 h-4 text-emerald-400" />;
+    case 'templates':
+      return <Layers className="w-4 h-4 text-purple-400" />;
+    case 'code':
+      return <Terminal className="w-4 h-4 text-blue-400" />;
+    case 'dm':
+      return <MessagesSquare className="w-4 h-4 text-rose-400" />;
+    default:
+      return <span className="font-bold text-xs">{hub.initials}</span>;
+  }
+}
+
 function getIsPlusOrAbove(platform: any): boolean {
   const planName = (platform?.plan?.plan || 'free').toLowerCase();
   const isTeamOrEnterprise = planName.includes('team') || planName.includes('enterprise');
@@ -93,7 +128,8 @@ export function PrimaryRail() {
   const isPlusOrAbove = getIsPlusOrAbove(platform);
   const { data: currentUser } = userHooks.useCurrentUser();
   const { preference, setCollapsed, toggle } = useRailCollapsed();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const navigate = useNavigate();
   const [openedOn, setOpenedOn] = useState<string | null>(null);
   const collapsed = railIsCollapsed({ preference, pathname, openedOn });
   const showAgents = useAgentsNavVisible();
@@ -104,6 +140,47 @@ export function PrimaryRail() {
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMenuOpenRef = useRef(false);
   const isMouseInsideRef = useRef(false);
+
+  // Unified Mini Rail: Detect whether we are in Chat mode or Automation mode
+  const isChatMode = pathname.startsWith('/community') || pathname.startsWith('/messages');
+
+  // Hubs state for Chat mode
+  const [hubs, setHubs] = useState<CommunityHub[]>(() => loadStoredHubs());
+  const [activeHubId, setActiveHubId] = useState<string>(() => {
+    return new URLSearchParams(window.location.search).get('hub') || 'anticeil';
+  });
+
+  useEffect(() => {
+    const handleHubChange = (e: any) => {
+      if (e.detail) setActiveHubId(e.detail);
+    };
+    const handleHubsChanged = () => {
+      setHubs(loadStoredHubs());
+    };
+    window.addEventListener('anticeil_active_hub_changed', handleHubChange as EventListener);
+    window.addEventListener('anticeil_hubs_changed', handleHubsChanged);
+    return () => {
+      window.removeEventListener('anticeil_active_hub_changed', handleHubChange as EventListener);
+      window.removeEventListener('anticeil_hubs_changed', handleHubsChanged);
+    };
+  }, []);
+
+  useEffect(() => {
+    const hubParam = new URLSearchParams(search).get('hub');
+    if (hubParam && hubParam !== activeHubId) {
+      setActiveHubId(hubParam);
+    }
+  }, [search]);
+
+  const handleSelectHub = (hubId: string) => {
+    setActiveHubId(hubId);
+    navigate(`/messages?hub=${hubId}`);
+    window.dispatchEvent(new CustomEvent('anticeil_switch_hub', { detail: hubId }));
+  };
+
+  const handleOpenCreateHub = () => {
+    window.dispatchEvent(new CustomEvent('anticeil_open_create_hub'));
+  };
 
   const handleMouseEnter = useCallback(() => {
     isMouseInsideRef.current = true;
@@ -142,8 +219,8 @@ export function PrimaryRail() {
     toggle();
   };
 
-  // Zapier-style: when collapsed, show the overlay on hover OR while dropdown menu is open
-  const showOverlay = collapsed && (hovered || isMenuOpen);
+  // Zapier-style: when collapsed, show the overlay on hover OR while dropdown menu is open (only in Automation mode)
+  const showOverlay = !isChatMode && collapsed && (hovered || isMenuOpen);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -154,140 +231,284 @@ export function PrimaryRail() {
       >
       {/* Always render the collapsed rail to hold space */}
       <aside
-        onClick={collapsed ? openSidebar : undefined}
-        title={collapsed ? t('Open sidebar') : undefined}
+        onClick={!isChatMode && collapsed ? openSidebar : undefined}
+        title={!isChatMode && collapsed ? t('Open sidebar') : undefined}
         className={cn(
           'hidden lg:flex h-svh shrink-0 flex-col overflow-hidden whitespace-nowrap bg-sidebar py-3 transition-[width] duration-200 ease-out motion-reduce:transition-none',
-          collapsed ? 'w-14 cursor-ew-resize items-center' : 'w-62',
+          isChatMode ? 'w-14 items-center select-none' : collapsed ? 'w-14 cursor-ew-resize items-center' : 'w-62',
         )}
       >
-        <RailHeader collapsed={collapsed} onToggle={toggleCollapsed} />
+        {isChatMode ? (
+          /* ── CHAT MODE: REPLACED WITH DISCORD SERVER & DMS RAIL ── */
+          <>
+            {/* 1. Top Mode Switcher: Automation Icon */}
+            <div className="flex flex-col items-center shrink-0 px-2">
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <Link
+                    to="/"
+                    className="group relative size-10 rounded-[12px] bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground flex items-center justify-center transition-all duration-200 cursor-pointer shadow-xs"
+                  >
+                    <Workflow className="size-5 transition-transform group-hover:scale-110" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
+                  {t('Mode Otomasi (Flows & Integrasi)')}
+                </TooltipContent>
+              </Tooltip>
+            </div>
 
-        <div
-          className={cn(
-            'mt-2 flex min-h-0 flex-1 flex-col',
-            collapsed ? 'items-center px-2' : 'px-2',
-          )}
-        >
-          <div
-            className={cn(
-              'flex shrink-0 flex-col gap-1',
-              collapsed && 'items-center',
-            )}
-          >
-            <RailNavButton
-              collapsed={collapsed}
-              to="/messages"
-              icon={MessagesSquare}
-              label={t('Chat')}
-              isActive={({ pathname }) =>
-                pathname.startsWith('/community') || pathname.startsWith('/messages')
-              }
-            />
-          </div>
+            {/* Separator bar */}
+            <div className="w-6 h-[2px] bg-sidebar-border rounded-full my-2 shrink-0" />
 
-          <div
-            className={cn(
-              'my-1.5 h-px shrink-0 bg-sidebar-border',
-              collapsed ? 'w-6' : 'mx-1',
-            )}
-          />
+            {/* 2. Scrollable Hubs / Servers List */}
+            <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col items-center gap-2 py-1">
+              {/* Main Hub (Direct Messages / Home) */}
+              {hubs[0] && (
+                <div className="relative group w-full flex items-center justify-center">
+                  <span
+                    className={cn(
+                      'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
+                      activeHubId === 'anticeil'
+                        ? 'h-6'
+                        : 'h-0 group-hover:h-3.5 opacity-80',
+                    )}
+                  />
+                  <Tooltip delayDuration={150}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => handleSelectHub('anticeil')}
+                        className={cn(
+                          'relative size-9 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
+                          activeHubId === 'anticeil'
+                            ? 'rounded-[12px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
+                            : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[12px] hover:bg-sidebar-accent/80',
+                        )}
+                      >
+                        {renderHubIcon(hubs[0])}
+                        {hubs[0].unreadCount && hubs[0].unreadCount > 0 ? (
+                          <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center border-2 border-sidebar">
+                            {hubs[0].unreadCount}
+                          </span>
+                        ) : null}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
+                      {hubs[0].name}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
 
-          <div
-            className={cn(
-              'flex shrink-0 flex-col gap-1',
-              collapsed && 'items-center',
-            )}
-          >
-            {(platform?.plan?.chatEnabled ?? true) && (
-              <RailNavButton
-                collapsed={collapsed}
-                to="/chat"
-                icon={SquarePen}
-                label={t('Chatbot')}
-                isActive={({ pathname }) => pathname.startsWith('/chat')}
-                onClick={() =>
-                  window.dispatchEvent(new Event(chatUtils.newChatEvent))
-                }
-              />
-            )}
-            {checkAccess(Permission.READ_MCP) && (
-              <RailNavButton
-                collapsed={collapsed}
-                to="/mcp-server"
-                icon={Unplug}
-                label={t('MCP')}
-                badge={<McpClientLogos />}
-                isActive={({ pathname }) => pathname.startsWith('/mcp-server')}
-              />
-            )}
-          </div>
+              {/* Discord Separator Bar */}
+              <div className="w-6 h-[2px] bg-sidebar-border rounded-full my-0.5 shrink-0" />
 
-          {((platform?.plan?.chatEnabled ?? true) || checkAccess(Permission.READ_MCP)) && (
+              {/* Other Servers */}
+              {hubs.slice(1).map((hub) => {
+                const isActive = activeHubId === hub.id;
+                return (
+                  <div key={hub.id} className="relative group w-full flex items-center justify-center">
+                    <span
+                      className={cn(
+                        'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
+                        isActive ? 'h-6' : 'h-0 group-hover:h-3.5 opacity-80',
+                      )}
+                    />
+                    <Tooltip delayDuration={150}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleSelectHub(hub.id)}
+                          className={cn(
+                            'relative size-9 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
+                            isActive
+                              ? 'rounded-[12px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
+                              : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[12px] hover:bg-sidebar-accent/80',
+                          )}
+                        >
+                          {renderHubIcon(hub)}
+                          {hub.unreadCount && hub.unreadCount > 0 ? (
+                            <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center border-2 border-sidebar">
+                              {hub.unreadCount}
+                            </span>
+                          ) : null}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
+                        {hub.name}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                );
+              })}
+
+              {/* Add Server (+) Button */}
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleOpenCreateHub}
+                    className="group relative size-9 rounded-full bg-sidebar-accent text-emerald-500 hover:rounded-[12px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
+                  {t('Buat Server Baru')}
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Discover / Templates Compass */}
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <Link
+                    to="/templates"
+                    className="group relative size-9 rounded-full bg-sidebar-accent text-muted-foreground hover:rounded-[12px] hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
+                  >
+                    <Compass className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
+                  {t('Jelajahi Template Otomasi')}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+
+            {/* 3. Bottom: User Profile Row */}
+            <div className="mt-auto flex flex-col gap-1.5 w-full">
+              <RailAccountRow collapsed={true} onMenuOpenChange={handleMenuOpenChange} />
+            </div>
+          </>
+        ) : (
+          /* ── AUTOMATION MODE: STANDARD PRIMARY RAIL ── */
+          <>
+            <RailHeader collapsed={collapsed} onToggle={toggleCollapsed} />
+
             <div
               className={cn(
-                'my-1.5 h-px shrink-0 bg-sidebar-border',
-                collapsed ? 'w-6' : 'mx-1',
+                'mt-2 flex min-h-0 flex-1 flex-col',
+                collapsed ? 'items-center px-2' : 'px-2',
               )}
-            />
-          )}
+            >
+              <div
+                className={cn(
+                  'flex shrink-0 flex-col gap-1',
+                  collapsed && 'items-center',
+                )}
+              >
+                <RailNavButton
+                  collapsed={collapsed}
+                  to="/messages"
+                  icon={MessagesSquare}
+                  label={t('Chat')}
+                  isActive={({ pathname }) =>
+                    pathname.startsWith('/community') || pathname.startsWith('/messages')
+                  }
+                />
+              </div>
 
-          <div
-            className={cn(
-              'flex shrink-0 flex-col gap-1',
-              collapsed && 'items-center',
-            )}
-          >
-            <RailNavButton
-              collapsed={collapsed}
-              to="/agents"
-              icon={Bot}
-              label={t('Agents')}
-              isActive={({ pathname }) => pathname.startsWith('/agents')}
-            />
-            <RailNavButton
-              collapsed={collapsed}
-              to="/templates"
-              icon={Compass}
-              label={t('Explore')}
-              isActive={({ pathname }) => pathname.startsWith('/templates')}
-              onClick={() =>
-                templatesTelemetryApi.sendEvent({
-                  eventType: TemplateTelemetryEventType.EXPLORE_VIEW,
-                  userId: currentUser?.id,
-                })
-              }
-            />
-            <RailNavButton
-              collapsed={collapsed}
-              to="/impact"
-              icon={ChartLine}
-              label={t('Impact')}
-              isActive={({ pathname }) => pathname.startsWith('/impact')}
-            />
-          </div>
-
-          {authenticationSession.isLoggedIn() && (
-            <>
               <div
                 className={cn(
                   'my-1.5 h-px shrink-0 bg-sidebar-border',
                   collapsed ? 'w-6' : 'mx-1',
                 )}
               />
-              <RailPinnedProjects collapsed={collapsed} />
-            </>
-          )}
-        </div>
 
-        <div className="mt-auto flex flex-col gap-1.5 w-full">
-          {!collapsed && authenticationSession.isLoggedIn() && (
-            <div className="px-2">
-              <SidebarUsageLimits />
+              <div
+                className={cn(
+                  'flex shrink-0 flex-col gap-1',
+                  collapsed && 'items-center',
+                )}
+              >
+                {(platform?.plan?.chatEnabled ?? true) && (
+                  <RailNavButton
+                    collapsed={collapsed}
+                    to="/chat"
+                    icon={SquarePen}
+                    label={t('Chatbot')}
+                    isActive={({ pathname }) => pathname.startsWith('/chat')}
+                    onClick={() =>
+                      window.dispatchEvent(new Event(chatUtils.newChatEvent))
+                    }
+                  />
+                )}
+                {checkAccess(Permission.READ_MCP) && (
+                  <RailNavButton
+                    collapsed={collapsed}
+                    to="/mcp-server"
+                    icon={Unplug}
+                    label={t('MCP')}
+                    badge={<McpClientLogos />}
+                    isActive={({ pathname }) => pathname.startsWith('/mcp-server')}
+                  />
+                )}
+              </div>
+
+              {((platform?.plan?.chatEnabled ?? true) || checkAccess(Permission.READ_MCP)) && (
+                <div
+                  className={cn(
+                    'my-1.5 h-px shrink-0 bg-sidebar-border',
+                    collapsed ? 'w-6' : 'mx-1',
+                  )}
+                />
+              )}
+
+              <div
+                className={cn(
+                  'flex shrink-0 flex-col gap-1',
+                  collapsed && 'items-center',
+                )}
+              >
+                <RailNavButton
+                  collapsed={collapsed}
+                  to="/agents"
+                  icon={Bot}
+                  label={t('Agents')}
+                  isActive={({ pathname }) => pathname.startsWith('/agents')}
+                />
+                <RailNavButton
+                  collapsed={collapsed}
+                  to="/templates"
+                  icon={Compass}
+                  label={t('Explore')}
+                  isActive={({ pathname }) => pathname.startsWith('/templates')}
+                  onClick={() =>
+                    templatesTelemetryApi.sendEvent({
+                      eventType: TemplateTelemetryEventType.EXPLORE_VIEW,
+                      userId: currentUser?.id,
+                    })
+                  }
+                />
+                <RailNavButton
+                  collapsed={collapsed}
+                  to="/impact"
+                  icon={ChartLine}
+                  label={t('Impact')}
+                  isActive={({ pathname }) => pathname.startsWith('/impact')}
+                />
+              </div>
+
+              {authenticationSession.isLoggedIn() && (
+                <>
+                  <div
+                    className={cn(
+                      'my-1.5 h-px shrink-0 bg-sidebar-border',
+                      collapsed ? 'w-6' : 'mx-1',
+                    )}
+                  />
+                  <RailPinnedProjects collapsed={collapsed} />
+                </>
+              )}
             </div>
-          )}
-          <RailAccountRow collapsed={collapsed} onMenuOpenChange={handleMenuOpenChange} />
-        </div>
+
+            <div className="mt-auto flex flex-col gap-1.5 w-full">
+              {!collapsed && authenticationSession.isLoggedIn() && (
+                <div className="px-2">
+                  <SidebarUsageLimits />
+                </div>
+              )}
+              <RailAccountRow collapsed={collapsed} onMenuOpenChange={handleMenuOpenChange} />
+            </div>
+          </>
+        )}
       </aside>
 
       {/* Hover overlay — expanded sidebar floating on top when collapsed */}
