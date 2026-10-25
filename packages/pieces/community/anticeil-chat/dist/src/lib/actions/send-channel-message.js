@@ -12,23 +12,23 @@ exports.sendChannelMessage = (0, pieces_framework_1.createAction)({
     props: {
         webhookUrl: pieces_framework_1.Property.ShortText({
             displayName: 'Webhook URL',
-            description: 'Salin Webhook URL dari Pengaturan Saluran Anticeil Chat (contoh: https://anticeil.com/api/v1/community/webhook?channelId=ch-...)',
+            description: 'Salin Webhook URL dari Pengaturan Saluran Anticeil Chat (contoh: https://anticeil.com/api/v1/community/webhook?channelId=ch-...&hubId=anticeil)',
             required: false,
             placeholder: 'https://anticeil.com/api/v1/community/webhook?channelId=ch-...',
         }),
-        channelId: pieces_framework_1.Property.ShortText({
+        channel: pieces_framework_1.Property.ShortText({
             displayName: 'ID Saluran / Nama Channel (Opsional)',
-            description: 'Opsional jika Webhook URL sudah diisi. ID Saluran atau nama saluran jika ingin meng-override URL.',
+            description: 'Opsional jika Webhook URL sudah diisi. Masukkan nama channel (contoh: general) atau ID saluran (contoh: ch-...).',
             required: false,
         }),
-        channel: pieces_framework_1.Property.ShortText({
-            displayName: 'ID Saluran / Channel (Legacy)',
-            description: 'Parameter alias channel untuk kompatibilitas versi lama.',
+        channelId: pieces_framework_1.Property.ShortText({
+            displayName: 'ID Saluran (Alias)',
+            description: 'Opsional. Alias jika ingin mengisi parameter channelId secara spesifik.',
             required: false,
         }),
         hubId: pieces_framework_1.Property.ShortText({
             displayName: 'ID Server / Hub ID (Opsional)',
-            description: 'Opsional jika Webhook URL sudah diisi. ID Server Anticeil Chat.',
+            description: 'Opsional jika Webhook URL sudah diisi. ID Server Anticeil Chat (default: anticeil).',
             required: false,
         }),
         content: pieces_framework_1.Property.LongText({
@@ -50,13 +50,22 @@ exports.sendChannelMessage = (0, pieces_framework_1.createAction)({
     },
     run(context) {
         return tslib_1.__awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             const rawWebhook = (_a = context.propsValue.webhookUrl) === null || _a === void 0 ? void 0 : _a.trim();
-            let channel = (_b = (context.propsValue.channelId || context.propsValue.channel)) === null || _b === void 0 ? void 0 : _b.trim();
+            let channel = (_b = (context.propsValue.channel || context.propsValue.channelId || context.propsValue.channel)) === null || _b === void 0 ? void 0 : _b.trim();
             let hubId = (_c = context.propsValue.hubId) === null || _c === void 0 ? void 0 : _c.trim();
             const content = context.propsValue.content;
             const botName = context.propsValue.botName || 'Anticeil Bot';
             const botAvatar = context.propsValue.botAvatar || undefined;
+            console.log('[Anticeil Chat Piece] Action execution started');
+            console.log('[Anticeil Chat Piece] Received props:', {
+                hasWebhookUrl: Boolean(rawWebhook),
+                webhookUrl: rawWebhook ? `${rawWebhook.substring(0, 45)}...` : null,
+                channel,
+                hubId,
+                botName,
+                contentLength: (content === null || content === void 0 ? void 0 : content.length) || 0,
+            });
             // Auto-extract channelId and hubId from Webhook URL query parameters if not explicitly provided
             if (rawWebhook) {
                 try {
@@ -69,8 +78,11 @@ exports.sendChannelMessage = (0, pieces_framework_1.createAction)({
                     if (!hubId && urlHubId) {
                         hubId = urlHubId;
                     }
+                    console.log('[Anticeil Chat Piece] Extracted from Webhook URL:', { channel, hubId });
                 }
-                catch (e) { }
+                catch (e) {
+                    console.warn('[Anticeil Chat Piece] Could not parse Webhook URL as URL object:', e === null || e === void 0 ? void 0 : e.message);
+                }
             }
             channel = channel || 'general';
             hubId = hubId || 'anticeil';
@@ -79,7 +91,8 @@ exports.sendChannelMessage = (0, pieces_framework_1.createAction)({
                 targetUrl = rawWebhook;
             }
             else {
-                const baseUrl = process.env['AP_FRONTEND_URL'] ||
+                const baseUrl = process.env['AP_INTERNAL_URL'] ||
+                    process.env['AP_FRONTEND_URL'] ||
                     process.env['FRONTEND_URL'] ||
                     'http://127.0.0.1:3000';
                 targetUrl = `${baseUrl.replace(/\/+$/, '')}/api/v1/community/webhook`;
@@ -92,31 +105,41 @@ exports.sendChannelMessage = (0, pieces_framework_1.createAction)({
                 botName,
                 botAvatar,
             };
-            // Candidate URLs: if inside Docker network on Oracle VM, prioritize direct local app container address
+            // Candidate URLs for robust delivery inside Docker networks or direct HTTP
             const candidates = [];
-            if (targetUrl.includes('anticeil.com')) {
+            const internalUrl = (_d = process.env['AP_INTERNAL_URL']) === null || _d === void 0 ? void 0 : _d.replace(/\/+$/, '');
+            if (targetUrl.includes('anticeil.com') || targetUrl.includes('127.0.0.1') || targetUrl.includes('localhost')) {
                 const parsedPath = targetUrl.replace(/https?:\/\/[^\/]+/, '');
+                if (internalUrl) {
+                    candidates.push(`${internalUrl}${parsedPath}`);
+                }
                 candidates.push(`http://app:80${parsedPath}`);
                 candidates.push(`http://activepieces-app:80${parsedPath}`);
                 candidates.push(`http://127.0.0.1:8080${parsedPath}`);
             }
             candidates.push(targetUrl);
+            console.log('[Anticeil Chat Piece] Final target candidates:', candidates);
+            console.log('[Anticeil Chat Piece] Sending payload:', JSON.stringify(payload));
             let lastError = null;
             for (const url of candidates) {
                 try {
+                    console.log(`[Anticeil Chat Piece] Sending POST to: ${url}`);
                     const response = yield pieces_common_1.httpClient.sendRequest({
                         method: pieces_common_1.HttpMethod.POST,
                         url,
                         body: payload,
-                        timeout: 4000,
+                        timeout: 5000,
                     });
+                    console.log(`[Anticeil Chat Piece] Success response from ${url}:`, response.status, response.body);
                     return response.body || response;
                 }
                 catch (err) {
+                    console.warn(`[Anticeil Chat Piece] Attempt to ${url} failed:`, (err === null || err === void 0 ? void 0 : err.message) || err);
                     lastError = err;
                 }
             }
-            throw lastError || new Error('Gagal mengirim webhook pesan');
+            console.error('[Anticeil Chat Piece] All candidate delivery attempts failed. Last error:', (lastError === null || lastError === void 0 ? void 0 : lastError.message) || lastError);
+            throw lastError || new Error('Gagal mengirim webhook pesan ke Anticeil Chat');
         });
     },
 });

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.presenceModule = void 0;
+const fp = require("fastify-plugin");
 const core_utils_1 = require("@activepieces/core-utils");
 const shared_1 = require("@activepieces/shared");
 const user_service_1 = require("../../../user/user-service");
@@ -180,7 +181,7 @@ const presenceModule = async (app) => {
         };
     });
 };
-exports.presenceModule = presenceModule;
+exports.presenceModule = fp(presenceModule);
 
 function registerPresenceDisconnectHandler({ socket, userId, projectId, app }) {
     if (socket.data.presenceDisconnectRegistered) {
@@ -738,6 +739,17 @@ async function setupCommunityApi(app) {
             });
         }
 
+        console.log('[Anticeil Bot Webhook] Incoming webhook call:', {
+            query: req.query,
+            body: {
+                channel: body.channel,
+                channelId: body.channelId,
+                hubId: body.hubId,
+                botName: body.botName,
+                content: content ? `${content.substring(0, 40)}...` : '<empty>'
+            }
+        });
+
         const platformId = await resolvePlatformId(req, ds);
         const hubId = body.hubId || req.query?.hubId || 'anticeil';
         let targetChannel = null;
@@ -759,15 +771,15 @@ async function setupCommunityApi(app) {
                     }
                 }
 
-                // Step B: If not found by ID, try finding by channel name within the specified server/hub
-                if (!targetChannel && rawTargetName) {
-                    const cleanSearchName = String(rawTargetName).replace(/^#/, '').toLowerCase().trim().replace(/[^a-z0-9-_]/g, '-');
-                    const rawCleanName = String(rawTargetName).replace(/^#/, '').toLowerCase().trim();
+                // Step B: If not found by ID, try finding by channel name
+                if (!targetChannel && (rawTargetName || rawTargetId)) {
+                    const cleanSearchName = String(rawTargetName || rawTargetId).replace(/^#/, '').toLowerCase().trim().replace(/[^a-z0-9-_]/g, '-');
+                    const rawCleanName = String(rawTargetName || rawTargetId).replace(/^#/, '').toLowerCase().trim();
 
-                    if (hubId && hubId !== 'anticeil') {
+                    if (hubId) {
                         let rows = await ds.query(
-                            'SELECT * FROM anticeil_community_channels WHERE hub_id = $1 AND (LOWER(name) = $2 OR LOWER(name) = $3) LIMIT 1',
-                            [hubId, cleanSearchName, rawCleanName]
+                            'SELECT * FROM anticeil_community_channels WHERE hub_id = $1 AND (LOWER(name) = $2 OR LOWER(name) = $3 OR id = $4) LIMIT 1',
+                            [hubId, cleanSearchName, rawCleanName, rawTargetId || '']
                         );
                         if (rows && rows[0]) {
                             targetChannel = rows[0];
@@ -777,8 +789,8 @@ async function setupCommunityApi(app) {
                     // Step C: Fallback search by name across all channels
                     if (!targetChannel) {
                         let rows = await ds.query(
-                            'SELECT * FROM anticeil_community_channels WHERE (LOWER(name) = $1 OR LOWER(name) = $2) LIMIT 1',
-                            [cleanSearchName, rawCleanName]
+                            'SELECT * FROM anticeil_community_channels WHERE LOWER(name) = $1 OR LOWER(name) = $2 OR id = $3 LIMIT 1',
+                            [cleanSearchName, rawCleanName, rawTargetId || '']
                         );
                         if (rows && rows[0]) {
                             targetChannel = rows[0];
@@ -792,54 +804,81 @@ async function setupCommunityApi(app) {
 
         // Check memoryChannels if not found in db
         if (!targetChannel) {
+            const cleanTarget = String(rawTargetName || rawTargetId || '').replace(/^#/, '').toLowerCase().trim();
             targetChannel = memoryChannels.find(c =>
                 (rawTargetId && c.id === rawTargetId) ||
-                (rawTargetName && (c.hubId === hubId || c.hub_id === hubId) && c.name.toLowerCase() === String(rawTargetName).replace(/^#/, '').toLowerCase()) ||
-                (rawTargetName && c.name.toLowerCase() === String(rawTargetName).replace(/^#/, '').toLowerCase())
+                (cleanTarget && c.name.toLowerCase() === cleanTarget)
             );
         }
 
-        // 2. ONLY auto-create channel if targetChannel is truly NOT found
+        // 2. Prevent duplicate channels: Only auto-create if NO channel matches anywhere
         if (!targetChannel) {
             const rawName = String(rawTargetName || rawTargetId || 'general').replace(/^#/, '').trim() || 'general';
             const cleanName = rawName.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'general';
-            const newChannelId = `ch-${cleanName}-${Date.now().toString(36)}`;
-            
-            const newChannelObj = {
-                id: newChannelId,
-                name: cleanName,
-                description: `Saluran bot otomatis untuk #${cleanName}`,
-                category: 'CHANNELS',
-                hub_id: hubId,
-                is_direct_message: false,
-                platform_id: platformId
-            };
 
+            // Check if ANY channel exists with this name (e.g. general, alerts, etc.)
             if (ds && dbReady) {
                 try {
-                    await ds.query(
-                        'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
-                        [newChannelObj.id, newChannelObj.name, newChannelObj.description, newChannelObj.category, newChannelObj.hub_id, false, platformId]
+                    let existingRows = await ds.query(
+                        'SELECT * FROM anticeil_community_channels WHERE LOWER(name) = $1 OR id = $2 ORDER BY created_at ASC LIMIT 1',
+                        [cleanName, rawName]
                     );
+                    if (existingRows && existingRows[0]) {
+                        targetChannel = existingRows[0];
+                    }
                 } catch (e) {}
             }
+            if (!targetChannel) {
+                targetChannel = memoryChannels.find(c => c.name.toLowerCase() === cleanName || c.id === rawName);
+            }
 
-            const formattedNewChannel = {
-                id: newChannelObj.id,
-                name: newChannelObj.name,
-                description: newChannelObj.description,
-                category: newChannelObj.category,
-                hubId: newChannelObj.hub_id,
-                isDirectMessage: false
-            };
+            // Still not found? Only now create a new channel
+            if (!targetChannel) {
+                const newChannelId = `ch-${cleanName}-${Date.now().toString(36)}`;
+                
+                const newChannelObj = {
+                    id: newChannelId,
+                    name: cleanName,
+                    description: `Saluran bot otomatis untuk #${cleanName}`,
+                    category: 'CHANNELS',
+                    hub_id: hubId,
+                    is_direct_message: false,
+                    platform_id: platformId
+                };
 
-            memoryChannels.push(formattedNewChannel);
-            targetChannel = formattedNewChannel;
+                if (ds && dbReady) {
+                    try {
+                        await ds.query(
+                            'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
+                            [newChannelObj.id, newChannelObj.name, newChannelObj.description, newChannelObj.category, newChannelObj.hub_id, false, platformId]
+                        );
+                    } catch (e) {}
+                }
 
-            if (app.io) {
-                app.io.emit('COMMUNITY_CHANNEL_CREATED', formattedNewChannel);
+                const formattedNewChannel = {
+                    id: newChannelObj.id,
+                    name: newChannelObj.name,
+                    description: newChannelObj.description,
+                    category: newChannelObj.category,
+                    hubId: newChannelObj.hub_id,
+                    isDirectMessage: false
+                };
+
+                memoryChannels.push(formattedNewChannel);
+                targetChannel = formattedNewChannel;
+                console.log('[Anticeil Bot Webhook] Channel did not exist, created new channel:', newChannelId, cleanName);
+
+                if (app.io) {
+                    app.io.emit('COMMUNITY_CHANNEL_CREATED', formattedNewChannel);
+                }
             }
         }
+
+        console.log('[Anticeil Bot Webhook] Target channel resolved to:', {
+            id: targetChannel.id,
+            name: targetChannel.name,
+            hubId: targetChannel.hubId || targetChannel.hub_id || 'anticeil'
+        });
 
         const channelId = targetChannel.id;
         const botName = String(body.botName || body.senderName || 'Anticeil Bot').trim();
@@ -952,7 +991,9 @@ async function setupCommunityApi(app) {
     // --- INTERCEPT PIECE BUNDLE DOWNLOAD FOR ANTICEIL CHAT (WORKER ENGINE) ---
     const interceptPieceBundle = async (req, reply) => {
         const rawUrl = decodeURIComponent(req.raw?.url || req.url || '');
-        if (rawUrl.includes('/pieces/bundle') && rawUrl.includes('anticeil-chat')) {
+        if (rawUrl.includes('/pieces/bundle') && (rawUrl.includes('anticeil-chat') || rawUrl.includes('@activepieces/piece-anticeil-chat'))) {
+            console.log('[Anticeil Piece Interceptor] Intercepted bundle download request:', req.raw?.url || req.url);
+            app.log.info({ url: req.url }, '[Anticeil Piece Interceptor] Intercepted bundle download request');
             const fs = require('fs');
             const path = require('path');
             const candidatePaths = [
@@ -964,6 +1005,8 @@ async function setupCommunityApi(app) {
             ];
             for (const p of candidatePaths) {
                 if (fs.existsSync(p)) {
+                    console.log('[Anticeil Piece Interceptor] Found bundle tgz. Serving:', p);
+                    app.log.info({ path: p }, '[Anticeil Piece Interceptor] Serving bundle tgz');
                     return reply
                         .status(200)
                         .header('Content-Type', 'application/octet-stream')
@@ -971,6 +1014,7 @@ async function setupCommunityApi(app) {
                         .send(fs.readFileSync(p));
                 }
             }
+            console.error('[Anticeil Piece Interceptor] Piece tarball NOT found in candidate paths:', candidatePaths);
         }
     };
     app.addHook('onRequest', interceptPieceBundle);
