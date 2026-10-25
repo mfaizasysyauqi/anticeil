@@ -1,6 +1,7 @@
 export type CommunityRole =
   | 'owner'
   | 'admin'
+  | 'moderator'
   | 'member'
   | 'bot'
   | 'platform_admin'
@@ -13,17 +14,29 @@ export type CommunityRole =
 
 export type CommunityHubId = 'anticeil' | 'direct-messages' | string;
 
+export type CommunityCustomEmoji = {
+  id: string;
+  name: string;
+  char?: string;
+  url?: string;
+};
+
 export type CommunityHub = {
   id: CommunityHubId;
   name: string;
-  iconType: 'logo' | 'spark' | 'bot' | 'templates' | 'code' | 'dm';
+  iconType?: 'logo' | 'spark' | 'bot' | 'templates' | 'code' | 'dm' | 'initials';
   initials: string;
   description?: string;
   unreadCount?: number;
   inviteCode?: string;
   membersCount?: number;
   color?: string;
-  role?: 'owner' | 'admin' | 'member';
+  iconUrl?: string;
+  role?: 'owner' | 'admin' | 'moderator' | 'member';
+  tags?: string[];
+  emojis?: CommunityCustomEmoji[];
+  boostsCount?: number;
+  boostTier?: number;
 };
 
 export type CommunityChannel = {
@@ -77,4 +90,55 @@ export type CommunityMember = {
   projectRole?: string | null;
   status: 'online' | 'idle' | 'offline';
   customStatus?: string;
+};
+
+export type CommunityAuditEntry = {
+  id: string;
+  hubId: string;
+  action: string;
+  actorName: string;
+  targetName?: string;
+  details?: Record<string, any> | string;
+  createdAt: string;
+};
+
+export type CommunityInvite = {
+  id: string;
+  hubId: string;
+  code: string;
+  inviterName?: string;
+  uses: number;
+  maxUses?: number;
+  expiresAt?: string | null;
+  createdAt: string;
+};
+
+export type CommunityBan = {
+  id: string;
+  hubId: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  reason: string;
+  bannedByName?: string;
+  createdAt: string;
+};
+
+export type CommunityCustomRole = {
+  id: string;
+  hubId: string;
+  name: string;
+  color: string;
+  permissions: string[];
+  memberCount?: number;
+  position?: number;
+};
+
+export type CommunityHubStats = {
+  totalMessages: number;
+  totalChannels: number;
+  totalMembers: number;
+  totalBots: number;
+  botMessages: number;
+  channelActivity: Array<{ channelId: string; channelName: string; messageCount: number }>;
 };

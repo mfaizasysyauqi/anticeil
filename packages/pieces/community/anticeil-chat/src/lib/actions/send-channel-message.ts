@@ -67,16 +67,16 @@ export const sendChannelMessage = createAction({
       contentLength: content?.length || 0,
     });
 
-    // Auto-extract channelId and hubId from Webhook URL query parameters if not explicitly provided
+    // Auto-extract channelId and hubId from Webhook URL query parameters
     if (rawWebhook) {
       try {
         const parsed = new URL(rawWebhook);
         const urlChannel = parsed.searchParams.get('channelId') || parsed.searchParams.get('channel');
         const urlHubId = parsed.searchParams.get('hubId');
-        if (!channel && urlChannel) {
+        if (urlChannel) {
           channel = urlChannel;
         }
-        if (!hubId && urlHubId) {
+        if (urlHubId) {
           hubId = urlHubId;
         }
         console.log('[Anticeil Chat Piece] Extracted from Webhook URL:', { channel, hubId });
