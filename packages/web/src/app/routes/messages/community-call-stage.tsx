@@ -1482,9 +1482,9 @@ export function CommunityCallStage({
 
               {/* APP 2: VIRTUAL FISHER (Matching screenshot) */}
               {activeAppId === 'virtual-fisher' && (
-                <div className="h-full flex flex-col md:flex-row overflow-hidden">
+                <div className="h-full flex flex-col md:flex-row overflow-hidden min-h-0">
                   {/* Left: Fishing Stage & Actions */}
-                  <div className="flex-1 p-6 flex flex-col items-center justify-center bg-gradient-to-b from-[#111214] via-[#141b24] to-[#0a111a] relative overflow-y-auto">
+                  <div className="flex-1 min-h-0 p-4 flex flex-col items-center justify-center bg-gradient-to-b from-[#111214] via-[#141b24] to-[#0a111a] relative overflow-y-auto">
                     {/* Atmospheric Water & Catch Box (Exact Discord format) */}
                     <div className="w-full max-w-md bg-[#1e1f22] rounded-2xl border border-white/10 p-5 shadow-2xl relative">
                       {/* Sub-header author */}
@@ -1585,7 +1585,7 @@ export function CommunityCallStage({
                       </span>
                     </div>
 
-                    <div className="flex-1 min-h-[160px] overflow-y-auto space-y-2 [scrollbar-width:thin]">
+                    <div className="flex-1 min-h-0 overflow-y-auto space-y-2 [scrollbar-width:thin]">
                       {fisherFeed.map((item) => (
                         <div key={item.id} className="p-2 rounded-lg bg-[#2b2d31]/60 border border-white/5 text-xs">
                           <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-0.5">
@@ -1602,8 +1602,8 @@ export function CommunityCallStage({
 
               {/* APP 3: WORDLE GAME */}
               {activeAppId === 'wordle' && (
-                <div className="h-full flex flex-col items-center justify-center p-6 bg-[#111214] overflow-y-auto">
-                  <div className="w-full max-w-sm flex flex-col items-center gap-4">
+                <div className="h-full min-h-0 flex flex-col items-center justify-center p-4 bg-[#111214] overflow-y-auto">
+                  <div className="w-full max-w-sm flex flex-col items-center gap-3">
                     <div className="flex items-center gap-2">
                       <span className="text-xl font-black tracking-widest text-white">W O R D L E</span>
                       <span className="bg-[#5865F2] text-white text-[9px] font-extrabold px-1.5 py-0.2 rounded">
@@ -1688,8 +1688,8 @@ export function CommunityCallStage({
 
               {/* APP 4: MAGIC GARDEN */}
               {activeAppId === 'magic-garden' && (
-                <div className="h-full flex flex-col items-center justify-center p-6 bg-gradient-to-b from-[#141b24] to-[#0f172a] overflow-y-auto">
-                  <div className="w-full max-w-2xl bg-[#1e1f22]/90 border border-white/10 rounded-2xl p-6 shadow-2xl">
+                <div className="h-full min-h-0 flex flex-col items-center justify-center p-4 bg-gradient-to-b from-[#141b24] to-[#0f172a] overflow-y-auto">
+                  <div className="w-full max-w-2xl bg-[#1e1f22]/90 border border-white/10 rounded-2xl p-4 shadow-2xl">
                     <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold text-white">Magic Garden Server</span>
@@ -1754,7 +1754,7 @@ export function CommunityCallStage({
 
               {/* APP 5: ANTICEIL FLOW BUILDER */}
               {activeAppId === 'flow-canvas' && (
-                <div className="h-full flex flex-col p-4 gap-3 overflow-y-auto">
+                <div className="h-full min-h-0 flex flex-col p-3 gap-2 overflow-hidden">
                   {/* Flow Toolbar */}
                   <div className="p-3 rounded-xl bg-[#2b2d31] border border-white/10 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
@@ -1790,7 +1790,7 @@ export function CommunityCallStage({
                   </div>
 
                   {/* Flow Steps */}
-                  <div className="flex-1 min-h-[300px] p-6 bg-[#111214] rounded-xl border border-white/5 flex flex-col gap-3 overflow-y-auto">
+                  <div className="flex-1 min-h-0 p-4 bg-[#111214] rounded-xl border border-white/5 flex flex-col gap-3 overflow-y-auto">
                     {flowNodes.map((node, index) => {
                       const isLast = index === flowNodes.length - 1;
                       return (
@@ -1858,7 +1858,7 @@ export function CommunityCallStage({
 
               {/* APP 6: JAMSPACE WHITEBOARD */}
               {activeAppId === 'whiteboard' && (
-                <div className="h-full flex flex-col p-3 gap-2">
+                <div className="h-full min-h-0 flex flex-col p-3 gap-2 overflow-hidden">
                   <div className="p-2.5 rounded-xl bg-[#2b2d31] border border-white/5 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-muted-foreground mr-1">Warna:</span>
@@ -1898,7 +1898,7 @@ export function CommunityCallStage({
                     </Button>
                   </div>
 
-                  <div className="flex-1 min-h-[300px] rounded-xl overflow-hidden border border-white/10 relative bg-[#111214]">
+                  <div className="flex-1 min-h-0 rounded-xl overflow-hidden border border-white/10 relative bg-[#111214]">
                     <canvas
                       ref={whiteboardCanvasRef}
                       width={1200}
@@ -1950,7 +1950,7 @@ export function CommunityCallStage({
 
               {/* APP 7: DEV CODE RUNNER & SCRATCHPAD */}
               {activeAppId === 'code-runner' && (
-                <div className="h-full flex flex-col p-4 gap-2">
+                <div className="h-full min-h-0 flex flex-col p-3 gap-2 overflow-hidden">
                   <div className="flex items-center justify-between pb-1">
                     <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
                       <Terminal className="w-3.5 h-3.5 text-primary" /> Live Code & JSON Playground
@@ -1974,12 +1974,12 @@ export function CommunityCallStage({
                         payload: e.target.value,
                       });
                     }}
-                    className="flex-1 min-h-[180px] w-full bg-[#111214] border border-white/10 rounded-xl p-3 font-mono text-xs text-emerald-400 focus:outline-none focus:ring-1 focus:ring-primary resize-none [scrollbar-width:thin] leading-relaxed select-text"
+                    className="flex-1 min-h-0 w-full bg-[#111214] border border-white/10 rounded-xl p-3 font-mono text-xs text-emerald-400 focus:outline-none focus:ring-1 focus:ring-primary resize-none [scrollbar-width:thin] leading-relaxed select-text"
                     placeholder="Tulis kode Javascript atau payload JSON di sini..."
                   />
 
                   {/* Terminal Execution Output Console */}
-                  <div className="h-36 bg-black/90 border border-white/10 rounded-xl p-3 font-mono text-[11px] text-white/90 overflow-y-auto [scrollbar-width:thin] select-text">
+                  <div className="h-28 shrink-0 bg-black/90 border border-white/10 rounded-xl p-3 font-mono text-[11px] text-white/90 overflow-y-auto [scrollbar-width:thin] select-text">
                     <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-1 flex items-center justify-between">
                       <span>Console Output:</span>
                       <button
@@ -2177,8 +2177,8 @@ export function CommunityCallStage({
                 className={cn(
                   'relative rounded-2xl bg-[#2b2d31] border border-white/5 overflow-hidden flex items-center justify-center shadow-lg group transition-all',
                   participants.length === 0
-                    ? 'w-full h-full max-w-4xl max-h-[80vh] min-h-[300px]'
-                    : 'w-full h-full min-h-[220px]',
+                    ? 'w-full h-full max-w-4xl'
+                    : 'w-full h-full',
                 )}
               >
                 {!isVideoOff && localStream && localStream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled) ? (
@@ -2240,7 +2240,7 @@ export function CommunityCallStage({
               {participants.map((peer) => (
                 <div
                   key={peer.socketId}
-                  className="relative w-full h-full min-h-[220px] rounded-2xl bg-[#2b2d31] border border-white/5 overflow-hidden flex items-center justify-center shadow-lg group"
+                  className="relative w-full h-full rounded-2xl bg-[#2b2d31] border border-white/5 overflow-hidden flex items-center justify-center shadow-lg group"
                 >
                   {peer.stream && peer.hasVideo && peer.stream.getVideoTracks().some((t) => t.readyState === 'live') ? (
                     <RemoteVideoView stream={peer.stream} isMuted={false} />
