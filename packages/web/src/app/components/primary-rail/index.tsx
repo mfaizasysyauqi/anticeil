@@ -88,6 +88,18 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { SidebarUsageLimits } from '@/features/billing/components/sidebar-usage-limits';
 
 function renderHubIcon(hub: CommunityHub) {
+  if (hub.iconUrl) {
+    return (
+      <img
+        src={hub.iconUrl}
+        alt={hub.name}
+        className="w-full h-full object-cover rounded-[14px]"
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).style.display = 'none';
+        }}
+      />
+    );
+  }
   switch (hub.iconType) {
     case 'logo':
       return (

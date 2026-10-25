@@ -61,6 +61,8 @@ import {
   Rocket,
   Maximize2,
   Minimize2,
+  Camera,
+  Upload,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useTranslation } from 'react-i18next';
@@ -414,6 +416,10 @@ export function CommunityPage() {
   const [serverSettingsEditDesc, setServerSettingsEditDesc] = useState('');
   const [serverSettingsEditColor, setServerSettingsEditColor] = useState('bg-indigo-600');
   const [serverSettingsEditIconUrl, setServerSettingsEditIconUrl] = useState('');
+  const serverIconFileInputRef = useRef<HTMLInputElement | null>(null);
+  const serverIconQuickInputRef = useRef<HTMLInputElement | null>(null);
+  const newHubIconFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [newHubIconUrl, setNewHubIconUrl] = useState('');
   const [serverTags, setServerTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
   const [serverEmojis, setServerEmojis] = useState<CommunityCustomEmoji[]>([]);
@@ -972,6 +978,7 @@ export function CommunityPage() {
       const createdHub = await communityApi.createHub({
         name: newHubName.trim(),
         description: newHubDesc.trim() || undefined,
+        iconUrl: newHubIconUrl || undefined,
       });
 
       const updatedHubs = [...hubs.filter((h) => h.id !== createdHub.id), createdHub];
@@ -995,6 +1002,7 @@ export function CommunityPage() {
       setIsCreateHubOpen(false);
       setNewHubName('');
       setNewHubDesc('');
+      setNewHubIconUrl('');
       toast.success(t('Server baru berhasil dibuat!'));
     } catch (err) {
       console.warn('API createHub fallback', err);
@@ -1005,6 +1013,7 @@ export function CommunityPage() {
         iconType: undefined as any,
         initials: newHubName.trim().slice(0, 2).toUpperCase() || 'SV',
         description: newHubDesc.trim() || '',
+        iconUrl: newHubIconUrl || undefined,
       };
 
       const defaultCh: CommunityChannel = {
@@ -1025,6 +1034,7 @@ export function CommunityPage() {
       setIsCreateHubOpen(false);
       setNewHubName('');
       setNewHubDesc('');
+      setNewHubIconUrl('');
       toast.success(t('Server baru berhasil dibuat!'));
     }
   };
@@ -1267,6 +1277,18 @@ export function CommunityPage() {
 
   // Render Hub Icon Helper (Discord style)
   const renderHubIcon = (hub: CommunityHub) => {
+    if (hub.iconUrl) {
+      return (
+        <img
+          src={hub.iconUrl}
+          alt={hub.name}
+          className="w-full h-full object-cover rounded-[14px]"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.display = 'none';
+          }}
+        />
+      );
+    }
     switch (hub.iconType) {
       case 'logo':
         return (
@@ -1514,7 +1536,51 @@ export function CommunityPage() {
         ) : (
           /* Server: Title + dropdown with channel/server actions */
           <div className="flex items-center justify-between w-full px-1">
+            <input
+              type="file"
+              ref={serverIconQuickInputRef}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file || !activeHub) return;
+                if (file.size > 5 * 1024 * 1024) {
+                  toast.error(t('Ukuran file maksimal 5 MB.'));
+                  return;
+                }
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                  const res = event.target?.result as string;
+                  if (res) {
+                    const updated: CommunityHub = {
+                      ...activeHub,
+                      iconUrl: res,
+                    };
+                    setHubs((prev) => {
+                      const next = prev.map((h) => (h.id === activeHub.id ? updated : h));
+                      saveStoredHubs(next);
+                      return next;
+                    });
+                    try {
+                      await communityApi.updateHub(activeHub.id, {
+                        iconUrl: res,
+                      });
+                    } catch {}
+                    toast.success(t('Foto server berhasil diperbarui! 🖼️'));
+                  }
+                };
+                reader.readAsDataURL(file);
+                e.target.value = '';
+              }}
+              accept="image/*"
+              className="hidden"
+            />
             <div className="flex items-center gap-2 min-w-0">
+              {activeHub?.iconUrl ? (
+                <img
+                  src={activeHub.iconUrl}
+                  alt={activeHub.name}
+                  className="w-5 h-5 rounded-[6px] object-cover shrink-0 border border-white/10"
+                />
+              ) : null}
               <span className="text-sm font-semibold truncate tracking-tight text-foreground">
                 {activeHub?.name || t('Server')}
               </span>
@@ -1526,6 +1592,16 @@ export function CommunityPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60">
+                {/* Server Picture Action */}
+                <DropdownMenuItem
+                  onClick={() => {
+                    serverIconQuickInputRef.current?.click();
+                  }}
+                  className="cursor-pointer font-medium text-primary focus:text-primary focus:bg-primary/10"
+                >
+                  <Camera className="w-4 h-4 mr-2" /> {t('Ubah Foto Server')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 {/* Boost */}
                 <DropdownMenuItem
                   onClick={() => {
@@ -1553,6 +1629,8 @@ export function CommunityPage() {
                   onClick={() => {
                     setServerSettingsEditName(activeHub?.name || '');
                     setServerSettingsEditDesc(activeHub?.description || '');
+                    setServerSettingsEditColor(activeHub?.color || 'bg-indigo-600');
+                    setServerSettingsEditIconUrl(activeHub?.iconUrl || '');
                     setServerSettingsSection('profile');
                     setIsServerSettingsOpen(true);
                   }}
@@ -3150,6 +3228,45 @@ export function CommunityPage() {
               <TabsContent value="create">
                 <form onSubmit={handleCreateHubSubmit}>
                   <div className="grid gap-3 py-3">
+                    {/* Server Picture Uploader */}
+                    <div className="flex flex-col items-center justify-center pb-1">
+                      <input
+                        type="file"
+                        ref={newHubIconFileInputRef}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          if (file.size > 5 * 1024 * 1024) {
+                            toast.error(t('Ukuran file maksimal 5 MB.'));
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const res = event.target?.result as string;
+                            if (res) setNewHubIconUrl(res);
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                      <div
+                        onClick={() => newHubIconFileInputRef.current?.click()}
+                        className="relative group/avatar size-20 rounded-[20px] border-2 border-dashed border-primary/40 hover:border-primary flex flex-col items-center justify-center cursor-pointer overflow-hidden transition-all bg-muted/40 hover:bg-muted/60"
+                        title={t('Unggah Foto Server')}
+                      >
+                        {newHubIconUrl ? (
+                          <img src={newHubIconUrl} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-muted-foreground group-hover/avatar:text-primary transition-colors">
+                            <Camera className="size-6 mb-1 opacity-70 group-hover/avatar:opacity-100" />
+                            <span className="text-[10px] font-semibold uppercase tracking-wider">{t('Unggah')}</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1.5">{t('Pilih ikon atau logo untuk server Anda (opsional)')}</p>
+                    </div>
+
                     <div className="grid gap-1.5">
                       <label className="text-xs font-semibold">{t('Nama Server')}</label>
                       <Input
@@ -3376,16 +3493,50 @@ export function CommunityPage() {
                       {t('Atur bagaimana server Anda tampil di link undangan dan daftar server.')}
                     </p>
 
+                    {/* Hidden File Input for Server Settings Icon Upload */}
+                    <input
+                      type="file"
+                      ref={serverIconFileInputRef}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast.error(t('Ukuran file maksimal 5 MB.'));
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          const res = event.target?.result as string;
+                          if (res) {
+                            setServerSettingsEditIconUrl(res);
+                            toast.success(t('Foto server berhasil dimuat! Klik "Simpan Perubahan" untuk menerapkan.'));
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                        e.target.value = '';
+                      }}
+                      accept="image/*"
+                      className="hidden"
+                    />
+
                     {/* Preview card */}
                     <div className="mb-6 rounded-xl overflow-hidden border bg-card/60 shadow-sm w-full max-w-sm">
                       <div className={cn("h-24 bg-gradient-to-br from-primary/30 to-purple-600/30", serverSettingsEditColor)} />
                       <div className="px-4 pb-4 -mt-8">
-                        <div className="w-16 h-16 rounded-2xl bg-card border-4 border-card flex items-center justify-center text-xl font-bold text-primary shadow-sm overflow-hidden">
+                        <div
+                          onClick={() => serverIconFileInputRef.current?.click()}
+                          className="relative group/avatar w-16 h-16 rounded-2xl bg-card border-4 border-card flex items-center justify-center text-xl font-bold text-primary shadow-sm overflow-hidden cursor-pointer shrink-0 transition-transform active:scale-95"
+                          title={t('Klik untuk mengunggah foto server')}
+                        >
                           {serverSettingsEditIconUrl ? (
                             <img src={serverSettingsEditIconUrl} alt="Server icon" className="w-full h-full object-cover" />
                           ) : (
                             activeHub?.initials || activeHub?.name?.slice(0, 2) || 'SV'
                           )}
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 flex flex-col items-center justify-center text-white text-[9px] font-semibold transition-opacity">
+                            <Camera className="w-4 h-4 mb-0.5" />
+                            <span>{t('Ganti')}</span>
+                          </div>
                         </div>
                         <p className="font-semibold mt-2 text-sm">{serverSettingsEditName || activeHub?.name || 'Server'}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -3405,6 +3556,36 @@ export function CommunityPage() {
                     </div>
 
                     <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 block">{t('Foto / Ikon Server')}</label>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => serverIconFileInputRef.current?.click()}
+                            className="cursor-pointer gap-1.5"
+                          >
+                            <Upload className="w-3.5 h-3.5" />
+                            {t('Unggah Gambar')}
+                          </Button>
+                          {serverSettingsEditIconUrl && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setServerSettingsEditIconUrl('')}
+                              className="text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer"
+                            >
+                              {t('Hapus Foto')}
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          {t('Dukung format PNG, JPG, GIF, WebP (maks. 5 MB).')}
+                        </p>
+                      </div>
+
                       <div>
                         <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Nama Server')}</label>
                         <Input
@@ -3426,7 +3607,7 @@ export function CommunityPage() {
                       </div>
 
                       <div>
-                        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('URL Ikon Server (Opsional)')}</label>
+                        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Atau Masukkan URL Ikon Server')}</label>
                         <Input
                           value={serverSettingsEditIconUrl}
                           onChange={(e) => setServerSettingsEditIconUrl(e.target.value)}
@@ -3473,7 +3654,11 @@ export function CommunityPage() {
                             color: serverSettingsEditColor,
                             iconUrl: serverSettingsEditIconUrl || undefined,
                           };
-                          setHubs((prev) => prev.map((h) => (h.id === activeHub.id ? updated : h)));
+                          setHubs((prev) => {
+                            const next = prev.map((h) => (h.id === activeHub.id ? updated : h));
+                            saveStoredHubs(next);
+                            return next;
+                          });
                           try {
                             await communityApi.updateHub(activeHub.id, {
                               name: serverSettingsEditName,
