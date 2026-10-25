@@ -256,10 +256,10 @@ export function PrimaryRail() {
                     <button
                       onClick={() => handleSelectHub('anticeil')}
                       className={cn(
-                        'relative size-10 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
+                        'relative size-10 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0 rounded-[14px]',
                         activeHubId === 'anticeil'
-                          ? 'rounded-[12px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
-                          : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[12px] hover:bg-sidebar-accent/80',
+                          ? 'bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
+                          : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80',
                       )}
                     >
                       {renderHubIcon(hubs[0])}
@@ -288,7 +288,7 @@ export function PrimaryRail() {
                 <TooltipTrigger asChild>
                   <Link
                     to="/"
-                    className="group relative size-10 rounded-full bg-sidebar-accent text-muted-foreground hover:rounded-[12px] hover:bg-primary/15 hover:text-primary flex items-center justify-center transition-all duration-200 cursor-pointer shadow-xs"
+                    className="group relative size-10 rounded-[14px] bg-sidebar-accent text-muted-foreground hover:bg-primary/15 hover:text-primary flex items-center justify-center transition-all duration-200 cursor-pointer shadow-xs"
                   >
                     <Workflow className="size-5 transition-transform group-hover:scale-110" />
                   </Link>
@@ -321,10 +321,10 @@ export function PrimaryRail() {
                         <button
                           onClick={() => handleSelectHub(hub.id)}
                           className={cn(
-                            'relative size-9 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
+                            'relative size-10 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0 rounded-[14px]',
                             isActive
-                              ? 'rounded-[12px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
-                              : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[12px] hover:bg-sidebar-accent/80',
+                              ? 'bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
+                              : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80',
                           )}
                         >
                           {renderHubIcon(hub)}
@@ -348,9 +348,9 @@ export function PrimaryRail() {
                 <TooltipTrigger asChild>
                   <button
                     onClick={handleOpenCreateHub}
-                    className="group relative size-9 rounded-full bg-sidebar-accent text-emerald-500 hover:rounded-[12px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
+                    className="group relative size-10 rounded-[14px] bg-sidebar-accent text-emerald-500 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
                   >
-                    <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
+                    <Plus className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
@@ -363,9 +363,9 @@ export function PrimaryRail() {
                 <TooltipTrigger asChild>
                   <Link
                     to="/templates"
-                    className="group relative size-9 rounded-full bg-sidebar-accent text-muted-foreground hover:rounded-[12px] hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
+                    className="group relative size-10 rounded-[14px] bg-sidebar-accent text-muted-foreground hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
                   >
-                    <Compass className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+                    <Compass className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">

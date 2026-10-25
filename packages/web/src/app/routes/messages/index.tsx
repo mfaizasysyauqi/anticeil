@@ -1388,10 +1388,10 @@ export function CommunityPage() {
                     setActiveChannelId('');
                   }}
                   className={cn(
-                    'relative size-9 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
+                    'relative size-9 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0 rounded-[14px]',
                     activeHubId === mainHub.id
-                      ? 'rounded-[10px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
-                      : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[10px] hover:bg-sidebar-accent/80',
+                      ? 'bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
+                      : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80',
                   )}
                 >
                   {renderHubIcon(mainHub)}
@@ -1440,10 +1440,10 @@ export function CommunityPage() {
                         setActiveChannelId(firstCh?.id || '');
                       }}
                       className={cn(
-                        'relative size-9 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0',
+                        'relative size-9 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0 rounded-[14px]',
                         isActive
-                          ? 'rounded-[10px] bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
-                          : 'rounded-full bg-sidebar-accent text-sidebar-foreground hover:rounded-[10px] hover:bg-sidebar-accent/80',
+                          ? 'bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
+                          : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80',
                       )}
                     >
                       {renderHubIcon(hub)}
@@ -1468,7 +1468,7 @@ export function CommunityPage() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setIsCreateHubOpen(true)}
-                className="group relative size-9 rounded-full bg-sidebar-accent text-emerald-500 hover:rounded-[10px] hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
+                className="group relative size-9 rounded-[14px] bg-sidebar-accent text-emerald-500 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
               </button>
@@ -1483,7 +1483,7 @@ export function CommunityPage() {
             <TooltipTrigger asChild>
               <Link
                 to="/templates"
-                className="group relative size-9 rounded-full bg-sidebar-accent text-muted-foreground hover:rounded-[10px] hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
+                className="group relative size-9 rounded-[14px] bg-sidebar-accent text-muted-foreground hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
               >
                 <Compass className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
               </Link>
