@@ -18,6 +18,7 @@ import { ManagePlanDialog } from '@/features/billing';
 import { projectHooks } from '@/features/projects';
 import { flagsHooks } from '@/hooks/flags-hooks';
 import { userHooks } from '@/hooks/user-hooks';
+import { LAYOUT_BODY_CONTAINER } from '@/lib/layout-constants';
 import { cn } from '@/lib/utils';
 
 import { authenticationSession } from '../../../lib/authentication-session';
@@ -251,16 +252,12 @@ function ProjectDashboardLayoutInner({
           <div
             className={cn(
               'flex-1 flex flex-col min-h-0 overflow-hidden',
-              !isEmbedded && 'p-2 lg:pl-0 lg:pr-2 lg:pt-3 lg:pb-3',
+              LAYOUT_BODY_CONTAINER.OUTER_PADDING,
             )}
           >
             <div
               id="dashboard-content-container"
-              className={cn(
-                'relative flex flex-col h-full flex-1 min-h-0 bg-background overflow-clip',
-                !isEmbedded &&
-                  'rounded-xl shadow-[2px_0px_4px_-2px_rgba(0,0,0,0.05),0px_2px_4px_-2px_rgba(0,0,0,0.05)] border',
-              )}
+              className={LAYOUT_BODY_CONTAINER.CONTENT_CONTAINER}
             >
               {!hideHeader && (
                 <ProjectDashboardLayoutHeader key={currentProjectId} />

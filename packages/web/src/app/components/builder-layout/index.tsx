@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar-shadcn';
 import { ManagePlanDialog } from '@/features/billing';
 import { flagsHooks } from '@/hooks/flags-hooks';
+import { LAYOUT_BODY_CONTAINER } from '@/lib/layout-constants';
 import { cn } from '@/lib/utils';
 
 import {
@@ -91,16 +92,12 @@ function BuilderLayoutInner({ children }: { children: React.ReactNode }) {
           <div
             className={cn(
               'flex-1 flex flex-col overflow-hidden',
-              !embedState.isEmbedded && 'p-1.5',
+              LAYOUT_BODY_CONTAINER.OUTER_PADDING,
             )}
           >
             <div
-              className={cn(
-                'flex flex-col h-full bg-background overflow-hidden',
-                embedState.isEmbedded
-                  ? 'border-l'
-                  : 'rounded-xl shadow-[2px_0px_4px_-2px_rgba(0,0,0,0.05),0px_2px_4px_-2px_rgba(0,0,0,0.05)] border',
-              )}
+              id="dashboard-content-container"
+              className={LAYOUT_BODY_CONTAINER.CONTENT_CONTAINER}
             >
               {children}
             </div>

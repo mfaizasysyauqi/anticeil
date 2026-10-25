@@ -8,6 +8,8 @@ import { SidebarProvider } from '@/components/ui/sidebar-shadcn';
 import { ManagePlanDialog } from '@/features/billing';
 import { useIsPlatformAdmin } from '@/hooks/authorization-hooks';
 import { flagsHooks } from '@/hooks/flags-hooks';
+import { LAYOUT_BODY_CONTAINER } from '@/lib/layout-constants';
+import { cn } from '@/lib/utils';
 
 import { AllowOnlyLoggedInUserOnlyGuard } from './allow-logged-in-user-only-guard';
 import { GlobalSearchProvider, useGlobalSearch } from './global-search/global-search-context';
@@ -96,10 +98,10 @@ function PlatformLayoutInner({
 
       {/* Main content */}
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-sidebar">
-        <div className="flex-1 flex flex-col p-2 lg:pl-0 lg:pr-2 lg:pt-3 lg:pb-3 overflow-hidden">
+        <div className={cn('flex-1 flex flex-col overflow-hidden', LAYOUT_BODY_CONTAINER.OUTER_PADDING)}>
           <div
             id="dashboard-content-container"
-            className="relative flex flex-col h-full bg-background rounded-xl shadow-[2px_0px_4px_-2px_rgba(0,0,0,0.05),0px_2px_4px_-2px_rgba(0,0,0,0.05)] border overflow-clip"
+            className={LAYOUT_BODY_CONTAINER.CONTENT_CONTAINER}
           >
             <div className="flex flex-col flex-1 overflow-auto">
               {children}
