@@ -2236,7 +2236,7 @@ export function CommunityPage() {
         </div>
 
         {/* Body Content */}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="flex flex-1 min-h-0 overflow-hidden lg:mx-2 lg:my-8">
           {/* Main Friends Column */}
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 [scrollbar-width:thin]">
             {friendsTab === 'add' ? (
