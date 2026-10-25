@@ -1,11 +1,11 @@
 /**
  * Shared layout constants for application body containers across all breakpoints
- * (mobile, tablet, desktop) to ensure 0 vertical/horizontal margin & consistent full-bleed layouts.
+ * (mobile, tablet, desktop) to ensure reusable, consistent 4px top & left spacing.
  */
 export const LAYOUT_BODY_CONTAINER = {
-  /** Outer padding wrapping dashboard-content-container (0px horizontally and vertically across all breakpoints) */
-  OUTER_PADDING: 'p-0 m-0',
-  /** Base classes for the inner dashboard-content-container (edge-to-edge, seamless, no extra border or margin) */
+  /** Outer spacing: exactly 4px top and 4px left (1 = 0.25rem = 4px in Tailwind), 0 right and bottom */
+  OUTER_PADDING: 'pt-1 pl-1 pr-0 pb-0',
+  /** Base classes for dashboard-content-container with clean rounded top-left corner and subtle border */
   CONTENT_CONTAINER:
-    'relative flex flex-col h-full flex-1 min-h-0 bg-background overflow-clip rounded-none border-0 shadow-none',
+    'relative flex flex-col h-full flex-1 min-h-0 bg-background overflow-clip rounded-tl-xl border-t border-l border-border/40 shadow-xs',
 } as const;
