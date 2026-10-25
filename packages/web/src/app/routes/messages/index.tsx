@@ -251,6 +251,7 @@ export function CommunityPage() {
   // Discord Voice & Video Call State (Anticeil Call & Activity)
   const [activeCallChannelId, setActiveCallChannelId] = useState<string | null>(null);
   const [isCallPiP, setIsCallPiP] = useState(false);
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [activeCallCounts, setActiveCallCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -2621,23 +2622,22 @@ export function CommunityPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => {
-                          if (!isPlusOrAbove) {
-                            toast.error('Anticeil Activity memerlukan paket Plus atau lebih tinggi.');
-                            navigate('/platform/billing');
-                            return;
-                          }
                           if (activeCallChannelId !== activeChannel.id) {
                             setActiveCallChannelId(activeChannel.id);
                           }
                           setIsCallPiP(false);
+                          setIsActivityOpen((prev) => !prev);
                         }}
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        className={cn(
+                          'h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer',
+                          isActivityOpen && activeCallChannelId === activeChannel.id && 'text-primary bg-primary/10 hover:bg-primary/15 hover:text-primary',
+                        )}
                       >
                         <Rocket className="w-4 h-4" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
-                      Anticeil Activity
+                      {isActivityOpen && activeCallChannelId === activeChannel.id ? 'Tutup Anticeil Activity' : 'Mulai Anticeil Activity'}
                     </TooltipContent>
                   </Tooltip>
                   <div className="w-px h-5 bg-border/60 mx-0.5" />
@@ -2726,8 +2726,13 @@ export function CommunityPage() {
                 socket={socket}
                 isCallActive={true}
                 isPiP={false}
+                isActivityOpen={isActivityOpen}
+                onToggleActivity={(open) => setIsActivityOpen((prev) => (typeof open === 'boolean' ? open : !prev))}
                 onTogglePiP={() => setIsCallPiP(true)}
-                onEndCall={() => setActiveCallChannelId(null)}
+                onEndCall={() => {
+                  setActiveCallChannelId(null);
+                  setIsActivityOpen(false);
+                }}
                 onNavigateToBilling={() => navigate('/platform/billing')}
               />
             </div>
@@ -5487,11 +5492,16 @@ export function CommunityPage() {
                 socket={socket}
                 isCallActive={true}
                 isPiP={true}
+                isActivityOpen={isActivityOpen}
+                onToggleActivity={(open) => setIsActivityOpen((prev) => (typeof open === 'boolean' ? open : !prev))}
                 onTogglePiP={() => {
                   setActiveChannelId(activeCallChannelId);
                   setIsCallPiP(false);
                 }}
-                onEndCall={() => setActiveCallChannelId(null)}
+                onEndCall={() => {
+                  setActiveCallChannelId(null);
+                  setIsActivityOpen(false);
+                }}
                 onNavigateToBilling={() => navigate('/platform/billing')}
               />
             </div>

@@ -27,6 +27,18 @@ import {
   Copy,
   Share2,
   UserPlus,
+  Play,
+  RotateCcw,
+  Plus,
+  CheckCircle2,
+  Terminal,
+  Palette,
+  Trash2,
+  Zap,
+  Bot,
+  Database,
+  ArrowRight,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -61,6 +73,8 @@ interface CommunityCallStageProps {
   socket: Socket | null;
   isCallActive: boolean;
   isPiP: boolean;
+  isActivityOpen?: boolean;
+  onToggleActivity?: (open?: boolean) => void;
   onTogglePiP: () => void;
   onEndCall: () => void;
   onNavigateToBilling?: () => void;
@@ -81,6 +95,8 @@ export function CommunityCallStage({
   socket,
   isCallActive,
   isPiP,
+  isActivityOpen: propsIsActivityOpen,
+  onToggleActivity,
   onTogglePiP,
   onEndCall,
   onNavigateToBilling,
@@ -103,11 +119,68 @@ export function CommunityCallStage({
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   // Anticeil Activity Mode (Discord Activities style: Flow automation / interactive whiteboard)
-  const [isActivityOpen, setIsActivityOpen] = useState(false);
-  const [activeActivityTab, setActiveActivityTab] = useState<'canvas' | 'scratchpad'>('canvas');
+  const [internalActivityOpen, setInternalActivityOpen] = useState(false);
+  const isActivityOpen = propsIsActivityOpen !== undefined ? propsIsActivityOpen : internalActivityOpen;
+  const setIsActivityOpen = (open: boolean | ((prev: boolean) => boolean)) => {
+    const next = typeof open === 'function' ? open(isActivityOpen) : open;
+    setInternalActivityOpen(next);
+    onToggleActivity?.(next);
+  };
+
+  const [activeActivityTab, setActiveActivityTab] = useState<'canvas' | 'scratchpad' | 'whiteboard'>('canvas');
   const [scratchpadCode, setScratchpadCode] = useState(
-    '// Anticeil Collaborative Activity Scratchpad\n// Diskusikan logika workflow, payload webhook, atau format data di sini bersama tim.\n\nconst samplePayload = {\n  event: "lead_generated",\n  timestamp: new Date().toISOString(),\n  source: "WhatsApp Cloud API",\n  data: {\n    customerName: "Budi Santoso",\n    phone: "6281234567890",\n    status: "QUALIFIED"\n  }\n};\nconsole.log("Ready to automate:", samplePayload);',
+    '// Anticeil Collaborative Activity Scratchpad\n// Diskusikan logika workflow, payload webhook, atau format data bersama tim.\n\nconst samplePayload = {\n  event: "lead_generated",\n  timestamp: new Date().toISOString(),\n  source: "WhatsApp Cloud API",\n  customer: {\n    name: "Budi Santoso",\n    phone: "+6281234567890",\n    status: "QUALIFIED"\n  }\n};\n\nconsole.log("Memproses payload:", samplePayload.customer.name);\nconsole.log("Status lead:", samplePayload.customer.status);',
   );
+  const [scratchpadOutput, setScratchpadOutput] = useState<string | null>(null);
+  const [isExecutingScript, setIsExecutingScript] = useState(false);
+
+  // Interactive Flow Simulator State
+  const [flowNodes, setFlowNodes] = useState<Array<{
+    id: string;
+    type: 'trigger' | 'ai' | 'action' | 'db';
+    title: string;
+    description: string;
+    status: 'idle' | 'running' | 'success';
+    duration?: string;
+  }>>([
+    {
+      id: 'step-1',
+      type: 'trigger',
+      title: 'WhatsApp Webhook',
+      description: 'Menangkap pesan & lead masuk dari WhatsApp Cloud API',
+      status: 'idle',
+    },
+    {
+      id: 'step-2',
+      type: 'ai',
+      title: 'Anticeil AI Agent',
+      description: 'Ekstrak kebutuhan pelanggan via model Claude 3.5 / GPT-4o',
+      status: 'idle',
+    },
+    {
+      id: 'step-3',
+      type: 'action',
+      title: 'Notifikasi Tim Internal',
+      description: `Broadcast detail lead ke channel #${channel.name}`,
+      status: 'idle',
+    },
+    {
+      id: 'step-4',
+      type: 'db',
+      title: 'Database Supabase / CRM',
+      description: 'Simpan kontak & set status lead menjadi QUALIFIED',
+      status: 'idle',
+    },
+  ]);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [activeSimulationStep, setActiveSimulationStep] = useState<number | null>(null);
+
+  // Architecture Whiteboard Canvas State
+  const whiteboardCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [drawColor, setDrawColor] = useState('#10b981');
+  const [brushSize, setBrushSize] = useState(3);
+  const isDrawing = useRef(false);
+  const lastCoord = useRef<{ x: number; y: number } | null>(null);
 
   // Audio meters for voice speaking detection (Discord green glow ring)
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -543,6 +616,211 @@ export function CommunityCallStage({
     }
   };
 
+  // ── 6. Activity Collaborative Handlers & Socket Sync ────────────────────
+  const drawStroke = (x0: number, y0: number, x1: number, y1: number, color: string, size: number) => {
+    const canvas = whiteboardCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = size;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  };
+
+  const clearCanvasLocal = () => {
+    const canvas = whiteboardCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const handleClearCanvas = () => {
+    clearCanvasLocal();
+    socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+      channelId: channel.id,
+      action: 'WHITEBOARD_CLEAR',
+      payload: null,
+    });
+    toast.info('Papan tulis dibersihkan');
+  };
+
+  const runSimulationSequence = (broadcast = true) => {
+    if (isSimulating) return;
+    setIsSimulating(true);
+    toast.info('Memulai simulasi eksekusi alur otomasi...');
+
+    if (broadcast && socket) {
+      socket.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+        channelId: channel.id,
+        action: 'FLOW_SIMULATE',
+        payload: null,
+      });
+    }
+
+    setFlowNodes((prev) => prev.map((n) => ({ ...n, status: 'idle', duration: undefined })));
+
+    let current = 0;
+    const executeStep = () => {
+      if (current < flowNodes.length) {
+        setActiveSimulationStep(current);
+        setFlowNodes((prev) =>
+          prev.map((n, idx) => (idx === current ? { ...n, status: 'running' } : n)),
+        );
+
+        setTimeout(() => {
+          const randomMs = Math.floor(Math.random() * 80) + 15;
+          setFlowNodes((prev) =>
+            prev.map((n, idx) =>
+              idx === current ? { ...n, status: 'success', duration: `${randomMs}ms` } : n,
+            ),
+          );
+          current++;
+          executeStep();
+        }, 750);
+      } else {
+        setActiveSimulationStep(null);
+        setIsSimulating(false);
+        toast.success('Simulasi alur otomasi berhasil dijalankan! Semua langkah selesai (200 OK).');
+      }
+    };
+
+    setTimeout(executeStep, 200);
+  };
+
+  const handleAddFlowNode = () => {
+    const newStep = {
+      id: `step-${Date.now()}`,
+      type: 'action' as const,
+      title: 'Langkah Otomasi Baru',
+      description: 'Langkah kustom yang ditambahkan oleh tim saat panggilan',
+      status: 'idle' as const,
+    };
+    const updated = [...flowNodes, newStep];
+    setFlowNodes(updated);
+    socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+      channelId: channel.id,
+      action: 'FLOW_UPDATE',
+      payload: updated,
+    });
+    toast.success('Langkah otomasi baru ditambahkan!');
+  };
+
+  const handleResetFlow = () => {
+    const initial = [
+      {
+        id: 'step-1',
+        type: 'trigger' as const,
+        title: 'WhatsApp Webhook',
+        description: 'Menangkap pesan & lead masuk dari WhatsApp Cloud API',
+        status: 'idle' as const,
+      },
+      {
+        id: 'step-2',
+        type: 'ai' as const,
+        title: 'Anticeil AI Agent',
+        description: 'Ekstrak kebutuhan pelanggan via model Claude 3.5 / GPT-4o',
+        status: 'idle' as const,
+      },
+      {
+        id: 'step-3',
+        type: 'action' as const,
+        title: 'Notifikasi Tim Internal',
+        description: `Broadcast detail lead ke channel #${channel.name}`,
+        status: 'idle' as const,
+      },
+      {
+        id: 'step-4',
+        type: 'db' as const,
+        title: 'Database Supabase / CRM',
+        description: 'Simpan kontak & set status lead menjadi QUALIFIED',
+        status: 'idle' as const,
+      },
+    ];
+    setFlowNodes(initial);
+    socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+      channelId: channel.id,
+      action: 'FLOW_UPDATE',
+      payload: initial,
+    });
+    toast.info('Alur otomasi di-reset ke default');
+  };
+
+  const handleRunScratchpad = () => {
+    setIsExecutingScript(true);
+    const start = performance.now();
+    try {
+      const trimmed = scratchpadCode.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        const parsed = JSON.parse(trimmed);
+        const elapsed = (performance.now() - start).toFixed(2);
+        setScratchpadOutput(`✓ Valid JSON Payload (${elapsed}ms)\n` + JSON.stringify(parsed, null, 2));
+        toast.success(`Payload JSON valid! (${elapsed}ms)`);
+      } else {
+        const mockLog: string[] = [];
+        const customConsole = {
+          log: (...args: any[]) =>
+            mockLog.push(
+              args.map((a) => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a))).join(' '),
+            ),
+          info: (...args: any[]) => mockLog.push('[INFO] ' + args.join(' ')),
+          warn: (...args: any[]) => mockLog.push('[WARN] ' + args.join(' ')),
+          error: (...args: any[]) => mockLog.push('[ERROR] ' + args.join(' ')),
+        };
+        const runFn = new Function('console', scratchpadCode);
+        runFn(customConsole);
+        const elapsed = (performance.now() - start).toFixed(2);
+        setScratchpadOutput(
+          `✓ Script executed successfully in ${elapsed}ms\n--- Console Output ---\n` +
+            (mockLog.join('\n') || '(Eksekusi selesai tanpa log output)'),
+        );
+        toast.success(`Script berhasil dijalankan! (${elapsed}ms)`);
+      }
+    } catch (err: any) {
+      setScratchpadOutput(`✕ Error Eksekusi: ${err.message}`);
+      toast.error(`Eksekusi gagal: ${err.message}`);
+    } finally {
+      setIsExecutingScript(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleActivityEvent = (data: {
+      fromSocketId: string;
+      fromUserId?: string;
+      action: string;
+      payload: any;
+    }) => {
+      if (data.action === 'SCRATCHPAD_UPDATE') {
+        setScratchpadCode(data.payload);
+      } else if (data.action === 'FLOW_UPDATE') {
+        if (Array.isArray(data.payload)) {
+          setFlowNodes(data.payload);
+        }
+      } else if (data.action === 'FLOW_SIMULATE') {
+        runSimulationSequence(false);
+      } else if (data.action === 'WHITEBOARD_DRAW') {
+        const { x0, y0, x1, y1, color, size } = data.payload || {};
+        if (typeof x0 === 'number' && typeof y0 === 'number') {
+          drawStroke(x0, y0, x1, y1, color, size);
+        }
+      } else if (data.action === 'WHITEBOARD_CLEAR') {
+        clearCanvasLocal();
+      }
+    };
+
+    socket.on('COMMUNITY_CALL_ACTIVITY_EVENT', handleActivityEvent);
+    return () => {
+      socket.off('COMMUNITY_CALL_ACTIVITY_EVENT', handleActivityEvent);
+    };
+  }, [socket, flowNodes, isSimulating]);
+
   // Total active count including local
   const totalInCall = participants.length + 1;
 
@@ -758,8 +1036,15 @@ export function CommunityCallStage({
               <div className="absolute top-4 inset-x-0 mx-auto w-fit z-20 px-4 py-2 rounded-full bg-black/70 backdrop-blur-md border border-white/10 flex items-center gap-3 shadow-xl animate-in fade-in slide-in-from-top-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-white/90">
-                  Anda sendirian di #{channel.name}. Undang rekan untuk mulai mengobrol!
+                  Anda sendirian di #{channel.name}.
                 </span>
+                <button
+                  onClick={() => setIsActivityOpen((prev) => !prev)}
+                  className="px-2.5 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 border border-emerald-500/30 transition-all cursor-pointer"
+                >
+                  <Rocket className="w-3.5 h-3.5" />
+                  {isActivityOpen ? 'Tutup Activity' : 'Mulai Anticeil Activity'}
+                </button>
                 <button
                   onClick={handleCopyCallLink}
                   className="px-2.5 py-1 rounded-full bg-primary/20 hover:bg-primary/30 text-primary text-xs font-semibold flex items-center gap-1.5 border border-primary/30 transition-all cursor-pointer"
@@ -891,32 +1176,49 @@ export function CommunityCallStage({
         {isActivityOpen && (
           <div className="flex-1 min-h-0 rounded-2xl bg-[#1e1f22] border border-white/10 flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-right-4 duration-300">
             {/* Activity Header */}
-            <div className="h-11 px-4 bg-[#2b2d31] border-b border-white/10 flex items-center justify-between">
+            <div className="h-11 px-4 bg-[#2b2d31] border-b border-white/10 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
-                <Rocket className="w-4 h-4 text-primary" />
-                <span className="text-xs font-bold text-white">Anticeil Activity Mode</span>
-                <div className="flex items-center gap-1 ml-4 bg-[#1e1f22] p-0.5 rounded-lg border border-white/5">
+                <Rocket className="w-4 h-4 text-primary animate-pulse" />
+                <span className="text-xs font-bold text-white">Anticeil Activity</span>
+                <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/25">
+                  Multiplayer Live
+                </span>
+                <div className="flex items-center gap-1 ml-3 bg-[#111214] p-0.5 rounded-lg border border-white/5">
                   <button
                     onClick={() => setActiveActivityTab('canvas')}
                     className={cn(
-                      'px-2 py-1 rounded text-xs font-medium transition-colors',
+                      'px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5',
                       activeActivityTab === 'canvas'
-                        ? 'bg-primary text-white'
+                        ? 'bg-primary text-white shadow-sm'
                         : 'text-muted-foreground hover:text-white',
                     )}
                   >
+                    <Workflow className="w-3.5 h-3.5" />
                     Workflow Canvas
                   </button>
                   <button
                     onClick={() => setActiveActivityTab('scratchpad')}
                     className={cn(
-                      'px-2 py-1 rounded text-xs font-medium transition-colors',
+                      'px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5',
                       activeActivityTab === 'scratchpad'
-                        ? 'bg-primary text-white'
+                        ? 'bg-primary text-white shadow-sm'
                         : 'text-muted-foreground hover:text-white',
                     )}
                   >
-                    Scratchpad Kolaborasi
+                    <Terminal className="w-3.5 h-3.5" />
+                    Code Runner
+                  </button>
+                  <button
+                    onClick={() => setActiveActivityTab('whiteboard')}
+                    className={cn(
+                      'px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5',
+                      activeActivityTab === 'whiteboard'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-white',
+                    )}
+                  >
+                    <Palette className="w-3.5 h-3.5" />
+                    Whiteboard
                   </button>
                 </div>
               </div>
@@ -925,39 +1227,141 @@ export function CommunityCallStage({
                 size="icon"
                 onClick={() => setIsActivityOpen(false)}
                 className="h-7 w-7 text-muted-foreground hover:text-white"
+                title="Tutup Anticeil Activity"
               >
                 <X className="w-4 h-4" />
               </Button>
             </div>
 
             {/* Activity Content Body */}
-            <div className="flex-1 min-h-0 p-4 overflow-y-auto">
-              {activeActivityTab === 'canvas' ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-[#111214]/60 rounded-xl border border-white/5">
-                  <div className="w-14 h-14 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary mb-3">
-                    <Workflow className="w-7 h-7" />
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-1">
-                    Live Flow Canvas Pair-Programming
-                  </h3>
-                  <p className="text-xs text-muted-foreground max-w-md mb-4 leading-relaxed">
-                    Sedang berada di panggilan bersama tim. Buka alur kerja otomasi di tab terpisah untuk melihat pergerakan kursor dan step otomasi secara langsung (*realtime multiplayer presence*).
-                  </p>
-                  <Button
-                    onClick={() => window.open('/flows', '_blank')}
-                    size="sm"
-                    className="gap-2 font-semibold shadow-md"
-                  >
-                    <ExternalLink className="w-4 h-4" /> Buka Canvas di Tab Baru
-                  </Button>
-                </div>
-              ) : (
-                <div className="h-full flex flex-col">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                      <FileCode className="w-3.5 h-3.5 text-primary" /> Live Code & Data Scratchpad
+            <div className="flex-1 min-h-0 p-3 overflow-y-auto [scrollbar-width:thin]">
+              {/* TAB 1: WORKFLOW CANVAS & SIMULATOR */}
+              {activeActivityTab === 'canvas' && (
+                <div className="h-full flex flex-col gap-3">
+                  {/* Canvas Toolbar */}
+                  <div className="p-2.5 rounded-xl bg-[#2b2d31]/80 border border-white/5 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => runSimulationSequence(true)}
+                        disabled={isSimulating}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-1.5 shadow-md"
+                      >
+                        {isSimulating ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                        )}
+                        {isSimulating ? 'Menjalankan Simulasi...' : 'Simulasikan Eksekusi Alur'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleAddFlowNode}
+                        className="border-white/10 hover:bg-white/10 text-xs gap-1 text-white"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Tambah Langkah
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleResetFlow}
+                        className="text-xs text-muted-foreground hover:text-white gap-1"
+                      >
+                        <RotateCcw className="w-3 h-3" /> Reset
+                      </Button>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                      Semua rekan di panggilan dapat melihat simulasi secara sinkron
                     </span>
-                    <span className="text-[10px] text-muted-foreground">Otomatis sinkron dengan rekan di panggilan</span>
+                  </div>
+
+                  {/* Flow Nodes Visual Canvas */}
+                  <div className="flex-1 min-h-[300px] p-4 bg-[#111214]/80 rounded-xl border border-white/5 flex flex-col gap-3 overflow-y-auto">
+                    {flowNodes.map((node, index) => {
+                      const isLast = index === flowNodes.length - 1;
+                      return (
+                        <div key={node.id} className="flex flex-col items-center">
+                          <div
+                            className={cn(
+                              'w-full max-w-lg p-3.5 rounded-xl border transition-all duration-300 flex items-center justify-between',
+                              node.status === 'running' && 'bg-primary/20 border-primary ring-2 ring-primary/40 scale-102',
+                              node.status === 'success' && 'bg-emerald-950/40 border-emerald-500/60',
+                              node.status === 'idle' && 'bg-[#1e1f22] border-white/10 hover:border-white/20',
+                            )}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className={cn(
+                                  'w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-bold',
+                                  node.type === 'trigger' && 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
+                                  node.type === 'ai' && 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
+                                  node.type === 'action' && 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
+                                  node.type === 'db' && 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
+                                )}
+                              >
+                                {node.type === 'trigger' && <Zap className="w-4 h-4" />}
+                                {node.type === 'ai' && <Bot className="w-4 h-4" />}
+                                {node.type === 'action' && <Workflow className="w-4 h-4" />}
+                                {node.type === 'db' && <Database className="w-4 h-4" />}
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-white truncate">{node.title}</span>
+                                  <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.2 rounded bg-white/5 text-muted-foreground">
+                                    {node.type}
+                                  </span>
+                                </div>
+                                <span className="text-[11px] text-muted-foreground truncate">{node.description}</span>
+                              </div>
+                            </div>
+
+                            {/* Status indicator badge */}
+                            <div className="shrink-0 ml-2">
+                              {node.status === 'running' && (
+                                <span className="flex items-center gap-1 text-[11px] font-semibold text-primary animate-pulse">
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Running
+                                </span>
+                              )}
+                              {node.status === 'success' && (
+                                <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> 200 OK ({node.duration})
+                                </span>
+                              )}
+                              {node.status === 'idle' && (
+                                <span className="text-[10px] text-muted-foreground">Menunggu</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Connecting arrow line */}
+                          {!isLast && (
+                            <div className="w-0.5 h-5 bg-gradient-to-b from-white/20 to-white/10 my-1 relative flex items-center justify-center">
+                              <ArrowRight className="w-3 h-3 text-muted-foreground rotate-90" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: LIVE CODE RUNNER & JSON SCRATCHPAD */}
+              {activeActivityTab === 'scratchpad' && (
+                <div className="h-full flex flex-col gap-2">
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <Terminal className="w-3.5 h-3.5 text-primary" /> Live Code & JSON Playground
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={handleRunScratchpad}
+                      disabled={isExecutingScript}
+                      className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 shadow"
+                    >
+                      <Play className="w-3 h-3 fill-current" /> Jalankan Script / Validasi
+                    </Button>
                   </div>
                   <textarea
                     value={scratchpadCode}
@@ -969,9 +1373,123 @@ export function CommunityCallStage({
                         payload: e.target.value,
                       });
                     }}
-                    className="flex-1 w-full bg-[#111214] border border-white/10 rounded-xl p-3 font-mono text-xs text-emerald-400 focus:outline-none focus:ring-1 focus:ring-primary resize-none [scrollbar-width:thin]"
-                    placeholder="Tulis kode, webhook payload, atau catatan arsitektur di sini..."
+                    className="flex-1 min-h-[160px] w-full bg-[#111214] border border-white/10 rounded-xl p-3 font-mono text-xs text-emerald-400 focus:outline-none focus:ring-1 focus:ring-primary resize-none [scrollbar-width:thin] leading-relaxed select-text"
+                    placeholder="Tulis kode Javascript atau payload JSON di sini..."
                   />
+
+                  {/* Terminal Execution Output Console */}
+                  <div className="h-32 bg-black/90 border border-white/10 rounded-xl p-2.5 font-mono text-[11px] text-white/90 overflow-y-auto [scrollbar-width:thin] select-text">
+                    <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-1 flex items-center justify-between">
+                      <span>Console Output:</span>
+                      <button
+                        onClick={() => setScratchpadOutput(null)}
+                        className="text-muted-foreground hover:text-white text-[10px]"
+                      >
+                        Bersihkan
+                      </button>
+                    </div>
+                    {scratchpadOutput ? (
+                      <pre className="text-emerald-300 whitespace-pre-wrap">{scratchpadOutput}</pre>
+                    ) : (
+                      <span className="text-muted-foreground italic">
+                        Klik tombol "Jalankan Script / Validasi" di atas untuk melihat hasil eksekusi.
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: WHITEBOARD ARSITEKTUR */}
+              {activeActivityTab === 'whiteboard' && (
+                <div className="h-full flex flex-col gap-2">
+                  {/* Whiteboard Controls */}
+                  <div className="p-2 rounded-xl bg-[#2b2d31]/80 border border-white/5 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-muted-foreground mr-1">Warna:</span>
+                      {['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#ffffff'].map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => setDrawColor(color)}
+                          className={cn(
+                            'w-5 h-5 rounded-full transition-all border',
+                            drawColor === color ? 'scale-125 border-white ring-2 ring-primary' : 'border-transparent opacity-80 hover:opacity-100',
+                          )}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                      <div className="w-[1px] h-4 bg-white/10 mx-1.5" />
+                      <span className="text-xs font-semibold text-muted-foreground">Tebal:</span>
+                      {[2, 4, 8].map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setBrushSize(size)}
+                          className={cn(
+                            'px-2 py-0.5 rounded text-xs font-bold transition-all',
+                            brushSize === size ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white',
+                          )}
+                        >
+                          {size}px
+                        </button>
+                      ))}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleClearCanvas}
+                      className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/20 gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Bersihkan Papan
+                    </Button>
+                  </div>
+
+                  {/* HTML5 Canvas Element */}
+                  <div className="flex-1 min-h-[300px] rounded-xl overflow-hidden border border-white/10 relative bg-[#111214]">
+                    <canvas
+                      ref={whiteboardCanvasRef}
+                      width={900}
+                      height={600}
+                      onMouseDown={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const scaleX = e.currentTarget.width / rect.width;
+                        const scaleY = e.currentTarget.height / rect.height;
+                        const x = (e.clientX - rect.left) * scaleX;
+                        const y = (e.clientY - rect.top) * scaleY;
+                        isDrawing.current = true;
+                        lastCoord.current = { x, y };
+                      }}
+                      onMouseMove={(e) => {
+                        if (!isDrawing.current || !lastCoord.current) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const scaleX = e.currentTarget.width / rect.width;
+                        const scaleY = e.currentTarget.height / rect.height;
+                        const x = (e.clientX - rect.left) * scaleX;
+                        const y = (e.clientY - rect.top) * scaleY;
+                        drawStroke(lastCoord.current.x, lastCoord.current.y, x, y, drawColor, brushSize);
+                        socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+                          channelId: channel.id,
+                          action: 'WHITEBOARD_DRAW',
+                          payload: {
+                            x0: lastCoord.current.x,
+                            y0: lastCoord.current.y,
+                            x1: x,
+                            y1: y,
+                            color: drawColor,
+                            size: brushSize,
+                          },
+                        });
+                        lastCoord.current = { x, y };
+                      }}
+                      onMouseUp={() => {
+                        isDrawing.current = false;
+                        lastCoord.current = null;
+                      }}
+                      onMouseLeave={() => {
+                        isDrawing.current = false;
+                        lastCoord.current = null;
+                      }}
+                      className="w-full h-full cursor-crosshair touch-none"
+                    />
+                  </div>
                 </div>
               )}
             </div>
