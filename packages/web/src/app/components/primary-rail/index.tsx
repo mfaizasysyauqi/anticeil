@@ -233,16 +233,16 @@ export function PrimaryRail() {
         onClick={!isChatMode && collapsed ? openSidebar : undefined}
         title={!isChatMode && collapsed ? t('Open sidebar') : undefined}
         className={cn(
-          'hidden lg:flex h-svh shrink-0 flex-col overflow-hidden whitespace-nowrap bg-sidebar pt-[10px] pb-3 transition-[width] duration-200 ease-out motion-reduce:transition-none',
-          isChatMode ? 'w-14 items-center select-none' : collapsed ? 'w-14 cursor-ew-resize items-center' : 'w-62',
+          'hidden lg:flex h-svh shrink-0 flex-col overflow-hidden whitespace-nowrap bg-sidebar pb-3 transition-[width] duration-200 ease-out motion-reduce:transition-none',
+          isChatMode ? 'w-14 items-center select-none pt-0' : collapsed ? 'w-14 cursor-ew-resize items-center pt-2' : 'w-62 pt-2',
         )}
       >
         {isChatMode ? (
           /* ── CHAT MODE: REPLACED WITH DISCORD SERVER & DMS RAIL ── */
           <>
-            {/* 1. Top: Anticeil Logo / Direct Messages (Home Hub) - Exactly h-12 to align with App Bar */}
+            {/* 1. Top: Anticeil Logo / Direct Messages (Home Hub) - Exactly h-14 (56px) for symmetric 8px padding aligning with 8px margin + 48px app bar */}
             {hubs[0] && (
-              <div className="relative group w-full h-12 flex items-center justify-center shrink-0">
+              <div className="relative group w-full h-14 flex items-center justify-center shrink-0">
                 <span
                   className={cn(
                     'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
