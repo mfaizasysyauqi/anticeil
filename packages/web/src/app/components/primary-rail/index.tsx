@@ -233,16 +233,16 @@ export function PrimaryRail() {
         onClick={!isChatMode && collapsed ? openSidebar : undefined}
         title={!isChatMode && collapsed ? t('Open sidebar') : undefined}
         className={cn(
-          'hidden lg:flex h-svh shrink-0 flex-col overflow-hidden whitespace-nowrap bg-sidebar py-3 transition-[width] duration-200 ease-out motion-reduce:transition-none',
+          'hidden lg:flex h-svh shrink-0 flex-col overflow-hidden whitespace-nowrap bg-sidebar pt-[10px] pb-3 transition-[width] duration-200 ease-out motion-reduce:transition-none',
           isChatMode ? 'w-14 items-center select-none' : collapsed ? 'w-14 cursor-ew-resize items-center' : 'w-62',
         )}
       >
         {isChatMode ? (
           /* ── CHAT MODE: REPLACED WITH DISCORD SERVER & DMS RAIL ── */
           <>
-            {/* 1. Top: Anticeil Logo / Direct Messages (Home Hub) */}
+            {/* 1. Top: Anticeil Logo / Direct Messages (Home Hub) - Exactly h-12 to align with App Bar */}
             {hubs[0] && (
-              <div className="relative group w-full flex items-center justify-center shrink-0">
+              <div className="relative group w-full h-12 flex items-center justify-center shrink-0">
                 <span
                   className={cn(
                     'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
@@ -277,11 +277,13 @@ export function PrimaryRail() {
               </div>
             )}
 
-            {/* Separator bar */}
-            <div className="w-6 h-[2px] bg-sidebar-border rounded-full my-1.5 shrink-0" />
+            {/* Separator bar - Perfectly aligned with the bottom border of the h-12 App Bar */}
+            <div className="w-full flex items-center justify-center h-0 relative shrink-0 z-20">
+              <div className="w-6 h-[2px] bg-sidebar-border rounded-full" />
+            </div>
 
             {/* 2. Mode Switcher: Automation Icon (dibawah logo Anticeil) */}
-            <div className="flex flex-col items-center shrink-0 px-2">
+            <div className="flex flex-col items-center shrink-0 px-2 pt-2">
               <Tooltip delayDuration={150}>
                 <TooltipTrigger asChild>
                   <Link
