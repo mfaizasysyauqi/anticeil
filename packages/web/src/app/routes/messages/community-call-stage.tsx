@@ -1373,17 +1373,9 @@ export function CommunityCallStage({
       {/* CASE A: DISCORD SCREEN SHARE / ACTIVITY FULL STAGE MODE */}
       {activeAppId !== null && currentActiveApp ? (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#111214] relative">
-          {/* ── 1. Full-Stage Activity Container (Fills main center/top area) ── */}
+          {/* ── 1. Full-Stage Activity Container (Fills available space above filmstrip) ── */}
           <div
-            className={cn(
-              'm-2 sm:m-3 rounded-2xl bg-[#1e1f22] border border-white/10 flex flex-col overflow-hidden shadow-2xl relative transition-all duration-200',
-              // Cap height so the filmstrip (~115px) + dock (80px) always fit below.
-              // When filmstrip is expanded: 100vh - header(48) - filmstrip(115) - dock(80) - margins(24) ≈ calc(100vh - 267px)
-              // When filmstrip is collapsed: 100vh - header(48) - pill(20) - dock(80) - margins(24) ≈ calc(100vh - 172px)
-              !isFilmstripCollapsed
-                ? 'max-h-[calc(100vh-267px)]'
-                : 'max-h-[calc(100vh-172px)]',
-            )}
+            className="flex-1 min-h-0 m-2 sm:m-3 rounded-2xl bg-[#1e1f22] border border-white/10 flex flex-col overflow-hidden shadow-2xl relative transition-all duration-200"
           >
             {/* Activity Window Top Bar */}
             <div className="h-12 px-4 bg-[#2b2d31] border-b border-white/10 flex items-center justify-between shrink-0">
@@ -2011,7 +2003,7 @@ export function CommunityCallStage({
           </div>
 
           {/* ── 2. Discord Bottom Filmstrip (Participant Video/Avatar Tiles at BOTTOM) ── */}
-          <div className="shrink-0 flex flex-col items-center z-10 px-4 pb-1">
+          <div className="shrink-0 flex flex-col items-center z-10 px-3 pb-1">
             {/* Collapse / Expand Toggle Pill (Discord Style) */}
             <button
               onClick={() => setIsFilmstripCollapsed(!isFilmstripCollapsed)}
@@ -2035,9 +2027,9 @@ export function CommunityCallStage({
 
             {/* Video Cards Filmstrip (Horizontally centered like Discord) */}
             {!isFilmstripCollapsed && (
-              <div className="w-full max-w-5xl py-1.5 flex items-center justify-center gap-2.5 overflow-x-auto [scrollbar-width:thin] animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <div className="w-full max-w-5xl py-1 flex items-center justify-center gap-2 overflow-x-auto [scrollbar-width:thin] animate-in fade-in slide-in-from-bottom-2 duration-200">
                 {/* Local Participant Tile */}
-                <div className="w-36 sm:w-44 h-24 sm:h-28 rounded-xl bg-[#2b2d31] border border-white/10 relative overflow-hidden shrink-0 flex items-center justify-center shadow-lg group">
+                <div className="w-28 sm:w-36 h-20 sm:h-24 rounded-xl bg-[#2b2d31] border border-white/10 relative overflow-hidden shrink-0 flex items-center justify-center shadow-lg group">
                   {!isVideoOff && localStream && localStream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled) ? (
                     <LocalVideoView stream={localStream} />
                   ) : (
@@ -2075,7 +2067,7 @@ export function CommunityCallStage({
                 {participants.map((peer) => (
                   <div
                     key={peer.socketId}
-                    className="w-36 sm:w-44 h-24 sm:h-28 rounded-xl bg-[#2b2d31] border border-white/10 relative overflow-hidden shrink-0 flex items-center justify-center shadow-lg group"
+                    className="w-28 sm:w-36 h-20 sm:h-24 rounded-xl bg-[#2b2d31] border border-white/10 relative overflow-hidden shrink-0 flex items-center justify-center shadow-lg group"
                   >
                     {peer.stream && peer.hasVideo && peer.stream.getVideoTracks().some((t) => t.readyState === 'live') ? (
                       <RemoteVideoView stream={peer.stream} isMuted={false} />
@@ -2105,7 +2097,7 @@ export function CommunityCallStage({
 
                 {/* Screen Share Tile if sharing */}
                 {isScreenSharing && (
-                  <div className="w-36 sm:w-44 h-24 sm:h-28 rounded-xl bg-[#2b2d31] border border-emerald-500/40 relative overflow-hidden shrink-0 flex items-center justify-center shadow-lg group">
+                  <div className="w-28 sm:w-36 h-20 sm:h-24 rounded-xl bg-[#2b2d31] border border-emerald-500/40 relative overflow-hidden shrink-0 flex items-center justify-center shadow-lg group">
                     <video
                       ref={screenVideoRef}
                       autoPlay
@@ -2126,7 +2118,7 @@ export function CommunityCallStage({
 
                 {/* Solitary Invite Prompt in Filmstrip */}
                 {participants.length === 0 && !isScreenSharing && (
-                  <div className="h-24 sm:h-28 px-4 rounded-xl bg-[#2b2d31]/40 border border-dashed border-white/10 flex items-center gap-3 shrink-0">
+                  <div className="h-20 sm:h-24 px-4 rounded-xl bg-[#2b2d31]/40 border border-dashed border-white/10 flex items-center gap-3 shrink-0">
                     <div className="flex flex-col">
                       <span className="text-xs font-semibold text-white">Anda sendirian di panggung</span>
                       <span className="text-[10px] text-muted-foreground">Undang rekan tim untuk menikmati aktivitas bersama</span>
@@ -2293,8 +2285,8 @@ export function CommunityCallStage({
       )}
 
       {/* ── Discord Bottom Floating Control Dock ────────────────────────── */}
-      <div className="h-20 shrink-0 flex items-center justify-center px-4 bg-gradient-to-t from-[#111214] via-[#111214]/90 to-transparent z-20">
-        <div className="px-5 py-2.5 rounded-2xl bg-[#1e1f22] border border-white/10 shadow-2xl flex items-center gap-3">
+      <div className="h-16 shrink-0 flex items-center justify-center px-4 bg-gradient-to-t from-[#111214] via-[#111214]/90 to-transparent z-20">
+        <div className="px-4 py-2 rounded-2xl bg-[#1e1f22] border border-white/10 shadow-2xl flex items-center gap-2.5">
           {/* Mute Button */}
           <TooltipProvider delayDuration={150}>
             <Tooltip>
