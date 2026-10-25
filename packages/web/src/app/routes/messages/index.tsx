@@ -1929,7 +1929,7 @@ export function CommunityPage() {
             </div>
           </div>
 
-          {/* Discord Mic & Headphones */}
+          {/* Discord Mic, Headphones & Settings */}
           <div className="flex items-center gap-0.5 text-muted-foreground shrink-0">
             <Button
               variant="ghost"
@@ -1948,6 +1948,20 @@ export function CommunityPage() {
               title={isDeafened ? 'Undeafen' : 'Deafen'}
             >
               <Headphones className={cn('w-3.5 h-3.5', isDeafened && 'text-red-400')} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                const fallback = currentUser?.email ? currentUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : '';
+                setEditDisplayNameInput(currentUserName);
+                setEditUsernameInput(currentUser?.username || fallback);
+                setIsEditProfileOpen(true);
+              }}
+              className="h-7 w-7 hover:text-foreground cursor-pointer"
+              title={t('Pengaturan Akun')}
+            >
+              <Settings className="w-3.5 h-3.5" />
             </Button>
           </div>
         </div>

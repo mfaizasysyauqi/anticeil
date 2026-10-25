@@ -372,10 +372,8 @@ export function PrimaryRail() {
               </Tooltip>
             </div>
 
-            {/* 3. Bottom: User Profile Row */}
-            <div className="mt-auto flex flex-col gap-1.5 w-full">
-              <RailAccountRow collapsed={true} onMenuOpenChange={handleMenuOpenChange} />
-            </div>
+            {/* 3. Bottom: spacer to push list to top */}
+            <div className="shrink-0 h-2" />
           </>
         ) : (
           /* ── AUTOMATION MODE: STANDARD PRIMARY RAIL ── */
