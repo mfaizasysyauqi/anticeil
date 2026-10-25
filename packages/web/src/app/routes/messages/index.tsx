@@ -1845,16 +1845,17 @@ export function CommunityPage() {
   const renderUserBottomDock = (isOverlay = true) => {
     const dockNode = (
       <>
-      {/* Gradient scrim behind the card — full width of rail+channels sidebar */}
+      {/* Gradient scrim behind the card — masks server list & vertical borders like Discord */}
       {isOverlay && (
         <div
           aria-hidden
-          className="hidden lg:block fixed bottom-0 left-0 pointer-events-none"
+          className="hidden lg:block fixed bottom-0 left-0 pointer-events-none z-40"
           style={{
-            width: '296px',
-            height: '80px',
-            zIndex: 49,
-            background: 'linear-gradient(to bottom, transparent 0%, var(--sidebar) 55%)',
+            width: '298px',
+            height: activeCallChannelId ? '150px' : '100px',
+            background: activeCallChannelId
+              ? 'linear-gradient(to top, var(--sidebar-background, #141414) 0px, var(--sidebar-background, #141414) 106px, color-mix(in srgb, var(--sidebar-background, #141414) 75%, transparent) 128px, transparent 150px)'
+              : 'linear-gradient(to top, var(--sidebar-background, #141414) 0px, var(--sidebar-background, #141414) 58px, color-mix(in srgb, var(--sidebar-background, #141414) 75%, transparent) 76px, transparent 100px)',
           }}
         />
       )}
