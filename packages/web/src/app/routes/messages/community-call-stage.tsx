@@ -72,6 +72,7 @@ export interface CallParticipant {
   hasVideo: boolean;
   hasAudio: boolean;
   isScreenSharing?: boolean;
+  isSpeaking?: boolean;
   stream?: MediaStream;
 }
 
@@ -1065,7 +1066,7 @@ export function CommunityCallStage({
       const camTrack = (!isVideoOff && localStream) ? localStream.getVideoTracks()[0] : null;
       for (const sId in peerConnections.current) {
         const pc = peerConnections.current[sId];
-        const sender = pc.getSenders().find((s) => s.track?.kind === 'video' || s.kind === 'video');
+        const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
         if (sender) {
           try {
             await sender.replaceTrack(camTrack || null);
@@ -1112,7 +1113,7 @@ export function CommunityCallStage({
 
       for (const sId in peerConnections.current) {
         const pc = peerConnections.current[sId];
-        const sender = pc.getSenders().find((s) => s.track?.kind === 'video' || s.kind === 'video');
+        const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
         if (sender) {
           try {
             await sender.replaceTrack(screenTrack);
@@ -1143,7 +1144,7 @@ export function CommunityCallStage({
         const camTrack = (!isVideoOff && localStream) ? localStream.getVideoTracks()[0] : null;
         for (const sId in peerConnections.current) {
           const pc = peerConnections.current[sId];
-          const sender = pc.getSenders().find((s) => s.track?.kind === 'video' || s.kind === 'video');
+          const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
           if (sender) {
             sender.replaceTrack(camTrack || null).catch(() => {});
           }
