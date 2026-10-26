@@ -734,7 +734,8 @@ export function CommunityCallStage({
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
 
-  const currentUserId = currentUser?.id || 'me';
+  const [fallbackUserId] = useState(() => `u_${Math.random().toString(36).slice(2, 9)}`);
+  const currentUserId = currentUser?.id || fallbackUserId;
   const currentUserName =
     `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() ||
     currentUser?.email?.split('@')[0] ||
@@ -951,7 +952,7 @@ export function CommunityCallStage({
           hasAudio,
           isScreenSharing,
         };
-        createPeerConnection(data.socketId, newPeer, true, localMediaStream);
+        createPeerConnection(data.socketId, newPeer, false, localMediaStream);
         return [...prev, newPeer];
       });
 
@@ -991,6 +992,13 @@ export function CommunityCallStage({
       }
 
       if (data.signal?.type === 'offer') {
+        if (pc.signalingState !== 'stable') {
+          try {
+            await pc.setLocalDescription({ type: 'rollback' });
+          } catch (e) {
+            console.warn('Rollback failed:', e);
+          }
+        }
         await pc.setRemoteDescription(new RTCSessionDescription(data.signal));
         if (iceCandidateQueues.current[data.fromSocketId]) {
           for (const cand of iceCandidateQueues.current[data.fromSocketId]) {

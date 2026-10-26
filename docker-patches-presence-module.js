@@ -490,7 +490,7 @@ async function setupCommunityApi(app) {
                 if (hubId) {
                     rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE hub_id = $1 ORDER BY created_at ASC', [hubId]);
                 } else {
-                    rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE (platform_id = $1 OR platform_id IS NULL) ORDER BY created_at ASC', [platformId]);
+                    rows = await ds.query('SELECT * FROM anticeil_community_channels ORDER BY created_at ASC');
                 }
                 
                 // If a specific server has missing default channels (voice/forum/text), auto-create them
@@ -572,17 +572,23 @@ async function setupCommunityApi(app) {
                     }
                 }
 
-                return (rows || []).map(r => ({
-                    id: r.id,
-                    name: r.name,
-                    description: r.description || '',
-                    category: r.category || 'CHANNELS',
-                    hubId: r.hub_id || 'anticeil',
-                    type: r.type || 'text',
-                    isPrivate: Boolean(r.is_private),
-                    isDirectMessage: Boolean(r.is_direct_message),
-                    dmUserId: r.dm_user_id || undefined
-                }));
+                return (rows || []).map(r => {
+                    const resolvedType = r.type || (
+                        ((r.name || '') + (r.id || '')).toLowerCase().includes('voice') ? 'voice' :
+                        ((r.name || '') + (r.id || '')).toLowerCase().includes('forum') ? 'forum' : 'text'
+                    );
+                    return {
+                        id: r.id,
+                        name: r.name,
+                        description: r.description || '',
+                        category: r.category || 'CHANNELS',
+                        hubId: r.hub_id || 'anticeil',
+                        type: resolvedType,
+                        isPrivate: Boolean(r.is_private),
+                        isDirectMessage: Boolean(r.is_direct_message),
+                        dmUserId: r.dm_user_id || undefined
+                    };
+                });
             } catch (e) {}
         }
         let filtered = memoryChannels.filter(c => !hubId || c.hubId === hubId);
@@ -2009,8 +2015,25 @@ async function setupCommunityApi(app) {
         app.delete(`${prefix}/messages/:id`, deleteMessageHandler);
         app.post(`${prefix}/messages/:id/reactions`, toggleReactionHandler);
 
+        // Channel Notifications & Pins
+        app.get(`${prefix}/channels/:channelId/notifications`, async (req) => {
+            const { channelId } = req.params;
+            return { channelId, isMuted: false, level: 'ALL_MESSAGES', mutedUntil: null };
+        });
+        app.put(`${prefix}/channels/:channelId/notifications`, async () => ({ success: true }));
+        app.get(`${prefix}/channels/:channelId/pins`, async () => []);
+        app.post(`${prefix}/channels/:channelId/pins`, async () => ({ success: true }));
+        app.delete(`${prefix}/channels/:channelId/pins/:messageId`, async () => ({ success: true }));
+
         // Members
         app.get(`${prefix}/members`, getMembersHandler);
+
+        // Hub Stickers & Emojis
+        app.get(`${prefix}/hubs/:hubId/stickers`, async () => []);
+        app.post(`${prefix}/hubs/:hubId/stickers`, async () => ({ success: true }));
+        app.delete(`${prefix}/hubs/:hubId/stickers/:stickerId`, async () => ({ success: true }));
+        app.get(`${prefix}/hubs/:hubId/emojis`, async () => []);
+        app.post(`${prefix}/hubs/:hubId/emojis`, async () => ({ success: true }));
 
         // Hubs (Servers) & Server Features
         app.get(`${prefix}/hubs`, getHubsHandler);
@@ -2071,7 +2094,7 @@ async function setupCommunityApi(app) {
 
                 if (!activeCallRooms[channelId]) activeCallRooms[channelId] = [];
                 const room = activeCallRooms[channelId];
-                const isExisting = room.some(p => p.userId === user.id || p.socketId === socket.id);
+                const isExisting = room.some(p => p.socketId === socket.id);
                 const isPlus = Boolean(plan && (plan.includes('plus') || plan.includes('team') || plan.includes('enterprise')));
 
                 // Free Plan Limit: Max 2 participants
@@ -2104,7 +2127,7 @@ async function setupCommunityApi(app) {
                     joinedAt: Date.now()
                 };
 
-                const existingIdx = room.findIndex(p => p.userId === user.id || p.socketId === socket.id);
+                const existingIdx = room.findIndex(p => p.socketId === socket.id);
                 if (existingIdx >= 0) {
                     room[existingIdx] = participant;
                 } else {
