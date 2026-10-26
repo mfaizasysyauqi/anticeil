@@ -1881,7 +1881,7 @@ export function CommunityCallStage({
   return (
     <div className="w-full h-full flex-1 min-h-0 flex flex-col bg-[#111214] text-white select-none relative overflow-hidden group/stage">
       {/* ── Discord Top Stage App Bar (Exact Match to Discord UI) ────────── */}
-      <div className="h-12 w-full px-4 flex items-center justify-between bg-[#111214] border-b border-white/5 select-none shrink-0 z-20">
+      <div className="h-12 w-full px-2 flex items-center justify-between bg-[#111214] border-b border-white/5 select-none shrink-0 z-20">
         {/* Left: Speaker icon + Channel Name + (Activity Tag if active) */}
         <div className="flex items-center gap-2 min-w-0">
           <Volume2 className="w-5 h-5 text-[#949ba4] shrink-0" />
@@ -3253,7 +3253,7 @@ export function CommunityCallStage({
       )}
 
       {/* ── Discord Bottom Control Dock (Exact Match to Discord UI) ────────── */}
-      <div className="h-16 shrink-0 w-full px-4 sm:px-6 flex items-center justify-between bg-[#111214] border-t border-white/5 select-none z-20">
+      <div className="h-16 shrink-0 w-full px-2 flex items-center justify-between bg-[#111214] border-t border-white/5 select-none z-20">
         {/* Left: Invite Friends / Add to Call */}
         <div className="flex items-center">
           <TooltipProvider delayDuration={150}>
