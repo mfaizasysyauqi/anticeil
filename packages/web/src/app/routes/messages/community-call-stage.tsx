@@ -38,6 +38,7 @@ import {
   Bot,
   Database,
   ArrowRight,
+  ArrowLeft,
   Loader2,
   Search,
   Fish,
@@ -1670,19 +1671,24 @@ export function CommunityCallStage({
 
   if (!isCallActive) return null;
 
-  // ── Render Floating Picture-in-Picture Mini Stage ──────────────────────
+  // ── Render Floating Picture-in-Picture Mini Stage (Discord Style) ────
   if (isPiP) {
     return (
-      <div className="fixed bottom-4 right-4 z-50 w-80 rounded-2xl bg-[#111214] border border-white/10 shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
-        {/* Header */}
+      <div className="fixed bottom-4 right-4 z-50 w-[320px] sm:w-[340px] rounded-2xl bg-[#111214] border border-white/10 shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        {/* Header (Discord PiP Style) */}
         <div className="h-9 px-3 bg-[#1e1f22] flex items-center justify-between border-b border-white/5 select-none">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Radio className="w-3.5 h-3.5 text-emerald-500 animate-pulse shrink-0" />
-            <span className="text-xs font-semibold text-white truncate">
+          <button
+            type="button"
+            onClick={onTogglePiP}
+            className="flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer group text-left min-w-0"
+            title="Kembali ke Panggilan Penuh"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 text-muted-foreground group-hover:text-white group-hover:-translate-x-0.5 transition-transform shrink-0" />
+            <span className="text-xs font-semibold text-white truncate max-w-[150px]">
               {channel.name}
             </span>
             <span className="text-[10px] text-muted-foreground">({totalInCall})</span>
-          </div>
+          </button>
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
@@ -1705,50 +1711,114 @@ export function CommunityCallStage({
           </div>
         </div>
 
-        {/* Mini Preview Stage */}
-        <div className="relative h-44 bg-[#1e1f22]/60 p-2 grid grid-cols-2 gap-1.5 items-center justify-center">
-          {/* Local User Mini */}
-          <div className="relative w-full h-full rounded-lg bg-[#2b2d31] overflow-hidden flex items-center justify-center border border-white/5">
-            {!isVideoOff && localStream && localStream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled) ? (
-              <LocalVideoView stream={localStream} />
-            ) : (
-              <div
-                className={cn(
-                  'w-10 h-10 rounded-full flex items-center justify-center bg-primary/20 text-primary font-bold text-sm transition-all',
-                  isSpeakingLocal && 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-[#2b2d31]',
-                )}
-              >
-                {currentUserName.slice(0, 2).toUpperCase()}
+        {/* Video & Activity Cards Stack (16:9 Landscape Rectangles like Discord) */}
+        <div className="p-2 flex flex-col gap-2 max-h-[460px] overflow-y-auto [scrollbar-width:none]">
+          {/* Active Activity Card (e.g. Watch Together like in Discord reference) */}
+          {activeAppId !== null && currentActiveApp && (
+            <div className="relative aspect-video w-full rounded-xl bg-[#1e1f22] border border-white/5 overflow-hidden flex flex-col items-center justify-center p-3 text-center shadow-lg group">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl filter drop-shadow">📺</span>
+                <span className="text-xs font-bold text-white tracking-wide">{currentActiveApp.title}</span>
               </div>
-            )}
-            <span className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-black/60 text-[9px] text-white">
-              Anda {isMuted && '🔇'}
-            </span>
-          </div>
+              <p className="text-[10px] text-muted-foreground px-2 line-clamp-1">
+                Aktivitas bersama sedang berjalan
+              </p>
+              <button
+                type="button"
+                onClick={onTogglePiP}
+                className="mt-2 px-3 py-1 rounded-lg bg-primary hover:bg-primary/90 text-white text-[10px] font-semibold transition-all shadow-md hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                Buka Aktivitas
+              </button>
+            </div>
+          )}
 
-          {/* Remote Peer Mini */}
+          {/* Remote Peer Card (16:9 Landscape Video/Avatar Tile) */}
           {participants.length > 0 ? (
-            <div className="relative w-full h-full rounded-lg bg-[#2b2d31] overflow-hidden flex items-center justify-center border border-white/5">
+            <div className="relative aspect-video w-full rounded-xl bg-[#2b2d31] overflow-hidden flex items-center justify-center border border-white/5 shadow-md group">
               {participants[0].stream && participants[0].hasVideo ? (
                 <RemoteVideoView stream={participants[0].stream} isMuted={false} />
               ) : (
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-500/20 text-indigo-400 font-bold text-sm">
-                  {participants[0].userName.slice(0, 2).toUpperCase()}
+                <div className="flex flex-col items-center justify-center gap-1.5">
+                  <div
+                    className={cn(
+                      'w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 relative z-10 overflow-hidden',
+                      participants[0].isSpeaking
+                        ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-[#2b2d31] scale-105'
+                        : 'ring-1 ring-white/10',
+                    )}
+                  >
+                    <CommunityAvatar
+                      name={participants[0].userName}
+                      imageUrl={participants[0].userAvatar}
+                      size={56}
+                      showStatus={false}
+                      className="w-full h-full rounded-full"
+                    />
+                  </div>
+                  {participants[0].isSpeaking && (
+                    <div className="absolute inset-0 rounded-full bg-emerald-500/25 blur-lg animate-pulse -z-0" />
+                  )}
                 </div>
               )}
-              <span className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-black/60 text-[9px] text-white truncate max-w-[80px]">
-                {participants[0].userName} {!participants[0].hasAudio && '🔇'}
-              </span>
+              {/* Status Pill Bottom-Left */}
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs flex items-center gap-1.5 text-[10px] font-semibold text-white border border-white/10 z-10">
+                <span className="truncate max-w-[120px]">{participants[0].userName}</span>
+                {!participants[0].hasAudio ? (
+                  <MicOff className="w-2.5 h-2.5 text-red-400" />
+                ) : (
+                  <Mic className="w-2.5 h-2.5 text-emerald-400" />
+                )}
+              </div>
             </div>
           ) : (
-            <div className="w-full h-full rounded-lg bg-[#2b2d31]/50 border border-dashed border-white/10 flex flex-col items-center justify-center text-center p-2">
-              <span className="text-[10px] text-muted-foreground">Menunggu rekan...</span>
+            <div className="relative aspect-video w-full rounded-xl bg-[#2b2d31]/50 border border-dashed border-white/10 flex flex-col items-center justify-center text-center p-3">
+              <span className="text-[11px] text-muted-foreground">Menunggu rekan bergabung...</span>
             </div>
           )}
+
+          {/* Local User Card (16:9 Landscape Video/Avatar Tile) */}
+          <div className="relative aspect-video w-full rounded-xl bg-[#2b2d31] overflow-hidden flex items-center justify-center border border-white/5 shadow-md group">
+            {!isVideoOff && localStream && localStream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled) ? (
+              <LocalVideoView stream={localStream} />
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-1.5">
+                <div
+                  className={cn(
+                    'w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 relative z-10 overflow-hidden',
+                    isSpeakingLocal
+                      ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-[#2b2d31] scale-105'
+                      : 'ring-1 ring-white/10',
+                  )}
+                >
+                  <CommunityAvatar
+                    name={currentUserName}
+                    imageUrl={currentUser?.imageUrl}
+                    email={currentUser?.email}
+                    size={56}
+                    showStatus={false}
+                    className="w-full h-full rounded-full"
+                  />
+                </div>
+                {isSpeakingLocal && (
+                  <div className="absolute inset-0 rounded-full bg-emerald-500/25 blur-lg animate-pulse -z-0" />
+                )}
+              </div>
+            )}
+            {/* Status Pill Bottom-Left */}
+            <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs flex items-center gap-1.5 text-[10px] font-semibold text-white border border-white/10 z-10">
+              <span className="truncate max-w-[120px]">{currentUserName} (Anda)</span>
+              {isMuted ? (
+                <MicOff className="w-2.5 h-2.5 text-red-400" />
+              ) : (
+                <Mic className="w-2.5 h-2.5 text-emerald-400" />
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Mini Quick Actions */}
-        <div className="h-10 px-3 bg-[#1e1f22] flex items-center justify-center gap-3 border-t border-white/5">
+        {/* Mini Quick Actions (Discord PiP Floating Controls) */}
+        <div className="h-11 px-3 bg-[#1e1f22] flex items-center justify-center gap-3 border-t border-white/5 select-none">
           <Button
             size="icon"
             variant="ghost"
@@ -1757,6 +1827,7 @@ export function CommunityCallStage({
               'h-7 w-7 rounded-full',
               isMuted ? 'bg-red-500/20 text-red-400' : 'text-white hover:bg-white/10',
             )}
+            title={isMuted ? 'Nyalakan Mikrofon' : 'Bisukan Mikrofon'}
           >
             {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
           </Button>
@@ -1768,14 +1839,25 @@ export function CommunityCallStage({
               'h-7 w-7 rounded-full',
               isVideoOff ? 'bg-red-500/20 text-red-400' : 'text-white hover:bg-white/10',
             )}
+            title={isVideoOff ? 'Nyalakan Kamera' : 'Matikan Kamera'}
           >
             {isVideoOff ? <VideoOff className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
           </Button>
           <Button
             size="icon"
+            variant="ghost"
+            onClick={onTogglePiP}
+            className="h-7 w-7 rounded-full text-white hover:bg-white/10"
+            title="Layar Penuh"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            size="icon"
             variant="destructive"
             onClick={onEndCall}
-            className="h-7 w-7 rounded-full bg-red-600 hover:bg-red-700"
+            className="h-7 w-7 rounded-full bg-red-600 hover:bg-red-700 text-white"
+            title="Putus Panggilan"
           >
             <PhoneOff className="w-3.5 h-3.5" />
           </Button>
@@ -1787,115 +1869,7 @@ export function CommunityCallStage({
   // ── Render Full Discord Stage View ────────────────────────────────────
   return (
     <div className="w-full h-full flex-1 min-h-0 flex flex-col bg-[#111214] text-white select-none relative overflow-hidden group/stage">
-      {/* ── Discord Top Stage Header Bar (Floating Overlay on Hover) ──── */}
-      <div className="absolute top-0 inset-x-0 z-30 px-4 py-3 flex items-center justify-between bg-gradient-to-b from-black/90 via-black/50 to-transparent transition-all duration-200 opacity-0 -translate-y-1 group-hover/stage:opacity-100 group-hover/stage:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0 pointer-events-none">
-        <div className="flex items-center gap-2.5 min-w-0 pointer-events-auto">
-          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-sm backdrop-blur-sm">
-            <Radio className="w-4 h-4 animate-pulse" />
-          </div>
-          <div className="flex flex-col min-w-0 drop-shadow-md">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-sm font-bold text-white truncate">
-                #{channel.name}
-              </span>
-              {activeAppId !== null && currentActiveApp ? (
-                <>
-                  <span className="text-muted-foreground text-xs font-medium">·</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-semibold text-white/95 truncate">
-                      {currentActiveApp.title}
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded bg-red-600 text-[10px] font-extrabold text-white flex items-center gap-1 tracking-wider shadow-xs">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                      LIVE
-                    </span>
-                    <span className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-white/70">
-                      720p 30FPS
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 flex items-center gap-1">
-                  <Signal className="w-3 h-3" /> Voice Terhubung
-                </span>
-              )}
-            </div>
-            <span className="text-[11px] text-white/70 truncate">
-              {activeHub?.name || 'Komunitas Anticeil'} • {totalInCall} Peserta dalam panggilan
-            </span>
-          </div>
-        </div>
 
-        {/* Top Header Controls: Plan Pill, Screen Mode & PiP */}
-        <div className="flex items-center gap-2 pointer-events-auto">
-          {/* Stop Activity Button (Compact in Header like Discord) */}
-          {activeAppId !== null && (
-            <TooltipProvider delayDuration={150}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleStopActivity}
-                    className="h-7 px-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/30 gap-1.5 rounded-lg border border-red-500/40 bg-black/40 backdrop-blur-md shadow-sm"
-                  >
-                    <PhoneOff className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Hentikan Aktivitas</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">
-                  Tutup aktivitas {currentActiveApp?.title}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-
-          {/* Freemium Limit Pill */}
-          <div
-            onClick={() => {
-              if (!isPlusOrAbove) setIsUpgradeModalOpen(true);
-            }}
-            className={cn(
-              'px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all border backdrop-blur-md shadow-sm',
-              isPlusOrAbove
-                ? 'bg-primary/30 text-primary border-primary/40'
-                : 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30',
-            )}
-            title={isPlusOrAbove ? 'Paket Plus / Unlimited Group Call' : 'Free Plan: Maks 2 Orang'}
-          >
-            {isPlusOrAbove ? (
-              <>
-                <Crown className="w-3.5 h-3.5 text-primary" />
-                <span>Plus Plan (Group Call Aktif)</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Free Plan ({totalInCall}/2 Orang)</span>
-              </>
-            )}
-          </div>
-
-          {/* Picture in Picture Button */}
-          <TooltipProvider delayDuration={150}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onTogglePiP}
-                  className="h-8 w-8 rounded-lg text-white/80 hover:text-white bg-black/40 hover:bg-white/10 backdrop-blur-md border border-white/10"
-                >
-                  <Minimize2 className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                Minimize ke Picture-in-Picture
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
 
       {/* ── Discord Main Stage Layout ──────────────────────────────────── */}
       {/* CASE A: DISCORD SCREEN SHARE / ACTIVITY FULL STAGE MODE */}
@@ -3304,6 +3278,24 @@ export function CommunityCallStage({
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs font-semibold">
                 Salin Link Panggilan
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Picture in Picture Button */}
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onTogglePiP}
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md bg-[#2b2d31] hover:bg-white/15 text-white"
+                >
+                  <Minimize2 className="w-5 h-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs font-semibold">
+                Minimize ke Picture-in-Picture
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

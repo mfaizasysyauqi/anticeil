@@ -9010,28 +9010,26 @@ export function CommunityPage() {
           const pipChannel = channels.find((c) => c.id === activeCallChannelId);
           if (!pipChannel) return null;
           return (
-            <div className="fixed bottom-4 right-4 z-50 w-[380px] h-[260px] rounded-xl overflow-hidden shadow-2xl border border-border/80 bg-[#1e1f22] animate-in slide-in-from-bottom-4 fade-in">
-              <CommunityCallStage
-                channel={pipChannel}
-                activeHub={activeHub}
-                currentUser={currentUser}
-                isPlusOrAbove={isPlusOrAbove}
-                socket={socket}
-                isCallActive={true}
-                isPiP={true}
-                initialAppId={selectedActivityAppId}
-                onToggleActivity={(open) => setIsActivityOpen((prev) => (typeof open === 'boolean' ? open : !prev))}
-                onTogglePiP={() => {
-                  setActiveChannelId(activeCallChannelId);
-                  setIsCallPiP(false);
-                }}
-                onEndCall={() => {
-                  setActiveCallChannelId(null);
-                  setIsActivityOpen(false);
-                }}
-                onNavigateToBilling={() => navigate('/platform/billing')}
-              />
-            </div>
+            <CommunityCallStage
+              channel={pipChannel}
+              activeHub={activeHub}
+              currentUser={currentUser}
+              isPlusOrAbove={isPlusOrAbove}
+              socket={socket}
+              isCallActive={true}
+              isPiP={true}
+              initialAppId={selectedActivityAppId}
+              onToggleActivity={(open) => setIsActivityOpen((prev) => (typeof open === 'boolean' ? open : !prev))}
+              onTogglePiP={() => {
+                setActiveChannelId(activeCallChannelId);
+                setIsCallPiP(false);
+              }}
+              onEndCall={() => {
+                setActiveCallChannelId(null);
+                setIsActivityOpen(false);
+              }}
+              onNavigateToBilling={() => navigate('/platform/billing')}
+            />
           );
         })()}
     </LockedFeatureGuard>
