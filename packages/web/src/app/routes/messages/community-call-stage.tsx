@@ -3253,7 +3253,7 @@ export function CommunityCallStage({
       )}
 
       {/* ── Discord Bottom Control Dock (Exact Match to Discord UI) ────────── */}
-      <div className="h-20 shrink-0 w-full px-6 flex items-center justify-between bg-[#111214] border-t border-white/5 select-none z-20">
+      <div className="h-16 shrink-0 w-full px-4 sm:px-6 flex items-center justify-between bg-[#111214] border-t border-white/5 select-none z-20">
         {/* Left: Invite Friends / Add to Call */}
         <div className="flex items-center">
           <TooltipProvider delayDuration={150}>
@@ -3262,7 +3262,7 @@ export function CommunityCallStage({
                 <button
                   type="button"
                   onClick={() => setIsInviteVoiceOpen(true)}
-                  className="p-2.5 rounded-lg text-[#949ba4] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  className="h-10 w-10 rounded-lg text-[#949ba4] hover:text-white hover:bg-white/10 transition-colors cursor-pointer flex items-center justify-center"
                 >
                   <UserPlus className="w-5 h-5" />
                 </button>
@@ -3274,10 +3274,10 @@ export function CommunityCallStage({
           </TooltipProvider>
         </div>
 
-        {/* Center: Controls Pill Group */}
+        {/* Center: Controls Pill Group with Strict Consistent h-11 Height */}
         <div className="flex items-center gap-3">
-          {/* Pill 1: Audio & Video Controls (Discord Style with dropdown indicators) */}
-          <div className="bg-[#1e1f22] rounded-xl flex items-center p-1 border border-white/5 shadow-md">
+          {/* Pill 1: Audio & Video Controls (Exact h-11, matching other containers) */}
+          <div className="h-11 bg-[#1e1f22] rounded-xl flex items-center px-1 border border-white/5 shadow-md">
             {/* Mic Toggle Button */}
             <TooltipProvider delayDuration={150}>
               <Tooltip>
@@ -3286,16 +3286,16 @@ export function CommunityCallStage({
                     type="button"
                     onClick={handleToggleMute}
                     className={cn(
-                      'flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors cursor-pointer',
+                      'h-9 flex items-center gap-2 px-3 rounded-lg transition-colors cursor-pointer text-sm font-medium',
                       isMuted ? 'hover:bg-red-500/10' : 'hover:bg-white/10',
                     )}
                   >
                     {isMuted ? (
-                      <MicOff className="w-4 h-4 text-red-500" />
+                      <MicOff className="w-5 h-5 text-red-500" />
                     ) : (
-                      <Mic className="w-4 h-4 text-white" />
+                      <Mic className="w-5 h-5 text-white" />
                     )}
-                    <ChevronDown className="w-3.5 h-3.5 text-[#949ba4]" />
+                    <ChevronDown className="w-4 h-4 text-[#949ba4]" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs font-semibold">
@@ -3312,16 +3312,16 @@ export function CommunityCallStage({
                     type="button"
                     onClick={handleToggleVideo}
                     className={cn(
-                      'flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors cursor-pointer',
+                      'h-9 flex items-center gap-2 px-3 rounded-lg transition-colors cursor-pointer text-sm font-medium',
                       isVideoOff ? 'hover:bg-red-500/10' : 'hover:bg-white/10',
                     )}
                   >
                     {isVideoOff ? (
-                      <VideoOff className="w-4 h-4 text-red-500" />
+                      <VideoOff className="w-5 h-5 text-red-500" />
                     ) : (
-                      <Video className="w-4 h-4 text-white" />
+                      <Video className="w-5 h-5 text-white" />
                     )}
-                    <ChevronDown className="w-3.5 h-3.5 text-[#949ba4]" />
+                    <ChevronDown className="w-4 h-4 text-[#949ba4]" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs font-semibold">
@@ -3331,8 +3331,8 @@ export function CommunityCallStage({
             </TooltipProvider>
           </div>
 
-          {/* Pill 2: Media, Activities & Extra Actions */}
-          <div className="bg-[#1e1f22] rounded-xl flex items-center gap-0.5 p-1 border border-white/5 shadow-md">
+          {/* Pill 2: Media, Activities & Extra Actions (Exact h-11, matching other containers) */}
+          <div className="h-11 bg-[#1e1f22] rounded-xl flex items-center px-1 gap-1 border border-white/5 shadow-md">
             {/* Screen Share Button */}
             <TooltipProvider delayDuration={150}>
               <Tooltip>
@@ -3341,13 +3341,13 @@ export function CommunityCallStage({
                     type="button"
                     onClick={handleToggleScreenShare}
                     className={cn(
-                      'p-2.5 rounded-lg transition-colors cursor-pointer',
+                      'h-9 w-10 flex items-center justify-center rounded-lg transition-colors cursor-pointer',
                       isScreenSharing
                         ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30'
                         : 'text-white hover:bg-white/10',
                     )}
                   >
-                    {isScreenSharing ? <MonitorOff className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+                    {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs font-semibold">
@@ -3364,13 +3364,13 @@ export function CommunityCallStage({
                     type="button"
                     onClick={() => setIsAppLauncherOpen(true)}
                     className={cn(
-                      'p-2.5 rounded-lg transition-colors cursor-pointer relative',
+                      'h-9 w-10 flex items-center justify-center rounded-lg transition-colors cursor-pointer relative',
                       activeAppId !== null
-                        ? 'text-[#5865F2] hover:bg-[#5865F2]/20'
+                        ? 'bg-[#233f38] text-emerald-400 hover:bg-[#2c4e46]'
                         : 'text-white hover:bg-white/10',
                     )}
                   >
-                    <Shapes className="w-4 h-4" />
+                    <Shapes className="w-5 h-5" />
                     {activeAppId !== null && (
                       <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-[#1e1f22]" />
                     )}
@@ -3391,9 +3391,9 @@ export function CommunityCallStage({
                   <button
                     type="button"
                     onClick={() => toast.info('Fitur Soundboard & Efek Suara Discord')}
-                    className="p-2.5 rounded-lg text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    className="h-9 w-10 flex items-center justify-center rounded-lg text-white hover:bg-white/10 transition-colors cursor-pointer"
                   >
-                    <Sparkles className="w-4 h-4" />
+                    <Sparkles className="w-5 h-5" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs font-semibold">
@@ -3409,9 +3409,9 @@ export function CommunityCallStage({
                   <button
                     type="button"
                     onClick={handleCopyCallLink}
-                    className="p-2.5 rounded-lg text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    className="h-9 w-10 flex items-center justify-center rounded-lg text-white hover:bg-white/10 transition-colors cursor-pointer"
                   >
-                    <MoreHorizontal className="w-4 h-4" />
+                    <MoreHorizontal className="w-5 h-5" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs font-semibold">
@@ -3421,16 +3421,16 @@ export function CommunityCallStage({
             </TooltipProvider>
           </div>
 
-          {/* Pill 3: Red Squircle Disconnect Call Button */}
+          {/* Pill 3: Red Squircle Disconnect Call Button (Exact h-11, matching other containers) */}
           <TooltipProvider delayDuration={150}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
                   onClick={onEndCall}
-                  className="px-6 py-2.5 rounded-xl bg-[#da373c] hover:bg-[#a1282c] text-white flex items-center justify-center transition-all cursor-pointer shadow-md active:scale-95"
+                  className="h-11 px-5 rounded-xl bg-[#da373c] hover:bg-[#a1282c] text-white flex items-center justify-center transition-all cursor-pointer shadow-md active:scale-95"
                 >
-                  <PhoneOff className="w-4 h-4" />
+                  <PhoneOff className="w-5 h-5" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs font-bold text-red-400">
@@ -3449,7 +3449,7 @@ export function CommunityCallStage({
                 <button
                   type="button"
                   onClick={onTogglePiP}
-                  className="p-2.5 rounded-lg text-[#949ba4] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  className="h-10 w-10 rounded-lg text-[#949ba4] hover:text-white hover:bg-white/10 transition-colors cursor-pointer flex items-center justify-center"
                 >
                   <ExternalLink className="w-5 h-5" />
                 </button>
@@ -3467,7 +3467,7 @@ export function CommunityCallStage({
                 <button
                   type="button"
                   onClick={handleToggleFullscreen}
-                  className="p-2.5 rounded-lg text-[#949ba4] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  className="h-10 w-10 rounded-lg text-[#949ba4] hover:text-white hover:bg-white/10 transition-colors cursor-pointer flex items-center justify-center"
                 >
                   <Maximize className="w-5 h-5" />
                 </button>
