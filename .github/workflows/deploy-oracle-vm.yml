@@ -86,6 +86,9 @@ jobs:
             # Tag as local anticeil:latest
             docker tag ghcr.io/${{ github.repository_owner }}/anticeil:latest anticeil:latest
 
+            # Pull standalone chat image if available
+            docker pull ghcr.io/${{ github.repository_owner }}/anticeil-chat:latest || true
+
             # Update AP_FRONTEND_URL to production domain in .env
             sed -i 's|^AP_FRONTEND_URL=.*|AP_FRONTEND_URL=https://anticeil.com|' .env
 
@@ -104,15 +107,15 @@ jobs:
             grep -q '^AP_GOOGLE_CLIENT_ID=' .env && sed -i "s|^AP_GOOGLE_CLIENT_ID=.*|AP_GOOGLE_CLIENT_ID=$G_CID|" .env || echo "AP_GOOGLE_CLIENT_ID=$G_CID" >> .env
             grep -q '^AP_GOOGLE_CLIENT_SECRET=' .env && sed -i "s|^AP_GOOGLE_CLIENT_SECRET=.*|AP_GOOGLE_CLIENT_SECRET=$G_SEC|" .env || echo "AP_GOOGLE_CLIENT_SECRET=$G_SEC" >> .env
 
-            # Stop app and workers before cache wipe
-            docker compose stop app worker || true
+            # Stop app, workers, and chat before cache wipe
+            docker compose stop app worker chat || true
 
             # Completely purge cache on host so any stale piece extraction or lockfile is cleaned
             sudo rm -rf ./cache
             mkdir -p ./cache
 
             # Recreate containers with new image
-            docker compose up -d --force-recreate app worker
+            docker compose up -d --force-recreate app worker chat
 
             # Wait and inspect container status
             sleep 8
