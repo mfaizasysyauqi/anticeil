@@ -1896,7 +1896,9 @@ export function CommunityPage() {
                       )}
                       <span className="truncate flex-1">{ch.name}</span>
                       {ch.isPrivate && (
-                        <Lock className="w-3 h-3 text-muted-foreground/60 shrink-0" title="Private Channel" />
+                        <span title="Private Channel">
+                          <Lock className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                        </span>
                       )}
                       {activeCallCounts[ch.id] && activeCallCounts[ch.id] > 0 ? (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 flex items-center gap-1 shrink-0 animate-pulse">

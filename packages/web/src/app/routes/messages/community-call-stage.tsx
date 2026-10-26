@@ -54,6 +54,7 @@ import {
   Compass,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -300,22 +301,35 @@ export function CommunityCallStage({
     toast.info('Aktivitas dihentikan, kembali ke tampilan kamera utama.');
   };
 
-  // ── YouTube Watch Together State (100% Dynamic like Discord) ───────────
+  // ── YouTube Watch Together State (100% Discord Design) ─────────────────
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null); // null = browse mode
   const [videoInputUrl, setVideoInputUrl] = useState('');
   const [ytSearchQuery, setYtSearchQuery] = useState('');
   const [ytCategory, setYtCategory] = useState<string>('semua');
+  const [isExpandedVideo, setIsExpandedVideo] = useState(false);
   const [ytVideos, setYtVideos] = useState<Array<{
     id: string;
     title: string;
     channel: string;
     thumbnail: string;
     duration: string;
+    views?: string;
+    uploadedAt?: string;
+  }>>([]);
+  const [ytPlaylist, setYtPlaylist] = useState<Array<{
+    id: string;
+    title: string;
+    channel: string;
+    thumbnail: string;
+    duration: string;
+    views?: string;
+    uploadedAt?: string;
+    addedBy: string;
   }>>([]);
   const [ytIsSearching, setYtIsSearching] = useState(false);
   const [ytSearchError, setYtSearchError] = useState<string | null>(null);
   const ytSearchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ytCacheRef = useRef<Map<string, Array<{ id: string; title: string; channel: string; thumbnail: string; duration: string }>>>(new Map());
+  const ytCacheRef = useRef<Map<string, Array<{ id: string; title: string; channel: string; thumbnail: string; duration: string; views?: string; uploadedAt?: string }>>>(new Map());
 
   // Category → YouTube videoCategoryId or keyword (100% live from YouTube API)
   const ytCategories = [
@@ -339,6 +353,73 @@ export function CommunityCallStage({
       return `${h}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
     }
     return `${m}:${s.padStart(2, '0')}`;
+  };
+
+  const formatViews = (views?: string | number): string => {
+    if (!views) return '';
+    const num = typeof views === 'string' ? parseInt(views, 10) : views;
+    if (isNaN(num)) return '';
+    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1).replace(/\.0$/, '')}M views`;
+    if (num >= 1_000) return `${(num / 1_000).toFixed(0)}K views`;
+    return `${num} views`;
+  };
+
+  const formatTimeAgo = (dateStr?: string): string => {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins || 1}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours} hours ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days} days ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months} months ago`;
+    return `${Math.floor(months / 12)} years ago`;
+  };
+
+  const handleSelectVideo = (video: { id: string; title: string; channel: string; thumbnail: string; duration: string; views?: string; uploadedAt?: string }) => {
+    setActiveVideoId(video.id);
+    setYtPlaylist((prev) => {
+      if (prev.some((p) => p.id === video.id)) return prev;
+      return [...prev, { ...video, addedBy: currentUserName }];
+    });
+  };
+
+  const handleAddToQueue = (video: { id: string; title: string; channel: string; thumbnail: string; duration: string; views?: string; uploadedAt?: string }, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setYtPlaylist((prev) => {
+      if (prev.some((p) => p.id === video.id)) {
+        toast.info('Video sudah ada di playlist');
+        return prev;
+      }
+      toast.success(`Ditambahkan ke playlist: ${video.title.slice(0, 30)}...`);
+      return [...prev, { ...video, addedBy: currentUserName }];
+    });
+  };
+
+  const handlePlayYouTubeUrl = (urlOrId: string) => {
+    let videoId = urlOrId.trim();
+    if (videoId.includes('youtube.com/watch?v=')) {
+      videoId = videoId.split('v=')[1]?.split('&')[0] || videoId;
+    } else if (videoId.includes('youtu.be/')) {
+      videoId = videoId.split('youtu.be/')[1]?.split('?')[0] || videoId;
+    }
+    setActiveVideoId(videoId);
+    setYtPlaylist((prev) => {
+      if (prev.some((p) => p.id === videoId)) return prev;
+      return [
+        ...prev,
+        {
+          id: videoId,
+          title: ytSearchQuery.trim() || 'Custom YouTube Video',
+          channel: 'YouTube',
+          thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          duration: '',
+          addedBy: currentUserName,
+        },
+      ];
+    });
   };
 
   // Fetch YouTube Videos: Live Trending on initial open, Real Search on query (Debounced + In-Memory Cached)
@@ -374,7 +455,7 @@ export function CommunityCallStage({
       setYtSearchError(null);
       try {
         const key = import.meta.env.VITE_YOUTUBE_API_KEY || 'AIzaSyBg-0HDXNw2occXp6_89D4dXxBW0gISbQ4';
-        let items: Array<{ id: string; title: string; channel: string; thumbnail: string; duration: string }> = [];
+        let items: Array<{ id: string; title: string; channel: string; thumbnail: string; duration: string; views?: string; uploadedAt?: string }> = [];
 
         if (rawQ) {
           // 1. User typed query -> Search API (debounced 500ms)
@@ -382,7 +463,7 @@ export function CommunityCallStage({
             part: 'snippet',
             q: rawQ,
             type: 'video',
-            maxResults: '12',
+            maxResults: '16',
             key,
           });
           const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
@@ -394,15 +475,16 @@ export function CommunityCallStage({
             channel: item.snippet.channelTitle,
             thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || `https://i.ytimg.com/vi/${item.id.videoId}/hqdefault.jpg`,
             duration: '',
+            uploadedAt: formatTimeAgo(item.snippet?.publishedAt),
           }));
         } else if (catObj?.categoryId) {
           // 2. Category Most Popular (Music, Gaming, Tech, Entertainment)
           const params = new URLSearchParams({
-            part: 'snippet,contentDetails',
+            part: 'snippet,contentDetails,statistics',
             chart: 'mostPopular',
             regionCode: 'ID',
             videoCategoryId: catObj.categoryId,
-            maxResults: '12',
+            maxResults: '16',
             key,
           });
           const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`);
@@ -414,6 +496,8 @@ export function CommunityCallStage({
             channel: item.snippet.channelTitle,
             thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.standard?.url || item.snippet.thumbnails?.default?.url || `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
             duration: parseYtDuration(item.contentDetails?.duration),
+            views: formatViews(item.statistics?.viewCount),
+            uploadedAt: formatTimeAgo(item.snippet?.publishedAt),
           }));
         } else if (catObj?.q) {
           // 3. Keyword-based category (e.g. Lofi)
@@ -421,7 +505,7 @@ export function CommunityCallStage({
             part: 'snippet',
             q: catObj.q,
             type: 'video',
-            maxResults: '12',
+            maxResults: '16',
             key,
           });
           const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
@@ -433,14 +517,15 @@ export function CommunityCallStage({
             channel: item.snippet.channelTitle,
             thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || `https://i.ytimg.com/vi/${item.id.videoId}/hqdefault.jpg`,
             duration: '',
+            uploadedAt: formatTimeAgo(item.snippet?.publishedAt),
           }));
         } else {
           // 4. Default: Live Most Popular in Indonesia (Exactly like Discord initial screen!)
           const params = new URLSearchParams({
-            part: 'snippet,contentDetails',
+            part: 'snippet,contentDetails,statistics',
             chart: 'mostPopular',
             regionCode: 'ID',
-            maxResults: '12',
+            maxResults: '16',
             key,
           });
           const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`);
@@ -452,6 +537,8 @@ export function CommunityCallStage({
             channel: item.snippet.channelTitle,
             thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.standard?.url || item.snippet.thumbnails?.default?.url || `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
             duration: parseYtDuration(item.contentDetails?.duration),
+            views: formatViews(item.statistics?.viewCount),
+            uploadedAt: formatTimeAgo(item.snippet?.publishedAt),
           }));
         }
 
@@ -473,6 +560,81 @@ export function CommunityCallStage({
 
   // Video grid items
   const ytDisplayVideos = ytVideos;
+
+  // Handler select video -> play and add to playlist if not already there
+  const handleSelectVideo = (video: {
+    id: string;
+    title: string;
+    channel: string;
+    thumbnail: string;
+    duration: string;
+    views?: string;
+    uploadedAt?: string;
+  }) => {
+    setActiveVideoId(video.id);
+    setIsExpandedVideo(false);
+    setYtPlaylist((prev) => {
+      if (prev.some((item) => item.id === video.id)) return prev;
+      return [
+        ...prev,
+        {
+          ...video,
+          addedBy: currentUserName || 'You',
+        },
+      ];
+    });
+  };
+
+  // Handler add to queue (+)
+  const handleAddToQueue = (
+    e: React.MouseEvent,
+    video: {
+      id: string;
+      title: string;
+      channel: string;
+      thumbnail: string;
+      duration: string;
+      views?: string;
+      uploadedAt?: string;
+    }
+  ) => {
+    e.stopPropagation();
+    setYtPlaylist((prev) => {
+      if (prev.some((item) => item.id === video.id)) return prev;
+      return [
+        ...prev,
+        {
+          ...video,
+          addedBy: currentUserName || 'You',
+        },
+      ];
+    });
+    if (!activeVideoId) {
+      setActiveVideoId(video.id);
+      setIsExpandedVideo(false);
+    }
+  };
+
+  // Handler play URL or direct ID
+  const handlePlayYouTubeUrl = (urlOrQuery: string) => {
+    if (!urlOrQuery.trim()) return;
+    const match = urlOrQuery.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    const videoId = match ? match[1] : (urlOrQuery.trim().length === 11 && !urlOrQuery.includes(' ') ? urlOrQuery.trim() : null);
+
+    if (videoId) {
+      const existing = ytVideos.find((v) => v.id === videoId);
+      const newVideo = existing || {
+        id: videoId,
+        title: `YouTube Video (${videoId})`,
+        channel: 'YouTube',
+        thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+        duration: '',
+        uploadedAt: 'Baru saja',
+      };
+      handleSelectVideo(newVideo);
+      setYtSearchQuery('');
+    }
+  };
 
   // ── Virtual Fisher State (Matching user screenshot) ────────────────────
   const [fisherStats, setFisherStats] = useState({
@@ -1572,178 +1734,375 @@ export function CommunityCallStage({
           >
             {/* ── Activity Window Body (The App itself) ──────────────── */}
             <div className="flex-1 min-h-0 overflow-hidden relative flex flex-col bg-[#111214]">
-              {/* APP 1: YOUTUBE WATCH TOGETHER */}
+              {/* APP 1: YOUTUBE WATCH TOGETHER (100% Discord UI/UX) */}
               {activeAppId === 'watch-together' && (
-                <div className="h-full flex flex-col overflow-hidden">
+                <div className="h-full flex flex-col overflow-hidden bg-[#111214] select-none">
+                  {/* ───────────────────────────────────────────────────────────
+                      STATE 1: FULL EXPANDED PLAYER MODE (Screenshot 3)
+                     ─────────────────────────────────────────────────────────── */}
+                  {activeVideoId && isExpandedVideo ? (
+                    <div className="relative w-full h-full bg-black flex flex-col">
+                      {/* Floating Left Pill: "Playlist >" to toggle back to side-by-side */}
+                      <button
+                        onClick={() => setIsExpandedVideo(false)}
+                        className="absolute left-6 top-1/2 -translate-y-1/2 z-30 flex items-center gap-1.5 px-4 py-2 rounded-full bg-white text-zinc-900 font-bold text-xs shadow-2xl hover:bg-zinc-200 transition-all hover:scale-105 active:scale-95"
+                      >
+                        <span>Playlist</span>
+                        <ChevronRight className="w-4 h-4 stroke-[2.5]" />
+                      </button>
 
-                  {activeVideoId ? (
-                    // ── PLAYING MODE ──────────────────────────────────────
-                    <>
-                      {/* Slim now-playing bar */}
-                      <div className="shrink-0 px-3 py-2 bg-[#1a1b1e] border-b border-white/10 flex items-center gap-3">
-                        <div className="w-6 h-6 rounded bg-red-600 flex items-center justify-center shrink-0">
-                          <Tv className="w-3.5 h-3.5 text-white" />
+                      <iframe
+                        src={`https://www.youtube-nocookie.com/embed/${activeVideoId}?autoplay=1&enablejsapi=1&rel=0`}
+                        title="YouTube Watch Together"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="w-full h-full border-0"
+                      />
+                    </div>
+                  ) : activeVideoId && !isExpandedVideo ? (
+                    /* ───────────────────────────────────────────────────────────
+                       STATE 2: SIDE-BY-SIDE PLAYING & PLAYLIST MODE (Screenshot 2)
+                       ─────────────────────────────────────────────────────────── */
+                    <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden bg-[#111214]">
+                      {/* Left Column (~44%): Player + Expand Pill + Playlist */}
+                      <div className="w-full md:w-[44%] lg:w-[42%] flex flex-col border-b md:border-b-0 md:border-r border-white/10 p-4 gap-4 overflow-y-auto [scrollbar-width:thin]">
+                        {/* Video Player Box with Centered "Expand Video" Pill */}
+                        <div className="relative aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl group shrink-0">
+                          <iframe
+                            src={`https://www.youtube-nocookie.com/embed/${activeVideoId}?autoplay=1&enablejsapi=1&rel=0`}
+                            title="YouTube Watch Together"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            className="w-full h-full border-0"
+                          />
+
+                          {/* Discord Centered "Expand Video" Pill Button */}
+                          <button
+                            onClick={() => setIsExpandedVideo(true)}
+                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex items-center gap-2 px-4 py-2 rounded-full bg-black/80 hover:bg-black text-white text-xs font-bold backdrop-blur-md border border-white/20 shadow-2xl transition-all hover:scale-105 active:scale-95"
+                          >
+                            <Maximize2 className="w-3.5 h-3.5" />
+                            <span>Expand Video</span>
+                          </button>
                         </div>
-                        <span className="text-xs text-white/70 truncate flex-1">
-                          {ytVideos.find((v) => v.id === activeVideoId)?.title ?? activeVideoId}
-                        </span>
-                        <button
-                          onClick={() => setActiveVideoId(null)}
-                          className="shrink-0 text-[11px] text-muted-foreground hover:text-white px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 transition-colors border border-white/10 flex items-center gap-1"
-                        >
-                          <Search className="w-3 h-3" /> Ganti Video
-                        </button>
-                      </div>
 
-                      {/* Player */}
-                      <div className="flex-1 min-h-0 bg-black">
-                        <iframe
-                          src={`https://www.youtube-nocookie.com/embed/${activeVideoId}?autoplay=1&enablejsapi=1&rel=0`}
-                          title="YouTube Watch Together"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                          className="w-full h-full border-0"
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    // ── BROWSE MODE (Discord-style) ────────────────────────
-                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#111214]">
-
-                      {/* Search header */}
-                      <div className="shrink-0 px-4 pt-4 pb-3 bg-[#1a1b1e] border-b border-white/10 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-red-600 flex items-center justify-center shrink-0">
-                            <Tv className="w-4 h-4 text-white" />
-                          </div>
+                        {/* Playlist Header Row */}
+                        <div className="flex items-center justify-between shrink-0">
                           <div>
-                            <p className="text-sm font-bold text-white leading-tight">Watch Together</p>
-                            <p className="text-[10px] text-muted-foreground">Pilih video — semua peserta nonton bareng secara sinkron</p>
+                            <h3 className="text-sm font-bold text-white leading-tight">
+                              {channel?.name || 'general'} Playlist
+                            </h3>
+                            <p className="text-[11px] text-[#949ba4]">
+                              Video {Math.max(1, ytPlaylist.findIndex((v) => v.id === activeVideoId) + 1)}/{Math.max(ytPlaylist.length, 1)}
+                            </p>
+                          </div>
+
+                          {/* Hosting Badge Pill */}
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1e1f22] border border-white/10 text-white text-xs font-medium">
+                            <div className="w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center text-[9px] text-white font-bold shrink-0">
+                              {currentUserName?.[0]?.toUpperCase() || 'U'}
+                            </div>
+                            <span>You are <strong className="font-semibold text-[#5865f2]">hosting</strong></span>
+                            <ChevronDown className="w-3.5 h-3.5 text-[#949ba4]" />
                           </div>
                         </div>
 
-                        {/* Search bar + URL paste fallback */}
-                        <div className="flex gap-2">
-                          <div className="relative flex-1">
-                            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                            <input
-                              type="text"
-                              value={ytSearchQuery}
-                              onChange={(e) => setYtSearchQuery(e.target.value)}
-                              placeholder="Cari video atau paste link YouTube..."
-                              className="w-full bg-[#111214] border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all"
-                            />
-                          </div>
-                          {ytSearchQuery && (ytSearchQuery.includes('youtube.com') || ytSearchQuery.includes('youtu.be')) && (
-                            <Button
-                              size="sm"
-                              onClick={() => { handlePlayYouTubeUrl(ytSearchQuery); setYtSearchQuery(''); }}
-                              className="h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-semibold gap-1 shrink-0"
-                            >
-                              <Play className="w-3 h-3 fill-current" /> Putar
-                            </Button>
+                        {/* Playlist Queue Items */}
+                        <div className="flex-1 space-y-2 overflow-y-auto pr-1 [scrollbar-width:thin]">
+                          {ytPlaylist.length === 0 ? (
+                            /* Auto fallback to current playing video */
+                            <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#1e1f22] border border-white/10">
+                              <Play className="w-3.5 h-3.5 fill-current text-white shrink-0 ml-1" />
+                              <div className="relative w-24 aspect-video rounded-lg overflow-hidden shrink-0 bg-black">
+                                <img
+                                  src={`https://i.ytimg.com/vi/${activeVideoId}/hqdefault.jpg`}
+                                  alt="Playing"
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    if (!target.src.includes('mqdefault')) {
+                                      target.src = `https://i.ytimg.com/vi/${activeVideoId}/mqdefault.jpg`;
+                                    }
+                                  }}
+                                />
+                                <span className="absolute inset-0 bg-black/45 flex items-center justify-center text-[10px] font-bold text-white tracking-wide">
+                                  Playing
+                                </span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-white truncate">
+                                  {ytVideos.find((v) => v.id === activeVideoId)?.title || 'Now Playing'}
+                                </p>
+                                <p className="text-[11px] text-[#949ba4] truncate">
+                                  {ytVideos.find((v) => v.id === activeVideoId)?.channel || 'YouTube'}
+                                </p>
+                                <div className="flex items-center gap-1.5 mt-1.5">
+                                  <div className="w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center text-[9px] text-white font-bold">
+                                    {currentUserName?.[0]?.toUpperCase() || 'U'}
+                                  </div>
+                                  <span className="text-[11px] text-[#949ba4]">{currentUserName}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            ytPlaylist.map((item, idx) => {
+                              const isPlaying = item.id === activeVideoId;
+                              return (
+                                <div
+                                  key={`${item.id}-${idx}`}
+                                  onClick={() => setActiveVideoId(item.id)}
+                                  className={cn(
+                                    'flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer',
+                                    isPlaying
+                                      ? 'bg-[#1e1f22] border-[#5865f2]/40 shadow-sm'
+                                      : 'bg-[#1e1f22]/70 border-white/5 hover:border-white/15 hover:bg-[#1e1f22]'
+                                  )}
+                                >
+                                  <Play className={cn("w-3.5 h-3.5 shrink-0 ml-1", isPlaying ? "fill-current text-white" : "text-white/40")} />
+                                  <div className="relative w-24 aspect-video rounded-lg overflow-hidden shrink-0 bg-black">
+                                    <img
+                                      src={item.thumbnail || `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`}
+                                      alt={item.title}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        const target = e.currentTarget;
+                                        if (!target.src.includes('mqdefault')) {
+                                          target.src = `https://i.ytimg.com/vi/${item.id}/mqdefault.jpg`;
+                                        }
+                                      }}
+                                    />
+                                    {isPlaying ? (
+                                      <span className="absolute inset-0 bg-black/45 flex items-center justify-center text-[10px] font-bold text-white tracking-wide">
+                                        Playing
+                                      </span>
+                                    ) : item.duration ? (
+                                      <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[9px] font-semibold px-1 py-0.2 rounded">
+                                        {item.duration}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={cn("text-xs font-semibold truncate", isPlaying ? "text-white" : "text-white/80")}>
+                                      {item.title}
+                                    </p>
+                                    <p className="text-[11px] text-[#949ba4] truncate">{item.channel}</p>
+                                    <div className="flex items-center gap-1.5 mt-1.5">
+                                      <div className="w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center text-[9px] text-white font-bold">
+                                        {item.addedBy?.[0]?.toUpperCase() || 'U'}
+                                      </div>
+                                      <span className="text-[11px] text-[#949ba4]">{item.addedBy}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })
                           )}
                         </div>
-
-                        {/* Category tabs */}
-                        {!ytSearchQuery && (
-                          <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none]">
-                            {ytCategories.map((cat) => (
-                              <button
-                                key={cat.id}
-                                onClick={() => setYtCategory(cat.id)}
-                                className={cn(
-                                  'shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold transition-all border',
-                                  ytCategory === cat.id
-                                    ? 'bg-red-600 text-white border-red-500'
-                                    : 'bg-white/5 text-muted-foreground border-white/10 hover:text-white hover:bg-white/10',
-                                )}
-                              >
-                                {cat.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
 
-                      {/* Video grid */}
-                      <div className="flex-1 overflow-y-auto p-4 [scrollbar-width:thin]">
-                        {/* Loading */}
-                        {ytIsSearching && (
-                          <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
-                            <Loader2 className="w-6 h-6 animate-spin text-red-500" />
-                            <p className="text-xs">Mencari video...</p>
-                          </div>
-                        )}
+                      {/* Right Column (~56%): Search + Trending Grid (with checkmark on playing/queued) */}
+                      <div className="flex-1 min-h-0 flex flex-col p-4 gap-4 overflow-y-auto [scrollbar-width:thin]">
+                        {/* Search Input */}
+                        <div className="relative w-full">
+                          <input
+                            type="text"
+                            value={ytSearchQuery}
+                            onChange={(e) => setYtSearchQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handlePlayYouTubeUrl(ytSearchQuery);
+                              }
+                            }}
+                            placeholder="Search or paste YouTube URL"
+                            className="w-full bg-[#1e1f22] border border-white/10 rounded-full pl-5 pr-11 py-2.5 text-xs text-white placeholder:text-[#949ba4] focus:outline-none focus:border-[#5865f2] transition-colors"
+                          />
+                          <Search className="w-4 h-4 text-[#949ba4] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
 
-                        {/* Error */}
-                        {!ytIsSearching && ytSearchError && (
-                          <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
-                            <Search className="w-8 h-8 opacity-30" />
-                            <p className="text-xs text-red-400">{ytSearchError}</p>
-                          </div>
-                        )}
+                        {/* Section Header */}
+                        <div className="flex items-center gap-2 text-white font-bold text-sm">
+                          <Flame className="w-4 h-4 text-orange-500 fill-orange-500" />
+                          <span>Trending Videos</span>
+                        </div>
 
-                        {/* Empty state */}
-                        {!ytIsSearching && !ytSearchError && ytDisplayVideos.length === 0 && (
-                          <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
-                            <Search className="w-8 h-8 opacity-30" />
-                            <p className="text-xs">Tidak ada video ditemukan</p>
-                          </div>
-                        )}
-
-                        {/* Grid */}
-                        {!ytIsSearching && !ytSearchError && ytDisplayVideos.length > 0 && (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            {ytDisplayVideos.map((video) => (
-                              <button
+                        {/* Videos Grid in Side-by-Side Mode */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {ytDisplayVideos.map((video) => {
+                            const isQueuedOrPlaying = activeVideoId === video.id || ytPlaylist.some((p) => p.id === video.id);
+                            return (
+                              <div
                                 key={video.id}
-                                onClick={() => { handlePlayYouTubeUrl(video.id); }}
-                                className="group text-left rounded-xl overflow-hidden bg-[#1e1f22] border border-white/8 hover:border-red-500/50 hover:shadow-xl hover:shadow-red-500/10 transition-all duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                                onClick={() => handleSelectVideo(video)}
+                                className="group cursor-pointer flex flex-col"
                               >
                                 {/* Thumbnail */}
-                                <div className="relative aspect-video overflow-hidden bg-black">
+                                <div className="relative aspect-video rounded-xl overflow-hidden bg-black/60 border border-white/8 group-hover:border-white/20 transition-all">
                                   <img
-                                    src={video.thumbnail || `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`}
+                                    src={video.thumbnail || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
                                     alt={video.title}
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                     loading="lazy"
                                     onError={(e) => {
                                       const target = e.currentTarget;
                                       if (!target.src.includes('mqdefault')) {
-                                        target.src = `https://img.youtube.com/vi/${video.id}/mqdefault.jpg`;
+                                        target.src = `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`;
                                       }
                                     }}
                                   />
-                                  {/* Duration badge */}
+
+                                  {/* Discord Green Checkmark on Active/Queued (Screenshot 2) */}
+                                  {isQueuedOrPlaying ? (
+                                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                      <div className="w-9 h-9 rounded-full bg-[#23a55a] flex items-center justify-center text-white shadow-xl">
+                                        <Check className="w-5 h-5 stroke-[3]" />
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    /* Hover "+" button to add to queue */
+                                    <button
+                                      onClick={(e) => handleAddToQueue(e, video)}
+                                      title="Add to queue"
+                                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/75 hover:bg-black text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                                    >
+                                      <Plus className="w-4 h-4 stroke-[2.5]" />
+                                    </button>
+                                  )}
+
+                                  {/* Duration Badge */}
                                   {video.duration && (
-                                    <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded backdrop-blur-sm">
+                                    <span className="absolute bottom-1.5 right-1.5 bg-black/85 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">
                                       {video.duration}
                                     </span>
                                   )}
-                                  {/* Play overlay on hover */}
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                                    <div className="w-10 h-10 rounded-full bg-red-600/0 group-hover:bg-red-600/90 flex items-center justify-center transition-all scale-0 group-hover:scale-100 shadow-lg">
-                                      <Play className="w-4 h-4 text-white fill-current ml-0.5" />
-                                    </div>
-                                  </div>
                                 </div>
 
-                                {/* Meta */}
-                                <div className="p-2.5">
-                                  <p className="text-[11px] font-semibold text-white line-clamp-2 leading-tight group-hover:text-red-300 transition-colors">
+                                {/* Metadata */}
+                                <div className="mt-2 flex flex-col">
+                                  <p className="text-xs font-semibold text-white line-clamp-2 leading-snug group-hover:text-blue-400 transition-colors">
                                     {video.title}
                                   </p>
-                                  <div className="mt-1.5">
-                                    <span className="text-[10px] text-muted-foreground truncate block">{video.channel}</span>
-                                  </div>
+                                  <span className="text-[11px] text-[#949ba4] mt-1 truncate">
+                                    {video.channel}
+                                  </span>
+                                  <span className="text-[11px] text-[#949ba4] mt-0.5">
+                                    {[video.views, video.uploadedAt].filter(Boolean).join(' • ')}
+                                  </span>
                                 </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ───────────────────────────────────────────────────────────
+                       STATE 3: FULL BROWSE MODE (Screenshot 1)
+                       ─────────────────────────────────────────────────────────── */
+                    <div className="flex-1 min-h-0 flex flex-col overflow-y-auto [scrollbar-width:thin] bg-[#111214] p-5 lg:p-6 gap-5">
+                      {/* Top Header: Centered "Watch Together" Title */}
+                      <div className="text-center shrink-0">
+                        <h2 className="text-sm font-semibold text-white tracking-wide">
+                          Watch Together
+                        </h2>
                       </div>
 
+                      {/* Header Row: Hosting Pill + Search Bar */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+                        {/* Hosting Badge Pill */}
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1e1f22] border border-white/10 text-white text-xs font-medium w-fit">
+                          <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] text-white font-bold shrink-0">
+                            {currentUserName?.[0]?.toUpperCase() || 'U'}
+                          </div>
+                          <span>You are <strong className="font-semibold text-[#5865f2]">hosting</strong></span>
+                          <ChevronDown className="w-3.5 h-3.5 text-[#949ba4]" />
+                        </div>
+
+                        {/* Search or Paste URL Input */}
+                        <div className="relative flex-1 max-w-xl">
+                          <input
+                            type="text"
+                            value={ytSearchQuery}
+                            onChange={(e) => setYtSearchQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handlePlayYouTubeUrl(ytSearchQuery);
+                              }
+                            }}
+                            placeholder="Search or paste YouTube URL"
+                            className="w-full bg-[#1e1f22] border border-white/10 rounded-full pl-5 pr-11 py-2.5 text-xs text-white placeholder:text-[#949ba4] focus:outline-none focus:border-[#5865f2] transition-colors"
+                          />
+                          <Search className="w-4 h-4 text-[#949ba4] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      {/* Section Header: Trending Videos */}
+                      <div className="flex items-center gap-2 text-white font-bold text-sm shrink-0">
+                        <Flame className="w-4 h-4 text-orange-500 fill-orange-500" />
+                        <span>Trending Videos</span>
+                      </div>
+
+                      {/* Video Grid (4 Columns on Desktop) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {ytDisplayVideos.map((video) => (
+                          <div
+                            key={video.id}
+                            onClick={() => handleSelectVideo(video)}
+                            className="group cursor-pointer flex flex-col"
+                          >
+                            {/* Thumbnail Box */}
+                            <div className="relative aspect-video rounded-xl overflow-hidden bg-black/60 border border-white/8 group-hover:border-white/20 transition-all">
+                              <img
+                                src={video.thumbnail || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
+                                alt={video.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                loading="lazy"
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  if (!target.src.includes('mqdefault')) {
+                                    target.src = `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`;
+                                  }
+                                }}
+                              />
+
+                              {/* Hover "+" Button to Queue */}
+                              <button
+                                onClick={(e) => handleAddToQueue(e, video)}
+                                title="Add to queue"
+                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/75 hover:bg-black text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                              >
+                                <Plus className="w-4 h-4 stroke-[2.5]" />
+                              </button>
+
+                              {/* Duration Badge */}
+                              {video.duration && (
+                                <span className="absolute bottom-1.5 right-1.5 bg-black/85 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                                  {video.duration}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Metadata */}
+                            <div className="mt-2.5 flex flex-col">
+                              <p className="text-xs font-semibold text-white line-clamp-2 leading-snug group-hover:text-blue-400 transition-colors">
+                                {video.title}
+                              </p>
+                              <span className="text-[11px] text-[#949ba4] mt-1 truncate">
+                                {video.channel}
+                              </span>
+                              <span className="text-[11px] text-[#949ba4] mt-0.5">
+                                {[video.views, video.uploadedAt].filter(Boolean).join(' • ')}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Small Discord-style Footer */}
+                      <div className="mt-auto pt-6 pb-2 flex items-center justify-between text-[11px] text-[#949ba4]/60">
+                        <span className="hover:text-[#949ba4] cursor-pointer transition-colors">YouTube Terms and Privacy</span>
+                        <span>Build Version: 126</span>
+                        <span className="hover:text-[#949ba4] cursor-pointer transition-colors">Open Font License</span>
+                      </div>
                     </div>
                   )}
                 </div>
