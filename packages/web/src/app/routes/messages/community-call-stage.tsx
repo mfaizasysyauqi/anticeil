@@ -57,6 +57,9 @@ import {
   ChevronUp,
   ChevronRight,
   MessageSquare,
+  MoreHorizontal,
+  Shapes,
+  Maximize,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -1330,6 +1333,14 @@ export function CommunityCallStage({
         console.warn('Screen share error', err);
         toast.error('Gagal berbagi layar: ' + (err?.message || 'Izin ditolak atau tidak didukung'));
       }
+    }
+  };
+
+  const handleToggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
     }
   };
 
@@ -3171,150 +3182,228 @@ export function CommunityCallStage({
         </div>
       )}
 
-      {/* ── Discord Bottom Floating Control Dock ────────────────────────── */}
-      <div className="h-16 shrink-0 flex items-center justify-center px-4 bg-gradient-to-t from-[#111214] via-[#111214]/90 to-transparent z-20 pb-2">
-        <div className="px-4 py-2 rounded-2xl bg-[#1e1f22] border border-white/10 shadow-2xl flex items-center gap-2.5">
-          {/* Mute Button */}
+      {/* ── Discord Bottom Control Dock (Exact Match to Discord UI) ────────── */}
+      <div className="h-20 shrink-0 w-full px-6 flex items-center justify-between bg-[#111214] border-t border-white/5 select-none z-20">
+        {/* Left: Invite Friends / Add to Call */}
+        <div className="flex items-center">
           <TooltipProvider delayDuration={150}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  onClick={handleToggleMute}
-                  className={cn(
-                    'w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md',
-                    isMuted
-                      ? 'bg-red-500 hover:bg-red-600 text-white'
-                      : 'bg-[#2b2d31] hover:bg-white/15 text-white',
-                  )}
+                  type="button"
+                  onClick={() => setIsInviteVoiceOpen(true)}
+                  className="p-2.5 rounded-lg text-[#949ba4] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 >
-                  {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                  <UserPlus className="w-5 h-5" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs font-semibold">
-                {isMuted ? 'Nyalakan Mikrofon' : 'Matikan Mikrofon'}
+                Undang Teman ke Panggilan
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+        </div>
 
-          {/* Camera Button */}
+        {/* Center: Controls Pill Group */}
+        <div className="flex items-center gap-3">
+          {/* Pill 1: Audio & Video Controls (Discord Style with dropdown indicators) */}
+          <div className="bg-[#1e1f22] rounded-xl flex items-center p-1 border border-white/5 shadow-md">
+            {/* Mic Toggle Button */}
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={handleToggleMute}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors cursor-pointer',
+                      isMuted ? 'hover:bg-red-500/10' : 'hover:bg-white/10',
+                    )}
+                  >
+                    {isMuted ? (
+                      <MicOff className="w-4 h-4 text-red-500" />
+                    ) : (
+                      <Mic className="w-4 h-4 text-white" />
+                    )}
+                    <ChevronDown className="w-3.5 h-3.5 text-[#949ba4]" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs font-semibold">
+                  {isMuted ? 'Nyalakan Mikrofon' : 'Bisukan Mikrofon'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Video Toggle Button */}
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={handleToggleVideo}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors cursor-pointer',
+                      isVideoOff ? 'hover:bg-red-500/10' : 'hover:bg-white/10',
+                    )}
+                  >
+                    {isVideoOff ? (
+                      <VideoOff className="w-4 h-4 text-red-500" />
+                    ) : (
+                      <Video className="w-4 h-4 text-white" />
+                    )}
+                    <ChevronDown className="w-3.5 h-3.5 text-[#949ba4]" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs font-semibold">
+                  {isVideoOff ? 'Nyalakan Kamera' : 'Matikan Kamera'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+
+          {/* Pill 2: Media, Activities & Extra Actions */}
+          <div className="bg-[#1e1f22] rounded-xl flex items-center gap-0.5 p-1 border border-white/5 shadow-md">
+            {/* Screen Share Button */}
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={handleToggleScreenShare}
+                    className={cn(
+                      'p-2.5 rounded-lg transition-colors cursor-pointer',
+                      isScreenSharing
+                        ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30'
+                        : 'text-white hover:bg-white/10',
+                    )}
+                  >
+                    {isScreenSharing ? <MonitorOff className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs font-semibold">
+                  {isScreenSharing ? 'Hentikan Berbagi Layar' : 'Berbagi Layar (Screen Share)'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Activities (Rocket / Shapes) Button */}
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setIsAppLauncherOpen(true)}
+                    className={cn(
+                      'p-2.5 rounded-lg transition-colors cursor-pointer relative',
+                      activeAppId !== null
+                        ? 'text-[#5865F2] hover:bg-[#5865F2]/20'
+                        : 'text-white hover:bg-white/10',
+                    )}
+                  >
+                    <Shapes className="w-4 h-4" />
+                    {activeAppId !== null && (
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-[#1e1f22]" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs font-semibold">
+                  {activeAppId !== null
+                    ? `Aktivitas Aktif (${currentActiveApp?.title}) - Menu`
+                    : 'Mulai Aktivitas (Apps & Games)'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Soundboard / Sparkles Button */}
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => toast.info('Fitur Soundboard & Efek Suara Discord')}
+                    className="p-2.5 rounded-lg text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs font-semibold">
+                  Soundboard & Efek Suara
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* More Options (...) Button */}
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={handleCopyCallLink}
+                    className="p-2.5 rounded-lg text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs font-semibold">
+                  Salin Link Panggilan & Opsi Lainnya
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+
+          {/* Pill 3: Red Squircle Disconnect Call Button */}
           <TooltipProvider delayDuration={150}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  onClick={handleToggleVideo}
-                  className={cn(
-                    'w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md',
-                    isVideoOff
-                      ? 'bg-red-500 hover:bg-red-600 text-white'
-                      : 'bg-[#2b2d31] hover:bg-white/15 text-white',
-                  )}
+                  type="button"
+                  onClick={onEndCall}
+                  className="px-6 py-2.5 rounded-xl bg-[#da373c] hover:bg-[#a1282c] text-white flex items-center justify-center transition-all cursor-pointer shadow-md active:scale-95"
                 >
-                  {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+                  <PhoneOff className="w-4 h-4" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs font-semibold">
-                {isVideoOff ? 'Nyalakan Kamera' : 'Matikan Kamera'}
+              <TooltipContent side="top" className="text-xs font-bold text-red-400">
+                Putus Panggilan
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+        </div>
 
-          {/* Screen Share Button */}
-          <TooltipProvider delayDuration={150}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={handleToggleScreenShare}
-                  className={cn(
-                    'w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md',
-                    isScreenSharing
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                      : 'bg-[#2b2d31] hover:bg-white/15 text-white',
-                  )}
-                >
-                  {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs font-semibold">
-                {isScreenSharing ? 'Hentikan Berbagi Layar' : 'Berbagi Layar (Screen Share)'}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          {/* Discord Activity Rocket Launcher Button */}
-          <TooltipProvider delayDuration={150}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => setIsAppLauncherOpen(true)}
-                  className={cn(
-                    'w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md relative',
-                    activeAppId !== null
-                      ? 'bg-[#5865F2] hover:bg-[#4752c4] text-white shadow-[#5865F2]/40'
-                      : 'bg-[#2b2d31] hover:bg-white/15 text-white',
-                  )}
-                >
-                  <Rocket className="w-5 h-5" />
-                  {activeAppId !== null && (
-                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-[#1e1f22]" />
-                  )}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs font-semibold">
-                {activeAppId !== null ? `Aktivitas Aktif (${currentActiveApp?.title}) - Ganti` : 'Luncurkan Anticeil Activity (Apps & Games)'}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          {/* Copy Call Link Button */}
-          <TooltipProvider delayDuration={150}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={handleCopyCallLink}
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md bg-[#2b2d31] hover:bg-white/15 text-white"
-                >
-                  <Share2 className="w-5 h-5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs font-semibold">
-                Salin Link Panggilan
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          {/* Picture in Picture Button */}
+        {/* Right: Popout (PiP) & Fullscreen Controls */}
+        <div className="flex items-center gap-1.5">
+          {/* Popout / Picture in Picture */}
           <TooltipProvider delayDuration={150}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
                   onClick={onTogglePiP}
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md bg-[#2b2d31] hover:bg-white/15 text-white"
+                  className="p-2.5 rounded-lg text-[#949ba4] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 >
-                  <Minimize2 className="w-5 h-5" />
+                  <ExternalLink className="w-5 h-5" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs font-semibold">
-                Minimize ke Picture-in-Picture
+                Popout (Picture-in-Picture)
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
-          <div className="w-[1px] h-6 bg-white/10 mx-1" />
-
-          {/* Disconnect Call Button (Red Phone Off) */}
+          {/* Fullscreen */}
           <TooltipProvider delayDuration={150}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  onClick={onEndCall}
-                  className="w-12 h-11 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center transition-all cursor-pointer shadow-lg shadow-red-600/30"
+                  type="button"
+                  onClick={handleToggleFullscreen}
+                  className="p-2.5 rounded-lg text-[#949ba4] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 >
-                  <PhoneOff className="w-5 h-5" />
+                  <Maximize className="w-5 h-5" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs font-bold text-red-400">
-                Putus Panggilan
+              <TooltipContent side="top" className="text-xs font-semibold">
+                Layar Penuh
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
