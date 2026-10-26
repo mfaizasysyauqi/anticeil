@@ -8,6 +8,8 @@ import { CommunityHubEntity, CommunityHubRow } from './community-hub.entity'
 import { CommunityHubMemberEntity, CommunityHubMemberRow } from './community-hub-member.entity'
 import { CommunityThreadEntity, CommunityThreadRow } from './community-thread.entity'
 import { CommunityChannelNotificationEntity, CommunityChannelNotificationRow } from './community-channel-notification.entity'
+import { CommunityServerEmojiEntity, CommunityServerEmojiRow } from './community-server-emoji.entity'
+import { CommunityServerStickerEntity, CommunityServerStickerRow } from './community-server-sticker.entity'
 
 const channelRepo = repoFactory(CommunityChannelEntity)
 const messageRepo = repoFactory(CommunityMessageEntity)
@@ -15,6 +17,8 @@ const hubRepo = repoFactory(CommunityHubEntity)
 const hubMemberRepo = repoFactory(CommunityHubMemberEntity)
 const threadRepo = repoFactory(CommunityThreadEntity)
 const notificationRepo = repoFactory(CommunityChannelNotificationEntity)
+const serverEmojiRepo = repoFactory(CommunityServerEmojiEntity)
+const serverStickerRepo = repoFactory(CommunityServerStickerEntity)
 
 export const messagesService = (_log: FastifyBaseLogger) => ({
 
@@ -208,14 +212,21 @@ export const messagesService = (_log: FastifyBaseLogger) => ({
         name: string
         description: string
         category: 'CHANNELS' | 'DIRECT MESSAGES'
+        type?: 'text' | 'voice' | 'forum'
+        isPrivate?: boolean
     }): Promise<CommunityChannelRow> {
+        const formattedName = params.type === 'voice'
+            ? params.name.trim()
+            : params.name.toLowerCase().replace(/[^a-z0-9-_]/g, '-')
         const channel = channelRepo().create({
             id: apId(),
             platformId: params.platformId,
             hubId: params.hubId ?? null,
-            name: params.name.toLowerCase().replace(/[^a-z0-9-_]/g, '-'),
+            name: formattedName,
             description: params.description,
             category: params.category,
+            type: params.type ?? 'text',
+            isPrivate: params.isPrivate ?? false,
             isDirectMessage: false,
             dmPair: null,
         })
@@ -227,11 +238,19 @@ export const messagesService = (_log: FastifyBaseLogger) => ({
         platformId: string
         name?: string
         description?: string
+        type?: 'text' | 'voice' | 'forum'
+        isPrivate?: boolean
     }): Promise<CommunityChannelRow | null> {
         const existing = await channelRepo().findOneBy({ id: params.id })
         if (!existing) return null
-        if (params.name) existing.name = params.name.toLowerCase().replace(/[^a-z0-9-_]/g, '-')
+        if (params.name) {
+            existing.name = (params.type || existing.type) === 'voice'
+                ? params.name.trim()
+                : params.name.toLowerCase().replace(/[^a-z0-9-_]/g, '-')
+        }
         if (params.description !== undefined) existing.description = params.description
+        if (params.type !== undefined) existing.type = params.type
+        if (params.isPrivate !== undefined) existing.isPrivate = params.isPrivate
         return channelRepo().save(existing)
     },
 
@@ -259,6 +278,8 @@ export const messagesService = (_log: FastifyBaseLogger) => ({
             name: `dm-${pair}`,
             description: '',
             category: 'DIRECT MESSAGES',
+            type: 'text',
+            isPrivate: false,
             isDirectMessage: true,
             dmPair: pair,
         })
@@ -642,6 +663,57 @@ export const messagesService = (_log: FastifyBaseLogger) => ({
             .execute()
 
         return savedMsg
+    },
+
+    // ── Server Emojis ──────────────────────────────────────────────────────
+    async listServerEmojis(hubId: string): Promise<CommunityServerEmojiRow[]> {
+        return serverEmojiRepo().find({
+            where: { hubId },
+            order: { created: 'ASC' },
+        })
+    },
+
+    async addServerEmoji(params: {
+        hubId: string
+        name: string
+        code: string
+        url: string
+        uploadedBy: string
+    }): Promise<CommunityServerEmojiRow> {
+        return serverEmojiRepo().save({
+            id: apId(),
+            ...params,
+        })
+    },
+
+    async deleteServerEmoji(id: string, hubId: string): Promise<void> {
+        await serverEmojiRepo().delete({ id, hubId })
+    },
+
+    // ── Server Stickers ────────────────────────────────────────────────────
+    async listServerStickers(hubId: string): Promise<CommunityServerStickerRow[]> {
+        return serverStickerRepo().find({
+            where: { hubId },
+            order: { created: 'ASC' },
+        })
+    },
+
+    async addServerSticker(params: {
+        hubId: string
+        name: string
+        url: string
+        tags?: string[]
+        uploadedBy: string
+    }): Promise<CommunityServerStickerRow> {
+        return serverStickerRepo().save({
+            id: apId(),
+            ...params,
+            tags: params.tags ?? [],
+        })
+    },
+
+    async deleteServerSticker(id: string, hubId: string): Promise<void> {
+        await serverStickerRepo().delete({ id, hubId })
     },
 })
 

@@ -157,3 +157,17 @@ export type CommunityHubStats = {
   botMessages: number;
   channelActivity: Array<{ channelId: string; channelName: string; messageCount: number }>;
 };
+
+export type CommunityThread = {
+  id: string;
+  channelId: string;
+  name: string;
+  creatorId: string;
+  creatorName: string;
+  creatorAvatar?: string | null;
+  messageCount: number;
+  lastMessageAt: string;
+  created: string;
+  updated: string;
+};
+

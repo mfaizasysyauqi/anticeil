@@ -31,6 +31,7 @@ import {
   CommunityChannelNotification,
   CommunityThread,
 } from './messages-types';
+import { DiscordEmoji, DiscordSticker } from './discord-media-data';
 
 export const messagesApi = {
   // ── Channels ──────────────────────────────────────────────────────────
@@ -968,6 +969,126 @@ export const messagesApi = {
     content: string;
   }): Promise<any> {
     return api.post('/v1/community/webhook', payload);
+  },
+
+  // ── Server Emojis (DB — no dummy data) ──────────────────────────────────
+  async getServerEmojis(hubId: string): Promise<DiscordEmoji[]> {
+    try {
+      const res = await api.get<any[]>(`/v1/community/hubs/${hubId}/emojis`);
+      if (Array.isArray(res)) {
+        return res.map((r) => ({
+          id: r.id, name: r.name, code: r.code, url: r.url,
+          server: hubId, category: hubId,
+        }));
+      }
+    } catch {}
+    return [];
+  },
+
+  async addServerEmoji(hubId: string, payload: { name: string; code: string; url: string }): Promise<DiscordEmoji | null> {
+    try {
+      const res = await api.post<any>(`/v1/community/hubs/${hubId}/emojis`, payload);
+      if (res?.id) return { id: res.id, name: res.name, code: res.code, url: res.url, server: hubId, category: hubId };
+    } catch {}
+    return null;
+  },
+
+  async deleteServerEmoji(hubId: string, emojiId: string): Promise<void> {
+    try { await api.delete(`/v1/community/hubs/${hubId}/emojis/${emojiId}`); } catch {}
+  },
+
+  // ── Server Stickers (DB — no dummy data) ────────────────────────────────
+  async getServerStickers(hubId: string): Promise<DiscordSticker[]> {
+    try {
+      const res = await api.get<any[]>(`/v1/community/hubs/${hubId}/stickers`);
+      if (Array.isArray(res)) {
+        return res.map((r) => ({
+          id: r.id, name: r.name, url: r.url,
+          server: hubId, tags: r.tags || [],
+        }));
+      }
+    } catch {}
+    return [];
+  },
+
+  async addServerSticker(hubId: string, payload: { name: string; url: string; tags?: string[] }): Promise<DiscordSticker | null> {
+    try {
+      const res = await api.post<any>(`/v1/community/hubs/${hubId}/stickers`, payload);
+      if (res?.id) return { id: res.id, name: res.name, url: res.url, server: hubId, tags: res.tags || [] };
+    } catch {}
+    return null;
+  },
+
+  async deleteServerSticker(hubId: string, stickerId: string): Promise<void> {
+    try { await api.delete(`/v1/community/hubs/${hubId}/stickers/${stickerId}`); } catch {}
+  },
+
+  // ── Threads (Forum Posts) ─────────────────────────────────────────────
+  async getThreads(channelId: string, search?: string): Promise<CommunityThread[]> {
+    try {
+      const res = await api.get<CommunityThread[]>(`/v1/community/channels/${channelId}/threads`, {
+        params: search ? { search } : undefined,
+      });
+      if (Array.isArray(res)) return res;
+    } catch {}
+    return [];
+  },
+
+  async createThread(
+    channelId: string,
+    payload: {
+      name: string;
+      creatorName?: string;
+      creatorAvatar?: string | null;
+      initialMessage?: string;
+    }
+  ): Promise<CommunityThread | null> {
+    try {
+      const res = await api.post<CommunityThread>(`/v1/community/channels/${channelId}/threads`, payload);
+      return res;
+    } catch {
+      return null;
+    }
+  },
+
+  async getThreadMessages(threadId: string, limit = 100): Promise<CommunityMessage[]> {
+    try {
+      const res = await api.get<CommunityMessage[]>(`/v1/community/threads/${threadId}/messages`, {
+        params: { limit },
+      });
+      if (Array.isArray(res)) return res;
+    } catch {}
+    return [];
+  },
+
+  async sendThreadMessage(
+    threadId: string,
+    payloadOrChannelId: string | {
+      channelId: string;
+      content: string;
+      senderName?: string;
+      senderAvatar?: string | null;
+      senderRole?: string;
+      attachments?: Record<string, unknown> | null;
+    },
+    maybePayload?: {
+      content: string;
+      senderName?: string;
+      senderAvatar?: string | null;
+      senderRole?: string;
+      attachments?: Record<string, unknown> | null;
+    }
+  ): Promise<CommunityMessage | null> {
+    try {
+      const body =
+        typeof payloadOrChannelId === 'string'
+          ? { channelId: payloadOrChannelId, ...(maybePayload || {}) }
+          : payloadOrChannelId;
+      const res = await api.post<CommunityMessage>(`/v1/community/threads/${threadId}/messages`, body);
+      return res;
+    } catch {
+      return null;
+    }
   },
 };
 

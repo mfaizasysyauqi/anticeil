@@ -68,6 +68,7 @@ import {
   Volume2,
   MessagesSquare,
   TrendingUp,
+  ArrowLeft,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useTranslation } from 'react-i18next';
@@ -83,6 +84,7 @@ import {
   DISCORD_GIF_CATEGORIES,
   DISCORD_GIF_ITEMS,
   EXTENDED_DISCORD_APPS,
+  STANDARD_UNICODE_EMOJIS,
   DiscordEmoji,
   DiscordSticker,
   DiscordGifItem,
@@ -389,6 +391,17 @@ export function CommunityPage() {
   const [hoveredSticker, setHoveredSticker] = useState<DiscordSticker | null>(null);
   const [selectedGifCategory, setSelectedGifCategory] = useState<string | null>(null);
   const [selectedServerFilter, setSelectedServerFilter] = useState<string>('all');
+  const [serverDbEmojis, setServerDbEmojis] = useState<DiscordEmoji[]>([]);
+  const [serverDbStickers, setServerDbStickers] = useState<DiscordSticker[]>([]);
+  const [isLoadingServerMedia, setIsLoadingServerMedia] = useState(false);
+  const [isQuickAddEmojiOpen, setIsQuickAddEmojiOpen] = useState(false);
+  const [quickEmojiName, setQuickEmojiName] = useState('');
+  const [quickEmojiUrl, setQuickEmojiUrl] = useState('');
+  const [quickEmojiCode, setQuickEmojiCode] = useState('');
+  const [isQuickAddStickerOpen, setIsQuickAddStickerOpen] = useState(false);
+  const [quickStickerName, setQuickStickerName] = useState('');
+  const [quickStickerUrl, setQuickStickerUrl] = useState('');
+  const [isSubmittingServerMedia, setIsSubmittingServerMedia] = useState(false);
 
   // Discord Send a Gift Modal - matching Screenshot 4
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
@@ -421,6 +434,19 @@ export function CommunityPage() {
   const [threadMessages, setThreadMessages] = useState<CommunityMessage[]>([]);
   const [threadInputText, setThreadInputText] = useState('');
   const [isThreadDrawerOpen, setIsThreadDrawerOpen] = useState(false);
+
+  // Forum Channel states (matching Discord Screenshot 3)
+  const [forumSearchQuery, setForumSearchQuery] = useState('');
+  const [forumSort, setForumSort] = useState<'newest' | 'active'>('newest');
+  const [isForumComposerOpen, setIsForumComposerOpen] = useState(false);
+  const [forumNewTitle, setForumNewTitle] = useState('');
+  const [forumNewMessage, setForumNewMessage] = useState('');
+  const [isSubmittingForumPost, setIsSubmittingForumPost] = useState(false);
+  const [collapsedCategories, setCollapsedCategories] = useState<{ text: boolean; voice: boolean }>({
+    text: false,
+    voice: false,
+  });
+  const [threadsMap, setThreadsMap] = useState<Record<string, CommunityThread[]>>({});
 
   // Audio / mic dummy state for Discord user footer
   const [isMuted, setIsMuted] = useState(false);
@@ -638,6 +664,7 @@ export function CommunityPage() {
           }
           if (ths) {
             setChannelThreads(ths);
+            setThreadsMap((prev) => ({ ...prev, [activeChannelId]: ths }));
           }
         }
       } catch (err) {
@@ -649,6 +676,22 @@ export function CommunityPage() {
       mounted = false;
     };
   }, [activeChannelId]);
+
+  // Load threads for all forum channels in the active hub so sidebar shows child threads
+  useEffect(() => {
+    if (!hubChannels.length) return;
+    const forumChannels = hubChannels.filter((c) => c.type === 'forum');
+    if (!forumChannels.length) return;
+
+    forumChannels.forEach(async (fc) => {
+      try {
+        const ths = await communityApi.getThreads(fc.id);
+        if (ths) {
+          setThreadsMap((prev) => ({ ...prev, [fc.id]: ths }));
+        }
+      } catch {}
+    });
+  }, [hubChannels]);
 
   // Load thread messages when an active thread is selected
   useEffect(() => {
@@ -669,6 +712,84 @@ export function CommunityPage() {
       mounted = false;
     };
   }, [activeThread?.id]);
+
+  // Load Server Emojis and Stickers from DB for active server
+  useEffect(() => {
+    if (!activeHub?.id) {
+      setServerDbEmojis([]);
+      setServerDbStickers([]);
+      return;
+    }
+    let mounted = true;
+    const loadServerMedia = async () => {
+      try {
+        setIsLoadingServerMedia(true);
+        const [emojis, stickers] = await Promise.all([
+          communityApi.getServerEmojis(activeHub.id),
+          communityApi.getServerStickers(activeHub.id),
+        ]);
+        if (mounted) {
+          setServerDbEmojis(emojis || []);
+          setServerDbStickers(stickers || []);
+        }
+      } catch (err) {
+        console.warn('Failed to load server emojis/stickers', activeHub.id, err);
+      } finally {
+        if (mounted) setIsLoadingServerMedia(false);
+      }
+    };
+    loadServerMedia();
+    return () => {
+      mounted = false;
+    };
+  }, [activeHub?.id, isMediaPickerOpen]);
+
+  const handleQuickAddEmoji = async () => {
+    if (!activeHub?.id || !quickEmojiName.trim() || !quickEmojiUrl.trim()) return;
+    try {
+      setIsSubmittingServerMedia(true);
+      const code = quickEmojiCode.trim() || `:${quickEmojiName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '')}:`;
+      const created = await communityApi.addServerEmoji(activeHub.id, {
+        name: quickEmojiName.trim(),
+        code,
+        url: quickEmojiUrl.trim(),
+      });
+      if (created) {
+        setServerDbEmojis((prev) => [...prev, created]);
+        toast.success(`Emoji ${code} berhasil disimpan ke database server! ✨`);
+        setQuickEmojiName('');
+        setQuickEmojiUrl('');
+        setQuickEmojiCode('');
+        setIsQuickAddEmojiOpen(false);
+      }
+    } catch (err) {
+      toast.error('Gagal menambahkan emoji server');
+    } finally {
+      setIsSubmittingServerMedia(false);
+    }
+  };
+
+  const handleQuickAddSticker = async () => {
+    if (!activeHub?.id || !quickStickerName.trim() || !quickStickerUrl.trim()) return;
+    try {
+      setIsSubmittingServerMedia(true);
+      const created = await communityApi.addServerSticker(activeHub.id, {
+        name: quickStickerName.trim(),
+        url: quickStickerUrl.trim(),
+      });
+      if (created) {
+        setServerDbStickers((prev) => [...prev, created]);
+        toast.success(`Stiker ${quickStickerName} berhasil disimpan ke database server! 🏷️`);
+        setQuickStickerName('');
+        setQuickStickerUrl('');
+        setIsQuickAddStickerOpen(false);
+      }
+    } catch (err) {
+      toast.error('Gagal menambahkan stiker server');
+    } finally {
+      setIsSubmittingServerMedia(false);
+    }
+  };
 
   // 3. WebSocket Realtime Listeners
   useEffect(() => {
@@ -754,6 +875,14 @@ export function CommunityPage() {
       (c) => (c.hubId || 'anticeil') === (activeHubId || 'anticeil') && c.category === 'CHANNELS',
     );
   }, [channels, activeHubId]);
+
+  const textChannels = useMemo(() => {
+    return hubChannels.filter((c) => c.type !== 'voice');
+  }, [hubChannels]);
+
+  const voiceChannels = useMemo(() => {
+    return hubChannels.filter((c) => c.type === 'voice');
+  }, [hubChannels]);
 
   const dmChannels = useMemo(() => {
     return channels.filter((c) => c.category === 'DIRECT MESSAGES');
@@ -1258,9 +1387,50 @@ export function CommunityPage() {
       });
       if (res && res.id) {
         setThreadMessages((prev) => prev.map((m) => (m.id === newMsg.id ? res : m)));
+        // Update thread stats
+        setActiveThread((prev) => (prev ? { ...prev, messageCount: (prev.messageCount || 0) + 1, lastMessageAt: new Date().toISOString() } : null));
+        setChannelThreads((prev) =>
+          prev.map((t) =>
+            t.id === activeThread.id
+              ? { ...t, messageCount: (t.messageCount || 0) + 1, lastMessageAt: new Date().toISOString() }
+              : t,
+          ),
+        );
       }
     } catch (err) {
       console.error('Failed to send thread message', err);
+    }
+  };
+
+  // ── Forum Channel Create Post Handler (Screenshot 3) ────────────────
+  const handleCreateForumPost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeChannel || !forumNewTitle.trim()) return;
+    setIsSubmittingForumPost(true);
+    try {
+      const created = await communityApi.createThread(activeChannel.id, {
+        name: forumNewTitle.trim(),
+        creatorName: currentUser?.firstName || currentUser?.email || 'You',
+        creatorAvatar: currentUser?.imageUrl ?? null,
+        initialMessage: forumNewMessage.trim() || undefined,
+      });
+      if (created) {
+        setChannelThreads((prev) => [created, ...prev.filter((t) => t.id !== created.id)]);
+        setThreadsMap((prev) => ({
+          ...prev,
+          [activeChannel.id]: [created, ...(prev[activeChannel.id] || []).filter((t) => t.id !== created.id)],
+        }));
+        setActiveThread(created);
+        setIsForumComposerOpen(false);
+        setForumNewTitle('');
+        setForumNewMessage('');
+        toast.success(t(`Post "${created.name}" berhasil dibuat! 💬`));
+      }
+    } catch (err) {
+      console.error('Failed to create forum post', err);
+      toast.error(t('Gagal membuat forum post'));
+    } finally {
+      setIsSubmittingForumPost(false);
     }
   };
 
@@ -2255,31 +2425,8 @@ export function CommunityPage() {
             )}
           </div>
         ) : (
-          /* ===== SERVER: CHANNELS ONLY ===== */
-          <div>
-            <div className="px-2 mb-1.5 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 tracking-wider uppercase">
-              <div className="flex items-center gap-1">
-                <span>{t('Channels')}</span>
-                <span className="text-[10px] text-muted-foreground/60">({hubChannels.length})</span>
-              </div>
-              <Tooltip delayDuration={150}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      setNewChannelCategory('CHANNELS');
-                      setIsCreateChannelOpen(true);
-                    }}
-                    className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="top" sideOffset={4} className="font-semibold text-xs">
-                  {t('Buat Channel Baru')}
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
+          /* ===== SERVER: CHANNELS ONLY (Discord Category Grouping) ===== */
+          <div className="space-y-4">
             {hubChannels.length === 0 ? (
               <div className="px-2.5 py-4 text-center">
                 <p className="text-[11px] text-muted-foreground/60 leading-relaxed mb-2">
@@ -2296,105 +2443,305 @@ export function CommunityPage() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-0.5">
-                {hubChannels.map((ch) => {
-                  const isActiveCh = activeChannelId === ch.id;
-                  return (
-                    <div
-                      key={ch.id}
-                      onClick={() => {
-                        setActiveChannelId(ch.id);
-                        if (ch.type === 'voice') {
-                          setActiveCallChannelId(ch.id);
-                          setIsCallPiP(false);
-                        }
-                        onItemClick?.();
-                      }}
-                      className={cn(
-                        'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all text-left group cursor-pointer relative',
-                        isActiveCh
-                          ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
-                          : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                      )}
-                    >
-                      {ch.type === 'voice' ? (
-                        <Volume2
-                          className={cn(
-                            'w-4 h-4 shrink-0 transition-colors',
-                            isActiveCh ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
-                          )}
-                        />
-                      ) : ch.type === 'forum' ? (
-                        <MessagesSquare
-                          className={cn(
-                            'w-4 h-4 shrink-0 transition-colors',
-                            isActiveCh ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
-                          )}
-                        />
-                      ) : (
-                        <Hash
-                          className={cn(
-                            'w-4 h-4 shrink-0 transition-colors',
-                            isActiveCh ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
-                          )}
-                        />
-                      )}
-                      <span className="truncate flex-1">{ch.name}</span>
-                      {ch.isPrivate && (
-                        <span title="Private Channel">
-                          <Lock className="w-3 h-3 text-muted-foreground/60 shrink-0" />
-                        </span>
-                      )}
-                      {activeCallCounts[ch.id] && activeCallCounts[ch.id] > 0 ? (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 flex items-center gap-1 shrink-0 animate-pulse">
-                          <Radio className="w-2.5 h-2.5" />
-                          {activeCallCounts[ch.id]}
-                        </span>
-                      ) : null}
-
-                      {/* Channel action buttons (Webhook, Copy ID, Edit & Delete) */}
-                      <div className="hidden group-hover:flex items-center gap-0.5 ml-auto shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveChannelId(ch.id);
-                            setIsWebhookDialogOpen(true);
-                          }}
-                          title="Integrasi Webhook"
-                          className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted"
-                        >
-                          <Webhook className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(ch.id);
-                            toast.success(t(`ID Channel disalin: ${ch.id} 📋`));
-                          }}
-                          title="Salin ID Channel"
-                          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => handleOpenEditChannel(ch, e)}
-                          title="Edit Channel"
-                          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => handleOpenDeleteChannel(ch, e)}
-                          title="Hapus Channel"
-                          className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
+              <>
+                {/* 1. TEXT & FORUM CHANNELS CATEGORY */}
+                <div>
+                  <div
+                    onClick={() => setCollapsedCategories((prev) => ({ ...prev, text: !prev.text }))}
+                    className="px-2 mb-1 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 hover:text-foreground tracking-wider uppercase cursor-pointer select-none group/cat"
+                  >
+                    <div className="flex items-center gap-1">
+                      <ChevronDown
+                        className={cn(
+                          'w-3 h-3 transition-transform duration-200',
+                          collapsedCategories.text && '-rotate-90',
+                        )}
+                      />
+                      <span>{t('Text Channels')}</span>
+                      <span className="text-[10px] text-muted-foreground/60">
+                        ({textChannels.length})
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
+                    <Tooltip delayDuration={150}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setNewChannelCategory('CHANNELS');
+                            setNewChannelType('text');
+                            setIsCreateChannelOpen(true);
+                          }}
+                          className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" sideOffset={4} className="font-semibold text-xs">
+                        {t('Buat Text Channel')}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+
+                  {!collapsedCategories.text && (
+                    <div className="space-y-0.5">
+                      {textChannels.map((ch) => {
+                        const isActiveCh = activeChannelId === ch.id;
+                        const isForum = ch.type === 'forum';
+                        const childThreads =
+                          threadsMap[ch.id] || (activeChannelId === ch.id ? channelThreads : []);
+
+                        return (
+                          <div key={ch.id} className="space-y-0.5">
+                            <div
+                              onClick={() => {
+                                setActiveChannelId(ch.id);
+                                if (isForum) {
+                                  setActiveThread(null);
+                                }
+                                onItemClick?.();
+                              }}
+                              className={cn(
+                                'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all text-left group cursor-pointer relative',
+                                isActiveCh
+                                  ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
+                                  : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                              )}
+                            >
+                              {isForum ? (
+                                <MessagesSquare
+                                  className={cn(
+                                    'w-4 h-4 shrink-0 transition-colors',
+                                    isActiveCh
+                                      ? 'text-primary'
+                                      : 'text-muted-foreground/70 group-hover:text-foreground',
+                                  )}
+                                />
+                              ) : (
+                                <Hash
+                                  className={cn(
+                                    'w-4 h-4 shrink-0 transition-colors',
+                                    isActiveCh
+                                      ? 'text-primary'
+                                      : 'text-muted-foreground/70 group-hover:text-foreground',
+                                  )}
+                                />
+                              )}
+                              <span className="truncate flex-1">{ch.name}</span>
+                              {ch.isPrivate && (
+                                <span title="Private Channel">
+                                  <Lock className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                                </span>
+                              )}
+
+                              {/* Channel action buttons */}
+                              <div className="hidden group-hover:flex items-center gap-0.5 ml-auto shrink-0">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveChannelId(ch.id);
+                                    setIsWebhookDialogOpen(true);
+                                  }}
+                                  title="Integrasi Webhook"
+                                  className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted"
+                                >
+                                  <Webhook className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(ch.id);
+                                    toast.success(t(`ID Channel disalin: ${ch.id} 📋`));
+                                  }}
+                                  title="Salin ID Channel"
+                                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleOpenEditChannel(ch, e)}
+                                  title="Edit Channel"
+                                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleOpenDeleteChannel(ch, e)}
+                                  title="Hapus Channel"
+                                  className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Nested Threads under Forum Channel (Discord Screenshot 3) */}
+                            {isForum && childThreads && childThreads.length > 0 && (
+                              <div className="ml-4 pl-2.5 border-l border-border/40 space-y-0.5 my-0.5">
+                                {childThreads.map((th) => {
+                                  const isThActive =
+                                    activeChannelId === ch.id && activeThread?.id === th.id;
+                                  return (
+                                    <div
+                                      key={th.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveChannelId(ch.id);
+                                        setActiveThread(th);
+                                        onItemClick?.();
+                                      }}
+                                      className={cn(
+                                        'flex items-center gap-2 px-2 py-1 rounded-md text-xs font-medium cursor-pointer transition-colors',
+                                        isThActive
+                                          ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
+                                          : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                                      )}
+                                    >
+                                      <span className="text-muted-foreground/50 text-[11px] font-mono leading-none">
+                                        └──
+                                      </span>
+                                      <span className="truncate flex-1">{th.name}</span>
+                                      {th.messageCount > 0 && (
+                                        <span className="text-[10px] text-muted-foreground/60 font-mono px-1 rounded bg-muted/40">
+                                          {th.messageCount}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. VOICE CHANNELS CATEGORY */}
+                <div>
+                  <div
+                    onClick={() => setCollapsedCategories((prev) => ({ ...prev, voice: !prev.voice }))}
+                    className="px-2 mb-1 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 hover:text-foreground tracking-wider uppercase cursor-pointer select-none group/cat"
+                  >
+                    <div className="flex items-center gap-1">
+                      <ChevronDown
+                        className={cn(
+                          'w-3 h-3 transition-transform duration-200',
+                          collapsedCategories.voice && '-rotate-90',
+                        )}
+                      />
+                      <span>{t('Voice Channels')}</span>
+                      <span className="text-[10px] text-muted-foreground/60">
+                        ({voiceChannels.length})
+                      </span>
+                    </div>
+                    <Tooltip delayDuration={150}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setNewChannelCategory('CHANNELS');
+                            setNewChannelType('voice');
+                            setIsCreateChannelOpen(true);
+                          }}
+                          className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" sideOffset={4} className="font-semibold text-xs">
+                        {t('Buat Voice Channel')}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+
+                  {!collapsedCategories.voice && (
+                    <div className="space-y-0.5">
+                      {voiceChannels.map((ch) => {
+                        const isActiveCh = activeChannelId === ch.id;
+                        return (
+                          <div
+                            key={ch.id}
+                            onClick={() => {
+                              setActiveChannelId(ch.id);
+                              setActiveCallChannelId(ch.id);
+                              setIsCallPiP(false);
+                              onItemClick?.();
+                            }}
+                            className={cn(
+                              'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all text-left group cursor-pointer relative',
+                              isActiveCh
+                                ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
+                                : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                            )}
+                          >
+                            <Volume2
+                              className={cn(
+                                'w-4 h-4 shrink-0 transition-colors',
+                                isActiveCh
+                                  ? 'text-primary'
+                                  : 'text-muted-foreground/70 group-hover:text-foreground',
+                              )}
+                            />
+                            <span className="truncate flex-1">{ch.name}</span>
+                            {ch.isPrivate && (
+                              <span title="Private Channel">
+                                <Lock className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                              </span>
+                            )}
+                            {activeCallCounts[ch.id] && activeCallCounts[ch.id] > 0 ? (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 flex items-center gap-1 shrink-0 animate-pulse">
+                                <Radio className="w-2.5 h-2.5" />
+                                {activeCallCounts[ch.id]}
+                              </span>
+                            ) : null}
+
+                            {/* Channel action buttons */}
+                            <div className="hidden group-hover:flex items-center gap-0.5 ml-auto shrink-0">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveChannelId(ch.id);
+                                  setIsWebhookDialogOpen(true);
+                                }}
+                                title="Integrasi Webhook"
+                                className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted"
+                              >
+                                <Webhook className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(ch.id);
+                                  toast.success(t(`ID Channel disalin: ${ch.id} 📋`));
+                                }}
+                                title="Salin ID Channel"
+                                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={(e) => handleOpenEditChannel(ch, e)}
+                                title="Edit Channel"
+                                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={(e) => handleOpenDeleteChannel(ch, e)}
+                                title="Hapus Channel"
+                                className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         )}
@@ -2983,6 +3330,347 @@ export function CommunityPage() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Forum Channel View (matching Discord Screenshot 3) ─────────────────
+  const renderForumChannelView = () => {
+    const activeChannelThreadsList =
+      threadsMap[activeChannel?.id || ''] || channelThreads || [];
+
+    const filteredForumPosts = (() => {
+      let list = [...activeChannelThreadsList];
+      if (forumSearchQuery.trim()) {
+        const q = forumSearchQuery.trim().toLowerCase();
+        list = list.filter(
+          (p) =>
+            p.name.toLowerCase().includes(q) ||
+            p.creatorName.toLowerCase().includes(q),
+        );
+      }
+      if (forumSort === 'active') {
+        list.sort(
+          (a, b) =>
+            new Date(b.lastMessageAt || b.created).getTime() -
+            new Date(a.lastMessageAt || a.created).getTime(),
+        );
+      } else {
+        list.sort(
+          (a, b) =>
+            new Date(b.created).getTime() - new Date(a.created).getTime(),
+        );
+      }
+      return list;
+    })();
+
+    // 1. Thread Discussion View (when a post is opened)
+    if (activeThread) {
+      return (
+        <div className="flex-1 min-h-0 flex flex-col w-full h-full bg-[#313338] text-[#dbdee1]">
+          {/* Subheader with back button */}
+          <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between bg-[#2b2d31]/60 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveThread(null)}
+                className="h-8 px-2.5 gap-1.5 text-xs text-[#949ba4] hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>#{activeChannel?.name}</span>
+              </Button>
+              <Separator orientation="vertical" className="h-4 bg-white/10" />
+              <div className="flex items-center gap-2 min-w-0">
+                <MessagesSquare className="w-4 h-4 text-[#5865f2] shrink-0" />
+                <span className="font-bold text-sm text-white truncate">{activeThread.name}</span>
+              </div>
+            </div>
+            <div className="text-xs text-[#949ba4] shrink-0 font-mono hidden sm:block">
+              {activeThread.creatorName} • {dayjs(activeThread.created).fromNow()}
+            </div>
+          </div>
+
+          {/* Discussion feed: OP Card + Replies list */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4 [scrollbar-width:thin]">
+            {/* OP Card */}
+            <div className="p-4 rounded-xl border border-white/10 bg-[#2b2d31]/80 space-y-3 shadow-md">
+              <div className="flex items-center gap-2.5">
+                <CommunityAvatar
+                  name={activeThread.creatorName}
+                  imageUrl={activeThread.creatorAvatar}
+                  size={28}
+                />
+                <span className="text-xs font-bold text-white">{activeThread.creatorName}</span>
+                <span className="text-[10px] text-[#949ba4] font-mono">
+                  {dayjs(activeThread.created).format('DD MMM YYYY, HH:mm')}
+                </span>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] py-0 px-1.5 text-[#5865f2] border-[#5865f2]/40 bg-[#5865f2]/10"
+                >
+                  OP
+                </Badge>
+              </div>
+              <h3 className="text-lg font-bold text-white">{activeThread.name}</h3>
+              {threadMessages.length > 0 && threadMessages[0].content && (
+                <div className="text-xs text-[#dbdee1] whitespace-pre-wrap leading-relaxed pt-1 border-t border-white/5">
+                  {renderFormattedMessage(threadMessages[0].content)}
+                </div>
+              )}
+            </div>
+
+            {/* Replies List */}
+            <div className="space-y-3 pt-2">
+              <div className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider">
+                {t('Balasan')} ({Math.max(0, threadMessages.length - 1)})
+              </div>
+
+              {threadMessages.length <= 1 ? (
+                <div className="py-8 text-center text-xs text-[#949ba4]">
+                  {t('Belum ada balasan. Jadilah yang pertama memberikan respons!')}
+                </div>
+              ) : (
+                threadMessages.slice(1).map((msg) => (
+                  <div
+                    key={msg.id}
+                    className="flex gap-3 p-3.5 rounded-xl bg-[#2b2d31]/40 border border-white/5 hover:border-white/10 transition-colors"
+                  >
+                    <CommunityAvatar
+                      name={msg.senderName}
+                      imageUrl={msg.senderAvatar}
+                      size={32}
+                      className="shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-bold text-white">{msg.senderName}</span>
+                        <span className="text-[10px] text-[#949ba4] font-mono">
+                          {dayjs(msg.createdAt).format('HH:mm')}
+                        </span>
+                      </div>
+                      <div className="text-xs text-[#dbdee1] leading-relaxed whitespace-pre-wrap">
+                        {renderFormattedMessage(msg.content)}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Bottom Reply Bar */}
+          <form
+            onSubmit={handleSendThreadMessage}
+            className="p-4 border-t border-white/10 bg-[#2b2d31]/40 shrink-0"
+          >
+            <div className="flex items-center gap-2">
+              <Input
+                value={threadInputText}
+                onChange={(e) => setThreadInputText(e.target.value)}
+                placeholder={t(`Kirim balasan ke #${activeThread.name}...`)}
+                className="text-xs h-10 bg-[#1e1f22] border-none text-white placeholder:text-[#949ba4] focus-visible:ring-1 focus-visible:ring-[#5865f2]"
+              />
+              <Button
+                type="submit"
+                disabled={!threadInputText.trim()}
+                className="h-10 px-4 bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold gap-1.5 shrink-0"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{t('Balas')}</span>
+              </Button>
+            </div>
+          </form>
+        </div>
+      );
+    }
+
+    // 2. Forum Board List View (Exact matching Screenshot 3)
+    return (
+      <div className="flex-1 min-h-0 flex flex-col w-full h-full bg-[#313338] text-[#dbdee1]">
+        {/* Top Search & Actions Bar (Screenshot 3) */}
+        <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#2b2d31]/40 shrink-0">
+          {/* Search or create a post input */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#949ba4] pointer-events-none" />
+            <Input
+              value={forumSearchQuery}
+              onChange={(e) => setForumSearchQuery(e.target.value)}
+              placeholder="Search or create a post..."
+              className="pl-9 text-xs h-9 bg-[#1e1f22] border-none text-white placeholder:text-[#949ba4] focus-visible:ring-1 focus-visible:ring-[#5865f2]"
+            />
+          </div>
+
+          {/* Right actions: Sort & View, + New Post */}
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs gap-1.5 bg-[#2b2d31] border-white/10 text-[#dbdee1] hover:text-white hover:bg-[#35373c] cursor-pointer"
+                >
+                  <TrendingUp className="w-3.5 h-3.5 text-[#949ba4]" />
+                  <span>
+                    {forumSort === 'newest' ? 'Sort & View' : 'Aktivitas Terakhir'}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-[#949ba4]" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="text-xs bg-[#111214] border-white/10 text-white">
+                <DropdownMenuItem
+                  onClick={() => setForumSort('newest')}
+                  className="cursor-pointer hover:bg-[#5865f2]"
+                >
+                  Terbaru (Waktu Dibuat)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setForumSort('active')}
+                  className="cursor-pointer hover:bg-[#5865f2]"
+                >
+                  Aktivitas Terakhir (Balasan Baru)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              onClick={() => setIsForumComposerOpen((prev) => !prev)}
+              className="h-9 px-4 bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold gap-1.5 shadow-md cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Post</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Inline Post Composer (when user clicks New Post) */}
+        {isForumComposerOpen && (
+          <div className="p-4 border-b border-white/5 bg-[#2b2d31]/80 animate-in fade-in-50 duration-150">
+            <form
+              onSubmit={handleCreateForumPost}
+              className="space-y-3 max-w-2xl mx-auto p-4 rounded-xl border border-white/10 bg-[#1e1f22] shadow-xl"
+            >
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
+                  <MessagesSquare className="w-3.5 h-3.5 text-[#5865f2]" />
+                  <span>Create a Post in #{activeChannel?.name}</span>
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setIsForumComposerOpen(false)}
+                  className="text-[#949ba4] hover:text-white p-1 rounded"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-[#949ba4] block mb-1">
+                  Title
+                </label>
+                <Input
+                  value={forumNewTitle}
+                  onChange={(e) => setForumNewTitle(e.target.value)}
+                  placeholder="Post title..."
+                  className="text-sm font-semibold h-10 bg-[#2b2d31] border-none text-white placeholder:text-[#80848e] focus-visible:ring-1 focus-visible:ring-[#5865f2]"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-[#949ba4] block mb-1">
+                  Message
+                </label>
+                <textarea
+                  value={forumNewMessage}
+                  onChange={(e) => setForumNewMessage(e.target.value)}
+                  placeholder="Tulis pesan atau topik diskusi di sini..."
+                  rows={4}
+                  className="w-full text-xs rounded-md bg-[#2b2d31] border-none p-3 text-white placeholder:text-[#80848e] focus:outline-none focus:ring-1 focus:ring-[#5865f2] resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsForumComposerOpen(false)}
+                  className="text-xs text-[#949ba4] hover:text-white hover:bg-white/10"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSubmittingForumPost || !forumNewTitle.trim()}
+                  className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold h-8 px-5"
+                >
+                  {isSubmittingForumPost ? 'Posting...' : 'Post'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Posts List Cards (Matching Screenshot 3) */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 [scrollbar-width:thin]">
+          {filteredForumPosts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+              <div className="w-16 h-16 rounded-2xl bg-[#5865f2]/10 border border-[#5865f2]/30 flex items-center justify-center text-[#5865f2] mb-4">
+                <MessagesSquare className="w-8 h-8" />
+              </div>
+              <h3 className="text-base font-bold text-white mb-1">
+                {forumSearchQuery ? 'No posts matching query' : `There are no posts in #${activeChannel?.name}`}
+              </h3>
+              <p className="text-xs text-[#949ba4] max-w-sm mb-5 leading-relaxed">
+                {forumSearchQuery
+                  ? 'Coba gunakan kata kunci pencarian yang lain.'
+                  : 'Be the first to start an organized discussion in this forum channel!'}
+              </p>
+              {!isForumComposerOpen && (
+                <Button
+                  onClick={() => setIsForumComposerOpen(true)}
+                  className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold gap-1.5 shadow-md"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Create a Post</span>
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2.5 max-w-5xl mx-auto">
+              {filteredForumPosts.map((post) => (
+                <div
+                  key={post.id}
+                  onClick={() => setActiveThread(post)}
+                  className="p-4 rounded-xl bg-[#2b2d31]/70 hover:bg-[#2b2d31] border border-white/5 hover:border-[#5865f2]/50 transition-all cursor-pointer group flex flex-col justify-between shadow-xs hover:shadow-md"
+                >
+                  <div>
+                    <h4 className="text-sm font-bold text-white group-hover:text-[#5865f2] transition-colors mb-1 truncate">
+                      {post.name}
+                    </h4>
+                    <p className="text-xs text-[#949ba4] line-clamp-2">
+                      <span className="font-semibold text-[#dbdee1]">{post.creatorName}: </span>
+                      {post.name}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2.5 mt-3 text-[11px] text-[#949ba4] pt-2 border-t border-white/5">
+                    <div className="flex items-center gap-1.5 text-white font-medium">
+                      <MessagesSquare className="w-3.5 h-3.5 text-[#5865f2]" />
+                      <span>{post.messageCount || 0}</span>
+                    </div>
+                    <span>•</span>
+                    <span className="font-mono">
+                      {dayjs(post.lastMessageAt || post.created).fromNow()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -3628,6 +4316,8 @@ export function CommunityPage() {
                 onNavigateToBilling={() => navigate('/platform/billing')}
               />
             </div>
+          ) : activeChannel?.type === 'forum' ? (
+            renderForumChannelView()
           ) : (
           <>
           {/* Messages Feed (SCROLLABLE CONVERSATION) */}
@@ -4172,14 +4862,23 @@ export function CommunityPage() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                setIsServerSettingsOpen(true);
-                                setServerSettingsSection('emoji');
-                                setIsMediaPickerOpen(false);
-                              }}
-                              className="px-2.5 py-1 rounded-md bg-[#1e1f22] hover:bg-[#35373c] text-xs font-bold text-white transition-colors cursor-pointer"
+                              onClick={() => setIsQuickAddEmojiOpen(true)}
+                              className="px-2.5 py-1 rounded-md bg-[#5865f2] hover:bg-[#4752c4] text-xs font-bold text-white transition-colors cursor-pointer flex items-center gap-1"
                             >
+                              <Plus className="w-3.5 h-3.5" />
                               Add Emoji
+                            </button>
+                          </div>
+                        )}
+                        {activeMediaTab === 'stickers' && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setIsQuickAddStickerOpen(true)}
+                              className="px-2.5 py-1 rounded-md bg-[#5865f2] hover:bg-[#4752c4] text-xs font-bold text-white transition-colors cursor-pointer flex items-center gap-1"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Add Sticker
                             </button>
                           </div>
                         )}
@@ -4199,58 +4898,55 @@ export function CommunityPage() {
                                 "w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all cursor-pointer",
                                 selectedServerFilter === 'all' ? 'bg-[#5865f2] text-white shadow-md' : 'bg-[#2b2d31] text-[#949ba4] hover:text-white'
                               )}
-                              title="Frequently Used"
+                              title="All / Standard"
                             >
-                              🕒
+                              😀
                             </button>
-                            {DISCORD_EMOJI_SERVERS.filter((s) => s.id !== 'frequently-used').map((srv) => (
+                            {activeHub && (
                               <button
-                                key={srv.id}
                                 type="button"
-                                onClick={() => setSelectedServerFilter(srv.id)}
+                                onClick={() => setSelectedServerFilter(activeHub.id)}
                                 className={cn(
-                                  "w-8 h-8 rounded-2xl hover:rounded-xl overflow-hidden relative border transition-all cursor-pointer",
-                                  selectedServerFilter === srv.id ? 'border-[#5865f2] scale-105' : 'border-white/10 opacity-80 hover:opacity-100'
+                                  "w-8 h-8 rounded-2xl hover:rounded-xl overflow-hidden relative border transition-all cursor-pointer flex items-center justify-center text-xs font-bold text-white",
+                                  selectedServerFilter === activeHub.id ? 'border-[#5865f2] bg-[#5865f2] scale-105' : 'border-white/10 bg-[#2b2d31] opacity-80 hover:opacity-100'
                                 )}
-                                title={srv.name}
+                                title={activeHub.name}
                               >
-                                {srv.icon.startsWith('http') ? (
-                                  <img src={srv.icon} alt={srv.name} className="w-full h-full object-cover" />
+                                {activeHub.iconUrl ? (
+                                  <img src={activeHub.iconUrl} alt={activeHub.name} className="w-full h-full object-cover" />
                                 ) : (
-                                  <span className="w-full h-full flex items-center justify-center bg-[#2b2d31] text-xs">{srv.icon}</span>
-                                )}
-                                {srv.id !== 'standard' && (
-                                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                                    <Lock className="w-2.5 h-2.5 text-white/90 drop-shadow-sm" />
-                                  </div>
+                                  activeHub.name.slice(0, 2).toUpperCase()
                                 )}
                               </button>
-                            ))}
+                            )}
                           </>
                         )}
 
                         {activeMediaTab === 'stickers' && (
                           <>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedServerFilter('awd')}
-                              className="w-8 h-8 rounded-2xl bg-[#5865f2] hover:rounded-xl text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer"
-                              title="awd"
-                            >
-                              a
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedServerFilter('hok-id')}
-                              className="w-8 h-8 rounded-2xl hover:rounded-xl overflow-hidden border border-white/10 relative transition-all cursor-pointer"
-                              title="Honor of Kings Indonesia"
-                            >
-                              <img
-                                src="https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=80&auto=format&fit=crop&q=80"
-                                alt="HOK"
-                                className="w-full h-full object-cover"
-                              />
-                            </button>
+                            {activeHub ? (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedServerFilter(activeHub.id)}
+                                className={cn(
+                                  "w-8 h-8 rounded-2xl hover:rounded-xl overflow-hidden relative border transition-all cursor-pointer flex items-center justify-center text-xs font-bold text-white",
+                                  selectedServerFilter === activeHub.id || selectedServerFilter === 'all'
+                                    ? 'border-[#5865f2] bg-[#5865f2] scale-105'
+                                    : 'border-white/10 bg-[#2b2d31] opacity-80 hover:opacity-100'
+                                )}
+                                title={activeHub.name}
+                              >
+                                {activeHub.iconUrl ? (
+                                  <img src={activeHub.iconUrl} alt={activeHub.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  activeHub.name.slice(0, 2).toUpperCase()
+                                )}
+                              </button>
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-[#2b2d31] flex items-center justify-center text-xs text-[#949ba4]">
+                                🏷️
+                              </div>
+                            )}
                           </>
                         )}
 
@@ -4279,92 +4975,86 @@ export function CommunityPage() {
                       {/* Right Content Area */}
                       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#2b2d31]">
                         <div className="flex-1 overflow-y-auto p-3 [scrollbar-width:thin]">
-                          {/* EMOJI TAB CONTENT (Screenshot 1) */}
+                          {/* EMOJI TAB CONTENT */}
                           {activeMediaTab === 'emojis' && (
                             <div className="space-y-4">
-                              {/* Frequently used */}
-                              {(selectedServerFilter === 'all' || selectedServerFilter === 'frequently-used') && (
+                              {/* 1. Server Custom Emojis (DB) */}
+                              {(selectedServerFilter === 'all' || selectedServerFilter === activeHub?.id) && (
                                 <div>
-                                  <span className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider block mb-2">
-                                    🕒 Frequently Used &gt;
-                                  </span>
-                                  <div className="grid grid-cols-9 gap-1">
-                                    {DISCORD_EMOJIS.filter((e) => e.category === 'frequently-used').map((em) => (
-                                      <button
-                                        key={em.id}
-                                        type="button"
-                                        onMouseEnter={() => setHoveredEmoji(em)}
-                                        onClick={() => handleSelectEmoji(em)}
-                                        className="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center text-xl transition-transform hover:scale-125 cursor-pointer"
-                                        title={em.code}
-                                      >
-                                        {em.url}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Honor of Kings Indonesia */}
-                              {(selectedServerFilter === 'all' || selectedServerFilter === 'hok-id') && (
-                                <div>
-                                  <div className="flex items-center gap-1.5 mb-2">
-                                    <span className="text-xs font-bold text-white flex items-center gap-1">
-                                      👑 Honor of Kings Indonesia ⌵
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                                      ✨ {activeHub?.name ? `${activeHub.name} Emojis` : 'Server Emojis'}
                                     </span>
-                                    <Lock className="w-3 h-3 text-[#949ba4]" />
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsQuickAddEmojiOpen(true)}
+                                      className="text-[11px] text-[#5865f2] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <Plus className="w-3 h-3" /> Tambah Emoji
+                                    </button>
                                   </div>
-                                  <div className="grid grid-cols-9 gap-1.5">
-                                    {DISCORD_EMOJIS.filter((e) => e.server === 'Honor of Kings Indonesia').map((em) => (
+
+                                  {serverDbEmojis.length > 0 ? (
+                                    <div className="grid grid-cols-9 gap-1.5">
+                                      {serverDbEmojis
+                                        .filter((e) =>
+                                          mediaSearchQuery
+                                            ? e.name.toLowerCase().includes(mediaSearchQuery.toLowerCase()) ||
+                                              e.code.toLowerCase().includes(mediaSearchQuery.toLowerCase())
+                                            : true
+                                        )
+                                        .map((em) => (
+                                          <button
+                                            key={em.id}
+                                            type="button"
+                                            onMouseEnter={() => setHoveredEmoji(em)}
+                                            onClick={() => handleSelectEmoji(em)}
+                                            className="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition-transform hover:scale-125 cursor-pointer overflow-hidden p-0.5"
+                                            title={em.code}
+                                          >
+                                            {em.url.startsWith('http') ? (
+                                              <img src={em.url} alt={em.name} className="w-full h-full object-contain" />
+                                            ) : (
+                                              <span className="text-xl">{em.url}</span>
+                                            )}
+                                          </button>
+                                        ))}
+                                    </div>
+                                  ) : (
+                                    <div className="p-3.5 rounded-xl bg-[#1e1f22] border border-white/5 flex items-center justify-between gap-3">
+                                      <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-base shrink-0">
+                                          ✨
+                                        </div>
+                                        <span className="text-xs text-[#949ba4] leading-tight">
+                                          Server ini belum memiliki emoji kustom di database.
+                                        </span>
+                                      </div>
                                       <button
-                                        key={em.id}
                                         type="button"
-                                        onMouseEnter={() => setHoveredEmoji(em)}
-                                        onClick={() => handleSelectEmoji(em)}
-                                        className="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition-transform hover:scale-125 cursor-pointer overflow-hidden p-0.5"
-                                        title={em.code}
+                                        onClick={() => setIsQuickAddEmojiOpen(true)}
+                                        className="text-xs font-bold text-[#5865f2] hover:underline whitespace-nowrap cursor-pointer"
                                       >
-                                        <img src={em.url} alt={em.name} className="w-full h-full object-contain" />
+                                        + Tambah Emoji
                                       </button>
-                                    ))}
-                                  </div>
+                                    </div>
+                                  )}
                                 </div>
                               )}
 
-                              {/* [FULLZ] */}
-                              {(selectedServerFilter === 'all' || selectedServerFilter === 'fullz') && (
-                                <div>
-                                  <div className="flex items-center gap-1.5 mb-2">
-                                    <span className="text-xs font-bold text-white flex items-center gap-1">
-                                      🐱 [FULLZ] ⌵
-                                    </span>
-                                    <Lock className="w-3 h-3 text-[#949ba4]" />
-                                  </div>
-                                  <div className="grid grid-cols-9 gap-1.5">
-                                    {DISCORD_EMOJIS.filter((e) => e.server === '[FULLZ]').map((em) => (
-                                      <button
-                                        key={em.id}
-                                        type="button"
-                                        onMouseEnter={() => setHoveredEmoji(em)}
-                                        onClick={() => handleSelectEmoji(em)}
-                                        className="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition-transform hover:scale-125 cursor-pointer overflow-hidden p-0.5"
-                                        title={em.code}
-                                      >
-                                        <img src={em.url} alt={em.name} className="w-full h-full object-contain" />
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Standard Emojis */}
+                              {/* 2. Standard Unicode Emojis */}
                               {(selectedServerFilter === 'all' || selectedServerFilter === 'standard') && (
                                 <div>
                                   <span className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider block mb-2">
                                     😀 Standard Emojis ⌵
                                   </span>
                                   <div className="grid grid-cols-9 gap-1">
-                                    {DISCORD_EMOJIS.filter((e) => e.server === 'Standard' && e.category !== 'frequently-used').map((em) => (
+                                    {STANDARD_UNICODE_EMOJIS.filter((e) =>
+                                      mediaSearchQuery
+                                        ? e.name.toLowerCase().includes(mediaSearchQuery.toLowerCase()) ||
+                                          e.code.toLowerCase().includes(mediaSearchQuery.toLowerCase())
+                                        : true
+                                    ).map((em) => (
                                       <button
                                         key={em.id}
                                         type="button"
@@ -4382,62 +5072,65 @@ export function CommunityPage() {
                             </div>
                           )}
 
-                          {/* STICKERS TAB CONTENT (Screenshot 2) */}
+                          {/* STICKERS TAB CONTENT */}
                           {activeMediaTab === 'stickers' && (
                             <div className="space-y-4">
-                              {/* awd Server Callout */}
                               <div>
-                                <div className="flex items-center gap-1.5 mb-2">
-                                  <span className="text-xs font-bold text-white">a awd ⌵</span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-[#1e1f22] border border-white/5 flex items-center justify-between gap-3">
-                                  <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-base shrink-0">
-                                      🏷️
-                                    </div>
-                                    <span className="text-xs text-[#949ba4] leading-tight">
-                                      Your server is waiting for you to upload some stickers!
-                                    </span>
-                                  </div>
+                                <div className="flex items-center justify-between mb-2.5">
+                                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                                    🏷️ {activeHub?.name ? `${activeHub.name} Stickers` : 'Server Stickers'}
+                                  </span>
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      setIsServerSettingsOpen(true);
-                                      setServerSettingsSection('emoji');
-                                      setIsMediaPickerOpen(false);
-                                    }}
-                                    className="text-xs font-bold text-[#5865f2] hover:underline whitespace-nowrap cursor-pointer"
+                                    onClick={() => setIsQuickAddStickerOpen(true)}
+                                    className="text-[11px] text-[#5865f2] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
                                   >
-                                    Manage Stickers
+                                    <Plus className="w-3 h-3" /> Tambah Stiker
                                   </button>
                                 </div>
-                              </div>
 
-                              {/* Honor of Kings Indonesia Stickers */}
-                              <div>
-                                <div className="flex items-center gap-1.5 mb-2.5">
-                                  <span className="text-xs font-bold text-white">👑 Honor of Kings Indonesia ⌵</span>
-                                </div>
-                                <div className="grid grid-cols-4 gap-3">
-                                  {DISCORD_STICKERS.filter((s) =>
-                                    mediaSearchQuery ? s.name.toLowerCase().includes(mediaSearchQuery.toLowerCase()) : true
-                                  ).map((sticker) => (
+                                {serverDbStickers.length > 0 ? (
+                                  <div className="grid grid-cols-4 gap-3">
+                                    {serverDbStickers
+                                      .filter((s) =>
+                                        mediaSearchQuery ? s.name.toLowerCase().includes(mediaSearchQuery.toLowerCase()) : true
+                                      )
+                                      .map((sticker) => (
+                                        <button
+                                          key={sticker.id}
+                                          type="button"
+                                          onMouseEnter={() => setHoveredSticker(sticker)}
+                                          onClick={() => handleSendSticker(sticker)}
+                                          className="aspect-square rounded-xl bg-[#1e1f22]/60 hover:bg-[#1e1f22] border border-white/5 hover:border-white/15 p-2 flex flex-col items-center justify-center transition-all hover:scale-105 active:scale-95 group cursor-pointer"
+                                          title={sticker.name}
+                                        >
+                                          <img
+                                            src={sticker.url}
+                                            alt={sticker.name}
+                                            className="w-full h-full object-contain filter drop-shadow-sm group-hover:drop-shadow-md"
+                                          />
+                                        </button>
+                                      ))}
+                                  </div>
+                                ) : (
+                                  <div className="p-3.5 rounded-xl bg-[#1e1f22] border border-white/5 flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-base shrink-0">
+                                        🏷️
+                                      </div>
+                                      <span className="text-xs text-[#949ba4] leading-tight">
+                                        Server {activeHub?.name || ''} belum memiliki stiker kustom di database.
+                                      </span>
+                                    </div>
                                     <button
-                                      key={sticker.id}
                                       type="button"
-                                      onMouseEnter={() => setHoveredSticker(sticker)}
-                                      onClick={() => handleSendSticker(sticker)}
-                                      className="aspect-square rounded-xl bg-[#1e1f22]/60 hover:bg-[#1e1f22] border border-white/5 hover:border-white/15 p-2 flex flex-col items-center justify-center transition-all hover:scale-105 active:scale-95 group cursor-pointer"
-                                      title={sticker.name}
+                                      onClick={() => setIsQuickAddStickerOpen(true)}
+                                      className="text-xs font-bold text-[#5865f2] hover:underline whitespace-nowrap cursor-pointer"
                                     >
-                                      <img
-                                        src={sticker.url}
-                                        alt={sticker.name}
-                                        className="w-full h-full object-contain filter drop-shadow-sm group-hover:drop-shadow-md"
-                                      />
+                                      + Upload Stiker
                                     </button>
-                                  ))}
-                                </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
@@ -5073,6 +5766,172 @@ export function CommunityPage() {
                 1 gift away from the Patron Badge!
               </span>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* DIALOG: QUICK ADD SERVER EMOJI (Connected to Database) */}
+        <Dialog open={isQuickAddEmojiOpen} onOpenChange={setIsQuickAddEmojiOpen}>
+          <DialogContent className="sm:max-w-[460px] bg-[#313338] border-white/10 text-white p-6 rounded-2xl shadow-2xl">
+            <DialogHeader className="pb-2">
+              <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                ✨ Tambah Emoji Kustom ke Server
+              </DialogTitle>
+              <DialogDescription className="text-xs text-[#949ba4]">
+                Emoji ini akan disimpan ke database PostgreSQL server {activeHub?.name || ''} dan dapat digunakan oleh anggota server.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 my-2">
+              <div>
+                <label className="text-xs font-semibold text-[#dbdee1] mb-1.5 block">Nama Emoji</label>
+                <input
+                  type="text"
+                  value={quickEmojiName}
+                  onChange={(e) => {
+                    const clean = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                    setQuickEmojiName(clean);
+                    setQuickEmojiCode(`:${clean}:`);
+                  }}
+                  placeholder="contoh: api_anticeil"
+                  className="w-full bg-[#1e1f22] border border-transparent focus:border-[#5865f2] rounded-lg px-3 py-2 text-xs text-white placeholder:text-[#949ba4] focus:outline-none transition-colors font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#dbdee1] mb-1.5 block">Kode Emoji</label>
+                <input
+                  type="text"
+                  value={quickEmojiCode}
+                  onChange={(e) => setQuickEmojiCode(e.target.value)}
+                  placeholder=":api_anticeil:"
+                  className="w-full bg-[#1e1f22] border border-transparent focus:border-[#5865f2] rounded-lg px-3 py-2 text-xs text-white placeholder:text-[#949ba4] focus:outline-none transition-colors font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#dbdee1] mb-1.5 block">URL Gambar Emoji (atau Karakter Unicode)</label>
+                <input
+                  type="text"
+                  value={quickEmojiUrl}
+                  onChange={(e) => setQuickEmojiUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/... atau karakter 🚀"
+                  className="w-full bg-[#1e1f22] border border-transparent focus:border-[#5865f2] rounded-lg px-3 py-2 text-xs text-white placeholder:text-[#949ba4] focus:outline-none transition-colors"
+                />
+              </div>
+
+              {/* Quick Pick Samples */}
+              <div>
+                <label className="text-[11px] font-semibold text-[#949ba4] mb-1.5 block">Pilih Cepat Simbol:</label>
+                <div className="flex gap-2">
+                  {['🚀', '⚡', '🤖', '🔥', '🎉', '💡', '🏆', '💎'].map((sym) => (
+                    <button
+                      key={sym}
+                      type="button"
+                      onClick={() => {
+                        setQuickEmojiUrl(sym);
+                        if (!quickEmojiName) {
+                          setQuickEmojiName('custom_' + Date.now().toString().slice(-4));
+                          setQuickEmojiCode(`:custom_${Date.now().toString().slice(-4)}:`);
+                        }
+                      }}
+                      className="w-8 h-8 rounded-lg bg-[#2b2d31] hover:bg-[#35373c] border border-white/5 flex items-center justify-center text-sm cursor-pointer"
+                    >
+                      {sym}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsQuickAddEmojiOpen(false)}
+                className="text-xs text-[#dbdee1] hover:bg-white/10"
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                disabled={!quickEmojiName.trim() || !quickEmojiUrl.trim() || isSubmittingServerMedia}
+                onClick={handleQuickAddEmoji}
+                className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-bold"
+              >
+                {isSubmittingServerMedia ? 'Menyimpan...' : 'Simpan Emoji ke DB'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* DIALOG: QUICK ADD SERVER STICKER (Connected to Database) */}
+        <Dialog open={isQuickAddStickerOpen} onOpenChange={setIsQuickAddStickerOpen}>
+          <DialogContent className="sm:max-w-[460px] bg-[#313338] border-white/10 text-white p-6 rounded-2xl shadow-2xl">
+            <DialogHeader className="pb-2">
+              <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                🏷️ Tambah Stiker Kustom ke Server
+              </DialogTitle>
+              <DialogDescription className="text-xs text-[#949ba4]">
+                Stiker ini akan disimpan ke database PostgreSQL server {activeHub?.name || ''} dan dapat dikirim langsung ke obrolan.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 my-2">
+              <div>
+                <label className="text-xs font-semibold text-[#dbdee1] mb-1.5 block">Nama Stiker</label>
+                <input
+                  type="text"
+                  value={quickStickerName}
+                  onChange={(e) => setQuickStickerName(e.target.value)}
+                  placeholder="contoh: Happy Bear Wave"
+                  className="w-full bg-[#1e1f22] border border-transparent focus:border-[#5865f2] rounded-lg px-3 py-2 text-xs text-white placeholder:text-[#949ba4] focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#dbdee1] mb-1.5 block">URL Gambar Stiker (PNG/WebP/GIF)</label>
+                <input
+                  type="text"
+                  value={quickStickerUrl}
+                  onChange={(e) => setQuickStickerUrl(e.target.value)}
+                  placeholder="https://... (URL gambar stiker transparan)"
+                  className="w-full bg-[#1e1f22] border border-transparent focus:border-[#5865f2] rounded-lg px-3 py-2 text-xs text-white placeholder:text-[#949ba4] focus:outline-none transition-colors"
+                />
+              </div>
+
+              {quickStickerUrl.trim() && (
+                <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#1e1f22] border border-white/5">
+                  <span className="text-[11px] text-[#949ba4] mb-2">Preview Stiker:</span>
+                  <img
+                    src={quickStickerUrl}
+                    alt="Preview"
+                    className="w-24 h-24 object-contain filter drop-shadow-md"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="mt-4 gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsQuickAddStickerOpen(false)}
+                className="text-xs text-[#dbdee1] hover:bg-white/10"
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                disabled={!quickStickerName.trim() || !quickStickerUrl.trim() || isSubmittingServerMedia}
+                onClick={handleQuickAddSticker}
+                className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-bold"
+              >
+                {isSubmittingServerMedia ? 'Menyimpan...' : 'Simpan Stiker ke DB'}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 

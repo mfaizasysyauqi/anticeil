@@ -159,6 +159,8 @@ export const messagesController: FastifyPluginAsyncZod = async (fastify) => {
                 description: z.string().max(300).default(''),
                 category: z.enum(['CHANNELS', 'DIRECT MESSAGES']).default('CHANNELS'),
                 hubId: z.string().optional(),
+                type: z.enum(['text', 'voice', 'forum']).optional(),
+                isPrivate: z.boolean().optional(),
             }),
         },
     }, async (request, reply) => {
@@ -168,6 +170,8 @@ export const messagesController: FastifyPluginAsyncZod = async (fastify) => {
             name: request.body.name,
             description: request.body.description,
             category: request.body.category,
+            type: request.body.type,
+            isPrivate: request.body.isPrivate,
         })
         return reply.status(StatusCodes.CREATED).send(channel)
     })
@@ -181,6 +185,8 @@ export const messagesController: FastifyPluginAsyncZod = async (fastify) => {
             body: z.object({
                 name: z.string().min(1).max(80).optional(),
                 description: z.string().max(300).optional(),
+                type: z.enum(['text', 'voice', 'forum']).optional(),
+                isPrivate: z.boolean().optional(),
             }),
         },
     }, async (request, reply) => {
@@ -498,6 +504,104 @@ export const messagesController: FastifyPluginAsyncZod = async (fastify) => {
             request.principal.id,
         )
         return reply.send(channels)
+    })
+
+    // ── Server Emojis ─────────────────────────────────────────────────────────
+
+    // GET /v1/community/hubs/:hubId/emojis
+    fastify.get('/hubs/:hubId/emojis', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ hubId: z.string() }),
+        },
+    }, async (request, reply) => {
+        const emojis = await messagesService(request.log).listServerEmojis(request.params.hubId)
+        return reply.send(emojis)
+    })
+
+    // POST /v1/community/hubs/:hubId/emojis
+    fastify.post('/hubs/:hubId/emojis', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ hubId: z.string() }),
+            body: z.object({
+                name: z.string().min(1).max(100),
+                code: z.string().min(1).max(120),
+                url: z.string().url(),
+            }),
+        },
+    }, async (request, reply) => {
+        const emoji = await messagesService(request.log).addServerEmoji({
+            hubId: request.params.hubId,
+            name: request.body.name,
+            code: request.body.code,
+            url: request.body.url,
+            uploadedBy: request.principal.id,
+        })
+        return reply.status(StatusCodes.CREATED).send(emoji)
+    })
+
+    // DELETE /v1/community/hubs/:hubId/emojis/:emojiId
+    fastify.delete('/hubs/:hubId/emojis/:emojiId', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ hubId: z.string(), emojiId: z.string() }),
+        },
+    }, async (request, reply) => {
+        await messagesService(request.log).deleteServerEmoji(request.params.emojiId, request.params.hubId)
+        return reply.status(StatusCodes.NO_CONTENT).send()
+    })
+
+    // ── Server Stickers ───────────────────────────────────────────────────────
+
+    // GET /v1/community/hubs/:hubId/stickers
+    fastify.get('/hubs/:hubId/stickers', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ hubId: z.string() }),
+        },
+    }, async (request, reply) => {
+        const stickers = await messagesService(request.log).listServerStickers(request.params.hubId)
+        return reply.send(stickers)
+    })
+
+    // POST /v1/community/hubs/:hubId/stickers
+    fastify.post('/hubs/:hubId/stickers', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ hubId: z.string() }),
+            body: z.object({
+                name: z.string().min(1).max(100),
+                url: z.string().url(),
+                tags: z.array(z.string()).optional(),
+            }),
+        },
+    }, async (request, reply) => {
+        const sticker = await messagesService(request.log).addServerSticker({
+            hubId: request.params.hubId,
+            name: request.body.name,
+            url: request.body.url,
+            tags: request.body.tags,
+            uploadedBy: request.principal.id,
+        })
+        return reply.status(StatusCodes.CREATED).send(sticker)
+    })
+
+    // DELETE /v1/community/hubs/:hubId/stickers/:stickerId
+    fastify.delete('/hubs/:hubId/stickers/:stickerId', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ hubId: z.string(), stickerId: z.string() }),
+        },
+    }, async (request, reply) => {
+        await messagesService(request.log).deleteServerSticker(request.params.stickerId, request.params.hubId)
+        return reply.status(StatusCodes.NO_CONTENT).send()
     })
 }
 

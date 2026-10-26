@@ -26,6 +26,8 @@ import { AddCommunityTables1868000000000 } from './migration/postgres/1868000000
 import { AddCommunityHubAndInviteTables1869000000000 } from './migration/postgres/1869000000000-AddCommunityHubAndInviteTables'
 import { AddUsernameToUserIdentity1869000000001 } from './migration/postgres/1869000000001-AddUsernameToUserIdentity'
 import { AddCommunityPinsNotificationsThreads1869000000002 } from './migration/postgres/1869000000002-AddCommunityPinsNotificationsThreads'
+import { AddCommunityServerEmojiAndSticker1869000000003 } from './migration/postgres/1869000000003-AddCommunityServerEmojiAndSticker'
+import { AddChannelTypeAndIsPrivate1869000000004 } from './migration/postgres/1869000000004-AddChannelTypeAndIsPrivate'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
 import { BackgroundMigration } from './background-migration'
@@ -938,6 +940,8 @@ export const getMigrations = (): (new () => Migration)[] => {
         AddCommunityHubAndInviteTables1869000000000,
         AddUsernameToUserIdentity1869000000001,
         AddCommunityPinsNotificationsThreads1869000000002,
+        AddCommunityServerEmojiAndSticker1869000000003,
+        AddChannelTypeAndIsPrivate1869000000004,
     ]
     return migrations
 }

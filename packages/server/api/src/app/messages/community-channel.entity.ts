@@ -10,6 +10,8 @@ export type CommunityChannelRow = {
     name: string
     description: string
     category: 'CHANNELS' | 'DIRECT MESSAGES'
+    type: 'text' | 'voice' | 'forum'
+    isPrivate: boolean
     isDirectMessage: boolean
     // For DMs: the two user IDs joined by `:`
     dmPair: string | null
@@ -39,6 +41,16 @@ export const CommunityChannelEntity = new EntitySchema<CommunityChannelRow>({
             type: String,
             nullable: false,
             default: 'CHANNELS',
+        },
+        type: {
+            type: String,
+            nullable: false,
+            default: 'text',
+        },
+        isPrivate: {
+            type: Boolean,
+            nullable: false,
+            default: false,
         },
         isDirectMessage: {
             type: Boolean,
