@@ -488,7 +488,7 @@ async function setupCommunityApi(app) {
             try {
                 let rows;
                 if (hubId) {
-                    rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE (platform_id = $1 OR platform_id IS NULL) AND hub_id = $2 ORDER BY created_at ASC', [platformId, hubId]);
+                    rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE hub_id = $1 ORDER BY created_at ASC', [hubId]);
                 } else {
                     rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE (platform_id = $1 OR platform_id IS NULL) ORDER BY created_at ASC', [platformId]);
                 }
@@ -496,9 +496,19 @@ async function setupCommunityApi(app) {
                 // If a specific server has missing default channels (voice/forum/text), auto-create them
                 if (hubId && hubId !== 'anticeil') {
                     rows = rows || [];
+                    // Deduplicate existing channels by (type, name) keeping the earliest created one
+                    const seenTypes = new Map();
+                    for (const r of rows) {
+                        const key = `${r.type || 'text'}:${(r.name || '').trim().toLowerCase()}`;
+                        if (!seenTypes.has(key)) {
+                            seenTypes.set(key, r);
+                        }
+                    }
+                    rows = Array.from(seenTypes.values());
                     const types = rows.map(r => r.type || 'text');
-                    if (rows.length === 0) {
-                        const defaultChId = `ch-${Date.now().toString(36)}-general`;
+
+                    if (rows.length === 0 || !types.includes('text')) {
+                        const defaultChId = `ch-${hubId}-general`;
                         const defaultText = {
                             id: defaultChId,
                             name: 'general',
@@ -519,7 +529,7 @@ async function setupCommunityApi(app) {
                         } catch (e) {}
                     }
                     if (!types.includes('voice')) {
-                        const voiceChId = `ch-${Date.now().toString(36)}-voice-${Math.random().toString(36).slice(2, 6)}`;
+                        const voiceChId = `ch-${hubId}-voice`;
                         const defaultVoice = {
                             id: voiceChId,
                             name: 'General Voice',
@@ -540,7 +550,7 @@ async function setupCommunityApi(app) {
                         } catch (e) {}
                     }
                     if (!types.includes('forum')) {
-                        const forumChId = `ch-${Date.now().toString(36)}-forum-${Math.random().toString(36).slice(2, 6)}`;
+                        const forumChId = `ch-${hubId}-forum`;
                         const defaultForum = {
                             id: forumChId,
                             name: 'forum-diskusi',
@@ -1406,8 +1416,7 @@ async function setupCommunityApi(app) {
         if (ds && dbReady) {
             try {
                 const rows = await ds.query(
-                    'SELECT * FROM anticeil_community_hubs WHERE (platform_id = $1 OR platform_id IS NULL) ORDER BY created_at ASC',
-                    [platformId]
+                    'SELECT * FROM anticeil_community_hubs ORDER BY created_at ASC'
                 );
                 if (rows && rows.length > 0) {
                     return rows.map(r => ({

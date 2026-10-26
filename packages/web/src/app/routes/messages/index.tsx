@@ -364,6 +364,38 @@ export function CommunityPage() {
     window.dispatchEvent(new CustomEvent('anticeil_active_hub_changed', { detail: activeHubId }));
   }, [activeHubId]);
 
+  // Synchronize browser URL address bar with active hub and active channel
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const url = new URL(window.location.href);
+      let changed = false;
+      if (activeHubId && activeHubId !== 'anticeil') {
+        if (url.searchParams.get('hub') !== activeHubId) {
+          url.searchParams.set('hub', activeHubId);
+          changed = true;
+        }
+      } else if (url.searchParams.has('hub')) {
+        url.searchParams.delete('hub');
+        changed = true;
+      }
+
+      if (activeChannelId) {
+        if (url.searchParams.get('channel') !== activeChannelId) {
+          url.searchParams.set('channel', activeChannelId);
+          changed = true;
+        }
+      } else if (url.searchParams.has('channel')) {
+        url.searchParams.delete('channel');
+        changed = true;
+      }
+
+      if (changed) {
+        window.history.replaceState(null, '', url.pathname + (url.search ? url.search : ''));
+      }
+    } catch {}
+  }, [activeHubId, activeChannelId]);
+
   const [inputText, setInputText] = useState('');
   const [stagedAttachment, setStagedAttachment] = useState<CommunityAttachment | null>(null);
   const [showMemberList, setShowMemberList] = useState(false);
@@ -619,7 +651,16 @@ export function CommunityPage() {
                 }
               }
             } else if (channelsRes.length > 0 && activeHubId !== 'anticeil') {
-              setActiveChannelId((curr) => curr || channelsRes[0].id);
+              const activeVoice = channelsRes.find(
+                (c) => (c.hubId || 'anticeil') === activeHubId && c.type === 'voice' && (activeCallCounts[c.id] || 0) > 0,
+              );
+              if (activeVoice) {
+                setActiveChannelId(activeVoice.id);
+                setActiveCallChannelId(activeVoice.id);
+                setIsCallPiP(false);
+              } else {
+                setActiveChannelId((curr) => curr || channelsRes[0].id);
+              }
             }
           }
           if (Array.isArray(membersRes)) {
@@ -937,10 +978,27 @@ export function CommunityPage() {
             const others = prev.filter((c) => (c.hubId || 'anticeil') !== activeHubId);
             return [...others, ...res];
           });
-          setActiveChannelId((curr) => {
-            const exists = res.some((c) => c.id === curr);
-            return exists ? curr : (res[0]?.id || '');
-          });
+          const targetChannelParam = new URLSearchParams(window.location.search).get('channel');
+          const matchedTarget = res.find((c) => c.id === targetChannelParam);
+          if (matchedTarget) {
+            setActiveChannelId(matchedTarget.id);
+            if (matchedTarget.type === 'voice') {
+              setActiveCallChannelId(matchedTarget.id);
+              setIsCallPiP(false);
+            }
+          } else {
+            setActiveChannelId((curr) => {
+              const exists = res.some((c) => c.id === curr);
+              if (exists) return curr;
+              const activeVoice = res.find((c) => c.type === 'voice' && (activeCallCounts[c.id] || 0) > 0);
+              if (activeVoice) {
+                setActiveCallChannelId(activeVoice.id);
+                setIsCallPiP(false);
+                return activeVoice.id;
+              }
+              return res[0]?.id || '';
+            });
+          }
         }
       } catch (err) {
         console.warn('Failed to load channels for hub', activeHubId, err);
