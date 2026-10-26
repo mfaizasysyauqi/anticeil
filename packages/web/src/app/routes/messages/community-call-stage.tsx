@@ -1562,7 +1562,7 @@ export function CommunityCallStage({
                           <Tv className="w-3.5 h-3.5 text-white" />
                         </div>
                         <span className="text-xs text-white/70 truncate flex-1">
-                          {YT_CATALOG.find(v => v.id === activeVideoId)?.title ?? activeVideoId}
+                          {ytVideos.find((v) => v.id === activeVideoId)?.title ?? activeVideoId}
                         </span>
                         <button
                           onClick={() => setActiveVideoId(null)}
