@@ -113,9 +113,11 @@ const ICE_SERVERS = {
 export interface DiscordAppDefinition {
   id: string;
   title: string;
+  bannerTitle?: string;
   developer: string;
   category: 'game' | 'entertainment' | 'productivity' | 'dev';
   bannerGradient: string;
+  bannerImage?: string;
   iconBg: string;
   iconColor: string;
   icon: React.ElementType;
@@ -130,15 +132,120 @@ export interface DiscordAppDefinition {
 
 export const DISCORD_APPS: DiscordAppDefinition[] = [
   {
+    id: 'valorant-aces',
+    title: 'VALORANT Aces',
+    bannerTitle: 'VALORANT ACES',
+    developer: 'Riot Games',
+    category: 'game',
+    bannerGradient: 'from-rose-600 via-zinc-800 to-black',
+    bannerImage: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80',
+    iconBg: 'bg-[#ff4655]',
+    iconColor: 'text-white',
+    icon: Gamepad2,
+    tagline: 'Relive some of the great...',
+    description: 'Relive some of the greatest VALORANT clutch moments and compete in tactical minigames with your server friends.',
+    isRecent: true,
+    isPromoted: true,
+    badge: 'PROMOTED',
+    accentColor: '#ff4655',
+  },
+  {
+    id: 'scream-7',
+    title: 'Scream 7 – Hide & S...',
+    bannerTitle: 'SCREAM 7',
+    developer: 'Paramount',
+    category: 'game',
+    bannerGradient: 'from-orange-700 via-amber-900 to-black',
+    bannerImage: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&w=600&q=80',
+    iconBg: 'bg-[#991b1b]',
+    iconColor: 'text-white',
+    icon: Flame,
+    tagline: 'Play Scream 7: Hide & Sc...',
+    description: 'Play Scream 7: Hide & Seek game together in your voice call before the cinematic theatrical release.',
+    isPromoted: true,
+    badge: 'PROMOTED',
+    accentColor: '#ea580c',
+  },
+  {
+    id: 'battlefield-6',
+    title: 'Battlefield 6 Top Gu...',
+    bannerTitle: 'BATTLEFIELD 6 SEASON 4',
+    developer: 'EA / DICE',
+    category: 'game',
+    bannerGradient: 'from-sky-700 via-slate-800 to-black',
+    bannerImage: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=600&q=80',
+    iconBg: 'bg-[#334155]',
+    iconColor: 'text-white',
+    icon: Trophy,
+    tagline: 'Top Gun begins in Battle...',
+    description: 'Top Gun air combat begins in Battlefield 6 Season 4. Squad up and dogfight across arctic airspace.',
+    isPromoted: true,
+    badge: 'PROMOTED',
+    accentColor: '#0284c7',
+  },
+  {
+    id: 'gaming-for-cause',
+    title: 'Gaming for Cause',
+    bannerTitle: 'GAMING FOR CAUSE',
+    developer: 'Charity Streams',
+    category: 'entertainment',
+    bannerGradient: 'from-blue-600 via-indigo-900 to-black',
+    bannerImage: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80',
+    iconBg: 'bg-[#0284c7]',
+    iconColor: 'text-white',
+    icon: Sparkles,
+    tagline: 'Gaming For Cause, a 24-...',
+    description: 'Gaming For Cause, a 24-hr charity marathon stream. Support streamers and donate to good causes together.',
+    isPromoted: true,
+    badge: 'PROMOTED',
+    accentColor: '#38bdf8',
+  },
+  {
+    id: 'camp-crystal-lake',
+    title: 'Camp Crystal Lake',
+    bannerTitle: 'CAMP CRYSTAL LAKE',
+    developer: 'Horror Tales',
+    category: 'game',
+    bannerGradient: 'from-amber-900 via-stone-900 to-black',
+    bannerImage: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
+    iconBg: 'bg-[#78350f]',
+    iconColor: 'text-white',
+    icon: Compass,
+    tagline: 'Survive the mystery camp...',
+    description: 'Welcome to Camp Crystal Lake. Solve puzzles and survive the terrifying night with your team.',
+    isPromoted: true,
+    badge: 'PROMOTED',
+    accentColor: '#d97706',
+  },
+  {
+    id: 'end-of-oak',
+    title: 'The End of Oak',
+    bannerTitle: 'THE END OF OAK',
+    developer: 'Storybook Interactive',
+    category: 'game',
+    bannerGradient: 'from-emerald-800 via-stone-900 to-black',
+    bannerImage: 'https://images.unsplash.com/photo-1511447333015-45b65e60f6d5?auto=format&fit=crop&w=600&q=80',
+    iconBg: 'bg-[#15803d]',
+    iconColor: 'text-white',
+    icon: Sprout,
+    tagline: 'Co-op narrative adventure...',
+    description: 'The End of Oak is a cooperative visual adventure where your decisions change the fate of the town.',
+    isPromoted: true,
+    badge: 'PROMOTED',
+    accentColor: '#22c55e',
+  },
+  {
     id: 'watch-together',
     title: 'Watch Together',
+    bannerTitle: 'WATCH TOGETHER',
     developer: 'YouTube',
     category: 'entertainment',
     bannerGradient: 'from-red-600 via-rose-700 to-zinc-950',
-    iconBg: 'bg-red-600',
+    bannerImage: 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?auto=format&fit=crop&w=600&q=80',
+    iconBg: 'bg-[#dc2626]',
     iconColor: 'text-white',
     icon: Tv,
-    tagline: 'Tonton video YouTube bersama rekan secara sinkron realtime.',
+    tagline: 'Tonton video YouTube bersama...',
     description: 'Nikmati video YouTube, tutorial coding, dan lofi music bersama seluruh anggota panggilan secara sinkron tanpa delay.',
     isRecent: true,
     isPromoted: true,
@@ -148,14 +255,16 @@ export const DISCORD_APPS: DiscordAppDefinition[] = [
   {
     id: 'virtual-fisher',
     title: 'Virtual Fisher',
+    bannerTitle: 'VIRTUAL FISHER',
     developer: 'Fishing Club Inc.',
     category: 'game',
     bannerGradient: 'from-cyan-600 via-teal-700 to-slate-950',
-    iconBg: 'bg-cyan-500',
+    bannerImage: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80',
+    iconBg: 'bg-[#0891b2]',
     iconColor: 'text-white',
     icon: Fish,
-    tagline: 'Minigame memancing kail bersama tim di server.',
-    description: 'Virtual Fisher is a game you can play in your server focused on catching rare fish, leveling up, and competing on server leaderboards.',
+    tagline: 'Minigame memancing kail bersama...',
+    description: 'Virtual Fisher is a game you can play in your server focused on catching rare fish, leveling up, and competing on leaderboards.',
     isRecent: true,
     isInServer: true,
     isPromoted: true,
@@ -165,44 +274,33 @@ export const DISCORD_APPS: DiscordAppDefinition[] = [
   {
     id: 'wordle',
     title: 'Wordle',
+    bannerTitle: 'WORDLE',
     developer: 'The New York Times Games',
     category: 'game',
     bannerGradient: 'from-emerald-700 via-teal-800 to-zinc-950',
-    iconBg: 'bg-emerald-600',
+    bannerImage: 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=600&q=80',
+    iconBg: 'bg-[#15803d]',
     iconColor: 'text-white',
     icon: Grid,
-    tagline: 'Tebak kata 5 huruf harian bersama rekan tim.',
-    description: 'Play Wordle from New York Times Games together! Tebak 5 huruf tersembunyi dalam 6 kesempatan dengan bantuan ubin warna hijau dan kuning.',
+    tagline: 'Tebak kata 5 huruf harian...',
+    description: 'Play Wordle together! Tebak 5 huruf tersembunyi dalam 6 kesempatan dengan bantuan ubin warna hijau dan kuning.',
     isRecent: true,
     isPromoted: true,
     badge: 'POPULER',
     accentColor: '#10b981',
   },
   {
-    id: 'magic-garden',
-    title: 'Magic Garden',
-    developer: 'Bloom Studio',
-    category: 'game',
-    bannerGradient: 'from-amber-600 via-orange-700 to-indigo-950',
-    iconBg: 'bg-amber-500',
-    iconColor: 'text-white',
-    icon: Sprout,
-    tagline: 'Bercocok tanam buah-buahan ajaib bersama teman.',
-    description: 'Garden with friends! Tanam labu ajaib, buah bintang, panen bersama dan kembangkan kebun komunitas server Anda.',
-    isPromoted: true,
-    badge: 'CO-OP',
-    accentColor: '#f59e0b',
-  },
-  {
     id: 'flow-canvas',
     title: 'Anticeil Flow Builder',
+    bannerTitle: 'FLOW BUILDER',
     developer: 'Anticeil Native',
     category: 'productivity',
     bannerGradient: 'from-indigo-600 via-purple-700 to-zinc-950',
-    iconBg: 'bg-primary',
+    bannerImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80',
+    iconBg: 'bg-[#4f46e5]',
     iconColor: 'text-white',
     icon: Workflow,
-    tagline: 'Simulasikan alur webhook, workflow, dan AI agent realtime.',
+    tagline: 'Simulasi workflow & AI agent...',
     description: 'Rancang arsitektur otomasi, pantau eksekusi langkah AI & database, dan diskusikan bersama tim secara visual.',
     isRecent: true,
     isPromoted: true,
@@ -212,32 +310,19 @@ export const DISCORD_APPS: DiscordAppDefinition[] = [
   {
     id: 'whiteboard',
     title: 'Jamspace Whiteboard',
+    bannerTitle: 'JAMSPACE',
     developer: 'Anticeil Native',
     category: 'productivity',
     bannerGradient: 'from-blue-600 via-indigo-700 to-slate-950',
-    iconBg: 'bg-blue-600',
+    bannerImage: 'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=600&q=80',
+    iconBg: 'bg-[#2563eb]',
     iconColor: 'text-white',
     icon: Palette,
-    tagline: 'Papan tulis kolaboratif untuk sketching arsitektur sistem.',
+    tagline: 'Papan tulis kolaboratif realtime...',
     description: 'Papan kanvas HTML5 realtime multi-color untuk coret-coret skema database, wireframe, atau ide proyek baru.',
     isPromoted: true,
     badge: 'OFFICIAL',
     accentColor: '#3b82f6',
-  },
-  {
-    id: 'code-runner',
-    title: 'Dev Scratchpad & Tester',
-    developer: 'Anticeil DevTools',
-    category: 'dev',
-    bannerGradient: 'from-emerald-600 via-slate-800 to-black',
-    iconBg: 'bg-zinc-800',
-    iconColor: 'text-emerald-400',
-    icon: Terminal,
-    tagline: 'Editor script JS realtime dan JSON validator dengan live output.',
-    description: 'Tulis dan uji script JavaScript langsung di dalam panggilan, jalankan pengujian payload API, dan diskusikan hasilnya.',
-    isPromoted: true,
-    badge: 'DEV',
-    accentColor: '#10b981',
   },
 ];
 
@@ -1881,7 +1966,7 @@ export function CommunityCallStage({
   return (
     <div className="w-full h-full flex-1 min-h-0 flex flex-col bg-[#111214] text-white select-none relative overflow-hidden group/stage">
       {/* ── Discord Top Stage App Bar (Exact Match to Discord UI) ────────── */}
-      <div className="h-12 w-full px-2 flex items-center justify-between bg-[#111214] border-b border-white/5 select-none shrink-0 z-20">
+      <div className="h-12 w-full px-4 flex items-center justify-between bg-[#111214] border-b border-transparent select-none shrink-0 z-20">
         {/* Left: Speaker icon + Channel Name + (Activity Tag if active) */}
         <div className="flex items-center gap-2 min-w-0">
           <Volume2 className="w-5 h-5 text-[#949ba4] shrink-0" />
@@ -2855,6 +2940,57 @@ export function CommunityCallStage({
                   </div>
                 </div>
               )}
+
+              {/* APP 8: GENERIC / PROMOTED DISCORD ACTIVITIES */}
+              {activeAppId && !['watch-together', 'virtual-fisher', 'wordle', 'magic-garden', 'flow-canvas', 'whiteboard', 'code-runner'].includes(activeAppId) && currentActiveApp && (
+                <div className="h-full min-h-0 flex flex-col items-center justify-center p-6 bg-gradient-to-b from-[#111214] via-[#18191c] to-[#0f1012] overflow-y-auto">
+                  <div className="w-full max-w-2xl bg-[#1e1f22] border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+                    <div className="relative aspect-[21/9] w-full overflow-hidden bg-black">
+                      {currentActiveApp.bannerImage && (
+                        <img
+                          src={currentActiveApp.bannerImage}
+                          alt={currentActiveApp.title}
+                          className="w-full h-full object-cover opacity-80"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#1e1f22] via-transparent to-black/40" />
+                      <div className="absolute top-3 right-3">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider text-black bg-white uppercase shadow-md">
+                          PROMOTED
+                        </span>
+                      </div>
+                      <div className="absolute bottom-4 left-4 flex items-center gap-3">
+                        <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg', currentActiveApp.iconBg)}>
+                          <currentActiveApp.icon className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-black text-white drop-shadow">{currentActiveApp.title}</h2>
+                          <span className="text-xs text-white/70">{currentActiveApp.developer}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <p className="text-sm text-[#dbdee1] leading-relaxed">
+                        {currentActiveApp.description}
+                      </p>
+                      <div className="p-4 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs text-emerald-400 font-semibold">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                          <span>Aktif bersama {totalInCall} peserta di saluran suara</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={handleStopActivity}
+                          variant="ghost"
+                          className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer"
+                        >
+                          Tutup Aktivitas
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -3253,7 +3389,7 @@ export function CommunityCallStage({
       )}
 
       {/* ── Discord Bottom Control Dock (Exact Match to Discord UI) ────────── */}
-      <div className="h-16 shrink-0 w-full px-2 flex items-center justify-between bg-[#111214] border-t border-white/5 select-none z-20">
+      <div className="h-16 shrink-0 w-full px-4 flex items-center justify-between bg-[#111214] border-t border-transparent select-none z-20">
         {/* Left: Invite Friends / Add to Call */}
         <div className="flex items-center">
           <TooltipProvider delayDuration={150}>
@@ -3480,114 +3616,120 @@ export function CommunityCallStage({
         </div>
       </div>
 
-      {/* ── DISCORD-STYLE APP LAUNCHER MODAL / DRAWER (Matching screenshot) ── */}
+      {/* ── DISCORD-STYLE ACTIVITIES LAUNCHER MODAL (100% Match to Discord Screenshot) ── */}
       <Dialog open={isAppLauncherOpen} onOpenChange={setIsAppLauncherOpen}>
-        <DialogContent className="max-w-2xl sm:max-w-3xl p-0 bg-[#1e1f22] border-white/15 text-white overflow-hidden shadow-2xl rounded-2xl flex flex-col max-h-[85vh]">
+        <DialogContent
+          showCloseButton={false}
+          className="w-[95vw] sm:w-[460px] max-w-[460px] p-0 bg-[#000000] border border-[#2b2d31] text-white overflow-hidden shadow-2xl rounded-[20px] flex flex-col max-h-[85vh] h-[580px] focus:outline-none"
+        >
+          <DialogTitle className="sr-only">Activities</DialogTitle>
+          <DialogDescription className="sr-only">Browse and launch activities in this voice call.</DialogDescription>
+
           {/* Top Search Bar */}
-          <div className="p-4 bg-[#2b2d31] border-b border-white/10 flex items-center gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="p-4 pb-2 shrink-0">
+            <div className="relative w-full">
+              <Search className="w-4 h-4 text-[#949ba4] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={appSearchQuery}
                 onChange={(e) => setAppSearchQuery(e.target.value)}
-                placeholder="Search Apps & Commands"
-                className="w-full bg-[#111214] border border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2] transition-all"
+                placeholder="Search"
+                className="w-full bg-[#111214] border border-[#35373c] focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2] rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder:text-[#949ba4] focus:outline-none transition-colors"
               />
             </div>
             {activeAppId !== null && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleStopActivity}
-                className="text-red-400 hover:text-red-300 hover:bg-red-500/20 text-xs shrink-0"
-              >
-                Hentikan Aktivitas Saat Ini
-              </Button>
+              <div className="mt-2.5 flex items-center justify-between px-1">
+                <span className="text-[11px] text-[#949ba4]">
+                  Aktif: <strong className="text-white">{currentActiveApp?.title}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleStopActivity}
+                  className="text-[11px] text-red-400 hover:text-red-300 hover:underline cursor-pointer font-semibold"
+                >
+                  Hentikan Aktivitas
+                </button>
+              </div>
             )}
           </div>
 
           {/* Modal Scrollable Body */}
-          <div className="p-5 overflow-y-auto space-y-6 [scrollbar-width:thin] bg-[#111214]">
-            {/* 1. Recents Row (Circular / Squircle Icons) */}
+          <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4 [scrollbar-width:thin] [scrollbar-color:#2b2d31_transparent]">
+            {/* 1. Recents Row (Matching Screenshot: YouTube dark grey with red logo, purple arm icon on white, colorful 3x3 grid on white) */}
             {!appSearchQuery && (
-              <div className="space-y-2">
-                <span className="text-xs font-extrabold text-muted-foreground tracking-wider uppercase">
-                  Recents
-                </span>
-                <div className="flex items-center gap-3">
-                  {DISCORD_APPS.filter((a) => a.isRecent).map((app) => (
-                    <TooltipProvider key={app.id} delayDuration={150}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => handleLaunchApp(app.id)}
-                            className={cn(
-                              'w-12 h-12 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-md border hover:scale-105',
-                              app.iconBg,
-                              activeAppId === app.id
-                                ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-[#111214]'
-                                : 'border-white/10',
-                            )}
-                          >
-                            <app.icon className="w-6 h-6 text-white" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="text-xs font-semibold">
-                          {app.title}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ))}
+              <div>
+                <h3 className="text-sm font-bold text-white mb-2.5">Recents</h3>
+                <div className="flex items-center gap-2.5">
+                  {/* YouTube Watch Together */}
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleLaunchApp('watch-together')}
+                          className="w-12 h-12 rounded-[14px] bg-[#2b2d31] hover:bg-[#35373c] border border-white/5 flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-md group shrink-0"
+                          title="Watch Together"
+                        >
+                          <div className="w-7 h-5 rounded-md bg-[#ff0000] flex items-center justify-center text-white shadow-sm">
+                            <Play className="w-3 h-3 fill-white ml-0.5" />
+                          </div>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs font-semibold">Watch Together</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  {/* Arm / Gamepad on White squircle */}
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleLaunchApp('valorant-aces')}
+                          className="w-12 h-12 rounded-[14px] bg-white hover:bg-zinc-100 border border-white/10 flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-md text-[#5865F2] shrink-0"
+                          title="VALORANT Aces"
+                        >
+                          <Gamepad2 className="w-6 h-6 stroke-[2.2]" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs font-semibold">VALORANT Aces</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  {/* 3x3 Grid on White squircle */}
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleLaunchApp('wordle')}
+                          className="w-12 h-12 rounded-[14px] bg-white hover:bg-zinc-100 border border-white/10 flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-md shrink-0"
+                          title="Wordle"
+                        >
+                          <div className="grid grid-cols-3 gap-0.5 p-1 rounded-sm bg-[#111214]">
+                            <div className="w-2 h-2 rounded-[1.5px] bg-emerald-500" />
+                            <div className="w-2 h-2 rounded-[1.5px] bg-amber-400" />
+                            <div className="w-2 h-2 rounded-[1.5px] bg-emerald-500" />
+                            <div className="w-2 h-2 rounded-[1.5px] bg-[#3a3c42]" />
+                            <div className="w-2 h-2 rounded-[1.5px] bg-emerald-500" />
+                            <div className="w-2 h-2 rounded-[1.5px] bg-emerald-500" />
+                            <div className="w-2 h-2 rounded-[1.5px] bg-emerald-500" />
+                            <div className="w-2 h-2 rounded-[1.5px] bg-[#3a3c42]" />
+                            <div className="w-2 h-2 rounded-[1.5px] bg-amber-400" />
+                          </div>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs font-semibold">Wordle</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
             )}
 
-            {/* 2. Apps in this Server (Featured Row) */}
-            {!appSearchQuery && (
-              <div className="space-y-2">
-                <span className="text-xs font-extrabold text-muted-foreground tracking-wider uppercase">
-                  Apps in this Server
-                </span>
-                <div
-                  onClick={() => handleLaunchApp('virtual-fisher')}
-                  className="p-3.5 rounded-xl bg-[#1e1f22] border border-white/10 hover:border-[#5865F2]/50 hover:bg-[#2b2d31]/80 transition-all flex items-center justify-between cursor-pointer group shadow-md"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-2xl bg-cyan-500 flex items-center justify-center text-white shrink-0 shadow">
-                      <Fish className="w-6 h-6" />
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">
-                          VirtualFisher
-                        </span>
-                        <span className="bg-[#5865F2] text-white text-[9px] font-extrabold px-1.5 py-0.2 rounded flex items-center gap-0.5">
-                          <Check className="w-2.5 h-2.5 stroke-[3]" /> APP
-                        </span>
-                      </div>
-                      <span className="text-xs text-muted-foreground truncate">
-                        Virtual Fisher is a game you can play in your server focused on catching rare fish...
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    className="bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold text-xs ml-3 shrink-0"
-                  >
-                    Luncurkan
-                  </Button>
-                </div>
-              </div>
-            )}
+            {/* 2. Activities (2 Columns Grid matching Discord) */}
+            <div>
+              <h3 className="text-sm font-bold text-white mb-2.5">
+                {appSearchQuery ? 'Search Results' : 'Activities'}
+              </h3>
 
-            {/* 3. Promoted / Banners Grid (Rich Banner Cards from Screenshot) */}
-            <div className="space-y-3">
-              <span className="text-xs font-extrabold text-muted-foreground tracking-wider uppercase">
-                {appSearchQuery ? 'Hasil Pencarian Apps' : 'Promoted / Semua Aktivitas'}
-              </span>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-2 gap-3 pb-2">
                 {filteredApps.map((app) => (
                   <div
                     key={app.id}
@@ -3595,70 +3737,64 @@ export function CommunityCallStage({
                     className={cn(
                       'rounded-2xl border overflow-hidden transition-all duration-200 cursor-pointer group flex flex-col shadow-lg',
                       activeAppId === app.id
-                        ? 'border-emerald-500 ring-2 ring-emerald-500/40 bg-[#1e1f22]'
-                        : 'border-white/10 bg-[#1e1f22] hover:border-white/25 hover:shadow-2xl hover:-translate-y-0.5',
+                        ? 'border-[#5865F2] ring-2 ring-[#5865F2]/40 bg-[#1e1f22]'
+                        : 'border-white/5 bg-[#1e1f22] hover:border-white/20 hover:bg-[#232428]',
                     )}
                   >
-                    {/* Graphical Top Banner */}
-                    <div
-                      className={cn(
-                        'h-28 w-full p-3.5 flex flex-col justify-between relative overflow-hidden bg-gradient-to-br',
-                        app.bannerGradient,
-                      )}
-                    >
-                      {/* Decorative ambient glowing circles */}
-                      <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/10 blur-xl pointer-events-none" />
-                      <div className="absolute -bottom-8 -left-8 w-28 h-28 rounded-full bg-black/20 blur-lg pointer-events-none" />
-
-                      {/* Top tags */}
-                      <div className="flex items-center justify-between relative z-10">
-                        {app.badge && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-black/50 text-white backdrop-blur-md border border-white/10">
-                            {app.badge}
-                          </span>
-                        )}
-                        <span className="text-[10px] font-bold text-white/80 bg-black/30 px-2 py-0.5 rounded-full backdrop-blur-xs">
-                          {app.developer}
-                        </span>
-                      </div>
-
-                      {/* Center big illustration mark */}
-                      <div className="flex items-center justify-between relative z-10">
-                        <div className="flex items-center gap-2">
-                          <app.icon className="w-8 h-8 text-white/90 drop-shadow-md" />
-                          <span className="text-base font-black text-white drop-shadow tracking-wide">
-                            {app.title}
-                          </span>
+                    {/* Graphical Top Banner with PROMOTED pill */}
+                    <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#111214]">
+                      {app.bannerImage ? (
+                        <img
+                          src={app.bannerImage}
+                          alt={app.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div
+                          className={cn(
+                            'w-full h-full p-3 flex flex-col justify-between relative overflow-hidden bg-gradient-to-br',
+                            app.bannerGradient,
+                          )}
+                        >
+                          <app.icon className="w-10 h-10 text-white/30" />
                         </div>
-                        {activeAppId === app.id && (
-                          <span className="px-2 py-0.5 rounded bg-emerald-500 text-black text-[10px] font-bold flex items-center gap-1 shadow">
-                            <Check className="w-3 h-3 stroke-[3]" /> Aktif
-                          </span>
-                        )}
+                      )}
+
+                      {/* Ambient Gradient Overlay for text contrast */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#1e1f22] via-transparent to-black/30 pointer-events-none" />
+
+                      {/* Promoted Pill Badge on Top-Right */}
+                      {app.isPromoted && (
+                        <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider text-black bg-white uppercase shadow-md select-none">
+                          PROMOTED
+                        </span>
+                      )}
+
+                      {/* Center Banner Title Overlay */}
+                      <div className="absolute bottom-1.5 left-2 right-2 z-10 pointer-events-none">
+                        <span className="text-[11px] sm:text-xs font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] tracking-wide truncate block">
+                          {app.bannerTitle || app.title}
+                        </span>
                       </div>
                     </div>
 
                     {/* Card Bottom Meta */}
-                    <div className="p-3.5 bg-[#2b2d31] flex items-start gap-3 flex-1">
+                    <div className="p-2.5 bg-[#1e1f22] group-hover:bg-[#232428] transition-colors flex items-center gap-2.5 min-w-0">
                       <div
                         className={cn(
-                          'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform',
+                          'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform',
                           app.iconBg,
                         )}
                       >
                         <app.icon className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex flex-col min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-white group-hover:text-primary transition-colors truncate">
-                            {app.title}
-                          </span>
-                          <span className="bg-[#5865F2] text-white text-[8px] font-extrabold px-1.5 py-0.2 rounded flex items-center gap-0.5 shrink-0">
-                            <Check className="w-2.5 h-2.5 stroke-[3]" /> APP
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">
-                          {app.description}
+                        <span className="text-xs font-bold text-white group-hover:text-white truncate leading-tight">
+                          {app.title}
+                        </span>
+                        <span className="text-[11px] text-[#949ba4] truncate leading-tight mt-0.5">
+                          {app.tagline || app.description}
                         </span>
                       </div>
                     </div>
