@@ -315,6 +315,7 @@ export function CommunityCallStage({
   const [ytIsSearching, setYtIsSearching] = useState(false);
   const [ytSearchError, setYtSearchError] = useState<string | null>(null);
   const ytSearchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ytCacheRef = useRef<Map<string, Array<{ id: string; title: string; channel: string; thumbnail: string; duration: string }>>>(new Map());
 
   // Category → YouTube videoCategoryId or keyword (100% live from YouTube API)
   const ytCategories = [
@@ -340,13 +341,33 @@ export function CommunityCallStage({
     return `${m}:${s.padStart(2, '0')}`;
   };
 
-  // Fetch YouTube Videos: Live Trending on initial open, Real Search on query
+  // Fetch YouTube Videos: Live Trending on initial open, Real Search on query (Debounced + In-Memory Cached)
   useEffect(() => {
     if (activeAppId !== 'watch-together') return;
     if (ytSearchDebounce.current) clearTimeout(ytSearchDebounce.current);
 
     const catObj = ytCategories.find((c) => c.id === ytCategory);
     const rawQ = ytSearchQuery.trim();
+
+    // 1. Skip search if pasting a direct YouTube URL (user will click 'Putar' button)
+    if (rawQ.includes('youtube.com') || rawQ.includes('youtu.be')) {
+      return;
+    }
+
+    // 2. Don't waste quota on a single 1-letter typo
+    if (rawQ.length === 1) {
+      return;
+    }
+
+    const cacheKey = rawQ ? `search:${rawQ.toLowerCase()}` : `cat:${ytCategory}`;
+
+    // 3. Cache hit -> Instant result without any API quota usage
+    if (ytCacheRef.current.has(cacheKey)) {
+      setYtVideos(ytCacheRef.current.get(cacheKey)!);
+      setYtIsSearching(false);
+      setYtSearchError(null);
+      return;
+    }
 
     ytSearchDebounce.current = setTimeout(async () => {
       setYtIsSearching(true);
@@ -356,7 +377,7 @@ export function CommunityCallStage({
         let items: Array<{ id: string; title: string; channel: string; thumbnail: string; duration: string }> = [];
 
         if (rawQ) {
-          // 1. User typed query -> Search API
+          // 1. User typed query -> Search API (debounced 500ms)
           const params = new URLSearchParams({
             part: 'snippet',
             q: rawQ,
@@ -434,6 +455,8 @@ export function CommunityCallStage({
           }));
         }
 
+        // Save to cache
+        ytCacheRef.current.set(cacheKey, items);
         setYtVideos(items);
       } catch (e: any) {
         setYtSearchError(e.message ?? 'Gagal memuat video YouTube');
@@ -441,7 +464,7 @@ export function CommunityCallStage({
       } finally {
         setYtIsSearching(false);
       }
-    }, rawQ ? 400 : 0);
+    }, rawQ ? 500 : 0);
 
     return () => {
       if (ytSearchDebounce.current) clearTimeout(ytSearchDebounce.current);
