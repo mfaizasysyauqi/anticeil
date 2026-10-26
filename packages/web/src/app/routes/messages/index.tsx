@@ -7882,7 +7882,7 @@ export function CommunityPage() {
                 socket={socket}
                 isCallActive={true}
                 isPiP={true}
-                isActivityOpen={isActivityOpen}
+                initialAppId={selectedActivityAppId}
                 onToggleActivity={(open) => setIsActivityOpen((prev) => (typeof open === 'boolean' ? open : !prev))}
                 onTogglePiP={() => {
                   setActiveChannelId(activeCallChannelId);
