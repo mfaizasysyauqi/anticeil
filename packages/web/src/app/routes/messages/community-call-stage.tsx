@@ -876,10 +876,15 @@ export function CommunityCallStage({
 
     let localMediaStream: MediaStream | null = null;
 
-    startLocalMedia().then((stream) => {
+    const joinRoom = (stream: MediaStream | null) => {
       localMediaStream = stream;
       const initialHasVideo = !isVideoOff && Boolean(stream?.getVideoTracks().length);
       const initialHasAudio = !isMuted;
+      console.log('[Call] Emitting COMMUNITY_CALL_JOIN', {
+        channelId: channel.id,
+        socketId: socket.id,
+        connected: socket.connected,
+      });
       socket.emit(
         'COMMUNITY_CALL_JOIN',
         {
@@ -900,6 +905,7 @@ export function CommunityCallStage({
           plan: isPlusOrAbove ? 'plus' : 'free',
         },
         (res: any) => {
+          console.log('[Call] COMMUNITY_CALL_JOIN ack response:', res);
           if (res?.success && Array.isArray(res.participants)) {
             res.participants.forEach((existingPeer: any) => {
               setParticipants((prev) => {
@@ -920,6 +926,17 @@ export function CommunityCallStage({
           }
         },
       );
+    };
+
+    startLocalMedia().then((stream) => {
+      if (!socket.connected) {
+        socket.connect();
+        socket.once('connect', () => {
+          joinRoom(stream);
+        });
+      } else {
+        joinRoom(stream);
+      }
     });
 
     const handleUserJoined = (data: {

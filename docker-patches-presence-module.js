@@ -2091,154 +2091,217 @@ async function setupCommunityApi(app) {
     }
 
     // --- REALTIME WEBRTC VIDEO/VOICE CALL & ACTIVITY ENGINE ---
-    if (app.io) {
-        app.io.on('connection', (socket) => {
-            socket.on('COMMUNITY_CALL_JOIN', (data, callback) => {
-                const { channelId, user, hasVideo, hasAudio, isScreenSharing, plan } = data || {};
-                if (!channelId || !user || !user.id) {
-                    return callback && callback({ success: false, message: 'Invalid payload' });
-                }
+    function getIOServer() {
+        try {
+            const serverMod = require("../../../server");
+            if (serverMod && serverMod.app && serverMod.app.io) {
+                return serverMod.app.io;
+            }
+        } catch (e) {}
+        if (app && app.io) return app.io;
+        return null;
+    }
 
-                if (!activeCallRooms[channelId]) activeCallRooms[channelId] = [];
-                const room = activeCallRooms[channelId];
-                const isExisting = room.some(p => p.socketId === socket.id);
-                const isPlus = Boolean(plan && (plan.includes('plus') || plan.includes('team') || plan.includes('enterprise')));
+    function attachCallEngineToSocket(socket) {
+        if (!socket || socket._anticeilCallEngineAttached) return;
+        socket._anticeilCallEngineAttached = true;
+        try {
+            app.log.info({ socketId: socket.id }, '[Anticeil Call Engine] Attached call handlers to socket');
+        } catch (e) {}
 
-                // Free Plan Limit: Max 2 participants
-                if (!isExisting && room.length >= 2 && !isPlus) {
-                    return callback && callback({
-                        success: false,
-                        code: 'UPGRADE_REQUIRED',
-                        message: 'Batas peserta Free plan (maksimal 2 orang) tercapai. Upgrade ke Anticeil Plus untuk group call 3+ orang.'
-                    });
-                }
+        socket.on('COMMUNITY_CALL_JOIN', (data, callback) => {
+            const { channelId, user, hasVideo, hasAudio, isScreenSharing, plan } = data || {};
+            if (!channelId || !user || !user.id) {
+                return callback && callback({ success: false, message: 'Invalid payload' });
+            }
 
-                const resolvedHasVideo = Boolean(hasVideo || data?.mediaState?.hasVideo);
-                const resolvedHasAudio = (hasAudio !== undefined ? hasAudio : data?.mediaState?.hasAudio) !== false;
-                const resolvedIsScreenSharing = Boolean(isScreenSharing || data?.mediaState?.isScreenSharing);
+            if (!activeCallRooms[channelId]) activeCallRooms[channelId] = [];
+            const room = activeCallRooms[channelId];
+            const isExisting = room.some(p => p.socketId === socket.id);
+            const isPlus = Boolean(plan && (plan.includes('plus') || plan.includes('team') || plan.includes('enterprise')));
 
-                const participant = {
-                    socketId: socket.id,
-                    userId: user.id,
-                    userName: user.name || 'Pengguna Anticeil',
-                    userAvatar: user.avatar || null,
+            // Free Plan Limit: Max 2 participants
+            if (!isExisting && room.length >= 2 && !isPlus) {
+                return callback && callback({
+                    success: false,
+                    code: 'UPGRADE_REQUIRED',
+                    message: 'Batas peserta Free plan (maksimal 2 orang) tercapai. Upgrade ke Anticeil Plus untuk group call 3+ orang.'
+                });
+            }
+
+            const resolvedHasVideo = Boolean(hasVideo || data?.mediaState?.hasVideo);
+            const resolvedHasAudio = (hasAudio !== undefined ? hasAudio : data?.mediaState?.hasAudio) !== false;
+            const resolvedIsScreenSharing = Boolean(isScreenSharing || data?.mediaState?.isScreenSharing);
+
+            const participant = {
+                socketId: socket.id,
+                userId: user.id,
+                userName: user.name || 'Pengguna Anticeil',
+                userAvatar: user.avatar || null,
+                hasVideo: resolvedHasVideo,
+                hasAudio: resolvedHasAudio,
+                isScreenSharing: resolvedIsScreenSharing,
+                mediaState: {
                     hasVideo: resolvedHasVideo,
                     hasAudio: resolvedHasAudio,
-                    isScreenSharing: resolvedIsScreenSharing,
-                    mediaState: {
-                        hasVideo: resolvedHasVideo,
-                        hasAudio: resolvedHasAudio,
-                        isScreenSharing: resolvedIsScreenSharing
-                    },
-                    roomSize: room.length + (isExisting ? 0 : 1),
-                    joinedAt: Date.now()
-                };
+                    isScreenSharing: resolvedIsScreenSharing
+                },
+                roomSize: room.length + (isExisting ? 0 : 1),
+                joinedAt: Date.now()
+            };
 
-                const existingIdx = room.findIndex(p => p.socketId === socket.id);
-                if (existingIdx >= 0) {
-                    room[existingIdx] = participant;
-                } else {
-                    room.push(participant);
-                }
+            const existingIdx = room.findIndex(p => p.socketId === socket.id);
+            if (existingIdx >= 0) {
+                room[existingIdx] = participant;
+            } else {
+                room.push(participant);
+            }
 
-                socket.join(`call_${channelId}`);
-                socket.data.activeCallChannelId = channelId;
-                socket.data.activeCallUserId = user.id;
+            socket.join(`call_${channelId}`);
+            socket.data.activeCallChannelId = channelId;
+            socket.data.activeCallUserId = user.id;
 
-                socket.to(`call_${channelId}`).emit('COMMUNITY_CALL_USER_JOINED', participant);
-                app.io.emit('COMMUNITY_CALL_STATE', {
+            try {
+                app.log.info({ channelId, userId: user.id, socketId: socket.id, roomSize: room.length }, '[Anticeil Call Engine] User joined call room');
+            } catch (e) {}
+
+            socket.to(`call_${channelId}`).emit('COMMUNITY_CALL_USER_JOINED', participant);
+            const io = socket.server || getIOServer();
+            if (io) {
+                io.emit('COMMUNITY_CALL_STATE', {
                     channelId,
                     active: true,
                     participantCount: room.length,
                     participants: room
                 });
+            }
 
-                if (callback) {
-                    callback({
-                        success: true,
-                        participants: room.filter(p => p.socketId !== socket.id)
-                    });
-                }
-            });
+            if (callback) {
+                callback({
+                    success: true,
+                    participants: room.filter(p => p.socketId !== socket.id)
+                });
+            }
+        });
 
-            socket.on('COMMUNITY_CALL_SIGNAL', (data) => {
-                const { channelId, targetSocketId, signal } = data || {};
-                if (!channelId || !signal) return;
-                const payload = {
-                    channelId,
-                    fromSocketId: socket.id,
-                    fromUserId: socket.data?.activeCallUserId,
-                    signal
-                };
-                if (targetSocketId) {
-                    app.io.to(targetSocketId).emit('COMMUNITY_CALL_SIGNAL', payload);
+        socket.on('COMMUNITY_CALL_SIGNAL', (data) => {
+            const { channelId, targetSocketId, signal } = data || {};
+            if (!channelId || !signal) return;
+            const payload = {
+                channelId,
+                fromSocketId: socket.id,
+                fromUserId: socket.data?.activeCallUserId,
+                signal
+            };
+            const io = socket.server || getIOServer();
+            if (targetSocketId) {
+                if (io) {
+                    io.to(targetSocketId).emit('COMMUNITY_CALL_SIGNAL', payload);
                 } else {
                     socket.to(`call_${channelId}`).emit('COMMUNITY_CALL_SIGNAL', payload);
                 }
+            } else {
+                socket.to(`call_${channelId}`).emit('COMMUNITY_CALL_SIGNAL', payload);
+            }
+        });
+
+        socket.on('COMMUNITY_CALL_TOGGLE_MEDIA', (data) => {
+            const { channelId, hasVideo, hasAudio, isScreenSharing, isSpeaking } = data || {};
+            if (!channelId || !activeCallRooms[channelId]) return;
+            const room = activeCallRooms[channelId];
+            const p = room.find(p => p.socketId === socket.id);
+            if (p) {
+                if (hasVideo !== undefined) p.hasVideo = hasVideo;
+                if (hasAudio !== undefined) p.hasAudio = hasAudio;
+                if (isScreenSharing !== undefined) p.isScreenSharing = isScreenSharing;
+            }
+            socket.to(`call_${channelId}`).emit('COMMUNITY_CALL_PEER_MEDIA_UPDATED', {
+                socketId: socket.id,
+                userId: socket.data?.activeCallUserId,
+                hasVideo,
+                hasAudio,
+                isScreenSharing,
+                isSpeaking
             });
+        });
 
-            socket.on('COMMUNITY_CALL_TOGGLE_MEDIA', (data) => {
-                const { channelId, hasVideo, hasAudio, isScreenSharing, isSpeaking } = data || {};
-                if (!channelId || !activeCallRooms[channelId]) return;
-                const room = activeCallRooms[channelId];
-                const p = room.find(p => p.socketId === socket.id);
-                if (p) {
-                    if (hasVideo !== undefined) p.hasVideo = hasVideo;
-                    if (hasAudio !== undefined) p.hasAudio = hasAudio;
-                    if (isScreenSharing !== undefined) p.isScreenSharing = isScreenSharing;
-                }
-                socket.to(`call_${channelId}`).emit('COMMUNITY_CALL_PEER_MEDIA_UPDATED', {
-                    socketId: socket.id,
-                    userId: socket.data?.activeCallUserId,
-                    hasVideo,
-                    hasAudio,
-                    isScreenSharing,
-                    isSpeaking
-                });
+        socket.on('COMMUNITY_CALL_ACTIVITY_EVENT', (data) => {
+            const { channelId, action, payload } = data || {};
+            if (!channelId) return;
+            socket.to(`call_${channelId}`).emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+                fromSocketId: socket.id,
+                fromUserId: socket.data?.activeCallUserId,
+                action,
+                payload
             });
+        });
 
-            socket.on('COMMUNITY_CALL_ACTIVITY_EVENT', (data) => {
-                const { channelId, action, payload } = data || {};
-                if (!channelId) return;
-                socket.to(`call_${channelId}`).emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
-                    fromSocketId: socket.id,
-                    fromUserId: socket.data?.activeCallUserId,
-                    action,
-                    payload
-                });
+        const leaveCurrentCall = () => {
+            const channelId = socket.data?.activeCallChannelId;
+            if (!channelId || !activeCallRooms[channelId]) return;
+            activeCallRooms[channelId] = activeCallRooms[channelId].filter(p => p.socketId !== socket.id);
+            socket.to(`call_${channelId}`).emit('COMMUNITY_CALL_USER_LEFT', {
+                channelId,
+                socketId: socket.id,
+                userId: socket.data?.activeCallUserId
             });
+            socket.leave(`call_${channelId}`);
+            socket.data.activeCallChannelId = null;
 
-            const leaveCurrentCall = () => {
-                const channelId = socket.data?.activeCallChannelId;
-                if (!channelId || !activeCallRooms[channelId]) return;
-                activeCallRooms[channelId] = activeCallRooms[channelId].filter(p => p.socketId !== socket.id);
-                socket.to(`call_${channelId}`).emit('COMMUNITY_CALL_USER_LEFT', {
-                    channelId,
-                    socketId: socket.id,
-                    userId: socket.data?.activeCallUserId
-                });
-                socket.leave(`call_${channelId}`);
-                socket.data.activeCallChannelId = null;
-
-                const room = activeCallRooms[channelId];
-                if (room.length === 0) {
-                    delete activeCallRooms[channelId];
-                }
-                app.io.emit('COMMUNITY_CALL_STATE', {
+            const room = activeCallRooms[channelId];
+            if (room && room.length === 0) {
+                delete activeCallRooms[channelId];
+            }
+            const io = socket.server || getIOServer();
+            if (io) {
+                io.emit('COMMUNITY_CALL_STATE', {
                     channelId,
                     active: (room && room.length > 0) || false,
                     participantCount: room ? room.length : 0,
                     participants: room || []
                 });
-            };
+            }
+        };
 
-            socket.on('COMMUNITY_CALL_LEAVE', () => {
-                leaveCurrentCall();
-            });
+        socket.on('COMMUNITY_CALL_LEAVE', () => {
+            leaveCurrentCall();
+        });
 
-            socket.on('disconnect', () => {
-                leaveCurrentCall();
+        socket.on('disconnect', () => {
+            leaveCurrentCall();
+        });
+    }
+
+    // Attach via onReady hook
+    app.addHook('onReady', async () => {
+        const io = getIOServer();
+        if (io) {
+            try {
+                app.log.info('[Anticeil Call Engine] Bound to Socket.IO server onReady');
+            } catch (e) {}
+            io.on('connection', (socket) => {
+                attachCallEngineToSocket(socket);
             });
+            if (io.sockets && io.sockets.sockets) {
+                for (const [_, s] of io.sockets.sockets) {
+                    attachCallEngineToSocket(s);
+                }
+            }
+        }
+    });
+
+    // Also attach via websocketService.addListener for all authenticated USER sockets
+    const callEvents = [
+        'COMMUNITY_CALL_JOIN',
+        'COMMUNITY_CALL_SIGNAL',
+        'COMMUNITY_CALL_TOGGLE_MEDIA',
+        'COMMUNITY_CALL_ACTIVITY_EVENT',
+        'COMMUNITY_CALL_LEAVE'
+    ];
+    for (const evt of callEvents) {
+        websockets_service_1.websocketService.addListener(shared_1.PrincipalType.USER, evt, (socket) => {
+            attachCallEngineToSocket(socket);
+            return async (data, principal, projectId, callback) => {};
         });
     }
 
