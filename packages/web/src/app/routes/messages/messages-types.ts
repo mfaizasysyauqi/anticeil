@@ -34,7 +34,7 @@ export type CommunityChannel = {
 };
 
 export type CommunityAttachment = {
-  type: 'image' | 'file' | 'template';
+  type: 'image' | 'file' | 'template' | 'sticker' | 'gif' | 'gift';
   url: string;
   name: string;
   size?: string;
@@ -44,6 +44,11 @@ export type CommunityAttachment = {
     pieceCount: number;
     price?: string;
     flowJson?: string;
+  };
+  giftData?: {
+    tier: 'nitro' | 'nitro_basic';
+    price: string;
+    claimed?: boolean;
   };
 };
 

@@ -67,6 +67,7 @@ import {
   Gift,
   Volume2,
   MessagesSquare,
+  TrendingUp,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useTranslation } from 'react-i18next';
@@ -75,6 +76,17 @@ import dayjs from 'dayjs';
 
 import { useSocket } from '@/components/providers/socket-provider';
 import { CommunityCallStage, DISCORD_APPS } from './community-call-stage';
+import {
+  DISCORD_EMOJI_SERVERS,
+  DISCORD_EMOJIS,
+  DISCORD_STICKERS,
+  DISCORD_GIF_CATEGORIES,
+  DISCORD_GIF_ITEMS,
+  EXTENDED_DISCORD_APPS,
+  DiscordEmoji,
+  DiscordSticker,
+  DiscordGifItem,
+} from './discord-media-data';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -362,6 +374,19 @@ export function CommunityPage() {
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isTemplatePopoverOpen, setIsTemplatePopoverOpen] = useState(false);
+
+  // Discord Media Picker (GIFs, Stickers, Emoji) - matching Screenshots 1, 2, 3
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
+  const [activeMediaTab, setActiveMediaTab] = useState<'gifs' | 'stickers' | 'emojis'>('emojis');
+  const [mediaSearchQuery, setMediaSearchQuery] = useState('');
+  const [hoveredEmoji, setHoveredEmoji] = useState<DiscordEmoji | null>(null);
+  const [hoveredSticker, setHoveredSticker] = useState<DiscordSticker | null>(null);
+  const [selectedGifCategory, setSelectedGifCategory] = useState<string | null>(null);
+  const [selectedServerFilter, setSelectedServerFilter] = useState<string>('all');
+
+  // Discord Send a Gift Modal - matching Screenshot 4
+  const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
+  const [claimedGifts, setClaimedGifts] = useState<Record<string, boolean>>({});
 
   // Audio / mic dummy state for Discord user footer
   const [isMuted, setIsMuted] = useState(false);
@@ -774,6 +799,174 @@ export function CommunityPage() {
       });
     } catch (err) {
       console.error('Failed to send message', err);
+    }
+  };
+
+  // Fullstack Discord Sticker sender (direct message attachment)
+  const handleSendSticker = async (sticker: DiscordSticker) => {
+    if (!activeChannel) return;
+    setIsMediaPickerOpen(false);
+    const currentUserId = currentUser?.id || 'anon-user';
+    const currentUserName =
+      `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() ||
+      currentUser?.email?.split('@')[0] ||
+      'Pengguna Anticeil';
+
+    const myMemberInfo = members.find((m) => m.id === currentUserId || m.email === currentUser?.email);
+    let myRole: CommunityRole = myMemberInfo?.role || 'member';
+    if (activeHub?.role === 'owner') myRole = 'owner';
+    else if (activeHub?.role === 'admin') myRole = 'admin';
+
+    const payload: Partial<CommunityMessage> = {
+      channelId: activeChannel.id,
+      senderId: currentUserId,
+      senderName: currentUserName,
+      senderEmail: currentUser?.email || 'user@anticeil.com',
+      senderAvatar: currentUser?.imageUrl ?? null,
+      senderRole: myRole,
+      content: '',
+      attachments: [
+        {
+          type: 'sticker',
+          url: sticker.url,
+          name: sticker.name,
+        },
+      ],
+    };
+
+    try {
+      const saved = await communityApi.sendMessage(activeChannel.id, payload);
+      setMessagesMap((prev) => {
+        const list = prev[activeChannel.id] || [];
+        if (list.some((m) => m.id === saved.id)) return prev;
+        return { ...prev, [activeChannel.id]: [...list, saved] };
+      });
+    } catch (err) {
+      console.error('Failed to send sticker', err);
+    }
+  };
+
+  // Fullstack Discord GIF sender (direct animated GIF attachment)
+  const handleSendGif = async (gif: DiscordGifItem) => {
+    if (!activeChannel) return;
+    setIsMediaPickerOpen(false);
+    const currentUserId = currentUser?.id || 'anon-user';
+    const currentUserName =
+      `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() ||
+      currentUser?.email?.split('@')[0] ||
+      'Pengguna Anticeil';
+
+    const myMemberInfo = members.find((m) => m.id === currentUserId || m.email === currentUser?.email);
+    let myRole: CommunityRole = myMemberInfo?.role || 'member';
+    if (activeHub?.role === 'owner') myRole = 'owner';
+    else if (activeHub?.role === 'admin') myRole = 'admin';
+
+    const payload: Partial<CommunityMessage> = {
+      channelId: activeChannel.id,
+      senderId: currentUserId,
+      senderName: currentUserName,
+      senderEmail: currentUser?.email || 'user@anticeil.com',
+      senderAvatar: currentUser?.imageUrl ?? null,
+      senderRole: myRole,
+      content: '',
+      attachments: [
+        {
+          type: 'gif',
+          url: gif.url,
+          name: gif.title,
+        },
+      ],
+    };
+
+    try {
+      const saved = await communityApi.sendMessage(activeChannel.id, payload);
+      setMessagesMap((prev) => {
+        const list = prev[activeChannel.id] || [];
+        if (list.some((m) => m.id === saved.id)) return prev;
+        return { ...prev, [activeChannel.id]: [...list, saved] };
+      });
+    } catch (err) {
+      console.error('Failed to send GIF', err);
+    }
+  };
+
+  // Fullstack Discord Nitro Gift sender (interactive gift card in chat)
+  const handleSendGift = async (tier: 'nitro' | 'nitro_basic') => {
+    if (!activeChannel) return;
+    setIsGiftModalOpen(false);
+    const isNitro = tier === 'nitro';
+    const currentUserId = currentUser?.id || 'anon-user';
+    const currentUserName =
+      `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() ||
+      currentUser?.email?.split('@')[0] ||
+      'Pengguna Anticeil';
+
+    const myMemberInfo = members.find((m) => m.id === currentUserId || m.email === currentUser?.email);
+    let myRole: CommunityRole = myMemberInfo?.role || 'member';
+    if (activeHub?.role === 'owner') myRole = 'owner';
+    else if (activeHub?.role === 'admin') myRole = 'admin';
+
+    const payload: Partial<CommunityMessage> = {
+      channelId: activeChannel.id,
+      senderId: currentUserId,
+      senderName: currentUserName,
+      senderEmail: currentUser?.email || 'user@anticeil.com',
+      senderAvatar: currentUser?.imageUrl ?? null,
+      senderRole: myRole,
+      content: `🎁 Hadiah ${isNitro ? 'Discord Nitro' : 'Discord Nitro Basic'} untuk kamu!`,
+      attachments: [
+        {
+          type: 'gift',
+          url: isNitro
+            ? 'https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png'
+            : '',
+          name: isNitro ? 'Discord Nitro (1 Bulan)' : 'Discord Nitro Basic (1 Bulan)',
+          giftData: {
+            tier,
+            price: isNitro ? 'IDR 142,714' : 'IDR 42,714',
+            claimed: false,
+          },
+        },
+      ],
+    };
+
+    try {
+      const saved = await communityApi.sendMessage(activeChannel.id, payload);
+      setMessagesMap((prev) => {
+        const list = prev[activeChannel.id] || [];
+        if (list.some((m) => m.id === saved.id)) return prev;
+        return { ...prev, [activeChannel.id]: [...list, saved] };
+      });
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 } });
+      toast.success(t(`Berhasil mengirimkan Hadiah ${isNitro ? 'Nitro' : 'Nitro Basic'}! 🎉`));
+    } catch (err) {
+      console.error('Failed to send gift', err);
+    }
+  };
+
+  // Fullstack Emoji inserter / handler
+  const handleSelectEmoji = (emoji: DiscordEmoji) => {
+    if (emoji.url.length <= 4 && !emoji.url.startsWith('http')) {
+      setInputText((prev) => prev + emoji.url);
+    } else {
+      setInputText((prev) => (prev ? `${prev} ${emoji.code} ` : `${emoji.code} `));
+    }
+  };
+
+  // Launch Activity in Voice Stage
+  const handleLaunchActivity = (appId: string) => {
+    setSelectedActivityAppId(appId);
+    setIsTemplatePopoverOpen(false);
+    if (activeChannel) {
+      setActiveCallChannelId(activeChannel.id);
+      setIsCallPiP(false);
+      setIsActivityOpen(true);
+      socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+        channelId: activeChannel.id,
+        action: 'START_ACTIVITY',
+        payload: { appId },
+      });
+      toast.success(`Aktivitas ${appId} diluncurkan di panggung suara! 🚀`);
     }
   };
 
@@ -2988,6 +3181,83 @@ export function CommunityPage() {
                               </Card>
                             );
                           }
+                          if (att.type === 'sticker') {
+                            return (
+                              <div key={attIdx} className="my-1 inline-block select-none group/sticker" title={att.name}>
+                                <img
+                                  src={att.url}
+                                  alt={att.name}
+                                  className="w-36 h-36 object-contain drop-shadow-md hover:scale-105 transition-transform duration-200 cursor-pointer"
+                                />
+                              </div>
+                            );
+                          }
+                          if (att.type === 'gif') {
+                            return (
+                              <div key={attIdx} className="my-1.5 max-w-sm rounded-xl overflow-hidden border border-white/10 shadow-lg bg-black/40">
+                                <img
+                                  src={att.url}
+                                  alt={att.name}
+                                  className="max-h-72 w-full object-cover rounded-t-xl"
+                                />
+                                <div className="px-2.5 py-1 bg-[#111214] flex items-center justify-between text-[10px] text-[#949ba4]">
+                                  <span className="font-bold tracking-wider text-[#5865f2] uppercase">GIF via Klipy</span>
+                                  <span className="truncate max-w-[200px]">{att.name}</span>
+                                </div>
+                              </div>
+                            );
+                          }
+                          if (att.type === 'gift') {
+                            const isClaimed = claimedGifts[msg.id] || att.giftData?.claimed;
+                            return (
+                              <div key={attIdx} className="my-2 max-w-sm rounded-2xl border border-[#5865f2]/40 bg-gradient-to-b from-[#202225] to-[#18191c] shadow-2xl p-4 relative overflow-hidden">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#5865f2] to-[#eb459e] flex items-center justify-center text-white shadow-lg text-2xl shrink-0">
+                                    🎁
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-[10px] font-black tracking-wider text-[#eb459e] uppercase block">
+                                      A WILD GIFT APPEARS!
+                                    </span>
+                                    <h4 className="text-xs font-black text-white italic tracking-wide">
+                                      {att.name || 'Discord Nitro Gift'}
+                                    </h4>
+                                    <p className="text-[10px] text-[#949ba4] truncate">
+                                      {att.giftData?.price || 'IDR 142,714'} • Hadiah Komunitas
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
+                                  {isClaimed ? (
+                                    <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
+                                      <Check className="w-3.5 h-3.5" /> Telah Diklaim
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-[#949ba4] flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Siap diklaim
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    disabled={isClaimed}
+                                    onClick={() => {
+                                      setClaimedGifts((prev) => ({ ...prev, [msg.id]: true }));
+                                      confetti({ particleCount: 90, spread: 70, origin: { y: 0.7 } });
+                                      toast.success('🎉 Hadiah Nitro berhasil diklaim ke akun Anda!');
+                                    }}
+                                    className={cn(
+                                      "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer",
+                                      isClaimed
+                                        ? "bg-white/10 text-[#949ba4] cursor-not-allowed"
+                                        : "bg-[#248046] hover:bg-[#1a6334] text-white hover:shadow-emerald-900/30"
+                                    )}
+                                  >
+                                    {isClaimed ? 'Diklaim' : 'Klaim Hadiah'}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
                           if (att.type === 'image') {
                             return (
                               <img
@@ -3154,55 +3424,582 @@ export function CommunityPage() {
 
               {/* Right Action Icons: Gift, GIF, Sticker, Emoji, Apps & Send (Discord style) */}
               <div className="flex items-center gap-2 shrink-0">
-                {/* 1. Gift Icon */}
+                {/* 1. Gift Icon (Screenshot 4 Send a Gift Trigger) */}
                 <button
                   type="button"
-                  onClick={() => navigate('/platform/billing')}
+                  onClick={() => setIsGiftModalOpen(true)}
                   className="w-6 h-6 text-[#b5bac1] hover:text-[#dbdee1] flex items-center justify-center transition-colors cursor-pointer"
-                  title="Kirim Hadiah / Upgrade Paket"
+                  title="Kirim Hadiah (Send a Gift)"
                 >
                   <Gift className="w-5 h-5" />
                 </button>
 
-                {/* 2. GIF Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsTemplatePopoverOpen(true)}
-                  className="h-6 px-0.5 flex items-center justify-center text-[#b5bac1] hover:text-[#dbdee1] transition-colors cursor-pointer"
-                  title="Buka pemilih GIF / Template"
-                >
-                  <span className="text-[9px] font-black tracking-tight border-[1.5px] border-current px-1 py-0.5 rounded-[4px] leading-none select-none">
-                    GIF
-                  </span>
-                </button>
+                {/* Unified Media Picker Popover (GIFs, Stickers, Emoji - Screenshots 1, 2, 3) */}
+                <Popover open={isMediaPickerOpen} onOpenChange={setIsMediaPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <div className="flex items-center gap-2">
+                      {/* 2. GIF Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveMediaTab('gifs');
+                          setMediaSearchQuery('');
+                          setSelectedGifCategory(null);
+                          setIsMediaPickerOpen(true);
+                        }}
+                        className={cn(
+                          "h-6 px-0.5 flex items-center justify-center transition-colors cursor-pointer",
+                          isMediaPickerOpen && activeMediaTab === 'gifs' ? 'text-white' : 'text-[#b5bac1] hover:text-[#dbdee1]'
+                        )}
+                        title="Buka pemilih GIF"
+                      >
+                        <span className="text-[9px] font-black tracking-tight border-[1.5px] border-current px-1 py-0.5 rounded-[4px] leading-none select-none">
+                          GIF
+                        </span>
+                      </button>
 
-                {/* 3. Sticker Button */}
-                <button
-                  type="button"
-                  onClick={() => setInputText((prev) => prev + ' 🏷️')}
-                  className="w-6 h-6 text-[#b5bac1] hover:text-[#dbdee1] flex items-center justify-center transition-colors cursor-pointer"
-                  title="Buka pemilih stiker"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8l6-6V4a2 2 0 0 0-2-2z" />
-                    <path d="M14 2v6h6" />
-                    <circle cx="9" cy="11" r="1" fill="currentColor" />
-                    <circle cx="13" cy="11" r="1" fill="currentColor" />
-                    <path d="M8 15s1.5 1.5 3 1.5 3-1.5 3-1.5" />
-                  </svg>
-                </button>
+                      {/* 3. Sticker Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveMediaTab('stickers');
+                          setMediaSearchQuery('');
+                          setIsMediaPickerOpen(true);
+                        }}
+                        className={cn(
+                          "w-6 h-6 flex items-center justify-center transition-colors cursor-pointer",
+                          isMediaPickerOpen && activeMediaTab === 'stickers' ? 'text-white' : 'text-[#b5bac1] hover:text-[#dbdee1]'
+                        )}
+                        title="Buka pemilih stiker"
+                      >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8l6-6V4a2 2 0 0 0-2-2z" />
+                          <path d="M14 2v6h6" />
+                          <circle cx="9" cy="11" r="1" fill="currentColor" />
+                          <circle cx="13" cy="11" r="1" fill="currentColor" />
+                          <path d="M8 15s1.5 1.5 3 1.5 3-1.5 3-1.5" />
+                        </svg>
+                      </button>
 
-                {/* 4. Emoji Button */}
-                <button
-                  type="button"
-                  onClick={() => setInputText((prev) => prev + ' 😊')}
-                  className="w-6 h-6 text-[#b5bac1] hover:text-[#dbdee1] flex items-center justify-center transition-colors cursor-pointer"
-                  title="Pilih emoji"
-                >
-                  <Smile className="w-5 h-5" />
-                </button>
+                      {/* 4. Emoji Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveMediaTab('emojis');
+                          setMediaSearchQuery('');
+                          setIsMediaPickerOpen(true);
+                        }}
+                        className={cn(
+                          "w-6 h-6 flex items-center justify-center transition-colors cursor-pointer",
+                          isMediaPickerOpen && activeMediaTab === 'emojis' ? 'text-white' : 'text-[#b5bac1] hover:text-[#dbdee1]'
+                        )}
+                        title="Pilih emoji"
+                      >
+                        <Smile className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="top"
+                    align="end"
+                    sideOffset={14}
+                    className="w-[490px] max-w-[96vw] h-[480px] p-0 bg-[#2b2d31] border border-white/10 text-[#dbdee1] shadow-2xl rounded-2xl select-none z-50 flex flex-col overflow-hidden"
+                  >
+                    {/* Header: Segmented Tabs & Search Bar */}
+                    <div className="p-3 pb-2.5 border-b border-white/5 bg-[#2b2d31]">
+                      <div className="flex items-center gap-1.5 mb-2.5">
+                        <div className="flex items-center p-1 rounded-lg bg-[#1e1f22] text-xs font-semibold">
+                          <button
+                            type="button"
+                            onClick={() => setActiveMediaTab('gifs')}
+                            className={cn(
+                              "px-3 py-1 rounded-md transition-all text-xs font-bold cursor-pointer",
+                              activeMediaTab === 'gifs' ? 'bg-[#35373c] text-white shadow-xs' : 'text-[#949ba4] hover:text-white'
+                            )}
+                          >
+                            GIFs
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveMediaTab('stickers')}
+                            className={cn(
+                              "px-3 py-1 rounded-md transition-all text-xs font-bold cursor-pointer",
+                              activeMediaTab === 'stickers' ? 'bg-[#35373c] text-white shadow-xs' : 'text-[#949ba4] hover:text-white'
+                            )}
+                          >
+                            Stickers
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveMediaTab('emojis')}
+                            className={cn(
+                              "px-3 py-1 rounded-md transition-all text-xs font-bold cursor-pointer",
+                              activeMediaTab === 'emojis' ? 'bg-[#35373c] text-white shadow-xs' : 'text-[#949ba4] hover:text-white'
+                            )}
+                          >
+                            Emoji
+                          </button>
+                        </div>
+                      </div>
 
-                {/* 5. Apps Launcher Button (Discord Activity Shapes / Screenshot 3) */}
+                      {/* Search Bar (Matching Screenshots 1, 2, 3) */}
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <Search className="w-4 h-4 text-[#949ba4] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={mediaSearchQuery}
+                            onChange={(e) => setMediaSearchQuery(e.target.value)}
+                            placeholder={
+                              activeMediaTab === 'gifs'
+                                ? 'Search Klipy'
+                                : activeMediaTab === 'stickers'
+                                ? 'sunbin'
+                                : 'Find the perfect emoji'
+                            }
+                            className="w-full bg-[#1e1f22] border border-transparent focus:border-[#5865f2] rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder:text-[#949ba4] focus:outline-none transition-colors"
+                          />
+                        </div>
+                        {activeMediaTab === 'emojis' && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setInputText((p) => p + ' 👏')}
+                              className="p-1 hover:bg-white/10 rounded-md text-base transition-colors cursor-pointer"
+                              title="Clap"
+                            >
+                              👏
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsServerSettingsOpen(true);
+                                setServerSettingsSection('emoji');
+                                setIsMediaPickerOpen(false);
+                              }}
+                              className="px-2.5 py-1 rounded-md bg-[#1e1f22] hover:bg-[#35373c] text-xs font-bold text-white transition-colors cursor-pointer"
+                            >
+                              Add Emoji
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Body: Left Server Rail & Right Media Grid */}
+                    <div className="flex-1 flex overflow-hidden">
+                      {/* Left Server Rail */}
+                      <div className="w-12 shrink-0 bg-[#1e1f22] flex flex-col items-center py-2.5 gap-2 border-r border-white/5 overflow-y-auto [scrollbar-width:none]">
+                        {activeMediaTab === 'emojis' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedServerFilter('all')}
+                              className={cn(
+                                "w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all cursor-pointer",
+                                selectedServerFilter === 'all' ? 'bg-[#5865f2] text-white shadow-md' : 'bg-[#2b2d31] text-[#949ba4] hover:text-white'
+                              )}
+                              title="Frequently Used"
+                            >
+                              🕒
+                            </button>
+                            {DISCORD_EMOJI_SERVERS.filter((s) => s.id !== 'frequently-used').map((srv) => (
+                              <button
+                                key={srv.id}
+                                type="button"
+                                onClick={() => setSelectedServerFilter(srv.id)}
+                                className={cn(
+                                  "w-8 h-8 rounded-2xl hover:rounded-xl overflow-hidden relative border transition-all cursor-pointer",
+                                  selectedServerFilter === srv.id ? 'border-[#5865f2] scale-105' : 'border-white/10 opacity-80 hover:opacity-100'
+                                )}
+                                title={srv.name}
+                              >
+                                {srv.icon.startsWith('http') ? (
+                                  <img src={srv.icon} alt={srv.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="w-full h-full flex items-center justify-center bg-[#2b2d31] text-xs">{srv.icon}</span>
+                                )}
+                                {srv.id !== 'standard' && (
+                                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                    <Lock className="w-2.5 h-2.5 text-white/90 drop-shadow-sm" />
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </>
+                        )}
+
+                        {activeMediaTab === 'stickers' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedServerFilter('awd')}
+                              className="w-8 h-8 rounded-2xl bg-[#5865f2] hover:rounded-xl text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer"
+                              title="awd"
+                            >
+                              a
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedServerFilter('hok-id')}
+                              className="w-8 h-8 rounded-2xl hover:rounded-xl overflow-hidden border border-white/10 relative transition-all cursor-pointer"
+                              title="Honor of Kings Indonesia"
+                            >
+                              <img
+                                src="https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=80&auto=format&fit=crop&q=80"
+                                alt="HOK"
+                                className="w-full h-full object-cover"
+                              />
+                            </button>
+                          </>
+                        )}
+
+                        {activeMediaTab === 'gifs' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedGifCategory(null)}
+                              className="w-8 h-8 rounded-full bg-[#5865f2] text-white flex items-center justify-center text-xs transition-all cursor-pointer"
+                              title="Trending"
+                            >
+                              🔥
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedGifCategory('favorites')}
+                              className="w-8 h-8 rounded-2xl bg-[#2b2d31] hover:rounded-xl text-amber-400 flex items-center justify-center text-xs transition-all cursor-pointer"
+                              title="Favorites"
+                            >
+                              ⭐
+                            </button>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Right Content Area */}
+                      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#2b2d31]">
+                        <div className="flex-1 overflow-y-auto p-3 [scrollbar-width:thin]">
+                          {/* EMOJI TAB CONTENT (Screenshot 1) */}
+                          {activeMediaTab === 'emojis' && (
+                            <div className="space-y-4">
+                              {/* Frequently used */}
+                              {(selectedServerFilter === 'all' || selectedServerFilter === 'frequently-used') && (
+                                <div>
+                                  <span className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider block mb-2">
+                                    🕒 Frequently Used &gt;
+                                  </span>
+                                  <div className="grid grid-cols-9 gap-1">
+                                    {DISCORD_EMOJIS.filter((e) => e.category === 'frequently-used').map((em) => (
+                                      <button
+                                        key={em.id}
+                                        type="button"
+                                        onMouseEnter={() => setHoveredEmoji(em)}
+                                        onClick={() => handleSelectEmoji(em)}
+                                        className="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center text-xl transition-transform hover:scale-125 cursor-pointer"
+                                        title={em.code}
+                                      >
+                                        {em.url}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Honor of Kings Indonesia */}
+                              {(selectedServerFilter === 'all' || selectedServerFilter === 'hok-id') && (
+                                <div>
+                                  <div className="flex items-center gap-1.5 mb-2">
+                                    <span className="text-xs font-bold text-white flex items-center gap-1">
+                                      👑 Honor of Kings Indonesia ⌵
+                                    </span>
+                                    <Lock className="w-3 h-3 text-[#949ba4]" />
+                                  </div>
+                                  <div className="grid grid-cols-9 gap-1.5">
+                                    {DISCORD_EMOJIS.filter((e) => e.server === 'Honor of Kings Indonesia').map((em) => (
+                                      <button
+                                        key={em.id}
+                                        type="button"
+                                        onMouseEnter={() => setHoveredEmoji(em)}
+                                        onClick={() => handleSelectEmoji(em)}
+                                        className="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition-transform hover:scale-125 cursor-pointer overflow-hidden p-0.5"
+                                        title={em.code}
+                                      >
+                                        <img src={em.url} alt={em.name} className="w-full h-full object-contain" />
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* [FULLZ] */}
+                              {(selectedServerFilter === 'all' || selectedServerFilter === 'fullz') && (
+                                <div>
+                                  <div className="flex items-center gap-1.5 mb-2">
+                                    <span className="text-xs font-bold text-white flex items-center gap-1">
+                                      🐱 [FULLZ] ⌵
+                                    </span>
+                                    <Lock className="w-3 h-3 text-[#949ba4]" />
+                                  </div>
+                                  <div className="grid grid-cols-9 gap-1.5">
+                                    {DISCORD_EMOJIS.filter((e) => e.server === '[FULLZ]').map((em) => (
+                                      <button
+                                        key={em.id}
+                                        type="button"
+                                        onMouseEnter={() => setHoveredEmoji(em)}
+                                        onClick={() => handleSelectEmoji(em)}
+                                        className="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition-transform hover:scale-125 cursor-pointer overflow-hidden p-0.5"
+                                        title={em.code}
+                                      >
+                                        <img src={em.url} alt={em.name} className="w-full h-full object-contain" />
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Standard Emojis */}
+                              {(selectedServerFilter === 'all' || selectedServerFilter === 'standard') && (
+                                <div>
+                                  <span className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider block mb-2">
+                                    😀 Standard Emojis ⌵
+                                  </span>
+                                  <div className="grid grid-cols-9 gap-1">
+                                    {DISCORD_EMOJIS.filter((e) => e.server === 'Standard' && e.category !== 'frequently-used').map((em) => (
+                                      <button
+                                        key={em.id}
+                                        type="button"
+                                        onMouseEnter={() => setHoveredEmoji(em)}
+                                        onClick={() => handleSelectEmoji(em)}
+                                        className="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center text-xl transition-transform hover:scale-125 cursor-pointer"
+                                        title={em.code}
+                                      >
+                                        {em.url}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* STICKERS TAB CONTENT (Screenshot 2) */}
+                          {activeMediaTab === 'stickers' && (
+                            <div className="space-y-4">
+                              {/* awd Server Callout */}
+                              <div>
+                                <div className="flex items-center gap-1.5 mb-2">
+                                  <span className="text-xs font-bold text-white">a awd ⌵</span>
+                                </div>
+                                <div className="p-3 rounded-xl bg-[#1e1f22] border border-white/5 flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-base shrink-0">
+                                      🏷️
+                                    </div>
+                                    <span className="text-xs text-[#949ba4] leading-tight">
+                                      Your server is waiting for you to upload some stickers!
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setIsServerSettingsOpen(true);
+                                      setServerSettingsSection('emoji');
+                                      setIsMediaPickerOpen(false);
+                                    }}
+                                    className="text-xs font-bold text-[#5865f2] hover:underline whitespace-nowrap cursor-pointer"
+                                  >
+                                    Manage Stickers
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Honor of Kings Indonesia Stickers */}
+                              <div>
+                                <div className="flex items-center gap-1.5 mb-2.5">
+                                  <span className="text-xs font-bold text-white">👑 Honor of Kings Indonesia ⌵</span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-3">
+                                  {DISCORD_STICKERS.filter((s) =>
+                                    mediaSearchQuery ? s.name.toLowerCase().includes(mediaSearchQuery.toLowerCase()) : true
+                                  ).map((sticker) => (
+                                    <button
+                                      key={sticker.id}
+                                      type="button"
+                                      onMouseEnter={() => setHoveredSticker(sticker)}
+                                      onClick={() => handleSendSticker(sticker)}
+                                      className="aspect-square rounded-xl bg-[#1e1f22]/60 hover:bg-[#1e1f22] border border-white/5 hover:border-white/15 p-2 flex flex-col items-center justify-center transition-all hover:scale-105 active:scale-95 group cursor-pointer"
+                                      title={sticker.name}
+                                    >
+                                      <img
+                                        src={sticker.url}
+                                        alt={sticker.name}
+                                        className="w-full h-full object-contain filter drop-shadow-sm group-hover:drop-shadow-md"
+                                      />
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* GIFS TAB CONTENT (Screenshot 3) */}
+                          {activeMediaTab === 'gifs' && (
+                            <div>
+                              {selectedGifCategory ? (
+                                <div>
+                                  <div className="flex items-center justify-between mb-3">
+                                    <span className="text-xs font-bold text-white capitalize">{selectedGifCategory} GIFs</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedGifCategory(null)}
+                                      className="text-xs text-[#5865f2] hover:underline cursor-pointer"
+                                    >
+                                      ← All Categories
+                                    </button>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {DISCORD_GIF_ITEMS.filter((g) => g.category === selectedGifCategory).map((gif) => (
+                                      <button
+                                        key={gif.id}
+                                        type="button"
+                                        onClick={() => handleSendGif(gif)}
+                                        className="relative rounded-xl overflow-hidden aspect-video bg-black/40 border border-white/5 hover:border-[#5865f2] transition-all hover:scale-[1.02] cursor-pointer group"
+                                      >
+                                        <img src={gif.url} alt={gif.title} className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                                          <span className="text-[11px] font-bold text-white truncate">{gif.title}</span>
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : mediaSearchQuery ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                  {DISCORD_GIF_ITEMS.filter((g) =>
+                                    g.title.toLowerCase().includes(mediaSearchQuery.toLowerCase())
+                                  ).map((gif) => (
+                                    <button
+                                      key={gif.id}
+                                      type="button"
+                                      onClick={() => handleSendGif(gif)}
+                                      className="relative rounded-xl overflow-hidden aspect-video bg-black/40 border border-white/5 hover:border-[#5865f2] transition-all hover:scale-[1.02] cursor-pointer group"
+                                    >
+                                      <img src={gif.url} alt={gif.title} className="w-full h-full object-cover" />
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                                        <span className="text-[11px] font-bold text-white truncate">{gif.title}</span>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                /* Categories Grid (Matching Screenshot 3) */
+                                <div className="grid grid-cols-2 gap-2.5">
+                                  {DISCORD_GIF_CATEGORIES.map((cat) => (
+                                    <button
+                                      key={cat.id}
+                                      type="button"
+                                      onClick={() => setSelectedGifCategory(cat.id)}
+                                      className={cn(
+                                        "relative rounded-xl overflow-hidden h-20 flex items-center justify-center font-bold text-sm text-white shadow-md transition-all hover:scale-[1.03] active:scale-95 cursor-pointer",
+                                        cat.id === 'favorites' ? 'bg-[#5865f2]' : 'bg-[#1e1f22]'
+                                      )}
+                                    >
+                                      {cat.coverUrl && cat.id !== 'favorites' && (
+                                        <img
+                                          src={cat.coverUrl}
+                                          alt={cat.name}
+                                          className="absolute inset-0 w-full h-full object-cover opacity-60"
+                                        />
+                                      )}
+                                      <div className="relative z-10 flex items-center gap-1.5 drop-shadow-md">
+                                        {cat.id === 'trending' && <TrendingUp className="w-4 h-4 mr-1" />}
+                                        <span className="capitalize">{cat.name}</span>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Bottom Preview Bar (Matching Screenshots 1 & 2) */}
+                        <div className="h-12 bg-[#111214] border-t border-white/5 px-3 flex items-center justify-between shrink-0">
+                          {activeMediaTab === 'emojis' && (
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-md bg-white/5 flex items-center justify-center text-lg overflow-hidden">
+                                  {hoveredEmoji ? (
+                                    hoveredEmoji.url.startsWith('http') ? (
+                                      <img src={hoveredEmoji.url} alt={hoveredEmoji.name} className="w-full h-full object-contain" />
+                                    ) : (
+                                      hoveredEmoji.url
+                                    )
+                                  ) : (
+                                    '😀'
+                                  )}
+                                </div>
+                                <div className="text-left">
+                                  <span className="text-xs font-bold text-white block leading-tight">
+                                    {hoveredEmoji ? hoveredEmoji.code : ':select_emoji:'}
+                                  </span>
+                                  <span className="text-[10px] text-[#949ba4] block leading-tight">
+                                    {hoveredEmoji ? `from ${hoveredEmoji.server}` : 'Hover emoji for details'}
+                                  </span>
+                                </div>
+                              </div>
+                              {hoveredEmoji && hoveredEmoji.serverIcon && (
+                                <img
+                                  src={hoveredEmoji.serverIcon}
+                                  alt="server"
+                                  className="w-5 h-5 rounded-full object-cover border border-white/20"
+                                />
+                              )}
+                            </div>
+                          )}
+
+                          {activeMediaTab === 'stickers' && (
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-md bg-white/5 flex items-center justify-center overflow-hidden">
+                                  {hoveredSticker ? (
+                                    <img src={hoveredSticker.url} alt={hoveredSticker.name} className="w-full h-full object-contain" />
+                                  ) : (
+                                    '🏷️'
+                                  )}
+                                </div>
+                                <div className="text-left">
+                                  <span className="text-xs font-bold text-white block leading-tight">
+                                    {hoveredSticker ? hoveredSticker.name : 'Stickers'}
+                                  </span>
+                                  <span className="text-[10px] text-[#949ba4] block leading-tight">
+                                    {hoveredSticker ? `from ${hoveredSticker.server}` : 'Hover sticker to preview'}
+                                  </span>
+                                </div>
+                              </div>
+                              {hoveredSticker && hoveredSticker.serverIcon && (
+                                <img
+                                  src={hoveredSticker.serverIcon}
+                                  alt="server"
+                                  className="w-5 h-5 rounded-full object-cover border border-white/20"
+                                />
+                              )}
+                            </div>
+                          )}
+
+                          {activeMediaTab === 'gifs' && (
+                            <div className="flex items-center justify-between w-full text-xs text-[#949ba4]">
+                              <span className="text-[11px] font-semibold">Powered by Klipy</span>
+                              <span className="text-[10px]">Klik GIF untuk mengirim langsung</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                {/* 5. Apps & Activity Popover (Screenshot 5: 4 Banners on Promoted + List Format Below) */}
                 <Popover open={isTemplatePopoverOpen} onOpenChange={setIsTemplatePopoverOpen}>
                   <PopoverTrigger asChild>
                     <button
@@ -3220,7 +4017,7 @@ export function CommunityPage() {
                     side="top"
                     align="end"
                     sideOffset={14}
-                    className="w-[420px] max-w-[95vw] p-4 bg-[#1e1f22] border-white/10 text-[#dbdee1] shadow-2xl rounded-2xl select-none z-50"
+                    className="w-[440px] max-w-[95vw] h-[520px] p-4 bg-[#1e1f22] border-white/10 text-[#dbdee1] shadow-2xl rounded-2xl select-none z-50 flex flex-col"
                   >
                     {/* Search Apps & Commands */}
                     <div className="relative w-full mb-3.5">
@@ -3234,130 +4031,136 @@ export function CommunityPage() {
                       />
                     </div>
 
-                    <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1 [scrollbar-width:thin]">
-                      {/* Section: Recents (Horizontal Row) */}
-                      <div>
-                        <span className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider block mb-2">
-                          Recents
-                        </span>
-                        <div className="flex items-center gap-3">
-                          {DISCORD_APPS.slice(0, 4).map((app) => {
-                            const IconComponent = app.icon;
-                            return (
+                    <div className="space-y-4 flex-1 overflow-y-auto pr-1 [scrollbar-width:thin]">
+                      {/* 1. PROMOTED: CUMAN 4 APPS YANG PAKE BANNER (Screenshot 3 & User Request) */}
+                      {!appsSearchQuery && (
+                        <div>
+                          <span className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider block mb-2">
+                            Promoted
+                          </span>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            {EXTENDED_DISCORD_APPS.filter((a) => a.group === 'Promoted').slice(0, 4).map((app) => (
                               <button
                                 key={app.id}
-                                onClick={() => {
-                                  setSelectedActivityAppId(app.id);
-                                  setIsTemplatePopoverOpen(false);
-                                  if (activeChannel) {
-                                    setActiveCallChannelId(activeChannel.id);
-                                    setIsCallPiP(false);
-                                    setIsActivityOpen(true);
-                                    socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
-                                      channelId: activeChannel.id,
-                                      action: 'START_ACTIVITY',
-                                      payload: { appId: app.id },
-                                    });
-                                  }
-                                }}
-                                className="w-12 h-12 rounded-2xl bg-[#2b2d31] hover:bg-[#35373c] border border-white/10 hover:border-white/25 flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-md group cursor-pointer"
-                                title={app.title}
-                              >
-                                <IconComponent className={cn("w-6 h-6", app.id === 'watch-together' ? 'text-red-500 fill-red-500' : 'text-white')} />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Section: Apps in this Server */}
-                      <div>
-                        <span className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider block mb-2">
-                          Apps in this Server
-                        </span>
-                        {DISCORD_APPS.filter((a) => a.isInServer || a.id === 'virtual-fisher').slice(0, 1).map((app) => {
-                          const IconComponent = app.icon;
-                          return (
-                            <button
-                              key={app.id}
-                              onClick={() => {
-                                setSelectedActivityAppId(app.id);
-                                setIsTemplatePopoverOpen(false);
-                                if (activeChannel) {
-                                  setActiveCallChannelId(activeChannel.id);
-                                  setIsCallPiP(false);
-                                  setIsActivityOpen(true);
-                                  socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
-                                    channelId: activeChannel.id,
-                                    action: 'START_ACTIVITY',
-                                    payload: { appId: app.id },
-                                  });
-                                }
-                              }}
-                              className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/5 hover:border-white/15 transition-all text-left cursor-pointer"
-                            >
-                              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-md", app.iconBg)}>
-                                <IconComponent className="w-5 h-5 text-white" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <span className="text-xs font-bold text-white block truncate">{app.title}</span>
-                                <span className="text-[10px] text-[#949ba4] line-clamp-1">{app.description}</span>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Section: Promoted (Grid cards with banner) */}
-                      <div>
-                        <span className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider block mb-2">
-                          Promoted
-                        </span>
-                        <div className="grid grid-cols-2 gap-2.5">
-                          {DISCORD_APPS.filter((a) =>
-                            appsSearchQuery ? a.title.toLowerCase().includes(appsSearchQuery.toLowerCase()) : a.isPromoted
-                          ).map((app) => {
-                            const IconComponent = app.icon;
-                            return (
-                              <button
-                                key={app.id}
-                                onClick={() => {
-                                  setSelectedActivityAppId(app.id);
-                                  setIsTemplatePopoverOpen(false);
-                                  if (activeChannel) {
-                                    setActiveCallChannelId(activeChannel.id);
-                                    setIsCallPiP(false);
-                                    setIsActivityOpen(true);
-                                    socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
-                                      channelId: activeChannel.id,
-                                      action: 'START_ACTIVITY',
-                                      payload: { appId: app.id },
-                                    });
-                                  }
-                                }}
+                                onClick={() => handleLaunchActivity(app.id)}
                                 className="group/card rounded-xl overflow-hidden bg-[#2b2d31] border border-white/5 hover:border-[#5865f2]/50 transition-all text-left flex flex-col hover:shadow-xl cursor-pointer"
                               >
                                 {/* Banner */}
                                 <div className={cn("h-20 w-full relative overflow-hidden flex items-center justify-center bg-gradient-to-r", app.bannerGradient)}>
-                                  <div className="w-10 h-10 rounded-xl bg-black/40 backdrop-blur-xs flex items-center justify-center shadow-lg group-hover/card:scale-110 transition-transform">
-                                    <IconComponent className="w-6 h-6 text-white" />
+                                  <div className="w-10 h-10 rounded-xl bg-black/40 backdrop-blur-xs flex items-center justify-center text-xl shadow-lg group-hover/card:scale-110 transition-transform">
+                                    {app.icon}
                                   </div>
                                 </div>
                                 {/* Footer */}
                                 <div className="p-2.5 flex items-center gap-2">
-                                  <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0", app.iconBg)}>
-                                    <IconComponent className="w-3.5 h-3.5 text-white" />
+                                  <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0 text-xs", app.iconBg)}>
+                                    {app.icon}
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <span className="text-xs font-bold text-white block truncate">{app.title}</span>
-                                    <span className="text-[9px] text-[#949ba4] block truncate">{app.tagline}</span>
+                                    <span className="text-[9px] text-[#949ba4] block truncate">{app.developer}</span>
                                   </div>
                                 </div>
                               </button>
-                            );
-                          })}
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 2. PUZZLE GAMES (Screenshot 5: List Format) */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-white">Puzzle Games</span>
+                          <button
+                            type="button"
+                            onClick={() => toast.info('Menampilkan game puzzle')}
+                            className="text-xs text-[#5865f2] hover:underline cursor-pointer"
+                          >
+                            View More
+                          </button>
+                        </div>
+                        <div className="space-y-1">
+                          {EXTENDED_DISCORD_APPS.filter((a) =>
+                            appsSearchQuery
+                              ? a.title.toLowerCase().includes(appsSearchQuery.toLowerCase())
+                              : a.group === 'Puzzle Games'
+                          ).map((app) => (
+                            <button
+                              key={app.id}
+                              onClick={() => handleLaunchActivity(app.id)}
+                              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-[#2b2d31] transition-all text-left cursor-pointer group"
+                            >
+                              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl shadow-md", app.iconBg)}>
+                                {app.icon}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <span className="text-xs font-bold text-white group-hover:text-[#5865f2] transition-colors block truncate">
+                                  {app.title}
+                                </span>
+                                <span className="text-[10px] text-[#949ba4] line-clamp-1">
+                                  {app.description}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
                         </div>
                       </div>
+
+                      {/* 3. CARD GAMES (Screenshot 5: List Format) */}
+                      {!appsSearchQuery && (
+                        <div>
+                          <span className="text-xs font-bold text-white block mb-2">Card Games</span>
+                          <div className="space-y-1">
+                            {EXTENDED_DISCORD_APPS.filter((a) => a.group === 'Card Games').map((app) => (
+                              <button
+                                key={app.id}
+                                onClick={() => handleLaunchActivity(app.id)}
+                                className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-[#2b2d31] transition-all text-left cursor-pointer group"
+                              >
+                                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl shadow-md", app.iconBg)}>
+                                  {app.icon}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-xs font-bold text-white group-hover:text-[#5865f2] transition-colors block truncate">
+                                    {app.title}
+                                  </span>
+                                  <span className="text-[10px] text-[#949ba4] line-clamp-1">
+                                    {app.description}
+                                  </span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 4. PRODUCTIVITY & DEV (List Format) */}
+                      {!appsSearchQuery && (
+                        <div>
+                          <span className="text-xs font-bold text-white block mb-2">Productivity & Dev</span>
+                          <div className="space-y-1">
+                            {EXTENDED_DISCORD_APPS.filter((a) => a.group === 'Productivity & Dev').map((app) => (
+                              <button
+                                key={app.id}
+                                onClick={() => handleLaunchActivity(app.id)}
+                                className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-[#2b2d31] transition-all text-left cursor-pointer group"
+                              >
+                                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl shadow-md", app.iconBg)}>
+                                  {app.icon}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-xs font-bold text-white group-hover:text-[#5865f2] transition-colors block truncate">
+                                    {app.title}
+                                  </span>
+                                  <span className="text-[10px] text-[#949ba4] line-clamp-1">
+                                    {app.description}
+                                  </span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </PopoverContent>
                 </Popover>
@@ -3388,6 +4191,147 @@ export function CommunityPage() {
             {renderMembersSidebarContent()}
           </div>
         )}
+
+        {/* DIALOG: SEND A GIFT (Matching Screenshot 4) */}
+        <Dialog open={isGiftModalOpen} onOpenChange={setIsGiftModalOpen}>
+          <DialogContent className="sm:max-w-[720px] bg-[#18191c] border-white/10 text-white p-6 rounded-2xl shadow-2xl overflow-hidden">
+            <DialogHeader className="flex flex-row items-center justify-between pb-2">
+              <DialogTitle className="text-xl font-black text-white">Send a Gift</DialogTitle>
+            </DialogHeader>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+              {/* 1. NITRO CARD (POPULAR) */}
+              <div className="relative rounded-2xl bg-[#232428] border border-[#5865f2]/40 hover:border-[#5865f2] p-5 flex flex-col justify-between transition-all group shadow-xl">
+                {/* POPULAR badge */}
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-[#5865f2] to-[#eb459e] text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                  POPULAR
+                </div>
+
+                <div>
+                  {/* Header */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-2xl font-black italic tracking-wide text-white">NITRO</h3>
+                      <div className="mt-1">
+                        <span className="text-xl font-extrabold text-white">IDR 142,714</span>
+                        <span className="text-xs text-[#949ba4]">/month</span>
+                      </div>
+                      <span className="text-[11px] text-[#949ba4] block">IDR 1,428,428/year</span>
+                    </div>
+                    {/* Wumpus Astronaut Illustration */}
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-pink-500/20 border border-white/10 flex items-center justify-center text-3xl shadow-lg">
+                      🚀
+                    </div>
+                  </div>
+
+                  <div className="w-full h-px bg-white/10 my-4" />
+
+                  {/* Perks */}
+                  <div className="space-y-2 text-xs text-[#dbdee1]">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[#5865f2] font-black">↑</span>
+                      <span>1GB uploads</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <span>😊</span>
+                      <span>Custom emoji anywhere</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <span>💥</span>
+                      <span>Unlimited Super Reactions</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <span>🖵</span>
+                      <span>HD video streaming</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <span>💎</span>
+                      <span>2 Server Boosts</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <span>👤</span>
+                      <span>Custom profiles and more!</span>
+                    </div>
+                  </div>
+
+                  {/* Free reward box */}
+                  <div className="mt-4 p-3 rounded-xl bg-[#1e1f22] border border-white/5 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl shrink-0">
+                      🔮
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-white block">Choose a FREE reward</span>
+                      <span className="text-[10px] text-[#949ba4]">3 available options</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleSendGift('nitro')}
+                  className="mt-5 w-full py-2.5 rounded-xl bg-gradient-to-r from-[#5865f2] to-[#eb459e] hover:opacity-95 text-white font-bold text-xs transition-all shadow-lg active:scale-95 cursor-pointer"
+                >
+                  Send Nitro Gift
+                </button>
+              </div>
+
+              {/* 2. NITRO BASIC CARD */}
+              <div className="relative rounded-2xl bg-[#232428] border border-white/10 hover:border-white/20 p-5 flex flex-col justify-between transition-all group shadow-xl">
+                <div>
+                  {/* Header */}
+                  <div>
+                    <h3 className="text-2xl font-black italic tracking-wide text-white">NITRO BASIC</h3>
+                    <div className="mt-1">
+                      <span className="text-xl font-extrabold text-white">IDR 42,714</span>
+                      <span className="text-xs text-[#949ba4]">/month</span>
+                    </div>
+                    <span className="text-[11px] text-[#949ba4] block">IDR 427,140/year</span>
+                  </div>
+
+                  <div className="w-full h-px bg-white/10 my-4" />
+
+                  {/* Perks */}
+                  <div className="space-y-2 text-xs text-[#dbdee1]">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[#5865f2] font-black">↑</span>
+                      <span>50MB uploads</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <span>😊</span>
+                      <span>Custom emoji anywhere</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <span>💥</span>
+                      <span>Unlimited Super Reactions</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <span>🛡️</span>
+                      <span>Special Nitro badge on your profile</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleSendGift('nitro_basic')}
+                  className="mt-5 w-full py-2.5 rounded-xl bg-[#5865f2] hover:bg-[#4752c4] text-white font-bold text-xs transition-all shadow-lg active:scale-95 cursor-pointer"
+                >
+                  Send Nitro Basic Gift
+                </button>
+              </div>
+            </div>
+
+            {/* Bottom Patron Badge Banner */}
+            <div className="mt-4 p-3 rounded-xl bg-[#1e1f22] border border-white/5 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-lg shrink-0">
+                🎁
+              </div>
+              <span className="text-xs text-[#dbdee1] font-medium">
+                1 gift away from the Patron Badge!
+              </span>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* DIALOG: BUAT ATAU GABUNG SERVER (Ala Discord) */}
         <Dialog open={isCreateHubOpen} onOpenChange={setIsCreateHubOpen}>
