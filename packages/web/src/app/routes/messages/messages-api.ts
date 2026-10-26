@@ -921,9 +921,11 @@ export const messagesApi = {
 
   async sendThreadMessage(
     threadId: string,
-    channelId: string,
-    payload: Partial<CommunityMessage>,
+    payloadOrChannelId: string | Partial<CommunityMessage>,
+    maybePayload?: Partial<CommunityMessage>,
   ): Promise<CommunityMessage> {
+    const payload = typeof payloadOrChannelId === 'string' ? (maybePayload || {}) : payloadOrChannelId;
+    const channelId = typeof payloadOrChannelId === 'string' ? payloadOrChannelId : (payload.channelId || '');
     const fallbackMsg: CommunityMessage = {
       id: `msg_th_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       channelId,
@@ -1021,74 +1023,6 @@ export const messagesApi = {
 
   async deleteServerSticker(hubId: string, stickerId: string): Promise<void> {
     try { await api.delete(`/v1/community/hubs/${hubId}/stickers/${stickerId}`); } catch {}
-  },
-
-  // ── Threads (Forum Posts) ─────────────────────────────────────────────
-  async getThreads(channelId: string, search?: string): Promise<CommunityThread[]> {
-    try {
-      const res = await api.get<CommunityThread[]>(`/v1/community/channels/${channelId}/threads`, {
-        params: search ? { search } : undefined,
-      });
-      if (Array.isArray(res)) return res;
-    } catch {}
-    return [];
-  },
-
-  async createThread(
-    channelId: string,
-    payload: {
-      name: string;
-      creatorName?: string;
-      creatorAvatar?: string | null;
-      initialMessage?: string;
-    }
-  ): Promise<CommunityThread | null> {
-    try {
-      const res = await api.post<CommunityThread>(`/v1/community/channels/${channelId}/threads`, payload);
-      return res;
-    } catch {
-      return null;
-    }
-  },
-
-  async getThreadMessages(threadId: string, limit = 100): Promise<CommunityMessage[]> {
-    try {
-      const res = await api.get<CommunityMessage[]>(`/v1/community/threads/${threadId}/messages`, {
-        params: { limit },
-      });
-      if (Array.isArray(res)) return res;
-    } catch {}
-    return [];
-  },
-
-  async sendThreadMessage(
-    threadId: string,
-    payloadOrChannelId: string | {
-      channelId: string;
-      content: string;
-      senderName?: string;
-      senderAvatar?: string | null;
-      senderRole?: string;
-      attachments?: Record<string, unknown> | null;
-    },
-    maybePayload?: {
-      content: string;
-      senderName?: string;
-      senderAvatar?: string | null;
-      senderRole?: string;
-      attachments?: Record<string, unknown> | null;
-    }
-  ): Promise<CommunityMessage | null> {
-    try {
-      const body =
-        typeof payloadOrChannelId === 'string'
-          ? { channelId: payloadOrChannelId, ...(maybePayload || {}) }
-          : payloadOrChannelId;
-      const res = await api.post<CommunityMessage>(`/v1/community/threads/${threadId}/messages`, body);
-      return res;
-    } catch {
-      return null;
-    }
   },
 };
 

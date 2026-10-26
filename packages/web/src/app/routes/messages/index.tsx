@@ -677,21 +677,6 @@ export function CommunityPage() {
     };
   }, [activeChannelId]);
 
-  // Load threads for all forum channels in the active hub so sidebar shows child threads
-  useEffect(() => {
-    if (!hubChannels.length) return;
-    const forumChannels = hubChannels.filter((c) => c.type === 'forum');
-    if (!forumChannels.length) return;
-
-    forumChannels.forEach(async (fc) => {
-      try {
-        const ths = await communityApi.getThreads(fc.id);
-        if (ths) {
-          setThreadsMap((prev) => ({ ...prev, [fc.id]: ths }));
-        }
-      } catch {}
-    });
-  }, [hubChannels]);
 
   // Load thread messages when an active thread is selected
   useEffect(() => {
@@ -904,6 +889,22 @@ export function CommunityPage() {
     }
     return hubChannels[0] || null;
   }, [isHome, activeChannelId, dmChannels, hubChannels]);
+
+  // Load threads for all forum channels in the active hub so sidebar shows child threads
+  useEffect(() => {
+    if (!hubChannels.length) return;
+    const forumChannels = hubChannels.filter((c) => c.type === 'forum');
+    if (!forumChannels.length) return;
+
+    forumChannels.forEach(async (fc) => {
+      try {
+        const ths = await communityApi.getThreads(fc.id);
+        if (ths) {
+          setThreadsMap((prev) => ({ ...prev, [fc.id]: ths }));
+        }
+      } catch {}
+    });
+  }, [hubChannels]);
 
   // Auto-fetch and sync channels when switching to a server
   useEffect(() => {
