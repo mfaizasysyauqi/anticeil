@@ -303,7 +303,8 @@ export function CommunityPage() {
   // Discord Hubs & Channels state
   const [hubs, setHubs] = useState<CommunityHub[]>(() => loadStoredHubs());
   const [activeHubId, setActiveHubId] = useState<CommunityHubId>(() => {
-    const fromUrl = new URLSearchParams(window.location.search).get('hub');
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get('hub') || (params.get('invite')?.startsWith('hub_') ? params.get('invite') : null);
     return fromUrl || 'anticeil';
   });
 
@@ -321,7 +322,9 @@ export function CommunityPage() {
   const [hubToDelete, setHubToDelete] = useState<CommunityHub | null>(null);
 
   const [channels, setChannels] = useState<CommunityChannel[]>(DEFAULT_CHANNELS);
-  const [activeChannelId, setActiveChannelId] = useState<string>('');
+  const [activeChannelId, setActiveChannelId] = useState<string>(() => {
+    return new URLSearchParams(window.location.search).get('channel') || '';
+  });
   const [messagesMap, setMessagesMap] = useState<Record<string, CommunityMessage[]>>({});
   const [members, setMembers] = useState<CommunityMember[]>([]);
 
@@ -605,7 +608,17 @@ export function CommunityPage() {
         if (mounted) {
           if (Array.isArray(channelsRes)) {
             setChannels(channelsRes);
-            if (channelsRes.length > 0 && activeHubId !== 'anticeil') {
+            const targetChannelParam = new URLSearchParams(window.location.search).get('channel');
+            if (targetChannelParam) {
+              const matchedChannel = channelsRes.find((c) => c.id === targetChannelParam);
+              if (matchedChannel) {
+                setActiveChannelId(matchedChannel.id);
+                if (matchedChannel.type === 'voice') {
+                  setActiveCallChannelId(matchedChannel.id);
+                  setIsCallPiP(false);
+                }
+              }
+            } else if (channelsRes.length > 0 && activeHubId !== 'anticeil') {
               setActiveChannelId((curr) => curr || channelsRes[0].id);
             }
           }
@@ -1470,17 +1483,30 @@ export function CommunityPage() {
       const hubChannels = await communityApi.getChannels(joinedHub.id);
       if (hubChannels && hubChannels.length > 0) {
         setChannels((prev) => [...prev.filter((c) => c.hubId !== joinedHub.id), ...hubChannels]);
-        setActiveChannelId(hubChannels[0].id);
+        const targetChannelParam = new URLSearchParams(window.location.search).get('channel');
+        const matchedChannel = hubChannels.find((c) => c.id === targetChannelParam);
+        if (matchedChannel) {
+          setActiveChannelId(matchedChannel.id);
+          if (matchedChannel.type === 'voice') {
+            setActiveCallChannelId(matchedChannel.id);
+            setIsCallPiP(false);
+          }
+        } else {
+          setActiveChannelId(hubChannels[0].id);
+        }
       }
 
       setIsCreateHubOpen(false);
       setJoinInviteCode('');
       toast.success(t(`Berhasil bergabung ke server ${joinedHub.name}! 🎉`));
 
-      // Clear ?invite= from URL so page reloads don't re-trigger auto-join
+      // Clear ?invite= from URL so page reloads don't re-trigger auto-join, while preserving hub & channel
       const url = new URL(window.location.href);
       if (url.searchParams.has('invite')) {
         url.searchParams.delete('invite');
+        if (!url.searchParams.has('hub')) {
+          url.searchParams.set('hub', joinedHub.id);
+        }
         window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
       }
     } catch {
@@ -3990,8 +4016,8 @@ export function CommunityPage() {
           renderFriendsMainPage()
         ) : (
           <div className="flex flex-1 flex-col h-full min-h-0 min-w-0 bg-background/50 overflow-hidden">
-          {/* Channel Top Header Bar: NON-SCROLLABLE APP BAR (Hidden during full stage call like Discord) */}
-          {!(activeCallChannelId === activeChannel?.id && !isCallPiP) && (
+          {/* Channel Top Header Bar: NON-SCROLLABLE APP BAR (Hidden during full stage call or in voice channel like Discord) */}
+          {!( (activeCallChannelId === activeChannel?.id || activeChannel?.type === 'voice') && !isCallPiP ) && (
           <div className="h-12 border-b border-sidebar-border px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
             <div className="flex items-center gap-2 min-w-0">
               {activeChannel?.category === 'DIRECT MESSAGES' || activeChannel?.isDirectMessage ? (
@@ -5770,8 +5796,8 @@ export function CommunityPage() {
         </div>
         )}
 
-        {/* DESKTOP MEMBERS SIDEBAR (w-60) */}
-        {showMemberList && !isFriendsView && (
+        {/* DESKTOP MEMBERS SIDEBAR (w-60 - Hidden in Voice Channels like Discord) */}
+        {showMemberList && !isFriendsView && activeChannel?.type !== 'voice' && activeCallChannelId !== activeChannel?.id && (
           <div className="hidden lg:flex shrink-0">
             {renderMembersSidebarContent()}
           </div>

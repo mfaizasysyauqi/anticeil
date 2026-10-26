@@ -693,8 +693,9 @@ export const messagesApi = {
   async getInvite(
     inviteCode: string,
   ): Promise<{ id: string; name: string; description: string; membersCount: number; color?: string }> {
+    const cleanId = inviteCode.startsWith('hub_') ? inviteCode : `hub_${inviteCode}`;
     const stored = loadStoredHubs();
-    const found = stored.find((h) => h.inviteCode === inviteCode || h.id === inviteCode);
+    const found = stored.find((h) => h.inviteCode === inviteCode || h.id === inviteCode || h.id === cleanId);
     if (found) {
       return {
         id: found.id,
@@ -704,8 +705,23 @@ export const messagesApi = {
         color: found.color,
       };
     }
+    try {
+      const allHubs = await api.get<CommunityHub[]>('/v1/community/hubs');
+      if (Array.isArray(allHubs)) {
+        const foundInDb = allHubs.find((h) => h.inviteCode === inviteCode || h.id === inviteCode || h.id === cleanId);
+        if (foundInDb) {
+          return {
+            id: foundInDb.id,
+            name: foundInDb.name,
+            description: foundInDb.description || '',
+            membersCount: foundInDb.membersCount || 1,
+            color: foundInDb.color,
+          };
+        }
+      }
+    } catch {}
     return {
-      id: `hub_${inviteCode}`,
+      id: cleanId,
       name: `Server #${inviteCode.slice(0, 4)}`,
       description: 'Undangan server komunitas Anticeil',
       membersCount: 2,
@@ -713,13 +729,25 @@ export const messagesApi = {
   },
 
   async joinHub(inviteCode: string): Promise<CommunityHub> {
+    const cleanId = inviteCode.startsWith('hub_') ? inviteCode : `hub_${inviteCode}`;
     const stored = loadStoredHubs();
-    const existing = stored.find((h) => h.inviteCode === inviteCode || h.id === inviteCode);
+    const existing = stored.find((h) => h.inviteCode === inviteCode || h.id === inviteCode || h.id === cleanId);
     if (existing) {
       return existing;
     }
+    try {
+      const allHubs = await api.get<CommunityHub[]>('/v1/community/hubs');
+      if (Array.isArray(allHubs)) {
+        const foundInDb = allHubs.find((h) => h.inviteCode === inviteCode || h.id === inviteCode || h.id === cleanId);
+        if (foundInDb) {
+          const next = [...stored.filter((h) => h.id !== foundInDb.id), foundInDb];
+          saveStoredHubs(next);
+          return foundInDb;
+        }
+      }
+    } catch {}
     const newHub: CommunityHub = {
-      id: `hub_${inviteCode}`,
+      id: cleanId,
       name: `Server Komunitas`,
       iconType: 'code' as any,
       initials: 'SK',

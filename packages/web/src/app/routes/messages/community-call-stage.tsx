@@ -55,6 +55,7 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -261,7 +262,18 @@ export function CommunityCallStage({
   // Remote Peers & WebRTC connections
   const [participants, setParticipants] = useState<CallParticipant[]>([]);
   const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
+  const iceCandidateQueues = useRef<Record<string, RTCIceCandidateInit[]>>({});
   const screenVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Invite Modal state for sharing direct voice/video call link
+  const [isInviteVoiceOpen, setIsInviteVoiceOpen] = useState(false);
+  const [copiedVoiceCallLink, setCopiedVoiceCallLink] = useState(false);
+
+  const hubId = activeHub?.id || channel.hubId || 'anticeil';
+  const inviteCode = activeHub?.inviteCode || activeHub?.id || channel.hubId || '';
+  const callInviteUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/messages?hub=${encodeURIComponent(hubId)}&channel=${encodeURIComponent(channel.id)}&invite=${encodeURIComponent(inviteCode)}`
+    : '';
 
   // Upgrade modal state for Free Plan 2-person limit
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -835,6 +847,24 @@ export function CommunityCallStage({
       }
     };
 
+    if (isInitiator) {
+      setTimeout(async () => {
+        try {
+          if (pc.signalingState === 'stable') {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            socket?.emit('COMMUNITY_CALL_SIGNAL', {
+              channelId: channel.id,
+              targetSocketId,
+              signal: offer,
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to send initial offer:', e);
+        }
+      }, 50);
+    }
+
     return pc;
   };
 
@@ -846,19 +876,48 @@ export function CommunityCallStage({
 
     startLocalMedia().then((stream) => {
       localMediaStream = stream;
-      socket.emit('COMMUNITY_CALL_JOIN', {
-        channelId: channel.id,
-        user: {
-          id: currentUserId,
-          name: currentUserName,
-          avatar: currentUser?.imageUrl,
-        },
-        mediaState: {
-          hasVideo: !isVideoOff && Boolean(stream?.getVideoTracks().length),
-          hasAudio: !isMuted,
+      const initialHasVideo = !isVideoOff && Boolean(stream?.getVideoTracks().length);
+      const initialHasAudio = !isMuted;
+      socket.emit(
+        'COMMUNITY_CALL_JOIN',
+        {
+          channelId: channel.id,
+          user: {
+            id: currentUserId,
+            name: currentUserName,
+            avatar: currentUser?.imageUrl,
+          },
+          hasVideo: initialHasVideo,
+          hasAudio: initialHasAudio,
           isScreenSharing: false,
+          mediaState: {
+            hasVideo: initialHasVideo,
+            hasAudio: initialHasAudio,
+            isScreenSharing: false,
+          },
+          plan: isPlusOrAbove ? 'plus' : 'free',
         },
-      });
+        (res: any) => {
+          if (res?.success && Array.isArray(res.participants)) {
+            res.participants.forEach((existingPeer: any) => {
+              setParticipants((prev) => {
+                if (prev.some((p) => p.socketId === existingPeer.socketId)) return prev;
+                const newPeer: CallParticipant = {
+                  socketId: existingPeer.socketId,
+                  userId: existingPeer.userId,
+                  userName: existingPeer.userName,
+                  userAvatar: existingPeer.userAvatar,
+                  hasVideo: existingPeer.mediaState?.hasVideo ?? existingPeer.hasVideo ?? true,
+                  hasAudio: existingPeer.mediaState?.hasAudio ?? existingPeer.hasAudio ?? true,
+                  isScreenSharing: existingPeer.mediaState?.isScreenSharing ?? existingPeer.isScreenSharing ?? false,
+                };
+                createPeerConnection(existingPeer.socketId, newPeer, true, localMediaStream);
+                return [...prev, newPeer];
+              });
+            });
+          }
+        },
+      );
     });
 
     const handleUserJoined = (data: {
@@ -866,12 +925,20 @@ export function CommunityCallStage({
       userId: string;
       userName: string;
       userAvatar?: string;
-      mediaState: { hasVideo: boolean; hasAudio: boolean; isScreenSharing: boolean };
-      roomSize: number;
+      mediaState?: { hasVideo?: boolean; hasAudio?: boolean; isScreenSharing?: boolean };
+      hasVideo?: boolean;
+      hasAudio?: boolean;
+      isScreenSharing?: boolean;
+      roomSize?: number;
     }) => {
-      if (!isPlusOrAbove && data.roomSize > 2) {
+      const roomSize = data.roomSize || 2;
+      if (!isPlusOrAbove && roomSize > 2) {
         setIsUpgradeModalOpen(true);
       }
+
+      const hasVideo = data.mediaState?.hasVideo ?? data.hasVideo ?? true;
+      const hasAudio = data.mediaState?.hasAudio ?? data.hasAudio ?? true;
+      const isScreenSharing = data.mediaState?.isScreenSharing ?? data.isScreenSharing ?? false;
 
       setParticipants((prev) => {
         if (prev.some((p) => p.socketId === data.socketId)) return prev;
@@ -880,9 +947,9 @@ export function CommunityCallStage({
           userId: data.userId,
           userName: data.userName,
           userAvatar: data.userAvatar,
-          hasVideo: data.mediaState.hasVideo,
-          hasAudio: data.mediaState.hasAudio,
-          isScreenSharing: data.mediaState.isScreenSharing,
+          hasVideo,
+          hasAudio,
+          isScreenSharing,
         };
         createPeerConnection(data.socketId, newPeer, true, localMediaStream);
         return [...prev, newPeer];
@@ -903,6 +970,7 @@ export function CommunityCallStage({
         peerConnections.current[data.socketId].close();
         delete peerConnections.current[data.socketId];
       }
+      delete iceCandidateQueues.current[data.socketId];
     };
 
     const handleSignal = async (data: {
@@ -924,6 +992,14 @@ export function CommunityCallStage({
 
       if (data.signal?.type === 'offer') {
         await pc.setRemoteDescription(new RTCSessionDescription(data.signal));
+        if (iceCandidateQueues.current[data.fromSocketId]) {
+          for (const cand of iceCandidateQueues.current[data.fromSocketId]) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(cand));
+            } catch (e) {}
+          }
+          delete iceCandidateQueues.current[data.fromSocketId];
+        }
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         socket.emit('COMMUNITY_CALL_SIGNAL', {
@@ -933,11 +1009,26 @@ export function CommunityCallStage({
         });
       } else if (data.signal?.type === 'answer') {
         await pc.setRemoteDescription(new RTCSessionDescription(data.signal));
+        if (iceCandidateQueues.current[data.fromSocketId]) {
+          for (const cand of iceCandidateQueues.current[data.fromSocketId]) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(cand));
+            } catch (e) {}
+          }
+          delete iceCandidateQueues.current[data.fromSocketId];
+        }
       } else if (data.signal?.candidate) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
-        } catch (e) {
-          console.warn('ICE candidate addition failed:', e);
+        if (!pc.remoteDescription) {
+          if (!iceCandidateQueues.current[data.fromSocketId]) {
+            iceCandidateQueues.current[data.fromSocketId] = [];
+          }
+          iceCandidateQueues.current[data.fromSocketId].push(data.signal.candidate);
+        } else {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
+          } catch (e) {
+            console.warn('ICE candidate addition failed:', e);
+          }
         }
       }
     };
@@ -1087,8 +1178,16 @@ export function CommunityCallStage({
   };
 
   const handleCopyCallLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast.success('Link panggilan berhasil disalin! Buka di tab atau browser lain untuk menguji panggilan 2 orang.');
+    setIsInviteVoiceOpen(true);
+  };
+
+  const handleExecuteCopyCallLink = () => {
+    if (callInviteUrl) {
+      navigator.clipboard.writeText(callInviteUrl);
+      setCopiedVoiceCallLink(true);
+      toast.success('Link panggilan berhasil disalin! Siap dibagikan ke teman.');
+      setTimeout(() => setCopiedVoiceCallLink(false), 2500);
+    }
   };
 
   const handleToggleScreenShare = async () => {
@@ -3450,6 +3549,102 @@ export function CommunityCallStage({
               >
                 <Sparkles className="w-4 h-4" /> Upgrade ke Plus Sekarang
               </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Discord-Style Voice/Video Call Invite Modal ───────────────── */}
+      <Dialog open={isInviteVoiceOpen} onOpenChange={setIsInviteVoiceOpen}>
+        <DialogContent className="max-w-md p-0 overflow-hidden bg-[#1e1f22] border-white/10 text-white shadow-2xl rounded-2xl">
+          <div className="p-5 bg-gradient-to-br from-[#2b2d31] to-[#1e1f22] border-b border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary shadow-inner">
+                <Volume2 className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-base font-bold text-white tracking-wide">
+                  Undang Teman ke Panggilan
+                </h3>
+                <span className="text-xs text-muted-foreground">
+                  {activeHub?.name || 'Server'} • #{channel.name}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsInviteVoiceOpen(false)}
+              className="text-muted-foreground hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="p-5 space-y-4">
+            <div className="p-3.5 rounded-xl bg-black/30 border border-white/5 text-xs text-muted-foreground leading-relaxed flex items-start gap-2.5">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <span>
+                Bagikan link ini ke teman Anda. Saat membuka link, mereka akan <strong className="text-white">otomatis bergabung ke server</strong> dan <strong className="text-emerald-400 font-semibold">langsung masuk ke panggilan</strong> di channel ini.
+              </span>
+            </div>
+
+            {/* Direct Link Input + Copy Button */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-[#b5bac1] uppercase tracking-wider">
+                Link Panggilan Langsung
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    readOnly
+                    value={callInviteUrl}
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                    className="w-full bg-[#111214] border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-emerald-300 font-mono tracking-tight focus:outline-none focus:border-primary select-all truncate"
+                  />
+                </div>
+                <Button
+                  onClick={handleExecuteCopyCallLink}
+                  className={cn(
+                    'h-10 px-4 text-xs font-bold transition-all shrink-0 gap-1.5 shadow-md cursor-pointer',
+                    copiedVoiceCallLink
+                      ? 'bg-emerald-600 hover:bg-emerald-600 text-white'
+                      : 'bg-primary hover:bg-primary/90 text-primary-foreground',
+                  )}
+                >
+                  {copiedVoiceCallLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedVoiceCallLink ? 'Tersalin!' : 'Salin Link'}</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Share Buttons */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-[11px] font-bold text-[#b5bac1] uppercase tracking-wider">
+                Atau Bagikan Cepat Melalui
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const msg = `Halo! Ayo bergabung ke voice/video call saya di Anticeil: ${callInviteUrl}`;
+                    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+                  }}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 border border-[#25D366]/30 text-[#25D366] text-xs font-semibold transition-all cursor-pointer shadow-xs"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>WhatsApp</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.open(`https://t.me/share/url?url=${encodeURIComponent(callInviteUrl)}&text=${encodeURIComponent('Ayo gabung ke panggilan suara & video Anticeil!')}`, '_blank');
+                  }}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#0088cc]/15 hover:bg-[#0088cc]/25 border border-[#0088cc]/30 text-[#0088cc] text-xs font-semibold transition-all cursor-pointer shadow-xs"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Telegram</span>
+                </button>
+              </div>
             </div>
           </div>
         </DialogContent>

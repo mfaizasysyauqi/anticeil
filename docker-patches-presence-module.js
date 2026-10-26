@@ -2074,14 +2074,24 @@ async function setupCommunityApi(app) {
                     });
                 }
 
+                const resolvedHasVideo = Boolean(hasVideo || data?.mediaState?.hasVideo);
+                const resolvedHasAudio = (hasAudio !== undefined ? hasAudio : data?.mediaState?.hasAudio) !== false;
+                const resolvedIsScreenSharing = Boolean(isScreenSharing || data?.mediaState?.isScreenSharing);
+
                 const participant = {
                     socketId: socket.id,
                     userId: user.id,
                     userName: user.name || 'Pengguna Anticeil',
                     userAvatar: user.avatar || null,
-                    hasVideo: Boolean(hasVideo),
-                    hasAudio: hasAudio !== false,
-                    isScreenSharing: Boolean(isScreenSharing),
+                    hasVideo: resolvedHasVideo,
+                    hasAudio: resolvedHasAudio,
+                    isScreenSharing: resolvedIsScreenSharing,
+                    mediaState: {
+                        hasVideo: resolvedHasVideo,
+                        hasAudio: resolvedHasAudio,
+                        isScreenSharing: resolvedIsScreenSharing
+                    },
+                    roomSize: room.length + (isExisting ? 0 : 1),
                     joinedAt: Date.now()
                 };
 
