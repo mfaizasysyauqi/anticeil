@@ -493,21 +493,28 @@ async function setupCommunityApi(app) {
                     rows = await ds.query('SELECT * FROM anticeil_community_channels ORDER BY created_at ASC');
                 }
                 
+                rows = rows || [];
+                // Deduplicate existing channels by (hub_id, type, name) keeping the earliest created one
+                const seenTypes = new Map();
+                for (const r of rows) {
+                    const hId = r.hub_id || 'anticeil';
+                    const resolvedType = r.type || (
+                        ((r.name || '') + (r.id || '')).toLowerCase().includes('voice') ? 'voice' :
+                        ((r.name || '') + (r.id || '')).toLowerCase().includes('forum') ? 'forum' : 'text'
+                    );
+                    const key = `${hId}:${resolvedType}:${(r.name || '').trim().toLowerCase()}`;
+                    if (!seenTypes.has(key)) {
+                        seenTypes.set(key, { ...r, type: resolvedType });
+                    }
+                }
+                rows = Array.from(seenTypes.values());
+
                 // If a specific server has missing default channels (voice/forum/text), auto-create them
                 if (hubId && hubId !== 'anticeil') {
-                    rows = rows || [];
-                    // Deduplicate existing channels by (type, name) keeping the earliest created one
-                    const seenTypes = new Map();
-                    for (const r of rows) {
-                        const key = `${r.type || 'text'}:${(r.name || '').trim().toLowerCase()}`;
-                        if (!seenTypes.has(key)) {
-                            seenTypes.set(key, r);
-                        }
-                    }
-                    rows = Array.from(seenTypes.values());
-                    const types = rows.map(r => r.type || 'text');
+                    const serverRows = rows.filter(r => (r.hub_id || 'anticeil') === hubId);
+                    const types = serverRows.map(r => r.type || 'text');
 
-                    if (rows.length === 0 || !types.includes('text')) {
+                    if (serverRows.length === 0 || !types.includes('text')) {
                         const defaultChId = `ch-${hubId}-general`;
                         const defaultText = {
                             id: defaultChId,

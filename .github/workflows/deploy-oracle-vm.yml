@@ -139,6 +139,7 @@ jobs:
             run_sql "ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE;"
             run_sql "INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, type, is_private) SELECT 'ch-' || substr(md5(random()::text), 1, 8) || '-voice', 'General Voice', 'Saluran suara & video', 'CHANNELS', h.id, false, 'voice', false FROM anticeil_community_hubs h WHERE h.id != 'anticeil' AND NOT EXISTS (SELECT 1 FROM anticeil_community_channels c WHERE c.hub_id = h.id AND c.type = 'voice');"
             run_sql "INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, type, is_private) SELECT 'ch-' || substr(md5(random()::text), 1, 8) || '-forum', 'forum-diskusi', 'Ruang diskusi terorganisir', 'CHANNELS', h.id, false, 'forum', false FROM anticeil_community_hubs h WHERE h.id != 'anticeil' AND NOT EXISTS (SELECT 1 FROM anticeil_community_channels c WHERE c.hub_id = h.id AND c.type = 'forum');"
+            run_sql "DELETE FROM anticeil_community_channels a USING anticeil_community_channels b WHERE a.hub_id = b.hub_id AND (a.type = b.type OR (a.type IS NULL AND b.type IS NULL)) AND LOWER(TRIM(a.name)) = LOWER(TRIM(b.name)) AND a.created_at > b.created_at;"
 
             # Flush Redis cache so platform plan & billing cache are reloaded
             docker exec $(docker ps -q -f name=redis) redis-cli flushall 2>/dev/null || true

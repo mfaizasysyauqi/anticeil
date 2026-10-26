@@ -822,7 +822,7 @@ export function CommunityCallStage({
     };
 
     pc.ontrack = (event) => {
-      const remoteStream = event.streams[0];
+      const remoteStream = event.streams[0] || new MediaStream([event.track]);
       setParticipants((prev) =>
         prev.map((p) => {
           if (p.socketId === targetSocketId) {
@@ -834,6 +834,7 @@ export function CommunityCallStage({
     };
 
     pc.onnegotiationneeded = async () => {
+      if (!isInitiator) return;
       try {
         if (pc.signalingState !== 'stable') return;
         const offer = await pc.createOffer();
