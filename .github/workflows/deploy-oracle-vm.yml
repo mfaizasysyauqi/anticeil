@@ -29,6 +29,8 @@ jobs:
         run: bun install
 
       - name: Build web frontend
+        env:
+          VITE_YOUTUBE_API_KEY: ${{ secrets.VITE_YOUTUBE_API_KEY }}
         run: bun x turbo run build --filter=web
 
       - name: Set up Docker Buildx
