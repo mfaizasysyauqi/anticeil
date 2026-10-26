@@ -300,12 +300,12 @@ export function CommunityCallStage({
     toast.info('Aktivitas dihentikan, kembali ke tampilan kamera utama.');
   };
 
-  // ── YouTube Watch Together State ───────────────────────────────────────
+  // ── YouTube Watch Together State (100% Dynamic like Discord) ───────────
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null); // null = browse mode
   const [videoInputUrl, setVideoInputUrl] = useState('');
   const [ytSearchQuery, setYtSearchQuery] = useState('');
   const [ytCategory, setYtCategory] = useState<string>('semua');
-  const [ytSearchResults, setYtSearchResults] = useState<Array<{
+  const [ytVideos, setYtVideos] = useState<Array<{
     id: string;
     title: string;
     channel: string;
@@ -316,88 +316,140 @@ export function CommunityCallStage({
   const [ytSearchError, setYtSearchError] = useState<string | null>(null);
   const ytSearchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Category → YouTube search keyword mapping
+  // Category → YouTube videoCategoryId or keyword (100% live from YouTube API)
   const ytCategories = [
-    { id: 'semua', label: '🎬 Semua', q: '' },
-    { id: 'lofi', label: '🎵 Lofi', q: 'lofi hip hop' },
-    { id: 'tech', label: '💻 Tech', q: 'programming tutorial' },
-    { id: 'gaming', label: '🎮 Gaming', q: 'gaming' },
-    { id: 'hiburan', label: '🎉 Hiburan', q: 'entertainment' },
+    { id: 'semua', label: '🔥 Trending', q: '', categoryId: '' },
+    { id: 'music', label: '🎵 Musik', q: '', categoryId: '10' },
+    { id: 'gaming', label: '🎮 Gaming', q: '', categoryId: '20' },
+    { id: 'tech', label: '💻 Tech', q: 'programming tech coding tutorial', categoryId: '28' },
+    { id: 'entertainment', label: '🎉 Hiburan', q: '', categoryId: '24' },
+    { id: 'lofi', label: '☕ Lofi', q: 'lofi hip hop radio beats', categoryId: '' },
   ];
 
-  // Curated fallback shown when no search query (no API quota used)
-  const YT_CATALOG = [
-    { id: 'jfKfPfyJRdk', title: 'lofi hip hop radio 📚 beats to relax/study to', channel: 'Lofi Girl', thumbnail: '', duration: 'LIVE' },
-    { id: 'kJQP7kiw5Fk', title: 'Luis Fonsi - Despacito ft. Daddy Yankee', channel: 'Luis Fonsi', thumbnail: '', duration: '4:42' },
-    { id: 'fJ9rUzIMcZQ', title: 'Queen - Bohemian Rhapsody (Official Video)', channel: 'Queen Official', thumbnail: '', duration: '5:59' },
-    { id: 'aqz-KE-bpKQ', title: 'React in 100 Seconds', channel: 'Fireship', thumbnail: '', duration: '2:08' },
-    { id: 'DHjqpvDnNGE', title: 'TypeScript in 100 Seconds', channel: 'Fireship', thumbnail: '', duration: '2:44' },
-    { id: 'X48VuDVv0do', title: 'Docker in 100 Seconds', channel: 'Fireship', thumbnail: '', duration: '2:11' },
-    { id: 'pNz2mMJeNKY', title: 'Minecraft Hardcore World — Day 1000', channel: 'Dream', thumbnail: '', duration: '1:02:14' },
-    { id: 'wAhLBMHsWDw', title: 'GTA 6 Official Trailer — Full Breakdown', channel: 'Rockstar Games', thumbnail: '', duration: '3:42' },
-    { id: 'dQw4w9WgXcQ', title: 'Never Gonna Give You Up — Rick Astley', channel: 'Rick Astley', thumbnail: '', duration: '3:33' },
-    { id: 'YQHsXMglC9A', title: 'Adele — Hello (Official Music Video)', channel: 'Adele', thumbnail: '', duration: '6:07' },
-    { id: 'kXYiU_JCYtU', title: 'Linkin Park - Numb (Official Music Video)', channel: 'Linkin Park', thumbnail: '', duration: '3:07' },
-    { id: 'TNhaISOUy6Q', title: 'Next.js Full Course 2024', channel: 'Traversy Media', thumbnail: '', duration: '1:12:33' },
-  ];
+  // Helper to parse YouTube ISO 8601 duration (PT4M13S -> 4:13)
+  const parseYtDuration = (duration?: string): string => {
+    if (!duration) return '';
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) return '';
+    const h = match[1];
+    const m = match[2] || '0';
+    const s = match[3] || '0';
+    if (h) {
+      return `${h}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
+    }
+    return `${m}:${s.padStart(2, '0')}`;
+  };
 
-  // Search YouTube Data API v3 — debounced 500ms
+  // Fetch YouTube Videos: Live Trending on initial open, Real Search on query
   useEffect(() => {
+    if (activeAppId !== 'watch-together') return;
     if (ytSearchDebounce.current) clearTimeout(ytSearchDebounce.current);
 
-    const catObj = ytCategories.find(c => c.id === ytCategory);
+    const catObj = ytCategories.find((c) => c.id === ytCategory);
     const rawQ = ytSearchQuery.trim();
-    // Only call API when user has typed something OR when category has a keyword
-    const apiQ = rawQ || catObj?.q || '';
-    if (!apiQ) {
-      setYtSearchResults([]);
-      return;
-    }
 
     ytSearchDebounce.current = setTimeout(async () => {
       setYtIsSearching(true);
       setYtSearchError(null);
       try {
         const key = import.meta.env.VITE_YOUTUBE_API_KEY || 'AIzaSyBg-0HDXNw2occXp6_89D4dXxBW0gISbQ4';
-        if (!key || key === 'undefined') {
-          const filtered = YT_CATALOG.filter(v => v.title.toLowerCase().includes(apiQ.toLowerCase()));
-          setYtSearchResults(filtered);
-          return;
+        let items: Array<{ id: string; title: string; channel: string; thumbnail: string; duration: string }> = [];
+
+        if (rawQ) {
+          // 1. User typed query -> Search API
+          const params = new URLSearchParams({
+            part: 'snippet',
+            q: rawQ,
+            type: 'video',
+            maxResults: '12',
+            key,
+          });
+          const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
+          if (!res.ok) throw new Error(`YouTube API (${res.status}): pastikan kuota API aktif`);
+          const data = await res.json();
+          items = (data.items ?? []).map((item: any) => ({
+            id: item.id.videoId,
+            title: item.snippet.title,
+            channel: item.snippet.channelTitle,
+            thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || `https://i.ytimg.com/vi/${item.id.videoId}/hqdefault.jpg`,
+            duration: '',
+          }));
+        } else if (catObj?.categoryId) {
+          // 2. Category Most Popular (Music, Gaming, Tech, Entertainment)
+          const params = new URLSearchParams({
+            part: 'snippet,contentDetails',
+            chart: 'mostPopular',
+            regionCode: 'ID',
+            videoCategoryId: catObj.categoryId,
+            maxResults: '12',
+            key,
+          });
+          const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`);
+          if (!res.ok) throw new Error(`YouTube API (${res.status}): pastikan kuota API aktif`);
+          const data = await res.json();
+          items = (data.items ?? []).map((item: any) => ({
+            id: item.id,
+            title: item.snippet.title,
+            channel: item.snippet.channelTitle,
+            thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.standard?.url || item.snippet.thumbnails?.default?.url || `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
+            duration: parseYtDuration(item.contentDetails?.duration),
+          }));
+        } else if (catObj?.q) {
+          // 3. Keyword-based category (e.g. Lofi)
+          const params = new URLSearchParams({
+            part: 'snippet',
+            q: catObj.q,
+            type: 'video',
+            maxResults: '12',
+            key,
+          });
+          const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
+          if (!res.ok) throw new Error(`YouTube API (${res.status}): pastikan kuota API aktif`);
+          const data = await res.json();
+          items = (data.items ?? []).map((item: any) => ({
+            id: item.id.videoId,
+            title: item.snippet.title,
+            channel: item.snippet.channelTitle,
+            thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || `https://i.ytimg.com/vi/${item.id.videoId}/hqdefault.jpg`,
+            duration: '',
+          }));
+        } else {
+          // 4. Default: Live Most Popular in Indonesia (Exactly like Discord initial screen!)
+          const params = new URLSearchParams({
+            part: 'snippet,contentDetails',
+            chart: 'mostPopular',
+            regionCode: 'ID',
+            maxResults: '12',
+            key,
+          });
+          const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`);
+          if (!res.ok) throw new Error(`YouTube API (${res.status}): pastikan kuota API aktif`);
+          const data = await res.json();
+          items = (data.items ?? []).map((item: any) => ({
+            id: item.id,
+            title: item.snippet.title,
+            channel: item.snippet.channelTitle,
+            thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.standard?.url || item.snippet.thumbnails?.default?.url || `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
+            duration: parseYtDuration(item.contentDetails?.duration),
+          }));
         }
-        const params = new URLSearchParams({
-          part: 'snippet',
-          q: apiQ,
-          type: 'video',
-          maxResults: '12',
-          key,
-        });
-        const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
-        if (!res.ok) throw new Error(`YouTube API error: ${res.status}`);
-        const data = await res.json();
-        const items = (data.items ?? []).map((item: any) => ({
-          id: item.id.videoId,
-          title: item.snippet.title,
-          channel: item.snippet.channelTitle,
-          thumbnail: item.snippet.thumbnails?.medium?.url ?? `https://img.youtube.com/vi/${item.id.videoId}/mqdefault.jpg`,
-          duration: '',
-        }));
-        setYtSearchResults(items);
+
+        setYtVideos(items);
       } catch (e: any) {
-        setYtSearchError(e.message ?? 'Gagal memuat hasil pencarian');
-        setYtSearchResults([]);
+        setYtSearchError(e.message ?? 'Gagal memuat video YouTube');
+        setYtVideos([]);
       } finally {
         setYtIsSearching(false);
       }
-    }, 500);
+    }, rawQ ? 400 : 0);
 
-    return () => { if (ytSearchDebounce.current) clearTimeout(ytSearchDebounce.current); };
-  }, [ytSearchQuery, ytCategory]);
+    return () => {
+      if (ytSearchDebounce.current) clearTimeout(ytSearchDebounce.current);
+    };
+  }, [ytSearchQuery, ytCategory, activeAppId]);
 
-  // What to show in grid: API results when searching, curated catalog otherwise
-  const isYtSearchMode = !!(ytSearchQuery.trim() || ytCategory !== 'semua');
-  const ytDisplayVideos = isYtSearchMode && ytSearchResults.length > 0
-    ? ytSearchResults
-    : YT_CATALOG;
+  // Video grid items
+  const ytDisplayVideos = ytVideos;
 
   // ── Virtual Fisher State (Matching user screenshot) ────────────────────
   const [fisherStats, setFisherStats] = useState({
