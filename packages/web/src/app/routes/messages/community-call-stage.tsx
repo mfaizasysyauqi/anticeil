@@ -89,7 +89,7 @@ interface CommunityCallStageProps {
   socket: Socket | null;
   isCallActive: boolean;
   isPiP: boolean;
-  isActivityOpen?: boolean;
+  initialAppId?: string | null;
   onToggleActivity?: (open?: boolean) => void;
   onTogglePiP: () => void;
   onEndCall: () => void;
@@ -243,7 +243,7 @@ export function CommunityCallStage({
   socket,
   isCallActive,
   isPiP,
-  isActivityOpen: propsIsActivityOpen,
+  initialAppId,
   onToggleActivity,
   onTogglePiP,
   onEndCall,
@@ -268,12 +268,19 @@ export function CommunityCallStage({
   // Discord App Launcher Modal & Active Activity
   const [isAppLauncherOpen, setIsAppLauncherOpen] = useState(false);
   const [appSearchQuery, setAppSearchQuery] = useState('');
-  const [activeAppId, setActiveAppId] = useState<string | null>(null);
+  const [activeAppId, setActiveAppId] = useState<string | null>(initialAppId || null);
   const [isFilmstripCollapsed, setIsFilmstripCollapsed] = useState(false);
+
+  // Sync initialAppId when changed by parent launcher
+  useEffect(() => {
+    if (initialAppId !== undefined && initialAppId !== null) {
+      setActiveAppId(initialAppId);
+    }
+  }, [initialAppId]);
 
   // Parent sync
   const internalActivityOpen = activeAppId !== null;
-  const isActivityOpen = propsIsActivityOpen !== undefined ? propsIsActivityOpen : internalActivityOpen;
+  const isActivityOpen = internalActivityOpen;
 
   const handleLaunchApp = (appId: string) => {
     setActiveAppId(appId);
@@ -2707,21 +2714,16 @@ export function CommunityCallStage({
           <div className="flex-1 min-h-0 min-w-0 bg-transparent border-0 flex flex-col overflow-hidden w-full h-full">
             <div
               className={cn(
-                'flex-1 min-h-0 relative flex items-center justify-center p-2 w-full h-full',
-                participants.length > 0 && 'grid gap-3 w-full h-full',
-                participants.length === 1 && 'grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto',
-                participants.length >= 2 && 'grid-cols-2 md:grid-cols-3 max-w-6xl mx-auto',
+                'flex-1 min-h-0 relative flex items-center justify-center p-4 w-full h-full',
+                participants.length === 0 && 'grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl mx-auto',
+                participants.length === 1 && 'grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl mx-auto',
+                participants.length >= 2 && 'grid grid-cols-2 md:grid-cols-3 gap-3 max-w-6xl mx-auto',
               )}
             >
-
-
-              {/* LOCAL PARTICIPANT TILE */}
+              {/* LOCAL PARTICIPANT TILE (Screenshot 4: Left tile) */}
               <div
                 className={cn(
-                  'relative rounded-2xl overflow-hidden flex items-center justify-center transition-all',
-                  participants.length === 0
-                    ? 'w-full h-full bg-transparent border-0 shadow-none'
-                    : 'w-full h-full bg-[#2b2d31] border border-white/5 shadow-lg group',
+                  'relative rounded-2xl overflow-hidden flex items-center justify-center transition-all w-full h-full min-h-[240px] md:min-h-[300px] bg-[#312b2b] border border-white/5 shadow-2xl group',
                 )}
               >
                 {!isVideoOff && localStream && localStream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled) ? (
@@ -2731,9 +2733,9 @@ export function CommunityCallStage({
                     <div className="relative">
                       <div
                         className={cn(
-                          'w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center transition-all duration-300 relative z-10',
+                          'w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center transition-all duration-300 relative z-10 overflow-hidden',
                           isSpeakingLocal
-                            ? 'ring-4 ring-emerald-500 ring-offset-4 ring-offset-[#111214] scale-105'
+                            ? 'ring-4 ring-emerald-500 ring-offset-4 ring-offset-[#312b2b] scale-105'
                             : 'ring-2 ring-white/10',
                         )}
                       >
@@ -2741,7 +2743,7 @@ export function CommunityCallStage({
                           name={currentUserName}
                           imageUrl={currentUser?.imageUrl}
                           email={currentUser?.email}
-                          size={104}
+                          size={112}
                           showStatus={false}
                           className="w-full h-full rounded-full"
                         />
@@ -2750,26 +2752,13 @@ export function CommunityCallStage({
                         <div className="absolute inset-0 rounded-full bg-emerald-500/25 blur-xl animate-pulse -z-0" />
                       )}
                     </div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-base font-bold text-white tracking-wide">{currentUserName}</span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                        {isVideoOff ? <VideoOff className="w-3.5 h-3.5 text-red-400" /> : <Mic className="w-3.5 h-3.5 text-emerald-400" />}
-                        {isVideoOff ? 'Kamera Mati' : 'Voice Aktif'}
-                      </span>
-                    </div>
                   </div>
                 )}
 
-                {/* Status Pill Bottom-Left */}
-                <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-xs flex items-center gap-2 text-xs font-semibold text-white border border-white/10 z-10">
-                  <span className="truncate max-w-[140px]">{currentUserName} (Anda)</span>
-                  {isMuted ? (
-                    <MicOff className="w-3.5 h-3.5 text-red-400" />
-                  ) : isSpeakingLocal ? (
-                    <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                  ) : (
-                    <Mic className="w-3.5 h-3.5 text-muted-foreground" />
-                  )}
+                {/* Status Pill Bottom-Left (Screenshot 4: simple name pill) */}
+                <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-xs flex items-center gap-2 text-xs font-semibold text-white border border-white/10 z-10">
+                  <span className="truncate max-w-[140px]">{currentUserName}</span>
+                  {isMuted && <MicOff className="w-3.5 h-3.5 text-red-400" />}
                 </div>
 
                 {isScreenSharing && (
@@ -2778,6 +2767,48 @@ export function CommunityCallStage({
                   </div>
                 )}
               </div>
+
+              {/* SOLO PROMPT CARD (Screenshot 4: Right tile with Turtle, Trophy, Gem + Invite / Choose Activity) */}
+              {participants.length === 0 && (
+                <div className="relative w-full h-full min-h-[240px] md:min-h-[300px] rounded-2xl bg-gradient-to-br from-[#180f24] via-[#120a1d] to-[#0a0512] border border-white/5 overflow-hidden flex flex-col items-center justify-center p-6 text-center shadow-2xl">
+                  {/* Discord Activity Illustration: Purple Turtle, Star Trophy, Green Polyhedron */}
+                  <div className="relative mb-6 flex items-center justify-center">
+                    <div className="w-32 h-32 rounded-full bg-purple-600/15 blur-2xl absolute -inset-2" />
+                    <div className="relative flex items-center justify-center gap-3">
+                      <span className="text-5xl filter drop-shadow-2xl hover:scale-110 transition-transform cursor-default select-none">
+                        🐢
+                      </span>
+                      <span className="text-5xl filter drop-shadow-2xl hover:scale-110 transition-transform cursor-default select-none">
+                        🏆
+                      </span>
+                      <span className="text-4xl filter drop-shadow-2xl hover:scale-110 transition-transform cursor-default select-none">
+                        💎
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 2 Discord Buttons: Invite to Voice & Choose Activity */}
+                  <div className="flex flex-wrap items-center justify-center gap-3 w-full max-w-sm">
+                    <button
+                      onClick={handleCopyCallLink}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2b2d31] hover:bg-[#35373c] text-white text-xs font-semibold transition-all shadow-md hover:scale-105 active:scale-95 cursor-pointer border border-white/5"
+                    >
+                      <UserPlus className="w-4 h-4 text-[#dbdee1]" />
+                      <span>Invite to Voice</span>
+                    </button>
+
+                    <button
+                      onClick={() => setIsAppLauncherOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer"
+                    >
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M7 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zm10 0a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zm-10 10a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zm10 0a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z" />
+                      </svg>
+                      <span>Choose Activity</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* REMOTE PARTICIPANTS TILES */}
               {participants.map((peer) => (

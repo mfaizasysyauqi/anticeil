@@ -37,6 +37,7 @@ import {
   Inbox,
   Webhook,
   Bell,
+  Pin,
   Lock,
   KeyRound,
   Zap,
@@ -73,7 +74,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 
 import { useSocket } from '@/components/providers/socket-provider';
-import { CommunityCallStage } from './community-call-stage';
+import { CommunityCallStage, DISCORD_APPS } from './community-call-stage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -260,6 +261,8 @@ export function CommunityPage() {
   const [isCallPiP, setIsCallPiP] = useState(false);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [activeCallCounts, setActiveCallCounts] = useState<Record<string, number>>({});
+  const [selectedActivityAppId, setSelectedActivityAppId] = useState<string | null>(null);
+  const [appsSearchQuery, setAppsSearchQuery] = useState('');
 
   useEffect(() => {
     if (!socket) return;
@@ -1863,6 +1866,10 @@ export function CommunityPage() {
                       key={ch.id}
                       onClick={() => {
                         setActiveChannelId(ch.id);
+                        if (ch.type === 'voice') {
+                          setActiveCallChannelId(ch.id);
+                          setIsCallPiP(false);
+                        }
                         onItemClick?.();
                       }}
                       className={cn(
@@ -2740,110 +2747,65 @@ export function CommunityPage() {
               )}
             </div>
 
-            {/* Top Bar Actions: Call Buttons, Webhook, Members Toggle & Search */}
-            <div className="flex items-center gap-1">
-              {/* Voice/Video Call & Activity Buttons */}
-              {activeChannel && (
-                <>
-                  <Tooltip delayDuration={150}>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          if (activeCallChannelId === activeChannel.id) {
-                            setIsCallPiP(false);
-                          } else {
-                            setActiveCallChannelId(activeChannel.id);
-                            setIsCallPiP(false);
-                          }
-                        }}
-                        className={cn(
-                          'h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer',
-                          activeCallChannelId === activeChannel.id && 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15 hover:text-emerald-300',
-                        )}
-                      >
-                        <PhoneCall className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
-                      {activeCallChannelId === activeChannel.id ? 'Kembali ke Panggilan' : 'Mulai Voice Call'}
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip delayDuration={150}>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          if (activeCallChannelId === activeChannel.id) {
-                            setIsCallPiP(false);
-                          } else {
-                            setActiveCallChannelId(activeChannel.id);
-                            setIsCallPiP(false);
-                          }
-                        }}
-                        className={cn(
-                          'h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer',
-                          activeCallChannelId === activeChannel.id && 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15 hover:text-emerald-300',
-                        )}
-                      >
-                        <Video className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
-                      {activeCallChannelId === activeChannel.id ? 'Kembali ke Video Call' : 'Mulai Video Call'}
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip delayDuration={150}>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          if (activeCallChannelId !== activeChannel.id) {
-                            setActiveCallChannelId(activeChannel.id);
-                          }
-                          setIsCallPiP(false);
-                          setIsActivityOpen((prev) => !prev);
-                        }}
-                        className={cn(
-                          'h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer',
-                          isActivityOpen && activeCallChannelId === activeChannel.id && 'text-primary bg-primary/10 hover:bg-primary/15 hover:text-primary',
-                        )}
-                      >
-                        <Rocket className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
-                      {isActivityOpen && activeCallChannelId === activeChannel.id ? 'Tutup Anticeil Activity' : 'Mulai Anticeil Activity'}
-                    </TooltipContent>
-                  </Tooltip>
-                  <div className="w-px h-5 bg-sidebar-border mx-0.5" />
-                </>
-              )}
+            {/* Top Bar Actions: Exactly Discord Signature (Threads, Bell, Pin, Member List, Search) */}
+            <div className="flex items-center gap-2">
+              {/* 1. Threads Icon */}
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => toast.info('Threads / Topik Diskusi Saluran')}
+                    className="h-8 w-8 text-[#b5bac1] hover:text-[#dbdee1] hover:bg-white/5 transition-colors cursor-pointer"
+                    title="Threads"
+                  >
+                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                      <path d="M5.5 4a1.5 1.5 0 0 0-1.5 1.5v13A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 18.5 4h-13zm2 3h9a1 1 0 1 1 0 2h-9a1 1 0 1 1 0-2zm0 4h9a1 1 0 1 1 0 2h-9a1 1 0 1 1 0-2zm0 4h5a1 1 0 1 1 0 2h-5a1 1 0 1 1 0-2z" />
+                    </svg>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
+                  Threads
+                </TooltipContent>
+              </Tooltip>
 
-              {/* Webhook & Integrations Button (Ala Discord Webhook) */}
-              {activeChannel && (
-                <Tooltip delayDuration={150}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setIsWebhookDialogOpen(true)}
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                      title="Integrasi Webhook & ID Saluran"
-                    >
-                      <Webhook className="w-4 h-4 text-primary" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
-                    {t('Integrasi Webhook Bot & ID')}
-                  </TooltipContent>
-                </Tooltip>
-              )}
+              {/* 2. Notification Settings (Bell) */}
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => toast.info('Pengaturan Notifikasi Saluran')}
+                    className="h-8 w-8 text-[#b5bac1] hover:text-[#dbdee1] hover:bg-white/5 transition-colors cursor-pointer"
+                    title="Notification Settings"
+                  >
+                    <Bell className="w-5 h-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
+                  Notification Settings
+                </TooltipContent>
+              </Tooltip>
 
-              {/* Members/Friends Toggle Button */}
+              {/* 3. Pinned Messages (Pin) */}
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => toast.info('Pesan Tersemat (Pinned Messages)')}
+                    className="h-8 w-8 text-[#b5bac1] hover:text-[#dbdee1] hover:bg-white/5 transition-colors cursor-pointer"
+                    title="Pinned Messages"
+                  >
+                    <Pin className="w-5 h-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
+                  Pinned Messages
+                </TooltipContent>
+              </Tooltip>
+
+              {/* 4. Member List Toggle (Users) */}
               <Tooltip delayDuration={150}>
                 <TooltipTrigger asChild>
                   <Button
@@ -2857,46 +2819,36 @@ export function CommunityPage() {
                       }
                     }}
                     className={cn(
-                      'h-8 w-8 text-muted-foreground hover:text-foreground transition-colors cursor-pointer',
-                      showMemberList && 'text-primary bg-primary/10 hover:bg-primary/15 hover:text-primary',
+                      'h-8 w-8 transition-colors cursor-pointer hover:bg-white/5',
+                      showMemberList ? 'text-white' : 'text-[#b5bac1] hover:text-[#dbdee1]',
                     )}
-                    title={isHome ? 'Teman' : 'Anggota Server'}
+                    title={isHome ? 'Daftar Teman' : 'Daftar Anggota'}
                   >
-                    <Users className="w-4 h-4" />
+                    <Users className="w-5 h-5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
-                  {isHome
-                    ? (showMemberList ? t('Sembunyikan Teman') : t('Tampilkan Teman'))
-                    : (showMemberList ? t('Sembunyikan Anggota') : t('Tampilkan Anggota'))
-                  }
+                  {showMemberList ? 'Sembunyikan Daftar Anggota' : 'Tampilkan Daftar Anggota'}
                 </TooltipContent>
               </Tooltip>
 
-              {/* Search Form on the Right */}
-              <div className="relative w-36 sm:w-56">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
+              {/* 5. Search Box (Exactly Discord: rounded input with Search icon on the right) */}
+              <div className="relative w-36 sm:w-40 transition-all duration-200 focus-within:w-56">
+                <input
+                  type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('Cari...')}
-                  className="h-8 pl-8 text-xs bg-sidebar-accent/50 border-sidebar-border"
+                  placeholder={activeChannel?.name ? `Search ${activeChannel.name}` : 'Search'}
+                  className="h-6 w-full pl-2.5 pr-7 text-xs bg-[#1e1f22] border border-white/5 rounded-[4px] text-[#dbdee1] placeholder:text-[#949ba4] focus:outline-none transition-all"
                 />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
+                <Search className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-[#949ba4] pointer-events-none" />
               </div>
             </div>
           </div>
           )}
 
-          {/* Call Stage (replaces messages when active on this channel and not PiP) */}
-          {activeCallChannelId === activeChannel?.id && !isCallPiP ? (
+          {/* Call Stage (automatically displays when active on this channel, or when it is a voice channel, and not PiP) */}
+          {(activeCallChannelId === activeChannel?.id || activeChannel?.type === 'voice') && !isCallPiP ? (
             <div className="flex-1 min-h-0 overflow-hidden flex flex-col w-full h-full">
               <CommunityCallStage
                 channel={activeChannel!}
@@ -2906,12 +2858,17 @@ export function CommunityPage() {
                 socket={socket}
                 isCallActive={true}
                 isPiP={false}
-                isActivityOpen={isActivityOpen}
+                initialAppId={selectedActivityAppId}
                 onToggleActivity={(open) => setIsActivityOpen((prev) => (typeof open === 'boolean' ? open : !prev))}
                 onTogglePiP={() => setIsCallPiP(true)}
                 onEndCall={() => {
                   setActiveCallChannelId(null);
+                  setSelectedActivityAppId(null);
                   setIsActivityOpen(false);
+                  const defaultTextChannel = hubChannels.find((c) => c.type === 'text' || !c.type);
+                  if (defaultTextChannel && activeChannel?.type === 'voice') {
+                    setActiveChannelId(defaultTextChannel.id);
+                  }
                 }}
                 onNavigateToBilling={() => navigate('/platform/billing')}
               />
@@ -3245,48 +3202,162 @@ export function CommunityPage() {
                   <Smile className="w-5 h-5" />
                 </button>
 
-                {/* 5. Apps & Templates Button (Discord Activity Shapes) */}
+                {/* 5. Apps Launcher Button (Discord Activity Shapes / Screenshot 3) */}
                 <Popover open={isTemplatePopoverOpen} onOpenChange={setIsTemplatePopoverOpen}>
                   <PopoverTrigger asChild>
                     <button
                       type="button"
                       className="w-6 h-6 text-[#b5bac1] hover:text-[#dbdee1] flex items-center justify-center transition-colors cursor-pointer"
-                      title="Aplikasi & Template Otomasi"
+                      title="Apps & Activities (Aplikasi Komunitas)"
                     >
+                      {/* Discord 4-shapes Activity icon */}
                       <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                         <path d="M7 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zm10 0a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zm-10 10a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zm10 0a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z" />
                       </svg>
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent side="top" align="end" className="w-80 p-3 bg-[#2b2d31] border-[#1e1f22] text-[#dbdee1] shadow-xl">
-                    <div className="text-xs font-semibold mb-2 flex items-center gap-1.5 text-white">
-                      <Sparkles className="w-3.5 h-3.5 text-primary" />
-                      Pilih Template untuk Dibagikan
+                  <PopoverContent
+                    side="top"
+                    align="end"
+                    sideOffset={14}
+                    className="w-[420px] max-w-[95vw] p-4 bg-[#1e1f22] border-white/10 text-[#dbdee1] shadow-2xl rounded-2xl select-none z-50"
+                  >
+                    {/* Search Apps & Commands */}
+                    <div className="relative w-full mb-3.5">
+                      <Search className="w-4 h-4 text-[#949ba4] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={appsSearchQuery}
+                        onChange={(e) => setAppsSearchQuery(e.target.value)}
+                        placeholder="Search Apps & Commands"
+                        className="w-full bg-[#111214] border border-[#5865f2] rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder:text-[#949ba4] focus:outline-none"
+                      />
                     </div>
-                    <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                      {SHAREABLE_TEMPLATES.map((tmpl, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            setStagedAttachment({
-                              type: 'template',
-                              url: '/templates',
-                              name: tmpl.name,
-                              templateData: tmpl,
-                            });
-                            setIsTemplatePopoverOpen(false);
-                          }}
-                          className="w-full text-left p-2 rounded-md hover:bg-[#35373c] transition-colors border border-transparent hover:border-white/5"
-                        >
-                          <div className="flex items-center justify-between text-xs font-medium text-white">
-                            <span className="truncate">{tmpl.name}</span>
-                            <span className="text-[10px] text-muted-foreground ml-2 shrink-0">{tmpl.price}</span>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">
-                            {tmpl.description}
-                          </p>
-                        </button>
-                      ))}
+
+                    <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1 [scrollbar-width:thin]">
+                      {/* Section: Recents (Horizontal Row) */}
+                      <div>
+                        <span className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider block mb-2">
+                          Recents
+                        </span>
+                        <div className="flex items-center gap-3">
+                          {DISCORD_APPS.slice(0, 4).map((app) => {
+                            const IconComponent = app.icon;
+                            return (
+                              <button
+                                key={app.id}
+                                onClick={() => {
+                                  setSelectedActivityAppId(app.id);
+                                  setIsTemplatePopoverOpen(false);
+                                  if (activeChannel) {
+                                    setActiveCallChannelId(activeChannel.id);
+                                    setIsCallPiP(false);
+                                    setIsActivityOpen(true);
+                                    socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+                                      channelId: activeChannel.id,
+                                      action: 'START_ACTIVITY',
+                                      payload: { appId: app.id },
+                                    });
+                                  }
+                                }}
+                                className="w-12 h-12 rounded-2xl bg-[#2b2d31] hover:bg-[#35373c] border border-white/10 hover:border-white/25 flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-md group cursor-pointer"
+                                title={app.title}
+                              >
+                                <IconComponent className={cn("w-6 h-6", app.id === 'watch-together' ? 'text-red-500 fill-red-500' : 'text-white')} />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Section: Apps in this Server */}
+                      <div>
+                        <span className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider block mb-2">
+                          Apps in this Server
+                        </span>
+                        {DISCORD_APPS.filter((a) => a.isInServer || a.id === 'virtual-fisher').slice(0, 1).map((app) => {
+                          const IconComponent = app.icon;
+                          return (
+                            <button
+                              key={app.id}
+                              onClick={() => {
+                                setSelectedActivityAppId(app.id);
+                                setIsTemplatePopoverOpen(false);
+                                if (activeChannel) {
+                                  setActiveCallChannelId(activeChannel.id);
+                                  setIsCallPiP(false);
+                                  setIsActivityOpen(true);
+                                  socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+                                    channelId: activeChannel.id,
+                                    action: 'START_ACTIVITY',
+                                    payload: { appId: app.id },
+                                  });
+                                }
+                              }}
+                              className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/5 hover:border-white/15 transition-all text-left cursor-pointer"
+                            >
+                              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-md", app.iconBg)}>
+                                <IconComponent className="w-5 h-5 text-white" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <span className="text-xs font-bold text-white block truncate">{app.title}</span>
+                                <span className="text-[10px] text-[#949ba4] line-clamp-1">{app.description}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Section: Promoted (Grid cards with banner) */}
+                      <div>
+                        <span className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider block mb-2">
+                          Promoted
+                        </span>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          {DISCORD_APPS.filter((a) =>
+                            appsSearchQuery ? a.title.toLowerCase().includes(appsSearchQuery.toLowerCase()) : a.isPromoted
+                          ).map((app) => {
+                            const IconComponent = app.icon;
+                            return (
+                              <button
+                                key={app.id}
+                                onClick={() => {
+                                  setSelectedActivityAppId(app.id);
+                                  setIsTemplatePopoverOpen(false);
+                                  if (activeChannel) {
+                                    setActiveCallChannelId(activeChannel.id);
+                                    setIsCallPiP(false);
+                                    setIsActivityOpen(true);
+                                    socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+                                      channelId: activeChannel.id,
+                                      action: 'START_ACTIVITY',
+                                      payload: { appId: app.id },
+                                    });
+                                  }
+                                }}
+                                className="group/card rounded-xl overflow-hidden bg-[#2b2d31] border border-white/5 hover:border-[#5865f2]/50 transition-all text-left flex flex-col hover:shadow-xl cursor-pointer"
+                              >
+                                {/* Banner */}
+                                <div className={cn("h-20 w-full relative overflow-hidden flex items-center justify-center bg-gradient-to-r", app.bannerGradient)}>
+                                  <div className="w-10 h-10 rounded-xl bg-black/40 backdrop-blur-xs flex items-center justify-center shadow-lg group-hover/card:scale-110 transition-transform">
+                                    <IconComponent className="w-6 h-6 text-white" />
+                                  </div>
+                                </div>
+                                {/* Footer */}
+                                <div className="p-2.5 flex items-center gap-2">
+                                  <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0", app.iconBg)}>
+                                    <IconComponent className="w-3.5 h-3.5 text-white" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-xs font-bold text-white block truncate">{app.title}</span>
+                                    <span className="text-[9px] text-[#949ba4] block truncate">{app.tagline}</span>
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
                   </PopoverContent>
                 </Popover>
