@@ -442,9 +442,10 @@ export function CommunityPage() {
   const [forumNewTitle, setForumNewTitle] = useState('');
   const [forumNewMessage, setForumNewMessage] = useState('');
   const [isSubmittingForumPost, setIsSubmittingForumPost] = useState(false);
-  const [collapsedCategories, setCollapsedCategories] = useState<{ text: boolean; voice: boolean }>({
+  const [collapsedCategories, setCollapsedCategories] = useState<{ text: boolean; voice: boolean; forum: boolean }>({
     text: false,
     voice: false,
+    forum: false,
   });
   const [threadsMap, setThreadsMap] = useState<Record<string, CommunityThread[]>>({});
 
@@ -463,6 +464,7 @@ export function CommunityPage() {
   const [channelToEdit, setChannelToEdit] = useState<CommunityChannel | null>(null);
   const [editChannelName, setEditChannelName] = useState('');
   const [editChannelDesc, setEditChannelDesc] = useState('');
+  const [editChannelType, setEditChannelType] = useState<CommunityChannelType>('text');
 
   const [channelToDelete, setChannelToDelete] = useState<CommunityChannel | null>(null);
 
@@ -862,11 +864,15 @@ export function CommunityPage() {
   }, [channels, activeHubId]);
 
   const textChannels = useMemo(() => {
-    return hubChannels.filter((c) => c.type !== 'voice');
+    return hubChannels.filter((c) => c.type === 'text' || !c.type);
   }, [hubChannels]);
 
   const voiceChannels = useMemo(() => {
     return hubChannels.filter((c) => c.type === 'voice');
+  }, [hubChannels]);
+
+  const forumChannels = useMemo(() => {
+    return hubChannels.filter((c) => c.type === 'forum');
   }, [hubChannels]);
 
   const dmChannels = useMemo(() => {
@@ -1607,13 +1613,30 @@ export function CommunityPage() {
 
       let hubChannels = await communityApi.getChannels(createdHub.id);
       if (!hubChannels || hubChannels.length === 0) {
-        const defaultCh = await communityApi.createChannel({
-          name: 'general',
-          description: `Saluran obrolan umum untuk server ${createdHub.name}`,
-          category: 'CHANNELS',
-          hubId: createdHub.id,
-        });
-        hubChannels = [defaultCh];
+        const [defaultCh, defaultVoice, defaultForum] = await Promise.all([
+          communityApi.createChannel({
+            name: 'general',
+            description: `Saluran obrolan umum untuk server ${createdHub.name}`,
+            category: 'CHANNELS',
+            hubId: createdHub.id,
+            type: 'text',
+          }),
+          communityApi.createChannel({
+            name: 'General Voice',
+            description: `Saluran suara & video untuk server ${createdHub.name}`,
+            category: 'CHANNELS',
+            hubId: createdHub.id,
+            type: 'voice',
+          }),
+          communityApi.createChannel({
+            name: 'forum-diskusi',
+            description: `Ruang diskusi topik untuk server ${createdHub.name}`,
+            category: 'CHANNELS',
+            hubId: createdHub.id,
+            type: 'forum',
+          }),
+        ]);
+        hubChannels = [defaultCh, defaultVoice, defaultForum];
       }
       setChannels((prev) => [...prev.filter((c) => c.hubId !== createdHub.id), ...hubChannels]);
       setActiveChannelId(hubChannels[0].id);
@@ -1635,20 +1658,37 @@ export function CommunityPage() {
         iconUrl: newHubIconUrl || undefined,
       };
 
-      const defaultCh: CommunityChannel = {
+      const defaultText: CommunityChannel = {
         id: `ch_${Date.now()}_gen`,
         name: 'general',
         description: `Saluran obrolan umum untuk server ${newHub.name}`,
         category: 'CHANNELS',
         hubId: newId,
+        type: 'text',
+      };
+      const defaultVoice: CommunityChannel = {
+        id: `ch_${Date.now()}_voice`,
+        name: 'General Voice',
+        description: `Saluran suara & video untuk server ${newHub.name}`,
+        category: 'CHANNELS',
+        hubId: newId,
+        type: 'voice',
+      };
+      const defaultForum: CommunityChannel = {
+        id: `ch_${Date.now()}_forum`,
+        name: 'forum-diskusi',
+        description: `Ruang diskusi topik untuk server ${newHub.name}`,
+        category: 'CHANNELS',
+        hubId: newId,
+        type: 'forum',
       };
 
       const updatedHubs = [...hubs, newHub];
       setHubs(updatedHubs);
       saveStoredHubs(updatedHubs);
-      setChannels((prev) => [...prev, defaultCh]);
+      setChannels((prev) => [...prev, defaultText, defaultVoice, defaultForum]);
       setActiveHubId(newId);
-      setActiveChannelId(defaultCh.id);
+      setActiveChannelId(defaultText.id);
 
       setIsCreateHubOpen(false);
       setNewHubName('');
@@ -1775,6 +1815,7 @@ export function CommunityPage() {
     setChannelToEdit(channel);
     setEditChannelName(channel.name);
     setEditChannelDesc(channel.description || '');
+    setEditChannelType(channel.type || 'text');
   };
 
   const handleEditChannelSubmit = async (e: React.FormEvent) => {
@@ -1785,11 +1826,13 @@ export function CommunityPage() {
       const updated = await communityApi.updateChannel(channelToEdit.id, {
         name: editChannelName.trim(),
         description: editChannelDesc.trim(),
+        type: editChannelType,
       });
       setChannels((prev) =>
-        prev.map((c) => (c.id === channelToEdit.id ? { ...c, ...updated } : c)),
+        prev.map((c) => (c.id === channelToEdit.id ? { ...c, ...updated, type: editChannelType } : c)),
       );
       setChannelToEdit(null);
+      toast.success(t('Channel berhasil diperbarui!'));
     } catch (err) {
       console.error('Failed to edit channel', err);
     }
@@ -2445,7 +2488,7 @@ export function CommunityPage() {
               </div>
             ) : (
               <>
-                {/* 1. TEXT & FORUM CHANNELS CATEGORY */}
+                {/* 1. TEXT CHANNELS CATEGORY */}
                 <div>
                   <div
                     onClick={() => setCollapsedCategories((prev) => ({ ...prev, text: !prev.text }))}
@@ -2487,18 +2530,12 @@ export function CommunityPage() {
                     <div className="space-y-0.5">
                       {textChannels.map((ch) => {
                         const isActiveCh = activeChannelId === ch.id;
-                        const isForum = ch.type === 'forum';
-                        const childThreads =
-                          threadsMap[ch.id] || (activeChannelId === ch.id ? channelThreads : []);
 
                         return (
                           <div key={ch.id} className="space-y-0.5">
                             <div
                               onClick={() => {
                                 setActiveChannelId(ch.id);
-                                if (isForum) {
-                                  setActiveThread(null);
-                                }
                                 onItemClick?.();
                               }}
                               className={cn(
@@ -2508,25 +2545,14 @@ export function CommunityPage() {
                                   : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                               )}
                             >
-                              {isForum ? (
-                                <MessagesSquare
-                                  className={cn(
-                                    'w-4 h-4 shrink-0 transition-colors',
-                                    isActiveCh
-                                      ? 'text-primary'
-                                      : 'text-muted-foreground/70 group-hover:text-foreground',
-                                  )}
-                                />
-                              ) : (
-                                <Hash
-                                  className={cn(
-                                    'w-4 h-4 shrink-0 transition-colors',
-                                    isActiveCh
-                                      ? 'text-primary'
-                                      : 'text-muted-foreground/70 group-hover:text-foreground',
-                                  )}
-                                />
-                              )}
+                              <Hash
+                                className={cn(
+                                  'w-4 h-4 shrink-0 transition-colors',
+                                  isActiveCh
+                                    ? 'text-primary'
+                                    : 'text-muted-foreground/70 group-hover:text-foreground',
+                                )}
+                              />
                               <span className="truncate flex-1">{ch.name}</span>
                               {ch.isPrivate && (
                                 <span title="Private Channel">
@@ -2574,43 +2600,6 @@ export function CommunityPage() {
                                 </button>
                               </div>
                             </div>
-
-                            {/* Nested Threads under Forum Channel (Discord Screenshot 3) */}
-                            {isForum && childThreads && childThreads.length > 0 && (
-                              <div className="ml-4 pl-2.5 border-l border-border/40 space-y-0.5 my-0.5">
-                                {childThreads.map((th) => {
-                                  const isThActive =
-                                    activeChannelId === ch.id && activeThread?.id === th.id;
-                                  return (
-                                    <div
-                                      key={th.id}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveChannelId(ch.id);
-                                        setActiveThread(th);
-                                        onItemClick?.();
-                                      }}
-                                      className={cn(
-                                        'flex items-center gap-2 px-2 py-1 rounded-md text-xs font-medium cursor-pointer transition-colors',
-                                        isThActive
-                                          ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
-                                          : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                                      )}
-                                    >
-                                      <span className="text-muted-foreground/50 text-[11px] font-mono leading-none">
-                                        └──
-                                      </span>
-                                      <span className="truncate flex-1">{th.name}</span>
-                                      {th.messageCount > 0 && (
-                                        <span className="text-[10px] text-muted-foreground/60 font-mono px-1 rounded bg-muted/40">
-                                          {th.messageCount}
-                                        </span>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
                           </div>
                         );
                       })}
@@ -2736,6 +2725,165 @@ export function CommunityPage() {
                                 <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. FORUM CHANNELS CATEGORY */}
+                <div>
+                  <div
+                    onClick={() => setCollapsedCategories((prev) => ({ ...prev, forum: !prev.forum }))}
+                    className="px-2 mb-1 flex items-center justify-between text-[11px] font-bold text-muted-foreground/80 hover:text-foreground tracking-wider uppercase cursor-pointer select-none group/cat"
+                  >
+                    <div className="flex items-center gap-1">
+                      <ChevronDown
+                        className={cn(
+                          'w-3 h-3 transition-transform duration-200',
+                          collapsedCategories.forum && '-rotate-90',
+                        )}
+                      />
+                      <span>{t('Forum Channels')}</span>
+                      <span className="text-[10px] text-muted-foreground/60">
+                        ({forumChannels.length})
+                      </span>
+                    </div>
+                    <Tooltip delayDuration={150}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setNewChannelCategory('CHANNELS');
+                            setNewChannelType('forum');
+                            setIsCreateChannelOpen(true);
+                          }}
+                          className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" sideOffset={4} className="font-semibold text-xs">
+                        {t('Buat Forum Channel')}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+
+                  {!collapsedCategories.forum && (
+                    <div className="space-y-0.5">
+                      {forumChannels.map((ch) => {
+                        const isActiveCh = activeChannelId === ch.id;
+                        const childThreads =
+                          threadsMap[ch.id] || (activeChannelId === ch.id ? channelThreads : []);
+
+                        return (
+                          <div key={ch.id} className="space-y-0.5">
+                            <div
+                              onClick={() => {
+                                setActiveChannelId(ch.id);
+                                setActiveThread(null);
+                                onItemClick?.();
+                              }}
+                              className={cn(
+                                'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all text-left group cursor-pointer relative',
+                                isActiveCh
+                                  ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
+                                  : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                              )}
+                            >
+                              <MessagesSquare
+                                className={cn(
+                                  'w-4 h-4 shrink-0 transition-colors',
+                                  isActiveCh
+                                    ? 'text-primary'
+                                    : 'text-muted-foreground/70 group-hover:text-foreground',
+                                )}
+                              />
+                              <span className="truncate flex-1">{ch.name}</span>
+                              {ch.isPrivate && (
+                                <span title="Private Channel">
+                                  <Lock className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                                </span>
+                              )}
+
+                              {/* Channel action buttons */}
+                              <div className="hidden group-hover:flex items-center gap-0.5 ml-auto shrink-0">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveChannelId(ch.id);
+                                    setIsWebhookDialogOpen(true);
+                                  }}
+                                  title="Integrasi Webhook"
+                                  className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted"
+                                >
+                                  <Webhook className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(ch.id);
+                                    toast.success(t(`ID Channel disalin: ${ch.id} 📋`));
+                                  }}
+                                  title="Salin ID Channel"
+                                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleOpenEditChannel(ch, e)}
+                                  title="Edit Channel"
+                                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleOpenDeleteChannel(ch, e)}
+                                  title="Hapus Channel"
+                                  className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Nested Threads under Forum Channel */}
+                            {childThreads && childThreads.length > 0 && (
+                              <div className="ml-4 pl-2.5 border-l border-border/40 space-y-0.5 my-0.5">
+                                {childThreads.map((th) => {
+                                  const isThActive =
+                                    activeChannelId === ch.id && activeThread?.id === th.id;
+                                  return (
+                                    <div
+                                      key={th.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveChannelId(ch.id);
+                                        setActiveThread(th);
+                                        onItemClick?.();
+                                      }}
+                                      className={cn(
+                                        'flex items-center gap-2 px-2 py-1 rounded-md text-xs font-medium cursor-pointer transition-colors',
+                                        isThActive
+                                          ? 'bg-accent text-accent-foreground font-semibold shadow-2xs'
+                                          : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                                      )}
+                                    >
+                                      <span className="text-muted-foreground/50 text-[11px] font-mono leading-none">
+                                        └──
+                                      </span>
+                                      <span className="truncate flex-1">{th.name}</span>
+                                      {th.messageCount > 0 && (
+                                        <span className="text-[10px] text-muted-foreground/60 font-mono px-1 rounded bg-muted/40">
+                                          {th.messageCount}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -8085,6 +8233,51 @@ export function CommunityPage() {
               </DialogHeader>
 
               <div className="grid gap-4 py-4">
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold">{t('Tipe Channel')}</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditChannelType('text')}
+                      className={cn(
+                        'flex flex-col items-center gap-1.5 p-2.5 rounded-lg border text-xs font-medium transition-all cursor-pointer',
+                        editChannelType === 'text'
+                          ? 'bg-primary/10 border-primary text-primary font-semibold'
+                          : 'border-border/60 text-muted-foreground hover:bg-muted/50'
+                      )}
+                    >
+                      <Hash className="w-4 h-4" />
+                      <span>Text</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditChannelType('voice')}
+                      className={cn(
+                        'flex flex-col items-center gap-1.5 p-2.5 rounded-lg border text-xs font-medium transition-all cursor-pointer',
+                        editChannelType === 'voice'
+                          ? 'bg-primary/10 border-primary text-primary font-semibold'
+                          : 'border-border/60 text-muted-foreground hover:bg-muted/50'
+                      )}
+                    >
+                      <Volume2 className="w-4 h-4" />
+                      <span>Voice</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditChannelType('forum')}
+                      className={cn(
+                        'flex flex-col items-center gap-1.5 p-2.5 rounded-lg border text-xs font-medium transition-all cursor-pointer',
+                        editChannelType === 'forum'
+                          ? 'bg-primary/10 border-primary text-primary font-semibold'
+                          : 'border-border/60 text-muted-foreground hover:bg-muted/50'
+                      )}
+                    >
+                      <MessagesSquare className="w-4 h-4" />
+                      <span>Forum</span>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid gap-1.5">
                   <label className="text-xs font-semibold">Nama Channel</label>
                   <Input

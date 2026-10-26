@@ -389,12 +389,41 @@ async function setupCommunityApi(app) {
                 await ds.query(`
                     ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS platform_id VARCHAR(128);
                     CREATE INDEX IF NOT EXISTS idx_acc_platform ON anticeil_community_channels (platform_id);
+                    ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS type VARCHAR(32) DEFAULT 'text';
+                    ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE;
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT '[]';
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS emojis TEXT DEFAULT '[]';
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS boosts_count INT DEFAULT 0;
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS boost_tier INT DEFAULT 0;
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS icon_url TEXT;
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS platform_id VARCHAR(128);
+
+                    CREATE TABLE IF NOT EXISTS anticeil_community_threads (
+                        id VARCHAR(128) PRIMARY KEY,
+                        channel_id VARCHAR(128) NOT NULL,
+                        name VARCHAR(256) NOT NULL,
+                        creator_id VARCHAR(128) NOT NULL,
+                        creator_name VARCHAR(256) NOT NULL,
+                        creator_avatar TEXT,
+                        message_count INT DEFAULT 0,
+                        last_message_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
+                    CREATE TABLE IF NOT EXISTS anticeil_community_thread_messages (
+                        id VARCHAR(128) PRIMARY KEY,
+                        thread_id VARCHAR(128) NOT NULL,
+                        channel_id VARCHAR(128) NOT NULL,
+                        sender_id VARCHAR(128) NOT NULL,
+                        sender_name VARCHAR(256) NOT NULL,
+                        sender_avatar TEXT,
+                        sender_role VARCHAR(64) DEFAULT 'member',
+                        content TEXT NOT NULL,
+                        attachments TEXT DEFAULT '[]',
+                        reactions TEXT DEFAULT '{}',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
                 `);
             } catch (alterErr) {}
 
@@ -409,6 +438,30 @@ async function setupCommunityApi(app) {
                     `);
                 }
             } catch (seedErr) {}
+
+            // Ensure every server (hub) has default Voice and Forum channels if missing
+            try {
+                const hubs = await ds.query('SELECT id, name, platform_id FROM anticeil_community_hubs WHERE id != $1', ['anticeil']);
+                for (const h of hubs || []) {
+                    const chs = await ds.query('SELECT type FROM anticeil_community_channels WHERE hub_id = $1', [h.id]);
+                    const types = (chs || []).map(c => c.type || 'text');
+                    const platId = h.platform_id || (await resolvePlatformId({}, ds));
+                    if (!types.includes('voice')) {
+                        const voiceId = `ch-${Date.now().toString(36)}-voice-${Math.random().toString(36).slice(2, 6)}`;
+                        await ds.query(
+                            'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id, type, is_private) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING',
+                            [voiceId, 'General Voice', 'Saluran suara dan video', 'CHANNELS', h.id, false, platId, 'voice', false]
+                        );
+                    }
+                    if (!types.includes('forum')) {
+                        const forumId = `ch-${Date.now().toString(36)}-forum-${Math.random().toString(36).slice(2, 6)}`;
+                        await ds.query(
+                            'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id, type, is_private) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING',
+                            [forumId, 'forum-diskusi', 'Ruang diskusi terorganisir', 'CHANNELS', h.id, false, platId, 'forum', false]
+                        );
+                    }
+                }
+            } catch (seedChErr) {}
 
             // Migrate legacy un-isolated data (no platform_id) to current platform so nothing gets deleted
             try {
@@ -440,24 +493,54 @@ async function setupCommunityApi(app) {
                     rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE (platform_id = $1 OR platform_id IS NULL) ORDER BY created_at ASC', [platformId]);
                 }
                 
-                // If a specific server has no channels yet, auto-create its default general channel
+                // If a specific server has no channels yet, auto-create its default general, voice, and forum channels
                 if (hubId && hubId !== 'anticeil' && (!rows || rows.length === 0)) {
                     const defaultChId = `ch-${Date.now().toString(36)}-general`;
-                    const defaultChannel = {
+                    const voiceChId = `ch-${Date.now().toString(36)}-voice`;
+                    const forumChId = `ch-${Date.now().toString(36)}-forum`;
+                    const defaultText = {
                         id: defaultChId,
                         name: 'general',
                         description: 'Saluran obrolan umum',
                         category: 'CHANNELS',
                         hub_id: hubId,
                         is_direct_message: false,
-                        platform_id: platformId
+                        platform_id: platformId,
+                        type: 'text',
+                        is_private: false
+                    };
+                    const defaultVoice = {
+                        id: voiceChId,
+                        name: 'General Voice',
+                        description: 'Saluran suara dan video',
+                        category: 'CHANNELS',
+                        hub_id: hubId,
+                        is_direct_message: false,
+                        platform_id: platformId,
+                        type: 'voice',
+                        is_private: false
+                    };
+                    const defaultForum = {
+                        id: forumChId,
+                        name: 'forum-diskusi',
+                        description: 'Ruang diskusi terorganisir',
+                        category: 'CHANNELS',
+                        hub_id: hubId,
+                        is_direct_message: false,
+                        platform_id: platformId,
+                        type: 'forum',
+                        is_private: false
                     };
                     try {
                         await ds.query(
-                            'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
-                            [defaultChannel.id, defaultChannel.name, defaultChannel.description, defaultChannel.category, defaultChannel.hub_id, false, platformId]
+                            'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id, type, is_private) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9), ($10, $11, $12, $13, $14, $15, $16, $17, $18), ($19, $20, $21, $22, $23, $24, $25, $26, $27) ON CONFLICT (id) DO NOTHING',
+                            [
+                                defaultText.id, defaultText.name, defaultText.description, defaultText.category, defaultText.hub_id, false, platformId, 'text', false,
+                                defaultVoice.id, defaultVoice.name, defaultVoice.description, defaultVoice.category, defaultVoice.hub_id, false, platformId, 'voice', false,
+                                defaultForum.id, defaultForum.name, defaultForum.description, defaultForum.category, defaultForum.hub_id, false, platformId, 'forum', false
+                            ]
                         );
-                        rows = [defaultChannel];
+                        rows = [defaultText, defaultVoice, defaultForum];
                     } catch (e) {}
                 }
 
@@ -467,6 +550,8 @@ async function setupCommunityApi(app) {
                     description: r.description || '',
                     category: r.category || 'CHANNELS',
                     hubId: r.hub_id || 'anticeil',
+                    type: r.type || 'text',
+                    isPrivate: Boolean(r.is_private),
                     isDirectMessage: Boolean(r.is_direct_message),
                     dmUserId: r.dm_user_id || undefined
                 }));
@@ -480,38 +565,64 @@ async function setupCommunityApi(app) {
                 description: 'Saluran obrolan umum',
                 category: 'CHANNELS',
                 hubId: hubId,
+                type: 'text',
+                isPrivate: false,
                 isDirectMessage: false
             };
-            memoryChannels.push(gen);
-            filtered = [gen];
+            const genV = {
+                id: `ch-${Date.now().toString(36)}-voice`,
+                name: 'General Voice',
+                description: 'Saluran suara dan video',
+                category: 'CHANNELS',
+                hubId: hubId,
+                type: 'voice',
+                isPrivate: false,
+                isDirectMessage: false
+            };
+            const genF = {
+                id: `ch-${Date.now().toString(36)}-forum`,
+                name: 'forum-diskusi',
+                description: 'Ruang diskusi terorganisir',
+                category: 'CHANNELS',
+                hubId: hubId,
+                type: 'forum',
+                isPrivate: false,
+                isDirectMessage: false
+            };
+            memoryChannels.push(gen, genV, genF);
+            filtered = [gen, genV, genF];
         }
         return filtered;
     };
 
     const createChannelHandler = async (req, reply) => {
         await ensureTables();
-        const { name, description = '', category = 'CHANNELS', hubId = 'anticeil' } = req.body || {};
+        const { name, description = '', category = 'CHANNELS', hubId = 'anticeil', type = 'text', isPrivate = false } = req.body || {};
         if (!name) {
             return reply.status(400).send({ message: 'Channel name is required' });
         }
         const ds = await getDb();
         const platformId = await resolvePlatformId(req, ds);
-        const cleanName = name.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || `channel-${Date.now()}`;
-        const id = `ch-${Date.now().toString(36)}-${cleanName.substring(0, 20)}`;
+        const cleanName = type === 'voice' 
+            ? name.trim() 
+            : (name.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || `channel-${Date.now()}`);
+        const id = `ch-${Date.now().toString(36)}-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20) || 'ch'}`;
         const newChannel = {
             id,
             name: cleanName,
             description,
             category,
             hubId,
+            type,
+            isPrivate: Boolean(isPrivate),
             isDirectMessage: false
         };
 
         if (ds && dbReady) {
             try {
                 await ds.query(
-                    'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO UPDATE SET name=$2, description=$3',
-                    [id, cleanName, description, category, hubId, false, platformId]
+                    'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id, type, is_private) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO UPDATE SET name=$2, description=$3, type=$8, is_private=$9',
+                    [id, cleanName, description, category, hubId, false, platformId, type, Boolean(isPrivate)]
                 );
             } catch (e) {}
         }
@@ -525,15 +636,15 @@ async function setupCommunityApi(app) {
     const updateChannelHandler = async (req, reply) => {
         await ensureTables();
         const { id } = req.params;
-        const { name, description } = req.body || {};
+        const { name, description, type, isPrivate } = req.body || {};
         const ds = await getDb();
         let updatedChannel = null;
         if (ds && dbReady) {
             try {
                 const platformId = await resolvePlatformId(req, ds);
                 const res = await ds.query(
-                    'UPDATE anticeil_community_channels SET name = COALESCE($1, name), description = COALESCE($2, description), updated_at = NOW() WHERE id = $3 AND (platform_id = $4 OR platform_id IS NULL) RETURNING *',
-                    [name, description, id, platformId]
+                    'UPDATE anticeil_community_channels SET name = COALESCE($1, name), description = COALESCE($2, description), type = COALESCE($3, type), is_private = COALESCE($4, is_private), updated_at = NOW() WHERE id = $5 AND (platform_id = $6 OR platform_id IS NULL) RETURNING *',
+                    [name, description, type, typeof isPrivate === 'boolean' ? isPrivate : null, id, platformId]
                 );
                 if (res && res[0]) {
                     updatedChannel = {
@@ -542,6 +653,8 @@ async function setupCommunityApi(app) {
                         description: res[0].description,
                         category: res[0].category,
                         hubId: res[0].hub_id,
+                        type: res[0].type || 'text',
+                        isPrivate: Boolean(res[0].is_private),
                         isDirectMessage: Boolean(res[0].is_direct_message)
                     };
                 }
@@ -551,20 +664,167 @@ async function setupCommunityApi(app) {
         if (memIdx >= 0) {
             if (name) memoryChannels[memIdx].name = name;
             if (description !== undefined) memoryChannels[memIdx].description = description;
+            if (type) memoryChannels[memIdx].type = type;
+            if (isPrivate !== undefined) memoryChannels[memIdx].isPrivate = isPrivate;
             if (!updatedChannel) {
                 updatedChannel = {
                     id,
                     name: memoryChannels[memIdx].name,
                     description: memoryChannels[memIdx].description,
                     category: memoryChannels[memIdx].category,
-                    hubId: memoryChannels[memIdx].hub_id
+                    hubId: memoryChannels[memIdx].hub_id,
+                    type: memoryChannels[memIdx].type || 'text',
+                    isPrivate: Boolean(memoryChannels[memIdx].isPrivate),
+                    isDirectMessage: Boolean(memoryChannels[memIdx].isDirectMessage)
                 };
             }
+        }
+        if (!updatedChannel) {
+            updatedChannel = { id, name: name || 'channel', description: description || '', category: 'CHANNELS', hubId: 'anticeil', type: type || 'text', isPrivate: Boolean(isPrivate), isDirectMessage: false };
         }
         if (app.io && updatedChannel) {
             app.io.emit('COMMUNITY_CHANNEL_UPDATED', updatedChannel);
         }
-        return updatedChannel || { id, name, description };
+        return updatedChannel;
+    };
+
+    // --- FORUM THREADS HANDLERS ---
+    const getThreadsHandler = async (req, reply) => {
+        await ensureTables();
+        const { channelId } = req.params;
+        const search = req.query?.search;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                let query = 'SELECT * FROM anticeil_community_threads WHERE channel_id = $1';
+                const params = [channelId];
+                if (search) {
+                    query += ' AND LOWER(name) LIKE $2';
+                    params.push(`%${search.toLowerCase()}%`);
+                }
+                query += ' ORDER BY last_message_at DESC';
+                const rows = await ds.query(query, params);
+                return (rows || []).map(r => ({
+                    id: r.id,
+                    channelId: r.channel_id,
+                    name: r.name,
+                    creatorId: r.creator_id,
+                    creatorName: r.creator_name,
+                    creatorAvatar: r.creator_avatar,
+                    messageCount: Number(r.message_count) || 0,
+                    lastMessageAt: r.last_message_at,
+                    createdAt: r.created_at
+                }));
+            } catch (e) {}
+        }
+        return [];
+    };
+
+    const createThreadHandler = async (req, reply) => {
+        await ensureTables();
+        const { channelId } = req.params;
+        const { name, creatorName = 'User', creatorAvatar = null, initialMessage = '' } = req.body || {};
+        if (!name) return reply.status(400).send({ message: 'Thread name is required' });
+        const id = `thread_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const ds = await getDb();
+        const user = req.principal || {};
+        const creatorId = user.id || 'user';
+        const now = new Date().toISOString();
+        const thread = {
+            id,
+            channelId,
+            name: name.trim(),
+            creatorId,
+            creatorName,
+            creatorAvatar,
+            messageCount: initialMessage ? 1 : 0,
+            lastMessageAt: now,
+            createdAt: now
+        };
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_community_threads (id, channel_id, name, creator_id, creator_name, creator_avatar, message_count, last_message_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+                    [id, channelId, thread.name, creatorId, creatorName, creatorAvatar, thread.messageCount, now, now, now]
+                );
+                if (initialMessage) {
+                    const msgId = `msg_th_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+                    await ds.query(
+                        'INSERT INTO anticeil_community_thread_messages (id, thread_id, channel_id, sender_id, sender_name, sender_avatar, content, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+                        [msgId, id, channelId, creatorId, creatorName, creatorAvatar, initialMessage, now]
+                    );
+                }
+            } catch (e) {}
+        }
+        if (app.io) {
+            app.io.emit('COMMUNITY_THREAD_CREATED', thread);
+        }
+        return thread;
+    };
+
+    const getThreadMessagesHandler = async (req, reply) => {
+        await ensureTables();
+        const { threadId } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query('SELECT * FROM anticeil_community_thread_messages WHERE thread_id = $1 ORDER BY created_at ASC', [threadId]);
+                return (rows || []).map(r => ({
+                    id: r.id,
+                    threadId: r.thread_id,
+                    channelId: r.channel_id,
+                    senderId: r.sender_id,
+                    senderName: r.sender_name,
+                    senderAvatar: r.sender_avatar,
+                    senderRole: r.sender_role || 'member',
+                    content: r.content,
+                    attachments: typeof r.attachments === 'string' ? JSON.parse(r.attachments || '[]') : (r.attachments || []),
+                    reactions: typeof r.reactions === 'string' ? JSON.parse(r.reactions || '{}') : (r.reactions || {}),
+                    createdAt: r.created_at
+                }));
+            } catch (e) {}
+        }
+        return [];
+    };
+
+    const sendThreadMessageHandler = async (req, reply) => {
+        await ensureTables();
+        const { threadId } = req.params;
+        const { channelId, content, senderName = 'User', senderAvatar = null, senderRole = 'member', attachments = [] } = req.body || {};
+        const id = `msg_th_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const user = req.principal || {};
+        const senderId = user.id || 'user';
+        const now = new Date().toISOString();
+        const msg = {
+            id,
+            threadId,
+            channelId,
+            senderId,
+            senderName,
+            senderAvatar,
+            senderRole,
+            content: content || '',
+            attachments,
+            reactions: {},
+            createdAt: now
+        };
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_community_thread_messages (id, thread_id, channel_id, sender_id, sender_name, sender_avatar, sender_role, content, attachments, reactions, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+                    [id, threadId, channelId || '', senderId, senderName, senderAvatar, senderRole, msg.content, JSON.stringify(attachments), JSON.stringify({}), now]
+                );
+                await ds.query(
+                    'UPDATE anticeil_community_threads SET message_count = message_count + 1, last_message_at = $1, updated_at = $1 WHERE id = $2',
+                    [now, threadId]
+                );
+            } catch (e) {}
+        }
+        if (app.io) {
+            app.io.emit('COMMUNITY_THREAD_MESSAGE_CREATED', msg);
+        }
+        return msg;
     };
 
     const deleteChannelHandler = async (req) => {
@@ -1698,6 +1958,12 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/channels`, createChannelHandler);
         app.put(`${prefix}/channels/:id`, updateChannelHandler);
         app.delete(`${prefix}/channels/:id`, deleteChannelHandler);
+
+        // Threads (For Forum Channels)
+        app.get(`${prefix}/channels/:channelId/threads`, getThreadsHandler);
+        app.post(`${prefix}/channels/:channelId/threads`, createThreadHandler);
+        app.get(`${prefix}/threads/:threadId/messages`, getThreadMessagesHandler);
+        app.post(`${prefix}/threads/:threadId/messages`, sendThreadMessageHandler);
 
         // Messages
         app.get(`${prefix}/channels/:channelId/messages`, getMessagesHandler);

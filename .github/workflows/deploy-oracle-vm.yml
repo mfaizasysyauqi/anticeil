@@ -131,9 +131,14 @@ jobs:
             run_sql "UPDATE platform_plan SET \"auditLogEnabled\"=true,\"apiKeysEnabled\"=true,\"customAppearanceEnabled\"=true,\"showPoweredBy\"=false WHERE plan IN ('plus','team','enterprise')"
             run_sql "UPDATE platform_plan SET \"globalConnectionsEnabled\"=true,\"ssoEnabled\"=true,\"customRolesEnabled\"=true,\"projectRolesEnabled\"=true,\"environmentsEnabled\"=true,\"embeddingEnabled\"=true,\"secretManagersEnabled\"=true,\"managePiecesEnabled\"=true,\"manageTemplatesEnabled\"=true,\"billedTeamProjectsLimit\"=NULL WHERE plan IN ('team','enterprise')"
             run_sql "UPDATE platform_plan SET \"scimEnabled\"=true,\"eventStreamingEnabled\"=true,\"workerGroupsEnabled\"=true,\"customDomainsEnabled\"=true WHERE plan='enterprise'"
-            run_sql "UPDATE platform_plan SET \"billedTeamProjectsLimit\"=1 WHERE plan='plus' AND (\"billedTeamProjectsLimit\" IS NULL OR \"billedTeamProjectsLimit\"<1)"
             run_sql "UPDATE project SET type='PERSONAL' WHERE id IN (SELECT p1.id FROM project p1 WHERE p1.created=(SELECT MIN(p2.created) FROM project p2 WHERE p2.\"platformId\"=p1.\"platformId\") AND NOT EXISTS (SELECT 1 FROM project p3 WHERE p3.\"platformId\"=p1.\"platformId\" AND p3.type='PERSONAL'))"
             run_sql "SELECT id, \"platformId\", plan, \"billedTeamProjectsLimit\", \"ssoEnabled\", \"managePiecesEnabled\" FROM platform_plan"
+
+            # Ensure community channels have type and is_private columns and seed missing voice/forum channels
+            run_sql "ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS type VARCHAR(32) DEFAULT 'text';"
+            run_sql "ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE;"
+            run_sql "INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, type, is_private) SELECT 'ch-' || substr(md5(random()::text), 1, 8) || '-voice', 'General Voice', 'Saluran suara & video', 'CHANNELS', h.id, false, 'voice', false FROM anticeil_community_hubs h WHERE h.id != 'anticeil' AND NOT EXISTS (SELECT 1 FROM anticeil_community_channels c WHERE c.hub_id = h.id AND c.type = 'voice');"
+            run_sql "INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, type, is_private) SELECT 'ch-' || substr(md5(random()::text), 1, 8) || '-forum', 'forum-diskusi', 'Ruang diskusi terorganisir', 'CHANNELS', h.id, false, 'forum', false FROM anticeil_community_hubs h WHERE h.id != 'anticeil' AND NOT EXISTS (SELECT 1 FROM anticeil_community_channels c WHERE c.hub_id = h.id AND c.type = 'forum');"
 
             # Flush Redis cache so platform plan & billing cache are reloaded
             docker exec $(docker ps -q -f name=redis) redis-cli flushall 2>/dev/null || true
