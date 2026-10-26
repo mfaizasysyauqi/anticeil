@@ -493,55 +493,73 @@ async function setupCommunityApi(app) {
                     rows = await ds.query('SELECT * FROM anticeil_community_channels WHERE (platform_id = $1 OR platform_id IS NULL) ORDER BY created_at ASC', [platformId]);
                 }
                 
-                // If a specific server has no channels yet, auto-create its default general, voice, and forum channels
-                if (hubId && hubId !== 'anticeil' && (!rows || rows.length === 0)) {
-                    const defaultChId = `ch-${Date.now().toString(36)}-general`;
-                    const voiceChId = `ch-${Date.now().toString(36)}-voice`;
-                    const forumChId = `ch-${Date.now().toString(36)}-forum`;
-                    const defaultText = {
-                        id: defaultChId,
-                        name: 'general',
-                        description: 'Saluran obrolan umum',
-                        category: 'CHANNELS',
-                        hub_id: hubId,
-                        is_direct_message: false,
-                        platform_id: platformId,
-                        type: 'text',
-                        is_private: false
-                    };
-                    const defaultVoice = {
-                        id: voiceChId,
-                        name: 'General Voice',
-                        description: 'Saluran suara dan video',
-                        category: 'CHANNELS',
-                        hub_id: hubId,
-                        is_direct_message: false,
-                        platform_id: platformId,
-                        type: 'voice',
-                        is_private: false
-                    };
-                    const defaultForum = {
-                        id: forumChId,
-                        name: 'forum-diskusi',
-                        description: 'Ruang diskusi terorganisir',
-                        category: 'CHANNELS',
-                        hub_id: hubId,
-                        is_direct_message: false,
-                        platform_id: platformId,
-                        type: 'forum',
-                        is_private: false
-                    };
-                    try {
-                        await ds.query(
-                            'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id, type, is_private) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9), ($10, $11, $12, $13, $14, $15, $16, $17, $18), ($19, $20, $21, $22, $23, $24, $25, $26, $27) ON CONFLICT (id) DO NOTHING',
-                            [
-                                defaultText.id, defaultText.name, defaultText.description, defaultText.category, defaultText.hub_id, false, platformId, 'text', false,
-                                defaultVoice.id, defaultVoice.name, defaultVoice.description, defaultVoice.category, defaultVoice.hub_id, false, platformId, 'voice', false,
-                                defaultForum.id, defaultForum.name, defaultForum.description, defaultForum.category, defaultForum.hub_id, false, platformId, 'forum', false
-                            ]
-                        );
-                        rows = [defaultText, defaultVoice, defaultForum];
-                    } catch (e) {}
+                // If a specific server has missing default channels (voice/forum/text), auto-create them
+                if (hubId && hubId !== 'anticeil') {
+                    rows = rows || [];
+                    const types = rows.map(r => r.type || 'text');
+                    if (rows.length === 0) {
+                        const defaultChId = `ch-${Date.now().toString(36)}-general`;
+                        const defaultText = {
+                            id: defaultChId,
+                            name: 'general',
+                            description: 'Saluran obrolan umum',
+                            category: 'CHANNELS',
+                            hub_id: hubId,
+                            is_direct_message: false,
+                            platform_id: platformId,
+                            type: 'text',
+                            is_private: false
+                        };
+                        try {
+                            await ds.query(
+                                'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id, type, is_private) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING',
+                                [defaultText.id, defaultText.name, defaultText.description, defaultText.category, defaultText.hub_id, false, platformId, 'text', false]
+                            );
+                            rows.push(defaultText);
+                        } catch (e) {}
+                    }
+                    if (!types.includes('voice')) {
+                        const voiceChId = `ch-${Date.now().toString(36)}-voice-${Math.random().toString(36).slice(2, 6)}`;
+                        const defaultVoice = {
+                            id: voiceChId,
+                            name: 'General Voice',
+                            description: 'Saluran suara dan video',
+                            category: 'CHANNELS',
+                            hub_id: hubId,
+                            is_direct_message: false,
+                            platform_id: platformId,
+                            type: 'voice',
+                            is_private: false
+                        };
+                        try {
+                            await ds.query(
+                                'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id, type, is_private) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING',
+                                [defaultVoice.id, defaultVoice.name, defaultVoice.description, defaultVoice.category, defaultVoice.hub_id, false, platformId, 'voice', false]
+                            );
+                            rows.push(defaultVoice);
+                        } catch (e) {}
+                    }
+                    if (!types.includes('forum')) {
+                        const forumChId = `ch-${Date.now().toString(36)}-forum-${Math.random().toString(36).slice(2, 6)}`;
+                        const defaultForum = {
+                            id: forumChId,
+                            name: 'forum-diskusi',
+                            description: 'Ruang diskusi terorganisir',
+                            category: 'CHANNELS',
+                            hub_id: hubId,
+                            is_direct_message: false,
+                            platform_id: platformId,
+                            type: 'forum',
+                            is_private: false
+                        };
+                        try {
+                            await ds.query(
+                                'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id, type, is_private) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING',
+                                [defaultForum.id, defaultForum.name, defaultForum.description, defaultForum.category, defaultForum.hub_id, false, platformId, 'forum', false]
+                            );
+                            rows.push(defaultForum);
+                        } catch (e) {}
+                    }
                 }
 
                 return (rows || []).map(r => ({
@@ -558,39 +576,50 @@ async function setupCommunityApi(app) {
             } catch (e) {}
         }
         let filtered = memoryChannels.filter(c => !hubId || c.hubId === hubId);
-        if (hubId && hubId !== 'anticeil' && filtered.length === 0) {
-            const gen = {
-                id: `ch-${Date.now().toString(36)}-general`,
-                name: 'general',
-                description: 'Saluran obrolan umum',
-                category: 'CHANNELS',
-                hubId: hubId,
-                type: 'text',
-                isPrivate: false,
-                isDirectMessage: false
-            };
-            const genV = {
-                id: `ch-${Date.now().toString(36)}-voice`,
-                name: 'General Voice',
-                description: 'Saluran suara dan video',
-                category: 'CHANNELS',
-                hubId: hubId,
-                type: 'voice',
-                isPrivate: false,
-                isDirectMessage: false
-            };
-            const genF = {
-                id: `ch-${Date.now().toString(36)}-forum`,
-                name: 'forum-diskusi',
-                description: 'Ruang diskusi terorganisir',
-                category: 'CHANNELS',
-                hubId: hubId,
-                type: 'forum',
-                isPrivate: false,
-                isDirectMessage: false
-            };
-            memoryChannels.push(gen, genV, genF);
-            filtered = [gen, genV, genF];
+        if (hubId && hubId !== 'anticeil') {
+            const types = filtered.map(c => c.type || 'text');
+            if (filtered.length === 0) {
+                const gen = {
+                    id: `ch-${Date.now().toString(36)}-general`,
+                    name: 'general',
+                    description: 'Saluran obrolan umum',
+                    category: 'CHANNELS',
+                    hubId: hubId,
+                    type: 'text',
+                    isPrivate: false,
+                    isDirectMessage: false
+                };
+                memoryChannels.push(gen);
+                filtered.push(gen);
+            }
+            if (!types.includes('voice')) {
+                const genV = {
+                    id: `ch-${Date.now().toString(36)}-voice-${Math.random().toString(36).slice(2, 6)}`,
+                    name: 'General Voice',
+                    description: 'Saluran suara dan video',
+                    category: 'CHANNELS',
+                    hubId: hubId,
+                    type: 'voice',
+                    isPrivate: false,
+                    isDirectMessage: false
+                };
+                memoryChannels.push(genV);
+                filtered.push(genV);
+            }
+            if (!types.includes('forum')) {
+                const genF = {
+                    id: `ch-${Date.now().toString(36)}-forum-${Math.random().toString(36).slice(2, 6)}`,
+                    name: 'forum-diskusi',
+                    description: 'Ruang diskusi terorganisir',
+                    category: 'CHANNELS',
+                    hubId: hubId,
+                    type: 'forum',
+                    isPrivate: false,
+                    isDirectMessage: false
+                };
+                memoryChannels.push(genF);
+                filtered.push(genF);
+            }
         }
         return filtered;
     };
