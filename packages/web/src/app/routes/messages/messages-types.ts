@@ -91,6 +91,9 @@ export type CommunityThread = {
   messageCount: number;
   lastMessageAt: string;
   createdAt?: string;
+  created?: string;
+  updated?: string;
+  updatedAt?: string;
 };
 
 export type CommunityMember = {
@@ -156,20 +159,5 @@ export type CommunityHubStats = {
   totalBots: number;
   botMessages: number;
   channelActivity: Array<{ channelId: string; channelName: string; messageCount: number }>;
-};
-
-export type CommunityThread = {
-  id: string;
-  channelId: string;
-  name: string;
-  creatorId: string;
-  creatorName: string;
-  creatorAvatar?: string | null;
-  messageCount: number;
-  lastMessageAt: string;
-  created: string;
-  createdAt?: string;
-  updated: string;
-  updatedAt?: string;
 };
 
