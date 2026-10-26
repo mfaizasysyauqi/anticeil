@@ -290,6 +290,7 @@ export function CommunityCallStage({
 
   const handleStopActivity = () => {
     setActiveAppId(null);
+    setActiveVideoId(null); // reset to browse mode for next launch
     onToggleActivity?.(false);
     socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
       channelId: channel.id,
@@ -300,8 +301,55 @@ export function CommunityCallStage({
   };
 
   // ── YouTube Watch Together State ───────────────────────────────────────
-  const [activeVideoId, setActiveVideoId] = useState('jfKfPfyJRdk'); // Lofi Girl default
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null); // null = browse mode
   const [videoInputUrl, setVideoInputUrl] = useState('');
+  const [ytSearchQuery, setYtSearchQuery] = useState('');
+  const [ytCategory, setYtCategory] = useState<string>('semua');
+
+  // Curated video catalog for the browse grid
+  const YT_CATALOG: Array<{
+    id: string;
+    title: string;
+    channel: string;
+    category: string;
+    duration: string;
+    views: string;
+  }> = [
+    // Lofi / Music
+    { id: 'jfKfPfyJRdk', title: 'lofi hip hop radio 📚 beats to relax/study to', channel: 'Lofi Girl', category: 'lofi', duration: 'LIVE', views: '10M+' },
+    { id: '4xDzrJKXOOY', title: 'Synthwave Cyberpunk Radio 🌆 beats to work/focus', channel: 'Lofi Girl', category: 'lofi', duration: 'LIVE', views: '4M+' },
+    { id: 'rUxyKA_-grg', title: 'chillhop essentials — fall 2024 ☕ relaxing beats', channel: 'Chillhop Music', category: 'lofi', duration: '1:23:47', views: '2.1M' },
+    { id: '5qap5aO4i9A', title: 'lofi hip hop radio — beats to sleep/chill to 💤', channel: 'Lofi Girl', category: 'lofi', duration: 'LIVE', views: '8M+' },
+    { id: 'n61ULEU7CO0', title: 'Deep Focus — Music For Coding & Programming 🎧', channel: 'Relaxing Music', category: 'lofi', duration: '3:00:00', views: '890K' },
+    // Tech / Dev
+    { id: 'aqz-KE-bpKQ', title: 'React in 100 Seconds', channel: 'Fireship', category: 'tech', duration: '2:08', views: '3.2M' },
+    { id: 'DHjqpvDnNGE', title: 'TypeScript in 100 Seconds', channel: 'Fireship', category: 'tech', duration: '2:44', views: '2.1M' },
+    { id: 'X48VuDVv0do', title: 'Docker in 100 Seconds', channel: 'Fireship', category: 'tech', duration: '2:11', views: '1.9M' },
+    { id: 'vFqfCzcfjMA', title: 'WebSockets Explained in 10 Minutes', channel: 'Awesome', category: 'tech', duration: '10:34', views: '456K' },
+    { id: 'TNhaISOUy6Q', title: 'Next.js Full Course 2024', channel: 'Traversy Media', category: 'tech', duration: '1:12:33', views: '1.4M' },
+    // Gaming
+    { id: 'pNz2mMJeNKY', title: 'Minecraft Hardcore World — Day 1000', channel: 'Dream', category: 'gaming', duration: '1:02:14', views: '12M' },
+    { id: 'wAhLBMHsWDw', title: 'GTA 6 Official Trailer — Full Breakdown', channel: 'Rockstar Games', category: 'gaming', duration: '3:42', views: '180M' },
+    { id: 'SGEI9l4Ai4E', title: 'Stardew Valley Full Gameplay — No Commentary', channel: 'PelicanTown', category: 'gaming', duration: '4:22:11', views: '3M' },
+    // Comedy / Entertainment
+    { id: 'dQw4w9WgXcQ', title: 'Never Gonna Give You Up — Rick Astley', channel: 'Rick Astley', category: 'hiburan', duration: '3:33', views: '1.4B' },
+    { id: '_VB39Jo8mAQ', title: 'Meme Compilation 2024 — Try Not To Laugh', channel: 'MemeWorld', category: 'hiburan', duration: '12:04', views: '9.8M' },
+    { id: 'YQHsXMglC9A', title: 'Adele — Hello (Official Music Video)', channel: 'Adele', category: 'hiburan', duration: '6:07', views: '3.2B' },
+  ];
+
+  const ytCategories = [
+    { id: 'semua', label: '🎬 Semua' },
+    { id: 'lofi', label: '🎵 Lofi' },
+    { id: 'tech', label: '💻 Tech' },
+    { id: 'gaming', label: '🎮 Gaming' },
+    { id: 'hiburan', label: '🎉 Hiburan' },
+  ];
+
+  const filteredYtVideos = YT_CATALOG.filter((v) => {
+    const matchCat = ytCategory === 'semua' || v.category === ytCategory;
+    const matchQ = !ytSearchQuery || v.title.toLowerCase().includes(ytSearchQuery.toLowerCase()) || v.channel.toLowerCase().includes(ytSearchQuery.toLowerCase());
+    return matchCat && matchQ;
+  });
 
   // ── Virtual Fisher State (Matching user screenshot) ────────────────────
   const [fisherStats, setFisherStats] = useState({
@@ -1403,64 +1451,150 @@ export function CommunityCallStage({
             <div className="flex-1 min-h-0 overflow-hidden relative flex flex-col bg-[#111214]">
               {/* APP 1: YOUTUBE WATCH TOGETHER */}
               {activeAppId === 'watch-together' && (
-                <div className="h-full flex flex-col">
-                  {/* YouTube Synced Control Header */}
-                  <div className="p-3 bg-[#1e1f22] border-b border-white/10 flex flex-wrap items-center justify-between gap-2 shrink-0">
-                    <div className="flex items-center gap-2 flex-1 max-w-lg">
-                      <div className="relative flex-1">
-                        <Tv className="w-4 h-4 text-red-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          value={videoInputUrl}
-                          onChange={(e) => setVideoInputUrl(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handlePlayYouTubeUrl(videoInputUrl)}
-                          placeholder="Tempel link YouTube (cth: youtube.com/watch?v=...)"
-                          className="w-full bg-[#111214] border border-white/10 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                <div className="h-full flex flex-col overflow-hidden">
+
+                  {activeVideoId ? (
+                    // ── PLAYING MODE ──────────────────────────────────────
+                    <>
+                      {/* Slim now-playing bar */}
+                      <div className="shrink-0 px-3 py-2 bg-[#1a1b1e] border-b border-white/10 flex items-center gap-3">
+                        <div className="w-6 h-6 rounded bg-red-600 flex items-center justify-center shrink-0">
+                          <Tv className="w-3.5 h-3.5 text-white" />
+                        </div>
+                        <span className="text-xs text-white/70 truncate flex-1">
+                          {YT_CATALOG.find(v => v.id === activeVideoId)?.title ?? activeVideoId}
+                        </span>
+                        <button
+                          onClick={() => setActiveVideoId(null)}
+                          className="shrink-0 text-[11px] text-muted-foreground hover:text-white px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 transition-colors border border-white/10 flex items-center gap-1"
+                        >
+                          <Search className="w-3 h-3" /> Ganti Video
+                        </button>
+                      </div>
+
+                      {/* Player */}
+                      <div className="flex-1 min-h-0 bg-black">
+                        <iframe
+                          src={`https://www.youtube-nocookie.com/embed/${activeVideoId}?autoplay=1&enablejsapi=1&rel=0`}
+                          title="YouTube Watch Together"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className="w-full h-full border-0"
                         />
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handlePlayYouTubeUrl(videoInputUrl)}
-                        className="h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-semibold gap-1 shadow"
-                      >
-                        <Play className="w-3 h-3 fill-current" /> Putar Bersama
-                      </Button>
-                    </div>
+                    </>
+                  ) : (
+                    // ── BROWSE MODE (Discord-style) ────────────────────────
+                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#111214]">
 
-                    {/* Presets Chips */}
-                    <div className="flex items-center gap-1.5 overflow-x-auto">
-                      <span className="text-[11px] text-muted-foreground mr-1">Rekomendasi:</span>
-                      {[
-                        { title: 'Lofi Girl Hip Hop', id: 'jfKfPfyJRdk' },
-                        { title: 'Synthwave Chill', id: '4xDzrJKXOOY' },
-                        { title: 'Anticeil Walkthrough', id: 'aqz-KE-bpKQ' },
-                      ].map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => handlePlayYouTubeUrl(item.id)}
-                          className={cn(
-                            'px-2.5 py-1 rounded-md text-[11px] font-medium transition-all border',
-                            activeVideoId === item.id
-                              ? 'bg-red-600/20 text-red-400 border-red-500/40 shadow-xs'
-                              : 'bg-white/5 text-muted-foreground border-white/10 hover:text-white hover:bg-white/10',
+                      {/* Search header */}
+                      <div className="shrink-0 px-4 pt-4 pb-3 bg-[#1a1b1e] border-b border-white/10 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-red-600 flex items-center justify-center shrink-0">
+                            <Tv className="w-4 h-4 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-white leading-tight">Watch Together</p>
+                            <p className="text-[10px] text-muted-foreground">Pilih video — semua peserta nonton bareng secara sinkron</p>
+                          </div>
+                        </div>
+
+                        {/* Search bar + URL paste fallback */}
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              value={ytSearchQuery}
+                              onChange={(e) => setYtSearchQuery(e.target.value)}
+                              placeholder="Cari video atau paste link YouTube..."
+                              className="w-full bg-[#111214] border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all"
+                            />
+                          </div>
+                          {ytSearchQuery && (ytSearchQuery.includes('youtube.com') || ytSearchQuery.includes('youtu.be')) && (
+                            <Button
+                              size="sm"
+                              onClick={() => { handlePlayYouTubeUrl(ytSearchQuery); setYtSearchQuery(''); }}
+                              className="h-8 text-xs bg-red-600 hover:bg-red-700 text-white font-semibold gap-1 shrink-0"
+                            >
+                              <Play className="w-3 h-3 fill-current" /> Putar
+                            </Button>
                           )}
-                        >
-                          {item.title}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                        </div>
 
-                  {/* YouTube Player Stage */}
-                  <div className="flex-1 min-h-0 bg-black flex items-center justify-center relative">
-                    <iframe
-                      src={`https://www.youtube-nocookie.com/embed/${activeVideoId}?autoplay=1&enablejsapi=1&rel=0`}
-                      title="YouTube Watch Together"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      className="w-full h-full border-0"
-                    />
-                  </div>
+                        {/* Category tabs */}
+                        {!ytSearchQuery && (
+                          <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none]">
+                            {ytCategories.map((cat) => (
+                              <button
+                                key={cat.id}
+                                onClick={() => setYtCategory(cat.id)}
+                                className={cn(
+                                  'shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold transition-all border',
+                                  ytCategory === cat.id
+                                    ? 'bg-red-600 text-white border-red-500'
+                                    : 'bg-white/5 text-muted-foreground border-white/10 hover:text-white hover:bg-white/10',
+                                )}
+                              >
+                                {cat.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Video grid */}
+                      <div className="flex-1 overflow-y-auto p-4 [scrollbar-width:thin]">
+                        {filteredYtVideos.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
+                            <Search className="w-8 h-8 opacity-30" />
+                            <p className="text-xs">Tidak ada video ditemukan</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {filteredYtVideos.map((video) => (
+                              <button
+                                key={video.id}
+                                onClick={() => { handlePlayYouTubeUrl(video.id); }}
+                                className="group text-left rounded-xl overflow-hidden bg-[#1e1f22] border border-white/8 hover:border-red-500/50 hover:shadow-xl hover:shadow-red-500/10 transition-all duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                              >
+                                {/* Thumbnail */}
+                                <div className="relative aspect-video overflow-hidden bg-black">
+                                  <img
+                                    src={`https://img.youtube.com/vi/${video.id}/mqdefault.jpg`}
+                                    alt={video.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    loading="lazy"
+                                  />
+                                  {/* Duration badge */}
+                                  <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded backdrop-blur-sm">
+                                    {video.duration}
+                                  </span>
+                                  {/* Play overlay on hover */}
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                    <div className="w-10 h-10 rounded-full bg-red-600/0 group-hover:bg-red-600/90 flex items-center justify-center transition-all scale-0 group-hover:scale-100 shadow-lg">
+                                      <Play className="w-4 h-4 text-white fill-current ml-0.5" />
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Meta */}
+                                <div className="p-2.5">
+                                  <p className="text-[11px] font-semibold text-white line-clamp-2 leading-tight group-hover:text-red-300 transition-colors">
+                                    {video.title}
+                                  </p>
+                                  <div className="flex items-center justify-between mt-1.5">
+                                    <span className="text-[10px] text-muted-foreground truncate">{video.channel}</span>
+                                    <span className="text-[10px] text-muted-foreground shrink-0 ml-1">{video.views}</span>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
