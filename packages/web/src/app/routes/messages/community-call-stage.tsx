@@ -378,50 +378,6 @@ export function CommunityCallStage({
     return `${Math.floor(months / 12)} years ago`;
   };
 
-  const handleSelectVideo = (video: { id: string; title: string; channel: string; thumbnail: string; duration: string; views?: string; uploadedAt?: string }) => {
-    setActiveVideoId(video.id);
-    setYtPlaylist((prev) => {
-      if (prev.some((p) => p.id === video.id)) return prev;
-      return [...prev, { ...video, addedBy: currentUserName }];
-    });
-  };
-
-  const handleAddToQueue = (video: { id: string; title: string; channel: string; thumbnail: string; duration: string; views?: string; uploadedAt?: string }, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setYtPlaylist((prev) => {
-      if (prev.some((p) => p.id === video.id)) {
-        toast.info('Video sudah ada di playlist');
-        return prev;
-      }
-      toast.success(`Ditambahkan ke playlist: ${video.title.slice(0, 30)}...`);
-      return [...prev, { ...video, addedBy: currentUserName }];
-    });
-  };
-
-  const handlePlayYouTubeUrl = (urlOrId: string) => {
-    let videoId = urlOrId.trim();
-    if (videoId.includes('youtube.com/watch?v=')) {
-      videoId = videoId.split('v=')[1]?.split('&')[0] || videoId;
-    } else if (videoId.includes('youtu.be/')) {
-      videoId = videoId.split('youtu.be/')[1]?.split('?')[0] || videoId;
-    }
-    setActiveVideoId(videoId);
-    setYtPlaylist((prev) => {
-      if (prev.some((p) => p.id === videoId)) return prev;
-      return [
-        ...prev,
-        {
-          id: videoId,
-          title: ytSearchQuery.trim() || 'Custom YouTube Video',
-          channel: 'YouTube',
-          thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-          duration: '',
-          addedBy: currentUserName,
-        },
-      ];
-    });
-  };
-
   // Fetch YouTube Videos: Live Trending on initial open, Real Search on query (Debounced + In-Memory Cached)
   useEffect(() => {
     if (activeAppId !== 'watch-together') return;
@@ -582,6 +538,12 @@ export function CommunityCallStage({
           addedBy: currentUserName || 'You',
         },
       ];
+    });
+
+    socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+      channelId: channel.id,
+      action: 'YOUTUBE_CHANGE_VIDEO',
+      payload: { videoId: video.id },
     });
   };
 
@@ -1397,31 +1359,6 @@ export function CommunityCallStage({
       coins: prev.coins + earnedCoins,
     }));
     toast.success(`Berhasil menjual ikan! Mendapatkan +${earnedCoins} Koin Emas 💰`);
-  };
-
-  // ── 7. YouTube Video Switch Action ─────────────────────────────────────
-  const extractYouTubeId = (url: string) => {
-    if (url.length === 11) return url;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return match && match[2].length === 11 ? match[2] : null;
-  };
-
-  const handlePlayYouTubeUrl = (urlToPlay: string) => {
-    const id = extractYouTubeId(urlToPlay.trim());
-    if (!id) {
-      toast.error('URL YouTube tidak valid. Gunakan format youtube.com/watch?v=... atau youtu.be/...');
-      return;
-    }
-    setActiveVideoId(id);
-    setVideoInputUrl('');
-
-    socket?.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
-      channelId: channel.id,
-      action: 'YOUTUBE_CHANGE_VIDEO',
-      payload: { videoId: id },
-    });
-    toast.success('Video YouTube diperbarui untuk seluruh peserta panggilan!');
   };
 
   // ── 8. Activity Socket Sync Events ─────────────────────────────────────
