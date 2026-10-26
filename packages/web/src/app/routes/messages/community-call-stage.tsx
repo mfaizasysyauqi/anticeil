@@ -254,7 +254,7 @@ export function CommunityCallStage({
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isSpeakingLocal, setIsSpeakingLocal] = useState(false);
 
@@ -732,10 +732,11 @@ export function CommunityCallStage({
   const startLocalMedia = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+        video: false,
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       setLocalStream(stream);
+      setIsVideoOff(true);
 
       // Speaking detector
       try {
@@ -764,16 +765,9 @@ export function CommunityCallStage({
 
       return stream;
     } catch (err: any) {
-      console.warn('Could not acquire both video and audio, trying audio only:', err);
-      try {
-        const audioOnly = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setLocalStream(audioOnly);
-        setIsVideoOff(true);
-        return audioOnly;
-      } catch (audioErr) {
-        toast.error('Tidak dapat mengakses mikrofon atau kamera. Pastikan izin browser diizinkan.');
-        return null;
-      }
+      console.warn('Could not acquire audio stream:', err);
+      toast.error('Tidak dapat mengakses mikrofon. Pastikan izin mikrofon browser diizinkan.');
+      return null;
     }
   }, []);
 
@@ -1008,46 +1002,88 @@ export function CommunityCallStage({
 
   const handleToggleVideo = async () => {
     if (!localStream) {
-      const s = await startLocalMedia();
-      if (s) setIsVideoOff(false);
-      return;
-    }
-    const next = !isVideoOff;
-    const videoTracks = localStream.getVideoTracks();
-
-    if (!next && videoTracks.length === 0) {
       try {
         const camStream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         });
-        const newTrack = camStream.getVideoTracks()[0];
-        if (newTrack) {
-          localStream.addTrack(newTrack);
-          for (const sId in peerConnections.current) {
-            const pc = peerConnections.current[sId];
-            const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
-            if (sender) {
-              sender.replaceTrack(newTrack);
-            } else {
-              pc.addTrack(newTrack, localStream);
+        setLocalStream(camStream);
+        setIsVideoOff(false);
+        socket?.emit('COMMUNITY_CALL_TOGGLE_MEDIA', {
+          channelId: channel.id,
+          hasVideo: true,
+        });
+        toast.success('Kamera diaktifkan');
+      } catch (err) {
+        toast.error('Tidak dapat mengakses kamera. Pastikan izin kamera aktif.');
+      }
+      return;
+    }
+
+    const next = !isVideoOff;
+    const videoTracks = localStream.getVideoTracks();
+
+    if (next) {
+      // Matikan kamera: STOP trek video agar hardware kamera laptop mati sepenuhnya dan lampu indikator padam
+      videoTracks.forEach((track) => {
+        track.stop();
+        localStream.removeTrack(track);
+      });
+
+      for (const sId in peerConnections.current) {
+        const pc = peerConnections.current[sId];
+        const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+        if (sender) {
+          sender.replaceTrack(null).catch(() => {});
+        }
+      }
+
+      setIsVideoOff(true);
+      socket?.emit('COMMUNITY_CALL_TOGGLE_MEDIA', {
+        channelId: channel.id,
+        hasVideo: false,
+      });
+      toast.info('Kamera dinonaktifkan');
+      return;
+    }
+
+    // Hidupkan kamera: Ambil stream webcam baru
+    try {
+      const camStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+      });
+      const newTrack = camStream.getVideoTracks()[0];
+      if (newTrack) {
+        localStream.addTrack(newTrack);
+        for (const sId in peerConnections.current) {
+          const pc = peerConnections.current[sId];
+          const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+          if (sender) {
+            sender.replaceTrack(newTrack).catch(() => {});
+          } else {
+            pc.addTrack(newTrack, localStream);
+            if (pc.signalingState === 'stable') {
+              pc.createOffer().then((offer) => {
+                pc.setLocalDescription(offer);
+                socket?.emit('COMMUNITY_CALL_SIGNAL', {
+                  channelId: channel.id,
+                  targetSocketId: sId,
+                  signal: offer,
+                });
+              }).catch(() => {});
             }
           }
         }
-      } catch (err) {
-        toast.error('Tidak dapat mengakses kamera. Pastikan izin kamera aktif.');
-        return;
+        setIsVideoOff(false);
+        socket?.emit('COMMUNITY_CALL_TOGGLE_MEDIA', {
+          channelId: channel.id,
+          hasVideo: true,
+        });
+        toast.success('Kamera diaktifkan');
       }
-    } else {
-      videoTracks.forEach((track) => {
-        track.enabled = !next;
-      });
+    } catch (err) {
+      toast.error('Tidak dapat mengakses kamera. Pastikan izin kamera aktif.');
     }
-
-    setIsVideoOff(next);
-    socket?.emit('COMMUNITY_CALL_TOGGLE_MEDIA', {
-      channelId: channel.id,
-      hasVideo: !next,
-    });
   };
 
   const handleCopyCallLink = () => {
