@@ -4032,10 +4032,102 @@ export function CommunityPage() {
                     </div>
 
                     <div className="space-y-4 flex-1 overflow-y-auto pr-1 [scrollbar-width:thin]">
+                      {/* Recents (Matching Discord Screenshot) */}
+                      {!appsSearchQuery && (
+                        <div>
+                          <span className="text-xs font-bold text-[#dbdee1] block mb-2">
+                            Recents
+                          </span>
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => handleLaunchActivity('watch-together')}
+                              className="w-[52px] h-[52px] rounded-2xl bg-white border border-white/20 hover:border-white/50 flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-md cursor-pointer shrink-0"
+                              title="Watch Together"
+                            >
+                              <svg className="w-8 h-6 fill-[#ff0000]" viewBox="0 0 24 24">
+                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                              </svg>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleLaunchActivity('poker-night')}
+                              className="w-[52px] h-[52px] rounded-2xl bg-white border border-white/20 hover:border-white/50 flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-md cursor-pointer shrink-0"
+                              title="Poker Night"
+                            >
+                              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white text-base shadow-xs">
+                                👆
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleLaunchActivity('virtual-fisher')}
+                              className="w-[52px] h-[52px] rounded-2xl bg-white border border-white/20 hover:border-white/50 flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-md cursor-pointer shrink-0"
+                              title="Virtual Fisher"
+                            >
+                              <div className="w-8 h-8 rounded-full bg-[#e2f1ff] border border-blue-200 flex items-center justify-center text-lg relative">
+                                🎣
+                                <span className="absolute -bottom-1 -right-1 text-[10px]">🐟</span>
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleLaunchActivity('wordle')}
+                              className="w-[52px] h-[52px] rounded-2xl bg-white border border-white/20 hover:border-white/50 flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-md cursor-pointer shrink-0"
+                              title="Wordle"
+                            >
+                              <div className="w-7 h-7 grid grid-cols-3 gap-0.5 p-1 bg-black rounded-md">
+                                <div className="bg-[#538d4e] rounded-[1px]" />
+                                <div className="bg-[#538d4e] rounded-[1px]" />
+                                <div className="bg-[#538d4e] rounded-[1px]" />
+                                <div className="bg-[#b59f3b] rounded-[1px]" />
+                                <div className="bg-[#3a3a3c] rounded-[1px]" />
+                                <div className="bg-[#538d4e] rounded-[1px]" />
+                                <div className="bg-[#538d4e] rounded-[1px]" />
+                                <div className="bg-[#538d4e] rounded-[1px]" />
+                                <div className="bg-[#538d4e] rounded-[1px]" />
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Apps in this Server (Matching Discord Screenshot) */}
+                      {!appsSearchQuery && (
+                        <div>
+                          <span className="text-xs font-bold text-[#dbdee1] block mb-2">
+                            Apps in this Server
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleLaunchActivity('virtual-fisher')}
+                            className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[#2b2d31]/70 hover:bg-[#2b2d31] border border-white/5 hover:border-white/15 transition-all text-left cursor-pointer group"
+                          >
+                            <div className="w-11 h-11 rounded-xl bg-white border border-white/20 flex items-center justify-center shrink-0 shadow-md">
+                              <div className="w-8 h-8 rounded-full bg-[#e2f1ff] border border-blue-200 flex items-center justify-center text-lg relative">
+                                🎣
+                                <span className="absolute -bottom-1 -right-1 text-[10px]">🐟</span>
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-bold text-white group-hover:text-[#5865f2] transition-colors block truncate">
+                                VirtualFisher
+                              </span>
+                              <span className="text-xs text-[#949ba4] line-clamp-1">
+                                Virtual Fisher is a game you can play in your server focused on catching rare fish...
+                              </span>
+                            </div>
+                          </button>
+                        </div>
+                      )}
+
                       {/* 1. PROMOTED: CUMAN 4 APPS YANG PAKE BANNER (Screenshot 3 & User Request) */}
                       {!appsSearchQuery && (
                         <div>
-                          <span className="text-[11px] font-bold text-[#949ba4] uppercase tracking-wider block mb-2">
+                          <span className="text-xs font-bold text-[#dbdee1] block mb-2">
                             Promoted
                           </span>
                           <div className="grid grid-cols-2 gap-2.5">
@@ -4046,19 +4138,70 @@ export function CommunityPage() {
                                 className="group/card rounded-xl overflow-hidden bg-[#2b2d31] border border-white/5 hover:border-[#5865f2]/50 transition-all text-left flex flex-col hover:shadow-xl cursor-pointer"
                               >
                                 {/* Banner */}
-                                <div className={cn("h-20 w-full relative overflow-hidden flex items-center justify-center bg-gradient-to-r", app.bannerGradient)}>
-                                  <div className="w-10 h-10 rounded-xl bg-black/40 backdrop-blur-xs flex items-center justify-center text-xl shadow-lg group-hover/card:scale-110 transition-transform">
-                                    {app.icon}
-                                  </div>
+                                <div className={cn("h-20 w-full relative overflow-hidden flex items-center justify-center", app.bannerGradient)}>
+                                  {app.id === 'wordle' ? (
+                                    <div className="flex flex-col items-center justify-center select-none py-1">
+                                      <div className="w-5 h-5 grid grid-cols-3 gap-0.5 p-0.5 bg-black rounded mb-0.5">
+                                        <div className="bg-[#538d4e] rounded-[0.5px]" />
+                                        <div className="bg-[#538d4e] rounded-[0.5px]" />
+                                        <div className="bg-[#538d4e] rounded-[0.5px]" />
+                                        <div className="bg-[#b59f3b] rounded-[0.5px]" />
+                                        <div className="bg-[#3a3a3c] rounded-[0.5px]" />
+                                        <div className="bg-[#538d4e] rounded-[0.5px]" />
+                                        <div className="bg-[#538d4e] rounded-[0.5px]" />
+                                        <div className="bg-[#538d4e] rounded-[0.5px]" />
+                                        <div className="bg-[#538d4e] rounded-[0.5px]" />
+                                      </div>
+                                      <span className="text-base font-black tracking-tight text-zinc-900 font-serif leading-none">Wordle</span>
+                                      <span className="text-[7px] text-zinc-600 font-serif font-bold mt-0.5">The New York Times Games</span>
+                                    </div>
+                                  ) : app.id === 'watch-together' ? (
+                                    <div className="flex items-center gap-1.5 select-none">
+                                      <svg className="w-8 h-6 fill-[#ff0000]" viewBox="0 0 24 24">
+                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                      </svg>
+                                      <span className="text-lg font-black tracking-tighter text-zinc-900">YouTube</span>
+                                    </div>
+                                  ) : app.id === 'magic-garden' ? (
+                                    <div className="flex flex-col items-center justify-center text-center">
+                                      <span className="text-3xl filter drop-shadow">🎃</span>
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 drop-shadow">Magic Garden</span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-col items-center justify-center text-center">
+                                      <span className="text-3xl filter drop-shadow">🌽</span>
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-pink-200 drop-shadow">Farm Merge Valley</span>
+                                    </div>
+                                  )}
                                 </div>
                                 {/* Footer */}
                                 <div className="p-2.5 flex items-center gap-2">
-                                  <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0 text-xs", app.iconBg)}>
-                                    {app.icon}
+                                  <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0 text-xs overflow-hidden", app.iconBg)}>
+                                    {app.id === 'wordle' ? (
+                                      <div className="w-4 h-4 grid grid-cols-3 gap-0.5 p-0.5 bg-black rounded-[2px]">
+                                        <div className="bg-[#538d4e]" />
+                                        <div className="bg-[#538d4e]" />
+                                        <div className="bg-[#538d4e]" />
+                                        <div className="bg-[#b59f3b]" />
+                                        <div className="bg-[#3a3a3c]" />
+                                        <div className="bg-[#538d4e]" />
+                                        <div className="bg-[#538d4e]" />
+                                        <div className="bg-[#538d4e]" />
+                                        <div className="bg-[#538d4e]" />
+                                      </div>
+                                    ) : app.id === 'watch-together' ? (
+                                      <svg className="w-3.5 h-3.5 fill-white" viewBox="0 0 24 24">
+                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                      </svg>
+                                    ) : (
+                                      app.icon
+                                    )}
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <span className="text-xs font-bold text-white block truncate">{app.title}</span>
-                                    <span className="text-[9px] text-[#949ba4] block truncate">{app.developer}</span>
+                                    <span className="text-[9px] text-[#949ba4] block truncate">
+                                      {app.id === 'wordle' ? 'Play Wordle from New Yo...' : app.id === 'magic-garden' ? 'Garden with friends! Gro...' : app.id === 'farm-merge-valley' ? 'Farm Merge Valley' : app.developer}
+                                    </span>
                                   </div>
                                 </div>
                               </button>

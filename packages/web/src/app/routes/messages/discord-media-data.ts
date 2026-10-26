@@ -343,7 +343,7 @@ export const EXTENDED_DISCORD_APPS: DiscordAppCatalogItem[] = [
     group: 'Promoted',
     icon: '🟩',
     iconBg: 'bg-emerald-600',
-    bannerGradient: 'from-emerald-700 via-teal-800 to-zinc-950',
+    bannerGradient: 'bg-[#e3e3e1]',
     description: 'Play Wordle from New York Times Games together! Tebak 5 huruf tersembunyi.',
   },
   {
@@ -373,7 +373,7 @@ export const EXTENDED_DISCORD_APPS: DiscordAppCatalogItem[] = [
     group: 'Promoted',
     icon: '▶️',
     iconBg: 'bg-red-600',
-    bannerGradient: 'from-red-600 via-rose-700 to-zinc-950',
+    bannerGradient: 'bg-white',
     description: 'Tonton video YouTube bersama rekan secara sinkron realtime tanpa delay.',
   },
 
