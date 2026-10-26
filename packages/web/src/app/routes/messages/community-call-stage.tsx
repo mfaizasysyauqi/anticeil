@@ -1880,9 +1880,85 @@ export function CommunityCallStage({
   // ── Render Full Discord Stage View ────────────────────────────────────
   return (
     <div className="w-full h-full flex-1 min-h-0 flex flex-col bg-[#111214] text-white select-none relative overflow-hidden group/stage">
+      {/* ── Discord Top Stage App Bar (Exact Match to Discord UI) ────────── */}
+      <div className="h-12 w-full px-4 flex items-center justify-between bg-[#111214] border-b border-white/5 select-none shrink-0 z-20">
+        {/* Left: Speaker icon + Channel Name + (Activity Tag if active) */}
+        <div className="flex items-center gap-2 min-w-0">
+          <Volume2 className="w-5 h-5 text-[#949ba4] shrink-0" />
+          <span className="text-sm font-bold text-white truncate max-w-[140px] sm:max-w-[200px]">
+            {channel.name}
+          </span>
+          {activeAppId !== null && currentActiveApp && (
+            <>
+              <span className="text-[#949ba4] text-xs select-none">·</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                {activeAppId === 'watch-together' ? (
+                  <div className="w-4 h-4 rounded bg-[#ff0000] flex items-center justify-center text-white shrink-0 shadow-xs">
+                    <Play className="w-2.5 h-2.5 fill-white text-white ml-0.5" />
+                  </div>
+                ) : (
+                  <div className={cn('w-4 h-4 rounded flex items-center justify-center text-white shrink-0', currentActiveApp.iconBg)}>
+                    <currentActiveApp.icon className="w-2.5 h-2.5" />
+                  </div>
+                )}
+                <span className="text-sm font-bold text-[#dbdee1] truncate max-w-[180px]">
+                  {currentActiveApp.title}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
 
+        {/* Right: Participant Avatars + In-Call Chat Button */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          {/* Member Avatars */}
+          <div className="flex items-center -space-x-1.5 overflow-hidden">
+            {participants.slice(0, 3).map((p) => (
+              <div key={p.socketId} title={p.userName} className="ring-2 ring-[#111214] rounded-full overflow-hidden">
+                <CommunityAvatar
+                  name={p.userName}
+                  imageUrl={p.userAvatar}
+                  size={24}
+                  showStatus={false}
+                />
+              </div>
+            ))}
+            <div title={`${currentUserName} (Anda)`} className="ring-2 ring-[#111214] rounded-full overflow-hidden">
+              <CommunityAvatar
+                name={currentUserName}
+                imageUrl={currentUser?.imageUrl}
+                email={currentUser?.email}
+                size={24}
+                showStatus={false}
+              />
+            </div>
+          </div>
 
-      {/* ── Discord Main Stage Layout ──────────────────────────────────── */}
+          {/* In-Call Text Chat Toggle Button (matching Discord chat bubble icon) */}
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onToggleActivity) {
+                      onToggleActivity();
+                    } else {
+                      toast.info('Obrolan teks suara');
+                    }
+                  }}
+                  className="p-1.5 rounded-lg text-[#949ba4] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs font-semibold">
+                Buka Obrolan Suara
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
       {/* CASE A: DISCORD SCREEN SHARE / ACTIVITY FULL STAGE MODE */}
       {activeAppId !== null && currentActiveApp ? (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[#111214] relative w-full h-full">
@@ -2157,12 +2233,6 @@ export function CommunityCallStage({
                        STATE 3: FULL BROWSE MODE (Screenshot 1)
                        ─────────────────────────────────────────────────────────── */
                     <div className="flex-1 min-h-0 flex flex-col overflow-y-auto [scrollbar-width:thin] bg-[#111214] p-5 lg:p-6 gap-5">
-                      {/* Top Header: Centered "Watch Together" Title */}
-                      <div className="text-center shrink-0">
-                        <h2 className="text-sm font-semibold text-white tracking-wide">
-                          Watch Together
-                        </h2>
-                      </div>
 
                       {/* Header Row: Hosting Pill + Search Bar */}
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
