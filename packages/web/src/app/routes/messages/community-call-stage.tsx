@@ -328,8 +328,8 @@ export function CommunityCallStage({
   // Curated fallback shown when no search query (no API quota used)
   const YT_CATALOG = [
     { id: 'jfKfPfyJRdk', title: 'lofi hip hop radio 📚 beats to relax/study to', channel: 'Lofi Girl', thumbnail: '', duration: 'LIVE' },
-    { id: '4xDzrJKXOOY', title: 'Synthwave Cyberpunk Radio 🌆 beats to work/focus', channel: 'Lofi Girl', thumbnail: '', duration: 'LIVE' },
-    { id: 'rUxyKA_-grg', title: 'chillhop essentials — fall 2024 ☕ relaxing beats', channel: 'Chillhop Music', thumbnail: '', duration: '1:23:47' },
+    { id: 'kJQP7kiw5Fk', title: 'Luis Fonsi - Despacito ft. Daddy Yankee', channel: 'Luis Fonsi', thumbnail: '', duration: '4:42' },
+    { id: 'fJ9rUzIMcZQ', title: 'Queen - Bohemian Rhapsody (Official Video)', channel: 'Queen Official', thumbnail: '', duration: '5:59' },
     { id: 'aqz-KE-bpKQ', title: 'React in 100 Seconds', channel: 'Fireship', thumbnail: '', duration: '2:08' },
     { id: 'DHjqpvDnNGE', title: 'TypeScript in 100 Seconds', channel: 'Fireship', thumbnail: '', duration: '2:44' },
     { id: 'X48VuDVv0do', title: 'Docker in 100 Seconds', channel: 'Fireship', thumbnail: '', duration: '2:11' },
@@ -337,7 +337,7 @@ export function CommunityCallStage({
     { id: 'wAhLBMHsWDw', title: 'GTA 6 Official Trailer — Full Breakdown', channel: 'Rockstar Games', thumbnail: '', duration: '3:42' },
     { id: 'dQw4w9WgXcQ', title: 'Never Gonna Give You Up — Rick Astley', channel: 'Rick Astley', thumbnail: '', duration: '3:33' },
     { id: 'YQHsXMglC9A', title: 'Adele — Hello (Official Music Video)', channel: 'Adele', thumbnail: '', duration: '6:07' },
-    { id: '5qap5aO4i9A', title: 'lofi hip hop radio — beats to sleep/chill to 💤', channel: 'Lofi Girl', thumbnail: '', duration: 'LIVE' },
+    { id: 'kXYiU_JCYtU', title: 'Linkin Park - Numb (Official Music Video)', channel: 'Linkin Park', thumbnail: '', duration: '3:07' },
     { id: 'TNhaISOUy6Q', title: 'Next.js Full Course 2024', channel: 'Traversy Media', thumbnail: '', duration: '1:12:33' },
   ];
 
@@ -358,7 +358,12 @@ export function CommunityCallStage({
       setYtIsSearching(true);
       setYtSearchError(null);
       try {
-        const key = import.meta.env.VITE_YOUTUBE_API_KEY;
+        const key = import.meta.env.VITE_YOUTUBE_API_KEY || 'AIzaSyBg-0HDXNw2occXp6_89D4dXxBW0gISbQ4';
+        if (!key || key === 'undefined') {
+          const filtered = YT_CATALOG.filter(v => v.title.toLowerCase().includes(apiQ.toLowerCase()));
+          setYtSearchResults(filtered);
+          return;
+        }
         const params = new URLSearchParams({
           part: 'snippet',
           q: apiQ,
@@ -1624,10 +1629,16 @@ export function CommunityCallStage({
                                 {/* Thumbnail */}
                                 <div className="relative aspect-video overflow-hidden bg-black">
                                   <img
-                                    src={video.thumbnail || `https://img.youtube.com/vi/${video.id}/mqdefault.jpg`}
+                                    src={video.thumbnail || `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`}
                                     alt={video.title}
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                     loading="lazy"
+                                    onError={(e) => {
+                                      const target = e.currentTarget;
+                                      if (!target.src.includes('mqdefault')) {
+                                        target.src = `https://img.youtube.com/vi/${video.id}/mqdefault.jpg`;
+                                      }
+                                    }}
                                   />
                                   {/* Duration badge */}
                                   {video.duration && (
