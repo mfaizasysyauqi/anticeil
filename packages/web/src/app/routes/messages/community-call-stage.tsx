@@ -67,6 +67,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { CommunityAvatar } from './messages-avatar';
 import { CommunityChannel, CommunityHub, CommunityMember } from './messages-types';
 import { cn } from '@/lib/utils';
+import { CHANNEL_HORIZONTAL_PADDING } from '@/lib/layout-constants';
 import { toast } from 'sonner';
 
 export interface CallParticipant {
@@ -1966,7 +1967,7 @@ export function CommunityCallStage({
   return (
     <div className="w-full h-full flex-1 min-h-0 flex flex-col bg-[#111214] text-white select-none relative overflow-hidden group/stage">
       {/* ── Discord Top Stage App Bar (Exact Match to Discord UI) ────────── */}
-      <div className="h-12 w-full px-4 flex items-center justify-between bg-[#111214] border-b border-transparent select-none shrink-0 z-20">
+      <div className={cn("h-12 w-full flex items-center justify-between bg-[#111214] border-b border-transparent select-none shrink-0 z-20", CHANNEL_HORIZONTAL_PADDING)}>
         {/* Left: Speaker icon + Channel Name + (Activity Tag if active) */}
         <div className="flex items-center gap-2 min-w-0">
           <Volume2 className="w-5 h-5 text-[#949ba4] shrink-0" />
@@ -3389,7 +3390,7 @@ export function CommunityCallStage({
       )}
 
       {/* ── Discord Bottom Control Dock (Exact Match to Discord UI) ────────── */}
-      <div className="h-16 shrink-0 w-full px-4 flex items-center justify-between bg-[#111214] border-t border-transparent select-none z-20">
+      <div className={cn("h-16 shrink-0 w-full flex items-center justify-between bg-[#111214] border-t border-transparent select-none z-20", CHANNEL_HORIZONTAL_PADDING)}>
         {/* Left: Invite Friends / Add to Call */}
         <div className="flex items-center">
           <TooltipProvider delayDuration={150}>
@@ -3620,13 +3621,13 @@ export function CommunityCallStage({
       <Dialog open={isAppLauncherOpen} onOpenChange={setIsAppLauncherOpen}>
         <DialogContent
           showCloseButton={false}
-          className="w-[95vw] sm:w-[460px] max-w-[460px] p-0 bg-[#000000] border border-[#2b2d31] text-white overflow-hidden shadow-2xl rounded-[20px] flex flex-col max-h-[85vh] h-[580px] focus:outline-none"
+          className="w-[95vw] sm:w-[560px] max-w-[560px] p-0 bg-[#1e1f22] border border-black/40 text-white overflow-hidden shadow-2xl rounded-[16px] flex flex-col max-h-[85vh] h-[620px] focus:outline-none"
         >
           <DialogTitle className="sr-only">Activities</DialogTitle>
           <DialogDescription className="sr-only">Browse and launch activities in this voice call.</DialogDescription>
 
           {/* Top Search Bar */}
-          <div className="p-4 pb-2 shrink-0">
+          <div className="p-4 pb-3 shrink-0">
             <div className="relative w-full">
               <Search className="w-4 h-4 text-[#949ba4] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -3634,11 +3635,11 @@ export function CommunityCallStage({
                 value={appSearchQuery}
                 onChange={(e) => setAppSearchQuery(e.target.value)}
                 placeholder="Search"
-                className="w-full bg-[#111214] border border-[#35373c] focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2] rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder:text-[#949ba4] focus:outline-none transition-colors"
+                className="w-full h-10 bg-[#111214] border border-black/40 focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2] rounded-lg pl-9 pr-3 text-sm text-white placeholder:text-[#949ba4] focus:outline-none transition-colors"
               />
             </div>
             {activeAppId !== null && (
-              <div className="mt-2.5 flex items-center justify-between px-1">
+              <div className="mt-2.5 px-3 py-1.5 rounded-lg bg-[#111214]/80 border border-white/5 flex items-center justify-between text-xs">
                 <span className="text-[11px] text-[#949ba4]">
                   Aktif: <strong className="text-white">{currentActiveApp?.title}</strong>
                 </span>
@@ -3654,23 +3655,23 @@ export function CommunityCallStage({
           </div>
 
           {/* Modal Scrollable Body */}
-          <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4 [scrollbar-width:thin] [scrollbar-color:#2b2d31_transparent]">
+          <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4 [scrollbar-width:thin] [scrollbar-color:#111214_transparent]">
             {/* 1. Recents Row (Matching Screenshot: YouTube dark grey with red logo, purple arm icon on white, colorful 3x3 grid on white) */}
             {!appSearchQuery && (
               <div>
-                <h3 className="text-sm font-bold text-white mb-2.5">Recents</h3>
-                <div className="flex items-center gap-2.5">
+                <h3 className="text-xs font-bold text-[#dbdee1] uppercase tracking-wider mb-2.5">Recents</h3>
+                <div className="flex items-center gap-3">
                   {/* YouTube Watch Together */}
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
                           onClick={() => handleLaunchApp('watch-together')}
-                          className="w-12 h-12 rounded-[14px] bg-[#2b2d31] hover:bg-[#35373c] border border-white/5 flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-md group shrink-0"
+                          className="w-14 h-14 rounded-2xl bg-[#2b2d31] hover:bg-[#35373c] border border-white/5 flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-md group shrink-0"
                           title="Watch Together"
                         >
-                          <div className="w-7 h-5 rounded-md bg-[#ff0000] flex items-center justify-center text-white shadow-sm">
-                            <Play className="w-3 h-3 fill-white ml-0.5" />
+                          <div className="w-8 h-5.5 rounded-md bg-[#ff0000] flex items-center justify-center text-white shadow-sm">
+                            <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
                           </div>
                         </button>
                       </TooltipTrigger>
@@ -3684,10 +3685,10 @@ export function CommunityCallStage({
                       <TooltipTrigger asChild>
                         <button
                           onClick={() => handleLaunchApp('valorant-aces')}
-                          className="w-12 h-12 rounded-[14px] bg-white hover:bg-zinc-100 border border-white/10 flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-md text-[#5865F2] shrink-0"
+                          className="w-14 h-14 rounded-2xl bg-white hover:bg-zinc-100 border border-white/10 flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-md text-[#5865F2] shrink-0"
                           title="VALORANT Aces"
                         >
-                          <Gamepad2 className="w-6 h-6 stroke-[2.2]" />
+                          <Gamepad2 className="w-7 h-7 stroke-[2.2]" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="text-xs font-semibold">VALORANT Aces</TooltipContent>
@@ -3700,19 +3701,19 @@ export function CommunityCallStage({
                       <TooltipTrigger asChild>
                         <button
                           onClick={() => handleLaunchApp('wordle')}
-                          className="w-12 h-12 rounded-[14px] bg-white hover:bg-zinc-100 border border-white/10 flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-md shrink-0"
+                          className="w-14 h-14 rounded-2xl bg-white hover:bg-zinc-100 border border-white/10 flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-md shrink-0"
                           title="Wordle"
                         >
                           <div className="grid grid-cols-3 gap-0.5 p-1 rounded-sm bg-[#111214]">
-                            <div className="w-2 h-2 rounded-[1.5px] bg-emerald-500" />
-                            <div className="w-2 h-2 rounded-[1.5px] bg-amber-400" />
-                            <div className="w-2 h-2 rounded-[1.5px] bg-emerald-500" />
-                            <div className="w-2 h-2 rounded-[1.5px] bg-[#3a3c42]" />
-                            <div className="w-2 h-2 rounded-[1.5px] bg-emerald-500" />
-                            <div className="w-2 h-2 rounded-[1.5px] bg-emerald-500" />
-                            <div className="w-2 h-2 rounded-[1.5px] bg-emerald-500" />
-                            <div className="w-2 h-2 rounded-[1.5px] bg-[#3a3c42]" />
-                            <div className="w-2 h-2 rounded-[1.5px] bg-amber-400" />
+                            <div className="w-2.5 h-2.5 rounded-[1.5px] bg-emerald-500" />
+                            <div className="w-2.5 h-2.5 rounded-[1.5px] bg-amber-400" />
+                            <div className="w-2.5 h-2.5 rounded-[1.5px] bg-emerald-500" />
+                            <div className="w-2.5 h-2.5 rounded-[1.5px] bg-[#3a3c42]" />
+                            <div className="w-2.5 h-2.5 rounded-[1.5px] bg-emerald-500" />
+                            <div className="w-2.5 h-2.5 rounded-[1.5px] bg-emerald-500" />
+                            <div className="w-2.5 h-2.5 rounded-[1.5px] bg-emerald-500" />
+                            <div className="w-2.5 h-2.5 rounded-[1.5px] bg-[#3a3c42]" />
+                            <div className="w-2.5 h-2.5 rounded-[1.5px] bg-amber-400" />
                           </div>
                         </button>
                       </TooltipTrigger>
@@ -3725,24 +3726,24 @@ export function CommunityCallStage({
 
             {/* 2. Activities (2 Columns Grid matching Discord) */}
             <div>
-              <h3 className="text-sm font-bold text-white mb-2.5">
+              <h3 className="text-xs font-bold text-[#dbdee1] uppercase tracking-wider mb-3">
                 {appSearchQuery ? 'Search Results' : 'Activities'}
               </h3>
 
-              <div className="grid grid-cols-2 gap-3 pb-2">
+              <div className="grid grid-cols-2 gap-3.5 pb-2">
                 {filteredApps.map((app) => (
                   <div
                     key={app.id}
                     onClick={() => handleLaunchApp(app.id)}
                     className={cn(
-                      'rounded-2xl border overflow-hidden transition-all duration-200 cursor-pointer group flex flex-col shadow-lg',
+                      'rounded-2xl border overflow-hidden transition-all duration-200 cursor-pointer group flex flex-col shadow-md',
                       activeAppId === app.id
-                        ? 'border-[#5865F2] ring-2 ring-[#5865F2]/40 bg-[#1e1f22]'
-                        : 'border-white/5 bg-[#1e1f22] hover:border-white/20 hover:bg-[#232428]',
+                        ? 'border-[#5865F2] ring-2 ring-[#5865F2]/40 bg-[#2b2d31]'
+                        : 'border-white/5 bg-[#2b2d31] hover:border-white/20 hover:bg-[#35373c]',
                     )}
                   >
                     {/* Graphical Top Banner with PROMOTED pill */}
-                    <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#111214]">
+                    <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#111214]">
                       {app.bannerImage ? (
                         <img
                           src={app.bannerImage}
@@ -3762,38 +3763,38 @@ export function CommunityCallStage({
                       )}
 
                       {/* Ambient Gradient Overlay for text contrast */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#1e1f22] via-transparent to-black/30 pointer-events-none" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#2b2d31] via-transparent to-black/30 pointer-events-none" />
 
                       {/* Promoted Pill Badge on Top-Right */}
                       {app.isPromoted && (
-                        <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider text-black bg-white uppercase shadow-md select-none">
+                        <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-[4px] text-[9px] font-black tracking-wider text-black bg-white uppercase shadow-md select-none">
                           PROMOTED
                         </span>
                       )}
 
                       {/* Center Banner Title Overlay */}
-                      <div className="absolute bottom-1.5 left-2 right-2 z-10 pointer-events-none">
-                        <span className="text-[11px] sm:text-xs font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] tracking-wide truncate block">
+                      <div className="absolute bottom-2 left-2.5 right-2.5 z-10 pointer-events-none">
+                        <span className="text-xs sm:text-sm font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] tracking-wide truncate block">
                           {app.bannerTitle || app.title}
                         </span>
                       </div>
                     </div>
 
                     {/* Card Bottom Meta */}
-                    <div className="p-2.5 bg-[#1e1f22] group-hover:bg-[#232428] transition-colors flex items-center gap-2.5 min-w-0">
+                    <div className="p-3 bg-[#2b2d31] group-hover:bg-[#35373c] transition-colors flex items-center gap-3 min-w-0">
                       <div
                         className={cn(
-                          'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform',
+                          'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform',
                           app.iconBg,
                         )}
                       >
                         <app.icon className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex flex-col min-w-0 flex-1">
-                        <span className="text-xs font-bold text-white group-hover:text-white truncate leading-tight">
+                        <span className="text-sm font-bold text-white group-hover:text-white truncate leading-snug">
                           {app.title}
                         </span>
-                        <span className="text-[11px] text-[#949ba4] truncate leading-tight mt-0.5">
+                        <span className="text-xs text-[#949ba4] truncate leading-tight mt-0.5">
                           {app.tagline || app.description}
                         </span>
                       </div>

@@ -140,6 +140,7 @@ import { toast } from 'sonner';
 
 import { authenticationSession } from '@/lib/authentication-session';
 import { PlatformRole } from '@activepieces/shared';
+import { CHANNEL_HORIZONTAL_PADDING } from '@/lib/layout-constants';
 
 import { messagesApi, communityApi } from './messages-api';
 import { CommunityAvatar } from './messages-avatar';
@@ -2279,7 +2280,7 @@ export function CommunityPage() {
   const renderChannelsSidebarContent = (onItemClick?: () => void) => (
     <div className="flex flex-col h-full bg-sidebar select-none flex-1 min-w-0 overflow-hidden">
       {/* Header: Different for Home (DMs) vs Server (Channels) */}
-      <div className="h-12 border-b border-sidebar-border px-2.5 flex items-center font-semibold shadow-2xs shrink-0 bg-sidebar z-10">
+      <div className={`h-12 border-b border-sidebar-border ${CHANNEL_HORIZONTAL_PADDING} flex items-center font-semibold shadow-2xs shrink-0 bg-sidebar z-10`}>
         {isHome ? (
           /* Home: Discord-style search bar "Find or start a conversation" */
           <button
@@ -2291,7 +2292,7 @@ export function CommunityPage() {
           </button>
         ) : (
           /* Server: Title + dropdown with channel/server actions */
-          <div className="flex items-center justify-between w-full px-1">
+          <div className="flex items-center justify-between w-full">
             <input
               type="file"
               ref={serverIconQuickInputRef}
@@ -3205,7 +3206,7 @@ export function CommunityPage() {
     return (
       <div className="flex flex-col flex-1 h-full min-h-0 min-w-0 bg-background/50 overflow-hidden">
         {/* Top Header: Discord Friends Bar */}
-        <div className="h-12 border-b border-sidebar-border px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
+        <div className={`h-12 border-b border-sidebar-border ${CHANNEL_HORIZONTAL_PADDING} flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10`}>
           <div className="flex items-center gap-3 min-w-0 overflow-x-auto [scrollbar-width:none]">
             <div className="flex items-center gap-2 shrink-0">
               <Users className="w-5 h-5 text-muted-foreground" />
@@ -3301,7 +3302,7 @@ export function CommunityPage() {
         {/* Body Content */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Main Friends Column */}
-          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 [scrollbar-width:thin]">
+          <div className={`flex-1 min-h-0 overflow-y-auto ${CHANNEL_HORIZONTAL_PADDING} py-5 [scrollbar-width:thin]`}>
             {friendsTab === 'add' ? (
               /* ===== TAMBAH TEMAN TAB ===== */
               <div className="w-full">
@@ -3526,7 +3527,7 @@ export function CommunityPage() {
           </div>
 
           {/* Right Column: Discord Desktop "Sedang Aktif" (Active Now) */}
-          <div className="hidden xl:flex flex-col w-80 border-l border-sidebar-border p-4 bg-background/30 shrink-0">
+          <div className={`hidden xl:flex flex-col w-80 border-l border-sidebar-border ${CHANNEL_HORIZONTAL_PADDING} py-4 bg-background/30 shrink-0`}>
             <h3 className="text-sm font-bold text-foreground mb-3">{t('Sedang Aktif')}</h3>
             {onlineFriends.length === 0 ? (
               <div className="p-4 rounded-xl border border-dashed border-border/60 text-center">
@@ -3586,13 +3587,13 @@ export function CommunityPage() {
       if (forumSort === 'active') {
         list.sort(
           (a, b) =>
-            new Date(b.lastMessageAt || b.created).getTime() -
-            new Date(a.lastMessageAt || a.created).getTime(),
+            new Date(b.lastMessageAt || b.createdAt || b.created).getTime() -
+            new Date(a.lastMessageAt || a.createdAt || a.created).getTime(),
         );
       } else {
         list.sort(
           (a, b) =>
-            new Date(b.created).getTime() - new Date(a.created).getTime(),
+            new Date(b.createdAt || b.created).getTime() - new Date(a.createdAt || a.created).getTime(),
         );
       }
       return list;
@@ -3603,7 +3604,7 @@ export function CommunityPage() {
       return (
         <div className="flex-1 min-h-0 flex flex-col w-full h-full bg-[#313338] text-[#dbdee1]">
           {/* Subheader with back button */}
-          <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between bg-[#2b2d31]/60 shrink-0">
+          <div className={`${CHANNEL_HORIZONTAL_PADDING} py-3 border-b border-white/5 flex items-center justify-between bg-[#2b2d31]/60 shrink-0`}>
             <div className="flex items-center gap-3 min-w-0">
               <Button
                 variant="ghost"
@@ -3621,12 +3622,12 @@ export function CommunityPage() {
               </div>
             </div>
             <div className="text-xs text-[#949ba4] shrink-0 font-mono hidden sm:block">
-              {activeThread.creatorName} • {dayjs(activeThread.created).fromNow()}
+              {activeThread.creatorName} • {dayjs(activeThread.createdAt || activeThread.created).fromNow()}
             </div>
           </div>
 
           {/* Discussion feed: OP Card + Replies list */}
-          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4 [scrollbar-width:thin]">
+          <div className={`flex-1 min-h-0 overflow-y-auto ${CHANNEL_HORIZONTAL_PADDING} py-5 space-y-4 [scrollbar-width:thin]`}>
             {/* OP Card */}
             <div className="p-4 rounded-xl border border-white/10 bg-[#2b2d31]/80 space-y-3 shadow-md">
               <div className="flex items-center gap-2.5">
@@ -3637,7 +3638,7 @@ export function CommunityPage() {
                 />
                 <span className="text-xs font-bold text-white">{activeThread.creatorName}</span>
                 <span className="text-[10px] text-[#949ba4] font-mono">
-                  {dayjs(activeThread.created).format('DD MMM YYYY, HH:mm')}
+                  {dayjs(activeThread.createdAt || activeThread.created).format('DD MMM YYYY, HH:mm')}
                 </span>
                 <Badge
                   variant="outline"
@@ -3696,7 +3697,7 @@ export function CommunityPage() {
           {/* Bottom Reply Bar */}
           <form
             onSubmit={handleSendThreadMessage}
-            className="p-4 border-t border-white/10 bg-[#2b2d31]/40 shrink-0"
+            className={`${CHANNEL_HORIZONTAL_PADDING} py-3 border-t border-white/10 bg-[#2b2d31]/40 shrink-0`}
           >
             <div className="flex items-center gap-2">
               <Input
@@ -3723,7 +3724,7 @@ export function CommunityPage() {
     return (
       <div className="flex-1 min-h-0 flex flex-col w-full h-full bg-[#313338] text-[#dbdee1]">
         {/* Top Search & Actions Bar (Screenshot 3) */}
-        <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#2b2d31]/40 shrink-0">
+        <div className={`${CHANNEL_HORIZONTAL_PADDING} py-3 border-b border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#2b2d31]/40 shrink-0`}>
           {/* Search or create a post input */}
           <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#949ba4] pointer-events-none" />
@@ -3849,7 +3850,7 @@ export function CommunityPage() {
         )}
 
         {/* Posts List Cards (Matching Screenshot 3) */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 [scrollbar-width:thin]">
+        <div className={`flex-1 min-h-0 overflow-y-auto ${CHANNEL_HORIZONTAL_PADDING} py-4 [scrollbar-width:thin]`}>
           {filteredForumPosts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center px-4">
               <div className="w-16 h-16 rounded-2xl bg-[#5865f2]/10 border border-[#5865f2]/30 flex items-center justify-center text-[#5865f2] mb-4">
@@ -3897,7 +3898,7 @@ export function CommunityPage() {
                     </div>
                     <span>•</span>
                     <span className="font-mono">
-                      {dayjs(post.lastMessageAt || post.created).fromNow()}
+                      {dayjs(post.lastMessageAt || post.createdAt || post.created).fromNow()}
                     </span>
                   </div>
                 </div>
@@ -4076,7 +4077,7 @@ export function CommunityPage() {
           <div className="flex flex-1 flex-col h-full min-h-0 min-w-0 bg-background/50 overflow-hidden">
           {/* Channel Top Header Bar: NON-SCROLLABLE APP BAR (Hidden during full stage call or in voice channel like Discord) */}
           {!( (activeCallChannelId === activeChannel?.id || activeChannel?.type === 'voice') && !isCallPiP ) && (
-          <div className="h-12 border-b border-sidebar-border px-4 flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10">
+          <div className={`h-12 border-b border-sidebar-border ${CHANNEL_HORIZONTAL_PADDING} flex items-center justify-between shrink-0 bg-background/80 backdrop-blur-xs z-10`}>
             <div className="flex items-center gap-2 min-w-0">
               {activeChannel?.category === 'DIRECT MESSAGES' || activeChannel?.isDirectMessage ? (
                 <span className="text-muted-foreground font-bold text-base shrink-0 select-none">@</span>
@@ -4554,7 +4555,7 @@ export function CommunityPage() {
           ) : (
           <>
           {/* Messages Feed (SCROLLABLE CONVERSATION) */}
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 [scrollbar-width:thin]">
+          <div className={`flex-1 min-h-0 overflow-y-auto ${CHANNEL_HORIZONTAL_PADDING} py-4 space-y-4 [scrollbar-width:thin]`}>
             {!activeChannel ? (
               <div className="flex-1 flex flex-col items-center justify-center py-24 text-center px-4">
                 <div className="w-16 h-16 rounded-2xl bg-muted/50 border border-border/60 flex items-center justify-center text-muted-foreground mb-4">
@@ -4881,7 +4882,7 @@ export function CommunityPage() {
           </div>
 
           {/* Chat Input Bar (FLOATING OVERLAY FORM CHAT - Discord Style) */}
-          <div className="shrink-0 px-2 pb-2 lg:pb-1 pt-0 bg-transparent z-10 flex flex-col gap-1.5">
+          <div className={`shrink-0 ${CHANNEL_HORIZONTAL_PADDING} pb-2 lg:pb-1 pt-0 bg-transparent z-10 flex flex-col gap-1.5`}>
             {/* Staged Attachment Indicator */}
             {stagedAttachment && (
               <div className="p-2 rounded-[12px] bg-[#111214] border border-white/10 shadow-2xl backdrop-blur-md flex items-center justify-between text-xs animate-in slide-in-from-bottom-1">

@@ -168,6 +168,8 @@ export type CommunityThread = {
   messageCount: number;
   lastMessageAt: string;
   created: string;
+  createdAt?: string;
   updated: string;
+  updatedAt?: string;
 };
 
