@@ -105,6 +105,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
   Popover,
@@ -159,6 +162,9 @@ import {
   CommunityCustomRole,
   CommunityHubStats,
   CommunityCustomEmoji,
+  CommunityChannelNotification,
+  CommunityChannelNotificationLevel,
+  CommunityThread,
 } from './messages-types';
 
 // Preset realistic templates for sharing
@@ -388,6 +394,34 @@ export function CommunityPage() {
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
   const [claimedGifts, setClaimedGifts] = useState<Record<string, boolean>>({});
 
+  // ── Discord Pinned Messages (Screenshot 1) ───────────────────────────
+  const [isPinnedPopoverOpen, setIsPinnedPopoverOpen] = useState(false);
+  const [pinnedMessages, setPinnedMessages] = useState<CommunityMessage[]>([]);
+  const [isLoadingPins, setIsLoadingPins] = useState(false);
+
+  // ── Discord Notification Settings (Screenshot 2) ─────────────────────
+  const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
+  const [channelNotification, setChannelNotification] = useState<CommunityChannelNotification>({
+    channelId: '',
+    userId: 'me',
+    level: 'default',
+    isMuted: false,
+    mutedUntil: null,
+  });
+
+  // ── Discord Threads (Screenshot 3) ───────────────────────────────────
+  const [isThreadsPopoverOpen, setIsThreadsPopoverOpen] = useState(false);
+  const [channelThreads, setChannelThreads] = useState<CommunityThread[]>([]);
+  const [threadSearchQuery, setThreadSearchQuery] = useState('');
+  const [isCreateThreadModalOpen, setIsCreateThreadModalOpen] = useState(false);
+  const [newThreadName, setNewThreadName] = useState('');
+  const [newThreadInitialMsg, setNewThreadInitialMsg] = useState('');
+  const [isSubmittingThread, setIsSubmittingThread] = useState(false);
+  const [activeThread, setActiveThread] = useState<CommunityThread | null>(null);
+  const [threadMessages, setThreadMessages] = useState<CommunityMessage[]>([]);
+  const [threadInputText, setThreadInputText] = useState('');
+  const [isThreadDrawerOpen, setIsThreadDrawerOpen] = useState(false);
+
   // Audio / mic dummy state for Discord user footer
   const [isMuted, setIsMuted] = useState(false);
   const [isDeafened, setIsDeafened] = useState(false);
@@ -577,28 +611,64 @@ export function CommunityPage() {
     };
   }, []);
 
-  // 2. Load Messages when Active Channel Changes
+  // 2. Load Messages, Pins, Notifications & Threads when Active Channel Changes
   useEffect(() => {
     if (!activeChannelId) return;
     let mounted = true;
-    const loadChannelMessages = async () => {
+    const loadChannelData = async () => {
       try {
-        const msgs = await communityApi.getMessages(activeChannelId);
-        if (mounted && msgs) {
-          setMessagesMap((prev) => ({
-            ...prev,
-            [activeChannelId]: msgs,
-          }));
+        const [msgs, pins, notif, ths] = await Promise.all([
+          communityApi.getMessages(activeChannelId),
+          communityApi.getPinnedMessages(activeChannelId),
+          communityApi.getChannelNotification(activeChannelId),
+          communityApi.getThreads(activeChannelId),
+        ]);
+        if (mounted) {
+          if (msgs) {
+            setMessagesMap((prev) => ({
+              ...prev,
+              [activeChannelId]: msgs,
+            }));
+          }
+          if (pins) {
+            setPinnedMessages(pins);
+          }
+          if (notif) {
+            setChannelNotification(notif);
+          }
+          if (ths) {
+            setChannelThreads(ths);
+          }
         }
       } catch (err) {
-        console.warn('Failed to load messages for channel', activeChannelId, err);
+        console.warn('Failed to load channel data', activeChannelId, err);
       }
     };
-    loadChannelMessages();
+    loadChannelData();
     return () => {
       mounted = false;
     };
   }, [activeChannelId]);
+
+  // Load thread messages when an active thread is selected
+  useEffect(() => {
+    if (!activeThread) return;
+    let mounted = true;
+    const loadThreadMsgs = async () => {
+      try {
+        const msgs = await communityApi.getThreadMessages(activeThread.id);
+        if (mounted && msgs) {
+          setThreadMessages(msgs);
+        }
+      } catch (err) {
+        console.warn('Failed to load thread messages', activeThread.id, err);
+      }
+    };
+    loadThreadMsgs();
+    return () => {
+      mounted = false;
+    };
+  }, [activeThread?.id]);
 
   // 3. WebSocket Realtime Listeners
   useEffect(() => {
@@ -1016,6 +1086,181 @@ export function CommunityPage() {
       await communityApi.toggleReaction(msgId, emoji, currentUserId);
     } catch (err) {
       console.error('Failed to toggle reaction', err);
+    }
+  };
+
+  // ── Toggle Pin Message Handler ──────────────────────────────────────
+  const handleTogglePin = async (msgId: string) => {
+    if (!activeChannel) return;
+    try {
+      const updated = await communityApi.togglePinMessage(
+        msgId,
+        activeChannel.id,
+        currentUser?.firstName || currentUser?.email || 'You',
+      );
+
+      // Update message in messagesMap
+      setMessagesMap((prev) => {
+        const list = prev[activeChannel.id] || [];
+        return {
+          ...prev,
+          [activeChannel.id]: list.map((m) =>
+            m.id === msgId
+              ? {
+                  ...m,
+                  isPinned: updated.isPinned,
+                  pinnedAt: updated.pinnedAt,
+                  pinnedBy: updated.pinnedBy,
+                }
+              : m,
+          ),
+        };
+      });
+
+      // Update pinnedMessages list
+      setPinnedMessages((prev) => {
+        if (updated.isPinned) {
+          const target = (messagesMap[activeChannel.id] || []).find((m) => m.id === msgId);
+          if (target) {
+            return [
+              {
+                ...target,
+                isPinned: true,
+                pinnedAt: updated.pinnedAt,
+                pinnedBy: updated.pinnedBy,
+              },
+              ...prev.filter((m) => m.id !== msgId),
+            ];
+          }
+          return prev;
+        } else {
+          return prev.filter((m) => m.id !== msgId);
+        }
+      });
+
+      if (updated.isPinned) {
+        toast.success(t('Pesan disematkan ke saluran ini 📌'));
+      } else {
+        toast.info(t('Pesan dilepas dari sematan saluran'));
+      }
+    } catch (err) {
+      console.error('Failed to toggle pin', err);
+      toast.error(t('Gagal mengubah status sematan pesan'));
+    }
+  };
+
+  // Jump to Message in chat
+  const handleJumpToMessage = (msgId: string) => {
+    setIsPinnedPopoverOpen(false);
+    const el = document.getElementById(`msg-${msgId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('bg-[#5865f2]/25', 'transition-colors', 'duration-500');
+      setTimeout(() => {
+        el.classList.remove('bg-[#5865f2]/25');
+      }, 2500);
+    } else {
+      toast.info('Pesan berada di riwayat percakapan sebelumnya');
+    }
+  };
+
+  // ── Update Channel Notification Settings Handler ─────────────────────
+  const handleUpdateNotification = async (
+    level?: CommunityChannelNotificationLevel,
+    muteState?: boolean,
+    mutedUntil?: string | null,
+  ) => {
+    if (!activeChannel) return;
+    const nextLevel = level !== undefined ? level : channelNotification.level;
+    const nextMuted = muteState !== undefined ? muteState : channelNotification.isMuted;
+    const nextUntil = mutedUntil !== undefined ? mutedUntil : channelNotification.mutedUntil;
+
+    setChannelNotification((prev) => ({
+      ...prev,
+      level: nextLevel,
+      isMuted: nextMuted,
+      mutedUntil: nextUntil,
+    }));
+
+    try {
+      await communityApi.updateChannelNotification(activeChannel.id, {
+        level: nextLevel,
+        isMuted: nextMuted,
+        mutedUntil: nextUntil,
+      });
+      if (muteState !== undefined) {
+        toast.success(nextMuted ? 'Saluran dibisukan 🔕' : 'Saluran dibunyikan kembali 🔔');
+      } else {
+        toast.success(`Notifikasi saluran diatur ke: ${nextLevel}`);
+      }
+    } catch (err) {
+      console.error('Failed to update notification settings', err);
+      toast.error('Gagal memperbarui notifikasi saluran');
+    }
+  };
+
+  // ── Create Thread Handler ───────────────────────────────────────────
+  const handleCreateThreadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeChannel || !newThreadName.trim()) return;
+    setIsSubmittingThread(true);
+    try {
+      const created = await communityApi.createThread(activeChannel.id, {
+        name: newThreadName.trim(),
+        creatorName: currentUser?.firstName || currentUser?.email || 'You',
+        creatorAvatar: currentUser?.imageUrl ?? null,
+        initialMessage: newThreadInitialMsg.trim() || undefined,
+      });
+
+      setChannelThreads((prev) => [created, ...prev.filter((t) => t.id !== created.id)]);
+      setActiveThread(created);
+      setIsThreadDrawerOpen(true);
+      setIsCreateThreadModalOpen(false);
+      setIsThreadsPopoverOpen(false);
+      setNewThreadName('');
+      setNewThreadInitialMsg('');
+      toast.success(`Thread #${created.name} berhasil dibuat! 🧵`);
+    } catch (err) {
+      console.error('Failed to create thread', err);
+      toast.error('Gagal membuat thread');
+    } finally {
+      setIsSubmittingThread(false);
+    }
+  };
+
+  // ── Send Thread Message Handler ──────────────────────────────────────
+  const handleSendThreadMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeThread || !threadInputText.trim() || !activeChannel) return;
+    const text = threadInputText.trim();
+    setThreadInputText('');
+
+    const newMsg: CommunityMessage = {
+      id: `msg_th_${Date.now()}`,
+      channelId: activeChannel.id,
+      threadId: activeThread.id,
+      senderId: currentUser?.id || 'me',
+      senderName: currentUser?.firstName || currentUser?.email || 'You',
+      senderEmail: currentUser?.email || '',
+      senderAvatar: currentUser?.imageUrl ?? null,
+      senderRole: 'member',
+      content: text,
+      createdAt: new Date().toISOString(),
+    };
+
+    setThreadMessages((prev) => [...prev, newMsg]);
+
+    try {
+      const res = await communityApi.sendThreadMessage(activeThread.id, activeChannel.id, {
+        content: text,
+        senderName: currentUser?.firstName || currentUser?.email || 'You',
+        senderAvatar: currentUser?.imageUrl ?? null,
+      });
+      if (res && res.id) {
+        setThreadMessages((prev) => prev.map((m) => (m.id === newMsg.id ? res : m)));
+      }
+    } catch (err) {
+      console.error('Failed to send thread message', err);
     }
   };
 
@@ -2942,61 +3187,378 @@ export function CommunityPage() {
 
             {/* Top Bar Actions: Exactly Discord Signature (Threads, Bell, Pin, Member List, Search) */}
             <div className="flex items-center gap-2">
-              {/* 1. Threads Icon */}
-              <Tooltip delayDuration={150}>
-                <TooltipTrigger asChild>
+              {/* 1. Threads Popover (Screenshot 3) */}
+              <Popover open={isThreadsPopoverOpen} onOpenChange={setIsThreadsPopoverOpen}>
+                <PopoverTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => toast.info('Threads / Topik Diskusi Saluran')}
-                    className="h-8 w-8 text-[#b5bac1] hover:text-[#dbdee1] hover:bg-white/5 transition-colors cursor-pointer"
+                    className={cn(
+                      "h-8 w-8 transition-colors cursor-pointer",
+                      isThreadsPopoverOpen ? "text-white bg-white/10" : "text-[#b5bac1] hover:text-[#dbdee1] hover:bg-white/5"
+                    )}
                     title="Threads"
                   >
                     <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                       <path d="M5.5 4a1.5 1.5 0 0 0-1.5 1.5v13A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 18.5 4h-13zm2 3h9a1 1 0 1 1 0 2h-9a1 1 0 1 1 0-2zm0 4h9a1 1 0 1 1 0 2h-9a1 1 0 1 1 0-2zm0 4h5a1 1 0 1 1 0 2h-5a1 1 0 1 1 0-2z" />
                     </svg>
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
-                  Threads
-                </TooltipContent>
-              </Tooltip>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="bottom"
+                  align="end"
+                  sideOffset={8}
+                  className="w-[440px] max-w-[95vw] h-[480px] p-0 bg-[#111214] border border-[#2b2d31] text-[#dbdee1] shadow-2xl rounded-2xl select-none z-50 flex flex-col overflow-hidden"
+                >
+                  {/* Header */}
+                  <div className="p-3.5 border-b border-white/10 flex items-center gap-2.5 bg-[#18191c]">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <svg className="w-5 h-5 text-white fill-current" viewBox="0 0 24 24">
+                        <path d="M5.5 4a1.5 1.5 0 0 0-1.5 1.5v13A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 18.5 4h-13zm2 3h9a1 1 0 1 1 0 2h-9a1 1 0 1 1 0-2zm0 4h9a1 1 0 1 1 0 2h-9a1 1 0 1 1 0-2zm0 4h5a1 1 0 1 1 0 2h-5a1 1 0 1 1 0-2z" />
+                      </svg>
+                      <span className="font-bold text-white text-sm">Threads</span>
+                    </div>
 
-              {/* 2. Notification Settings (Bell) */}
-              <Tooltip delayDuration={150}>
-                <TooltipTrigger asChild>
+                    {/* Search */}
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 text-[#949ba4] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={threadSearchQuery}
+                        onChange={(e) => setThreadSearchQuery(e.target.value)}
+                        placeholder="Search for Thread Name"
+                        className="w-full bg-[#1e1f22] border border-[#35373c] focus:border-[#5865f2] rounded-lg pl-8 pr-2.5 py-1 text-xs text-white placeholder:text-[#949ba4] focus:outline-none transition-colors"
+                      />
+                    </div>
+
+                    {/* Create Thread button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateThreadModalOpen(true)}
+                      className="px-3 py-1.5 bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-bold rounded-lg transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
+                    >
+                      Create
+                    </button>
+                  </div>
+
+                  {/* Body */}
+                  <div className="flex-1 flex flex-col overflow-y-auto [scrollbar-width:thin]">
+                    {channelThreads.filter(t => !threadSearchQuery || t.name.toLowerCase().includes(threadSearchQuery.toLowerCase())).length === 0 ? (
+                      /* Empty State (Exact matching Screenshot 3) */
+                      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                        {/* 3 button speech bubble graphics with thread loops */}
+                        <div className="relative w-44 h-32 mb-4 flex items-center justify-center">
+                          {/* Thread button speech bubble 1 (Left Blue) */}
+                          <div className="absolute left-3 top-3 w-16 h-16 rounded-full bg-gradient-to-br from-[#5865f2] to-[#404eed] border-2 border-[#7983f5] shadow-lg flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full border-2 border-dashed border-cyan-300 flex items-center justify-center">
+                              <span className="text-cyan-200 text-xs font-bold">~</span>
+                            </div>
+                          </div>
+                          {/* Thread button speech bubble 2 (Right Purple) */}
+                          <div className="absolute right-4 top-2 w-16 h-16 rounded-full bg-gradient-to-br from-[#7983f5] to-[#5865f2] border-2 border-cyan-400 shadow-lg flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full border-2 border-dashed border-cyan-300 flex items-center justify-center">
+                              <span className="text-white text-xs font-bold">~</span>
+                            </div>
+                          </div>
+                          {/* Thread button speech bubble 3 (Center Bottom Magenta) */}
+                          <div className="absolute bottom-1 w-20 h-16 rounded-3xl bg-gradient-to-br from-[#9b59b6] to-[#8e44ad] border-2 border-pink-400 shadow-xl flex items-center justify-center z-10">
+                            <div className="w-10 h-7 rounded-2xl border-2 border-cyan-300 flex items-center justify-center">
+                              <span className="text-cyan-200 text-sm font-bold">🧵</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <h3 className="text-lg font-black text-white mb-2">There are no threads.</h3>
+                        <p className="text-xs text-[#949ba4] max-w-xs mb-6 leading-relaxed">
+                          Stay focused on a conversation with a thread - a temporary text channel.
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsCreateThreadModalOpen(true)}
+                          className="px-5 py-2.5 bg-[#5865f2] hover:bg-[#4752c4] text-white font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 cursor-pointer"
+                        >
+                          Create Thread
+                        </button>
+                      </div>
+                    ) : (
+                      /* Thread List */
+                      <div className="p-3 space-y-1.5">
+                        {channelThreads.filter(t => !threadSearchQuery || t.name.toLowerCase().includes(threadSearchQuery.toLowerCase())).map((th) => (
+                          <button
+                            key={th.id}
+                            type="button"
+                            onClick={() => {
+                              setActiveThread(th);
+                              setIsThreadDrawerOpen(true);
+                              setIsThreadsPopoverOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#1e1f22]/70 hover:bg-[#2b2d31] border border-white/5 hover:border-white/10 transition-all text-left cursor-pointer group"
+                          >
+                            <div className="w-9 h-9 rounded-xl bg-[#5865f2]/20 border border-[#5865f2]/40 text-[#5865f2] flex items-center justify-center shrink-0">
+                              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path d="M5.5 4a1.5 1.5 0 0 0-1.5 1.5v13A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 18.5 4h-13zm2 3h9a1 1 0 1 1 0 2h-9a1 1 0 1 1 0-2zm0 4h9a1 1 0 1 1 0 2h-9a1 1 0 1 1 0-2zm0 4h5a1 1 0 1 1 0 2h-5a1 1 0 1 1 0-2z" />
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-bold text-white group-hover:text-[#5865f2] transition-colors truncate">
+                                  {th.name}
+                                </span>
+                                <span className="text-[10px] text-[#949ba4] shrink-0 font-mono">
+                                  {dayjs(th.lastMessageAt).fromNow()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-[#949ba4]">
+                                <span>Oleh {th.creatorName}</span>
+                                <span>•</span>
+                                <span className="bg-white/10 px-1.5 py-0.2 rounded-full font-mono text-[9px]">
+                                  {th.messageCount || 1} pesan
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* 2. Notification Settings (Dropdown matching Screenshot 2) */}
+              <DropdownMenu open={isNotificationDropdownOpen} onOpenChange={setIsNotificationDropdownOpen}>
+                <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => toast.info('Pengaturan Notifikasi Saluran')}
-                    className="h-8 w-8 text-[#b5bac1] hover:text-[#dbdee1] hover:bg-white/5 transition-colors cursor-pointer"
-                    title="Notification Settings"
+                    className={cn(
+                      "h-8 w-8 transition-colors cursor-pointer",
+                      channelNotification.isMuted
+                        ? "text-red-400 hover:text-red-300"
+                        : isNotificationDropdownOpen
+                        ? "text-white bg-white/10"
+                        : "text-[#b5bac1] hover:text-[#dbdee1] hover:bg-white/5"
+                    )}
+                    title={channelNotification.isMuted ? "Channel Muted" : "Notification Settings"}
                   >
                     <Bell className="w-5 h-5" />
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
-                  Notification Settings
-                </TooltipContent>
-              </Tooltip>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  side="bottom"
+                  align="end"
+                  sideOffset={8}
+                  className="w-[240px] bg-[#111214] border border-[#2b2d31] text-[#dbdee1] rounded-2xl p-2 shadow-2xl z-50"
+                >
+                  {/* Mute Channel with Submenu */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg hover:bg-[#2b2d31] hover:text-white cursor-pointer transition-colors">
+                      <span className={channelNotification.isMuted ? "text-red-400" : ""}>
+                        {channelNotification.isMuted ? "Saluran Dibisukan" : "Mute Channel"}
+                      </span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-[180px] bg-[#111214] border border-[#2b2d31] text-[#dbdee1] rounded-xl p-1 shadow-2xl">
+                      {channelNotification.isMuted ? (
+                        <DropdownMenuItem
+                          onClick={() => handleUpdateNotification(undefined, false, null)}
+                          className="px-3 py-2 text-xs font-medium rounded-lg hover:bg-[#2b2d31] text-emerald-400 cursor-pointer"
+                        >
+                          Bunyikan Saluran (Unmute)
+                        </DropdownMenuItem>
+                      ) : (
+                        [
+                          { label: 'Until I turn it back on', duration: null },
+                          { label: 'For 15 minutes', duration: '15m' },
+                          { label: 'For 1 Hour', duration: '1h' },
+                          { label: 'For 3 Hours', duration: '3h' },
+                          { label: 'For 8 Hours', duration: '8h' },
+                          { label: 'For 24 Hours', duration: '24h' },
+                        ].map((item) => (
+                          <DropdownMenuItem
+                            key={item.label}
+                            onClick={() => handleUpdateNotification(undefined, true, item.duration)}
+                            className="px-3 py-2 text-xs font-medium rounded-lg hover:bg-[#2b2d31] hover:text-white cursor-pointer"
+                          >
+                            {item.label}
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
 
-              {/* 3. Pinned Messages (Pin) */}
-              <Tooltip delayDuration={150}>
-                <TooltipTrigger asChild>
+                  <DropdownMenuSeparator className="my-1.5 bg-white/10" />
+
+                  {/* Radio Items */}
+                  <div className="space-y-1">
+                    {[
+                      {
+                        key: 'default',
+                        title: 'Use Category Default',
+                        subtitle: 'All Messages',
+                      },
+                      {
+                        key: 'all',
+                        title: 'All Messages',
+                      },
+                      {
+                        key: 'mentions',
+                        title: 'Only @mentions',
+                      },
+                      {
+                        key: 'nothing',
+                        title: 'Nothing',
+                      },
+                    ].map((opt) => {
+                      const isSelected = (channelNotification.level || 'default') === opt.key;
+                      return (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => handleUpdateNotification(opt.key as any)}
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#2b2d31] transition-colors text-left cursor-pointer group"
+                        >
+                          <div>
+                            <span className="text-xs font-bold text-white block">
+                              {opt.title}
+                            </span>
+                            {opt.subtitle && (
+                              <span className="text-[10px] text-[#949ba4] block">
+                                {opt.subtitle}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Radio Dot */}
+                          <div className={cn(
+                            "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all shrink-0",
+                            isSelected ? "border-[#5865f2] bg-[#5865f2]" : "border-[#4e5058] group-hover:border-[#949ba4]"
+                          )}>
+                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* 3. Pinned Messages (Popover matching Screenshot 1) */}
+              <Popover open={isPinnedPopoverOpen} onOpenChange={setIsPinnedPopoverOpen}>
+                <PopoverTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => toast.info('Pesan Tersemat (Pinned Messages)')}
-                    className="h-8 w-8 text-[#b5bac1] hover:text-[#dbdee1] hover:bg-white/5 transition-colors cursor-pointer"
+                    className={cn(
+                      "h-8 w-8 transition-colors cursor-pointer relative",
+                      pinnedMessages.length > 0 ? "text-[#5865f2]" : isPinnedPopoverOpen ? "text-white bg-white/10" : "text-[#b5bac1] hover:text-[#dbdee1] hover:bg-white/5"
+                    )}
                     title="Pinned Messages"
                   >
                     <Pin className="w-5 h-5" />
+                    {pinnedMessages.length > 0 && (
+                      <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#5865f2]" />
+                    )}
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" sideOffset={6} className="font-semibold text-xs">
-                  Pinned Messages
-                </TooltipContent>
-              </Tooltip>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="bottom"
+                  align="end"
+                  sideOffset={8}
+                  className="w-[420px] max-w-[95vw] max-h-[500px] p-0 bg-[#111214] border border-[#2b2d31] text-[#dbdee1] shadow-2xl rounded-2xl select-none z-50 flex flex-col overflow-hidden"
+                >
+                  {/* Header */}
+                  <div className="p-3.5 border-b border-white/10 flex items-center gap-2 bg-[#18191c]">
+                    <Pin className="w-4 h-4 text-white" />
+                    <span className="font-bold text-white text-sm">Pinned Messages</span>
+                    {pinnedMessages.length > 0 && (
+                      <span className="ml-auto text-[10px] text-[#949ba4] font-mono">
+                        {pinnedMessages.length} tersemat
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Body */}
+                  <div className="flex-1 overflow-y-auto [scrollbar-width:thin] flex flex-col">
+                    {pinnedMessages.length === 0 ? (
+                      /* Empty State (Exact matching Screenshot 1) */
+                      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                        <div className="relative w-28 h-28 mb-4 flex items-center justify-center">
+                          {/* Mascot Head with Pushpin */}
+                          <div className="w-20 h-20 rounded-full bg-[#35373c] border-2 border-[#404249] flex items-center justify-center relative shadow-inner">
+                            {/* Eyes */}
+                            <div className="flex items-center gap-5 -mt-2">
+                              <div className="w-2.5 h-2.5 rounded-full bg-[#1e1f22]" />
+                              <div className="w-2.5 h-2.5 rounded-full bg-[#1e1f22]" />
+                            </div>
+                            {/* Sad curved mouth */}
+                            <div className="absolute bottom-5 w-6 h-2.5 border-t-2 border-[#1e1f22] rounded-t-full" />
+                            {/* Pushpin stuck in head */}
+                            <div className="absolute -top-3.5 -right-1 rotate-45 text-2xl filter drop-shadow">
+                              📌
+                            </div>
+                          </div>
+                        </div>
+
+                        <p className="text-sm font-semibold text-[#dbdee1] max-w-xs leading-snug mb-6">
+                          This channel doesn't have any pinned messages... yet.
+                        </p>
+                      </div>
+                    ) : (
+                      /* List Pinned Messages */
+                      <div className="p-3 space-y-2.5">
+                        {pinnedMessages.map((pMsg) => (
+                          <div
+                            key={pMsg.id}
+                            className="p-3 rounded-xl bg-[#1e1f22] border border-white/5 hover:border-white/15 transition-all flex flex-col gap-2 group"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <CommunityAvatar name={pMsg.senderName} imageUrl={pMsg.senderAvatar} size={24} />
+                                <span className="text-xs font-bold text-white truncate">{pMsg.senderName}</span>
+                                <span className="text-[10px] text-[#949ba4] shrink-0">
+                                  {dayjs(pMsg.pinnedAt || pMsg.createdAt).fromNow()}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={() => handleJumpToMessage(pMsg.id)}
+                                  className="px-2 py-0.5 bg-[#5865f2] hover:bg-[#4752c4] text-white text-[10px] font-bold rounded transition-colors cursor-pointer"
+                                >
+                                  Jump
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleTogglePin(pMsg.id)}
+                                  className="p-1 hover:bg-red-500/20 text-[#949ba4] hover:text-red-400 rounded transition-colors cursor-pointer"
+                                  title="Unpin message"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-[#dbdee1] line-clamp-3 leading-relaxed whitespace-pre-wrap">
+                              {pMsg.content}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Protip Box at bottom (Exact matching Screenshot 1) */}
+                    <div className="p-3.5 bg-[#18191c] border-t border-white/5 mt-auto">
+                      <span className="text-xs font-bold text-emerald-400 block mb-0.5">
+                        Protip:
+                      </span>
+                      <p className="text-[11px] text-[#949ba4] leading-normal">
+                        Users with the 'Pin Messages' permission can pin a message from its context menu.
+                      </p>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
 
               {/* 4. Member List Toggle (Users) */}
               <Tooltip delayDuration={150}>
@@ -3113,7 +3675,11 @@ export function CommunityPage() {
                   filteredMessages.map((msg) => (
                 <div
                   key={msg.id}
-                  className="group relative flex gap-3 px-2 py-1.5 -mx-2 rounded-lg hover:bg-muted/40 transition-colors"
+                  id={`msg-${msg.id}`}
+                  className={cn(
+                    "group relative flex gap-3 px-2 py-1.5 -mx-2 rounded-lg hover:bg-muted/40 transition-colors",
+                    msg.isPinned && "border-l-2 border-[#5865f2] bg-[#5865f2]/5"
+                  )}
                 >
                   {/* Sender Avatar */}
                   <CommunityAvatar
@@ -3131,6 +3697,11 @@ export function CommunityPage() {
                         {msg.senderName}
                       </span>
                       {renderRoleBadge(msg.senderRole)}
+                      {msg.isPinned && (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-[#5865f2] font-semibold bg-[#5865f2]/10 px-1.5 py-0.5 rounded">
+                          <Pin className="w-2.5 h-2.5" /> Tersemat
+                        </span>
+                      )}
                       <span className="text-[10px] text-muted-foreground">
                         {new Date(msg.createdAt).toLocaleTimeString([], {
                           hour: '2-digit',
@@ -3336,6 +3907,35 @@ export function CommunityPage() {
                       title="Party"
                     >
                       🎉
+                    </button>
+
+                    <Separator orientation="vertical" className="h-4 mx-0.5" />
+
+                    {/* Pin/Unpin Message Button */}
+                    <button
+                      onClick={() => handleTogglePin(msg.id)}
+                      className={cn(
+                        "p-1 rounded text-xs transition-colors",
+                        msg.isPinned
+                          ? "text-[#5865f2] bg-[#5865f2]/10 hover:bg-[#5865f2]/20"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                      title={msg.isPinned ? "Lepas Sematan (Unpin)" : "Sematkan Pesan (Pin)"}
+                    >
+                      <Pin className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Start Thread from Message */}
+                    <button
+                      onClick={() => {
+                        setNewThreadName(`Diskusi: ${msg.content.slice(0, 30)}`);
+                        setNewThreadInitialMsg(msg.content);
+                        setIsCreateThreadModalOpen(true);
+                      }}
+                      className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded transition-colors"
+                      title="Mulai Thread Baru"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
                     </button>
 
                     <Separator orientation="vertical" className="h-4 mx-0.5" />
@@ -7102,6 +7702,171 @@ export function CommunityPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Create Thread Modal (Discord Style) */}
+        <Dialog open={isCreateThreadModalOpen} onOpenChange={setIsCreateThreadModalOpen}>
+          <DialogContent className="max-w-md bg-[#313338] border-none text-white shadow-2xl p-6">
+            <DialogHeader>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-8 h-8 rounded-lg bg-[#5865f2]/20 border border-[#5865f2]/40 text-[#5865f2] flex items-center justify-center">
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M5.5 4a1.5 1.5 0 0 0-1.5 1.5v13A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 18.5 4h-13zm2 3h9a1 1 0 1 1 0 2h-9a1 1 0 1 1 0-2zm0 4h9a1 1 0 1 1 0 2h-9a1 1 0 1 1 0-2zm0 4h5a1 1 0 1 1 0 2h-5a1 1 0 1 1 0-2z" />
+                  </svg>
+                </div>
+                <DialogTitle className="text-lg font-bold text-white">Buat Thread Baru</DialogTitle>
+              </div>
+              <DialogDescription className="text-xs text-[#949ba4]">
+                Thread membuat percakapan terfokus pada topik tertentu dalam #{activeChannel?.name}.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleCreateThreadSubmit} className="space-y-4 mt-3">
+              <div>
+                <label className="text-[11px] font-bold text-[#b5bac1] uppercase tracking-wider block mb-1.5">
+                  NAMA THREAD <span className="text-red-400">*</span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="cth. diskusi-fitur-baru"
+                  value={newThreadName}
+                  onChange={(e) => setNewThreadName(e.target.value)}
+                  maxLength={100}
+                  required
+                  className="bg-[#1e1f22] border-none text-white placeholder:text-[#949ba4] focus-visible:ring-1 focus-visible:ring-[#5865f2]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-[#b5bac1] uppercase tracking-wider block mb-1.5">
+                  PESAN AWAL (OPSIONAL)
+                </label>
+                <textarea
+                  placeholder="Kirim pesan pembuka untuk memulai thread..."
+                  value={newThreadInitialMsg}
+                  onChange={(e) => setNewThreadInitialMsg(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-md bg-[#1e1f22] border-none text-white text-xs p-3 placeholder:text-[#949ba4] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5865f2] resize-none"
+                />
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsCreateThreadModalOpen(false)}
+                  className="text-white hover:bg-white/5"
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!newThreadName.trim() || isSubmittingThread}
+                  className="bg-[#5865f2] hover:bg-[#4752c4] text-white font-medium cursor-pointer"
+                >
+                  {isSubmittingThread ? 'Membuat...' : 'Buat Thread'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Discord Thread Chat Drawer / Side-panel */}
+        <Sheet open={isThreadDrawerOpen} onOpenChange={setIsThreadDrawerOpen}>
+          <SheetContent side="right" className="w-[420px] sm:w-[460px] p-0 bg-[#313338] text-white border-l border-black/40 flex flex-col shadow-2xl">
+            {/* Thread Drawer Header */}
+            <div className="h-14 px-4 border-b border-black/30 flex items-center justify-between bg-[#2b2d31] shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-[#5865f2]/20 border border-[#5865f2]/40 text-[#5865f2] flex items-center justify-center shrink-0">
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M5.5 4a1.5 1.5 0 0 0-1.5 1.5v13A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 18.5 4h-13zm2 3h9a1 1 0 1 1 0 2h-9a1 1 0 1 1 0-2zm0 4h9a1 1 0 1 1 0 2h-9a1 1 0 1 1 0-2zm0 4h5a1 1 0 1 1 0 2h-5a1 1 0 1 1 0-2z" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-white truncate">
+                    {activeThread?.name || 'Thread'}
+                  </h3>
+                  <p className="text-[11px] text-[#949ba4] truncate">
+                    Saluran #{activeChannel?.name}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsThreadDrawerOpen(false)}
+                className="w-7 h-7 rounded-md hover:bg-white/10 text-[#949ba4] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                title="Tutup Thread"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Thread Drawer Message List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Thread starter banner */}
+              <div className="p-3.5 rounded-xl bg-[#2b2d31]/80 border border-white/5 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#5865f2]">
+                  Awal dari Thread
+                </span>
+                <h4 className="text-sm font-bold text-white">{activeThread?.name}</h4>
+                <p className="text-xs text-[#949ba4]">
+                  Dibuat oleh <span className="text-white font-medium">{activeThread?.creatorName || 'Member'}</span> • Semua pesan di sini terhubung langsung ke database.
+                </p>
+              </div>
+
+              {threadMessages.length === 0 ? (
+                <div className="py-12 text-center text-xs text-[#949ba4]">
+                  Belum ada pesan di thread ini. Kirim pesan pertama Anda di bawah!
+                </div>
+              ) : (
+                threadMessages.map((tMsg) => (
+                  <div key={tMsg.id} className="flex gap-2.5 group">
+                    <CommunityAvatar
+                      name={tMsg.senderName}
+                      imageUrl={tMsg.senderAvatar}
+                      size={32}
+                      className="shrink-0 mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-white">{tMsg.senderName}</span>
+                        <span className="text-[10px] text-[#949ba4]">
+                          {dayjs(tMsg.createdAt).format('HH:mm')}
+                        </span>
+                      </div>
+                      <div className="text-xs text-[#dbdee1] mt-0.5 break-words">
+                        {renderFormattedMessage(tMsg.content)}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Thread Drawer Message Input */}
+            <div className="p-3 bg-[#2b2d31] border-t border-black/20 shrink-0">
+              <form onSubmit={handleSendThreadMessage} className="flex items-center gap-2">
+                <Input
+                  type="text"
+                  placeholder={`Kirim pesan ke #${activeThread?.name || 'thread'}...`}
+                  value={threadInputText}
+                  onChange={(e) => setThreadInputText(e.target.value)}
+                  className="flex-1 bg-[#383a40] border-none text-white placeholder:text-[#949ba4] text-xs h-9 rounded-lg focus-visible:ring-1 focus-visible:ring-[#5865f2]"
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!threadInputText.trim()}
+                  className="h-9 px-3 bg-[#5865f2] hover:bg-[#4752c4] text-white shrink-0 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </Button>
+              </form>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {/* Floating PiP Call Stage */}
         {activeCallChannelId && isCallPiP && (() => {

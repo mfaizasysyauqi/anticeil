@@ -6,11 +6,15 @@ import { CommunityChannelEntity, CommunityChannelRow } from './community-channel
 import { CommunityMessageEntity, CommunityMessageRow } from './community-message.entity'
 import { CommunityHubEntity, CommunityHubRow } from './community-hub.entity'
 import { CommunityHubMemberEntity, CommunityHubMemberRow } from './community-hub-member.entity'
+import { CommunityThreadEntity, CommunityThreadRow } from './community-thread.entity'
+import { CommunityChannelNotificationEntity, CommunityChannelNotificationRow } from './community-channel-notification.entity'
 
 const channelRepo = repoFactory(CommunityChannelEntity)
 const messageRepo = repoFactory(CommunityMessageEntity)
 const hubRepo = repoFactory(CommunityHubEntity)
 const hubMemberRepo = repoFactory(CommunityHubMemberEntity)
+const threadRepo = repoFactory(CommunityThreadEntity)
+const notificationRepo = repoFactory(CommunityChannelNotificationEntity)
 
 export const messagesService = (_log: FastifyBaseLogger) => ({
 
@@ -461,6 +465,183 @@ export const messagesService = (_log: FastifyBaseLogger) => ({
                 status: 'online',
             },
         }
+    },
+
+    // ── Pinned Messages ──────────────────────────────────────────────────
+    async listPinnedMessages(channelId: string): Promise<CommunityMessageRow[]> {
+        return messageRepo().find({
+            where: { channelId, isPinned: true },
+            order: { pinnedAt: 'DESC', created: 'DESC' },
+        })
+    },
+
+    async togglePinMessage(params: {
+        messageId: string
+        userId: string
+        userName?: string
+    }): Promise<CommunityMessageRow | null> {
+        const msg = await messageRepo().findOneBy({ id: params.messageId })
+        if (!msg) return null
+
+        const nextPinned = !msg.isPinned
+        msg.isPinned = nextPinned
+        msg.pinnedAt = nextPinned ? new Date().toISOString() : null
+        msg.pinnedBy = nextPinned ? (params.userName || params.userId) : null
+
+        return messageRepo().save(msg)
+    },
+
+    // ── Channel Notifications ─────────────────────────────────────────────
+    async getChannelNotification(channelId: string, userId: string): Promise<CommunityChannelNotificationRow> {
+        const existing = await notificationRepo().findOneBy({ channelId, userId })
+        if (existing) return existing
+
+        return {
+            id: 'default',
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+            channelId,
+            userId,
+            level: 'default',
+            isMuted: false,
+            mutedUntil: null,
+        }
+    },
+
+    async updateChannelNotification(params: {
+        channelId: string
+        userId: string
+        level?: 'default' | 'all' | 'mentions' | 'nothing'
+        isMuted?: boolean
+        mutedUntil?: string | null
+    }): Promise<CommunityChannelNotificationRow> {
+        let notif = await notificationRepo().findOneBy({
+            channelId: params.channelId,
+            userId: params.userId,
+        })
+
+        if (!notif) {
+            notif = notificationRepo().create({
+                id: apId(),
+                channelId: params.channelId,
+                userId: params.userId,
+                level: params.level || 'default',
+                isMuted: params.isMuted ?? false,
+                mutedUntil: params.mutedUntil ?? null,
+            })
+        } else {
+            if (params.level !== undefined) notif.level = params.level
+            if (params.isMuted !== undefined) notif.isMuted = params.isMuted
+            if (params.mutedUntil !== undefined) notif.mutedUntil = params.mutedUntil
+        }
+
+        return notificationRepo().save(notif)
+    },
+
+    // ── Threads ───────────────────────────────────────────────────────────
+    async listThreads(channelId: string, search?: string): Promise<CommunityThreadRow[]> {
+        const qb = threadRepo().createQueryBuilder('t')
+            .where('t.channelId = :channelId', { channelId })
+            .orderBy('t.lastMessageAt', 'DESC')
+
+        if (search && search.trim()) {
+            qb.andWhere('LOWER(t.name) LIKE LOWER(:search)', { search: `%${search.trim()}%` })
+        }
+
+        return qb.getMany()
+    },
+
+    async createThread(params: {
+        channelId: string
+        name: string
+        creatorId: string
+        creatorName: string
+        creatorAvatar?: string | null
+        initialMessageContent?: string
+    }): Promise<CommunityThreadRow> {
+        const thread = threadRepo().create({
+            id: apId(),
+            channelId: params.channelId,
+            name: params.name.trim(),
+            creatorId: params.creatorId,
+            creatorName: params.creatorName,
+            creatorAvatar: params.creatorAvatar ?? null,
+            messageCount: params.initialMessageContent ? 1 : 0,
+            lastMessageAt: new Date().toISOString(),
+        })
+
+        const savedThread = await threadRepo().save(thread)
+
+        if (params.initialMessageContent && params.initialMessageContent.trim()) {
+            const initialMsg = messageRepo().create({
+                id: apId(),
+                channelId: params.channelId,
+                senderId: params.creatorId,
+                senderName: params.creatorName,
+                senderEmail: '',
+                senderAvatar: params.creatorAvatar ?? null,
+                senderRole: 'member',
+                content: params.initialMessageContent.trim(),
+                attachments: null,
+                reactions: {},
+                isPinned: false,
+                pinnedAt: null,
+                pinnedBy: null,
+                threadId: savedThread.id,
+            })
+            await messageRepo().save(initialMsg)
+        }
+
+        return savedThread
+    },
+
+    async listThreadMessages(threadId: string, limit = 100): Promise<CommunityMessageRow[]> {
+        return messageRepo().find({
+            where: { threadId },
+            order: { created: 'ASC' },
+            take: limit,
+        })
+    },
+
+    async sendThreadMessage(params: {
+        threadId: string
+        channelId: string
+        senderId: string
+        senderName: string
+        senderEmail?: string
+        senderAvatar: string | null
+        senderRole: string
+        content: string
+        attachments?: object | null
+    }): Promise<CommunityMessageRow> {
+        const msg = messageRepo().create({
+            id: apId(),
+            channelId: params.channelId,
+            senderId: params.senderId,
+            senderName: params.senderName,
+            senderEmail: params.senderEmail || '',
+            senderAvatar: params.senderAvatar ?? null,
+            senderRole: params.senderRole,
+            content: params.content,
+            attachments: params.attachments ?? null,
+            reactions: {},
+            isPinned: false,
+            pinnedAt: null,
+            pinnedBy: null,
+            threadId: params.threadId,
+        })
+        const savedMsg = await messageRepo().save(msg)
+
+        await threadRepo().createQueryBuilder()
+            .update(CommunityThreadEntity)
+            .set({
+                messageCount: () => '"messageCount" + 1',
+                lastMessageAt: new Date().toISOString(),
+            })
+            .where('id = :threadId', { threadId: params.threadId })
+            .execute()
+
+        return savedMsg
     },
 })
 

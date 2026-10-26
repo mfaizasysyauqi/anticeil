@@ -64,6 +64,33 @@ export type CommunityMessage = {
   createdAt: string;
   attachments?: CommunityAttachment[];
   reactions?: Record<string, string[]>; // emoji: [userId, ...]
+  isPinned?: boolean;
+  pinnedAt?: string | null;
+  pinnedBy?: string | null;
+  threadId?: string | null;
+};
+
+export type CommunityChannelNotificationLevel = 'default' | 'all' | 'mentions' | 'nothing';
+
+export type CommunityChannelNotification = {
+  id?: string;
+  channelId: string;
+  userId: string;
+  level: CommunityChannelNotificationLevel;
+  isMuted: boolean;
+  mutedUntil?: string | null;
+};
+
+export type CommunityThread = {
+  id: string;
+  channelId: string;
+  name: string;
+  creatorId: string;
+  creatorName: string;
+  creatorAvatar?: string | null;
+  messageCount: number;
+  lastMessageAt: string;
+  createdAt?: string;
 };
 
 export type CommunityMember = {

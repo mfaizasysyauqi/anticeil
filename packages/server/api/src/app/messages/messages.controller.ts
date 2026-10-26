@@ -292,6 +292,169 @@ export const messagesController: FastifyPluginAsyncZod = async (fastify) => {
         return reply.send(updated)
     })
 
+    // ── Pinned Messages ──────────────────────────────────────────────────
+
+    // GET /v1/community/channels/:channelId/pins
+    fastify.get('/channels/:channelId/pins', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ channelId: z.string() }),
+        },
+    }, async (request, reply) => {
+        const pins = await messagesService(request.log).listPinnedMessages(request.params.channelId)
+        return reply.send(pins)
+    })
+
+    // POST /v1/community/messages/:messageId/pin
+    fastify.post('/messages/:messageId/pin', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ messageId: z.string() }),
+            body: z.object({
+                userName: z.string().optional(),
+            }).optional(),
+        },
+    }, async (request, reply) => {
+        const updated = await messagesService(request.log).togglePinMessage({
+            messageId: request.params.messageId,
+            userId: request.principal.id,
+            userName: request.body?.userName,
+        })
+        if (!updated) return reply.status(StatusCodes.NOT_FOUND).send({ message: 'Message not found' })
+        return reply.send(updated)
+    })
+
+    // ── Channel Notifications ─────────────────────────────────────────────
+
+    // GET /v1/community/channels/:channelId/notifications
+    fastify.get('/channels/:channelId/notifications', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ channelId: z.string() }),
+        },
+    }, async (request, reply) => {
+        const setting = await messagesService(request.log).getChannelNotification(
+            request.params.channelId,
+            request.principal.id,
+        )
+        return reply.send(setting)
+    })
+
+    // PUT /v1/community/channels/:channelId/notifications
+    fastify.put('/channels/:channelId/notifications', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ channelId: z.string() }),
+            body: z.object({
+                level: z.enum(['default', 'all', 'mentions', 'nothing']).optional(),
+                isMuted: z.boolean().optional(),
+                mutedUntil: z.string().nullable().optional(),
+            }),
+        },
+    }, async (request, reply) => {
+        const updated = await messagesService(request.log).updateChannelNotification({
+            channelId: request.params.channelId,
+            userId: request.principal.id,
+            level: request.body.level,
+            isMuted: request.body.isMuted,
+            mutedUntil: request.body.mutedUntil,
+        })
+        return reply.send(updated)
+    })
+
+    // ── Threads ───────────────────────────────────────────────────────────
+
+    // GET /v1/community/channels/:channelId/threads
+    fastify.get('/channels/:channelId/threads', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ channelId: z.string() }),
+            querystring: z.object({ search: z.string().optional() }),
+        },
+    }, async (request, reply) => {
+        const threads = await messagesService(request.log).listThreads(
+            request.params.channelId,
+            request.query.search,
+        )
+        return reply.send(threads)
+    })
+
+    // POST /v1/community/channels/:channelId/threads
+    fastify.post('/channels/:channelId/threads', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ channelId: z.string() }),
+            body: z.object({
+                name: z.string().min(1).max(100),
+                creatorName: z.string().optional(),
+                creatorAvatar: z.string().nullable().optional(),
+                initialMessage: z.string().optional(),
+            }),
+        },
+    }, async (request, reply) => {
+        const thread = await messagesService(request.log).createThread({
+            channelId: request.params.channelId,
+            name: request.body.name,
+            creatorId: request.principal.id,
+            creatorName: request.body.creatorName || 'Anonymous',
+            creatorAvatar: request.body.creatorAvatar ?? null,
+            initialMessageContent: request.body.initialMessage,
+        })
+        return reply.status(StatusCodes.CREATED).send(thread)
+    })
+
+    // GET /v1/community/threads/:threadId/messages
+    fastify.get('/threads/:threadId/messages', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ threadId: z.string() }),
+            querystring: z.object({ limit: z.coerce.number().min(1).max(200).default(100) }),
+        },
+    }, async (request, reply) => {
+        const messages = await messagesService(request.log).listThreadMessages(
+            request.params.threadId,
+            request.query.limit,
+        )
+        return reply.send(messages)
+    })
+
+    // POST /v1/community/threads/:threadId/messages
+    fastify.post('/threads/:threadId/messages', {
+        config: communitySecurity,
+        schema: {
+            tags: ['community'],
+            params: z.object({ threadId: z.string() }),
+            body: z.object({
+                channelId: z.string(),
+                content: z.string().min(1).max(4000),
+                senderName: z.string().optional(),
+                senderAvatar: z.string().nullable().optional(),
+                senderRole: z.string().optional(),
+                attachments: z.record(z.string(), z.unknown()).nullable().optional(),
+            }),
+        },
+    }, async (request, reply) => {
+        const msg = await messagesService(request.log).sendThreadMessage({
+            threadId: request.params.threadId,
+            channelId: request.body.channelId,
+            senderId: request.principal.id,
+            senderName: request.body.senderName || 'Anonymous',
+            senderEmail: '',
+            senderAvatar: request.body.senderAvatar ?? null,
+            senderRole: request.body.senderRole || 'member',
+            content: request.body.content,
+            attachments: request.body.attachments ?? null,
+        })
+        return reply.status(StatusCodes.CREATED).send(msg)
+    })
+
     // ── Members ────────────────────────────────────────────────────────────
 
     // GET /v1/community/members

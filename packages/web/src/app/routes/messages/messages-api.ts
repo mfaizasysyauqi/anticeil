@@ -28,6 +28,8 @@ import {
   CommunityCustomRole,
   CommunityHubStats,
   CommunityRole,
+  CommunityChannelNotification,
+  CommunityThread,
 } from './messages-types';
 
 export const messagesApi = {
@@ -746,6 +748,215 @@ export const messagesApi = {
       return { found: true, user: found };
     }
     return { found: false };
+  },
+
+  // ── Pinned Messages ───────────────────────────────────────────────────
+  async getPinnedMessages(channelId: string): Promise<CommunityMessage[]> {
+    try {
+      const res = await api.get<CommunityMessage[]>(`/v1/community/channels/${channelId}/pins`);
+      if (Array.isArray(res)) return res;
+    } catch {}
+    const stored = loadStoredMessages();
+    const list = stored[channelId] || [];
+    return list.filter((m) => m.isPinned);
+  },
+
+  async togglePinMessage(
+    messageId: string,
+    channelId: string,
+    userName?: string,
+  ): Promise<CommunityMessage> {
+    try {
+      const res = await api.post<CommunityMessage>(`/v1/community/messages/${messageId}/pin`, {
+        userName,
+      });
+      if (res && res.id) {
+        // sync to local stored messages
+        const stored = loadStoredMessages();
+        const list = stored[channelId] || [];
+        stored[channelId] = list.map((m) => (m.id === messageId ? { ...m, ...res } : m));
+        saveStoredMessages(stored);
+        return res;
+      }
+    } catch {}
+
+    // Fallback sync
+    const stored = loadStoredMessages();
+    const list = stored[channelId] || [];
+    let updatedMsg: CommunityMessage | null = null;
+    stored[channelId] = list.map((m) => {
+      if (m.id === messageId) {
+        const nextPinned = !m.isPinned;
+        updatedMsg = {
+          ...m,
+          isPinned: nextPinned,
+          pinnedAt: nextPinned ? new Date().toISOString() : null,
+          pinnedBy: nextPinned ? (userName || 'You') : null,
+        };
+        return updatedMsg;
+      }
+      return m;
+    });
+    saveStoredMessages(stored);
+    return updatedMsg || ({ id: messageId } as CommunityMessage);
+  },
+
+  // ── Channel Notifications ─────────────────────────────────────────────
+  async getChannelNotification(channelId: string): Promise<CommunityChannelNotification> {
+    try {
+      const res = await api.get<CommunityChannelNotification>(`/v1/community/channels/${channelId}/notifications`);
+      if (res && res.channelId) return res;
+    } catch {}
+    const saved = localStorage.getItem(`anticeil_notif_${channelId}`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    return {
+      channelId,
+      userId: 'me',
+      level: 'default',
+      isMuted: false,
+      mutedUntil: null,
+    };
+  },
+
+  async updateChannelNotification(
+    channelId: string,
+    payload: Partial<CommunityChannelNotification>,
+  ): Promise<CommunityChannelNotification> {
+    try {
+      const res = await api.put<CommunityChannelNotification>(`/v1/community/channels/${channelId}/notifications`, payload);
+      if (res && res.channelId) {
+        localStorage.setItem(`anticeil_notif_${channelId}`, JSON.stringify(res));
+        return res;
+      }
+    } catch {}
+
+    const current = await this.getChannelNotification(channelId);
+    const updated: CommunityChannelNotification = {
+      ...current,
+      ...payload,
+    };
+    localStorage.setItem(`anticeil_notif_${channelId}`, JSON.stringify(updated));
+    return updated;
+  },
+
+  // ── Threads ───────────────────────────────────────────────────────────
+  async getThreads(channelId: string, search?: string): Promise<CommunityThread[]> {
+    try {
+      const res = await api.get<CommunityThread[]>(`/v1/community/channels/${channelId}/threads`, {
+        params: search ? { search } : undefined,
+      });
+      if (Array.isArray(res)) {
+        localStorage.setItem(`anticeil_threads_${channelId}`, JSON.stringify(res));
+        return res;
+      }
+    } catch {}
+
+    const saved = localStorage.getItem(`anticeil_threads_${channelId}`);
+    if (saved) {
+      try {
+        const list: CommunityThread[] = JSON.parse(saved);
+        if (search) {
+          return list.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
+        }
+        return list;
+      } catch {}
+    }
+    return [];
+  },
+
+  async createThread(
+    channelId: string,
+    payload: {
+      name: string;
+      creatorName?: string;
+      creatorAvatar?: string | null;
+      initialMessage?: string;
+    },
+  ): Promise<CommunityThread> {
+    const fallbackThread: CommunityThread = {
+      id: `thread_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      channelId,
+      name: payload.name.trim(),
+      creatorId: 'me',
+      creatorName: payload.creatorName || 'You',
+      creatorAvatar: payload.creatorAvatar ?? null,
+      messageCount: payload.initialMessage ? 1 : 0,
+      lastMessageAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const res = await api.post<CommunityThread>(`/v1/community/channels/${channelId}/threads`, payload);
+      if (res && res.id) {
+        const current = await this.getThreads(channelId);
+        localStorage.setItem(`anticeil_threads_${channelId}`, JSON.stringify([res, ...current]));
+        return res;
+      }
+    } catch {}
+
+    const current = await this.getThreads(channelId);
+    localStorage.setItem(`anticeil_threads_${channelId}`, JSON.stringify([fallbackThread, ...current]));
+    return fallbackThread;
+  },
+
+  async getThreadMessages(threadId: string): Promise<CommunityMessage[]> {
+    try {
+      const res = await api.get<CommunityMessage[]>(`/v1/community/threads/${threadId}/messages`);
+      if (Array.isArray(res)) return res;
+    } catch {}
+
+    const saved = localStorage.getItem(`anticeil_thread_msgs_${threadId}`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    return [];
+  },
+
+  async sendThreadMessage(
+    threadId: string,
+    channelId: string,
+    payload: Partial<CommunityMessage>,
+  ): Promise<CommunityMessage> {
+    const fallbackMsg: CommunityMessage = {
+      id: `msg_th_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      channelId,
+      threadId,
+      senderId: payload.senderId || 'me',
+      senderName: payload.senderName || 'You',
+      senderEmail: payload.senderEmail || '',
+      senderAvatar: payload.senderAvatar ?? null,
+      senderRole: (payload.senderRole as any) || 'member',
+      content: payload.content || '',
+      attachments: payload.attachments,
+      reactions: {},
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const res = await api.post<CommunityMessage>(`/v1/community/threads/${threadId}/messages`, {
+        channelId,
+        content: payload.content,
+        senderName: payload.senderName,
+        senderAvatar: payload.senderAvatar,
+        senderRole: payload.senderRole,
+        attachments: payload.attachments,
+      });
+      if (res && res.id) {
+        const current = await this.getThreadMessages(threadId);
+        localStorage.setItem(`anticeil_thread_msgs_${threadId}`, JSON.stringify([...current, res]));
+        return res;
+      }
+    } catch {}
+
+    const current = await this.getThreadMessages(threadId);
+    localStorage.setItem(`anticeil_thread_msgs_${threadId}`, JSON.stringify([...current, fallbackMsg]));
+    return fallbackMsg;
   },
 
   // ── Bot Webhooks ──────────────────────────────────────────────────────
