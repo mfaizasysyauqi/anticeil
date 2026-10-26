@@ -18,6 +18,7 @@ import {
 } from './messages-data';
 import {
   CommunityChannel,
+  CommunityChannelType,
   CommunityMember,
   CommunityMessage,
   CommunityHub,
@@ -56,6 +57,8 @@ export const messagesApi = {
     description: string;
     category: 'CHANNELS' | 'DIRECT MESSAGES';
     hubId?: string;
+    type?: CommunityChannelType;
+    isPrivate?: boolean;
   }): Promise<CommunityChannel> {
     try {
       const res = await api.post<CommunityChannel>('/v1/community/channels', payload);
@@ -72,6 +75,8 @@ export const messagesApi = {
       description: payload.description,
       category: payload.category,
       hubId: payload.hubId || 'anticeil',
+      type: payload.type || 'text',
+      isPrivate: payload.isPrivate || false,
     };
     const stored = loadStoredChannels();
     const updated = [...stored.filter((c) => c.id !== newChannel.id), newChannel];
@@ -81,7 +86,7 @@ export const messagesApi = {
 
   async updateChannel(
     id: string,
-    payload: { name?: string; description?: string },
+    payload: { name?: string; description?: string; type?: CommunityChannelType; isPrivate?: boolean },
   ): Promise<CommunityChannel> {
     try {
       const res = await api.put<CommunityChannel>(`/v1/community/channels/${id}`, payload);

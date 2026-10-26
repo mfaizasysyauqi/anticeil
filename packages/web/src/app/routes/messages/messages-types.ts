@@ -18,6 +18,8 @@ export type {
   CommunityHub,
 } from '@/lib/community-hubs';
 
+export type CommunityChannelType = 'text' | 'voice' | 'forum';
+
 export type CommunityChannel = {
   id: string;
   name: string;
@@ -27,6 +29,8 @@ export type CommunityChannel = {
   isDirectMessage?: boolean;
   dmUserId?: string;
   unreadCount?: number;
+  type?: CommunityChannelType;
+  isPrivate?: boolean;
 };
 
 export type CommunityAttachment = {

@@ -64,6 +64,8 @@ import {
   Camera,
   Upload,
   Gift,
+  Volume2,
+  MessagesSquare,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useTranslation } from 'react-i18next';
@@ -103,6 +105,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
@@ -131,6 +134,7 @@ import {
 import {
   CommunityAttachment,
   CommunityChannel,
+  CommunityChannelType,
   CommunityHub,
   CommunityHubId,
   CommunityMember,
@@ -365,6 +369,8 @@ export function CommunityPage() {
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelDesc, setNewChannelDesc] = useState('');
   const [newChannelCategory, setNewChannelCategory] = useState<'CHANNELS' | 'DIRECT MESSAGES'>('CHANNELS');
+  const [newChannelType, setNewChannelType] = useState<CommunityChannelType>('text');
+  const [newChannelIsPrivate, setNewChannelIsPrivate] = useState(false);
 
   const [channelToEdit, setChannelToEdit] = useState<CommunityChannel | null>(null);
   const [editChannelName, setEditChannelName] = useState('');
@@ -1120,12 +1126,19 @@ export function CommunityPage() {
     e.preventDefault();
     if (!newChannelName.trim()) return;
 
+    const formattedName =
+      newChannelType === 'voice'
+        ? newChannelName.trim()
+        : newChannelName.trim().toLowerCase().replace(/\s+/g, '-');
+
     try {
       const created = await communityApi.createChannel({
-        name: newChannelName.trim(),
+        name: formattedName,
         description: newChannelDesc.trim(),
         category: newChannelCategory,
         hubId: activeHubId === 'direct-messages' ? 'anticeil' : activeHubId,
+        type: newChannelType,
+        isPrivate: newChannelIsPrivate,
       });
 
       setChannels((prev) => {
@@ -1136,6 +1149,9 @@ export function CommunityPage() {
       setIsCreateChannelOpen(false);
       setNewChannelName('');
       setNewChannelDesc('');
+      setNewChannelType('text');
+      setNewChannelIsPrivate(false);
+      toast.success(t(`Channel ${created.name} berhasil dibuat!`));
     } catch (err) {
       console.error('Failed to create channel', err);
     }
@@ -1856,13 +1872,32 @@ export function CommunityPage() {
                           : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                       )}
                     >
-                      <Hash
-                        className={cn(
-                          'w-4 h-4 shrink-0 transition-colors',
-                          isActiveCh ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
-                        )}
-                      />
+                      {ch.type === 'voice' ? (
+                        <Volume2
+                          className={cn(
+                            'w-4 h-4 shrink-0 transition-colors',
+                            isActiveCh ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
+                          )}
+                        />
+                      ) : ch.type === 'forum' ? (
+                        <MessagesSquare
+                          className={cn(
+                            'w-4 h-4 shrink-0 transition-colors',
+                            isActiveCh ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
+                          )}
+                        />
+                      ) : (
+                        <Hash
+                          className={cn(
+                            'w-4 h-4 shrink-0 transition-colors',
+                            isActiveCh ? 'text-primary' : 'text-muted-foreground/70 group-hover:text-foreground',
+                          )}
+                        />
+                      )}
                       <span className="truncate flex-1">{ch.name}</span>
+                      {ch.isPrivate && (
+                        <Lock className="w-3 h-3 text-muted-foreground/60 shrink-0" title="Private Channel" />
+                      )}
                       {activeCallCounts[ch.id] && activeCallCounts[ch.id] > 0 ? (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 flex items-center gap-1 shrink-0 animate-pulse">
                           <Radio className="w-2.5 h-2.5" />
@@ -2677,11 +2712,20 @@ export function CommunityPage() {
             <div className="flex items-center gap-2 min-w-0">
               {activeChannel?.category === 'DIRECT MESSAGES' || activeChannel?.isDirectMessage ? (
                 <span className="text-muted-foreground font-bold text-base shrink-0 select-none">@</span>
+              ) : activeChannel?.type === 'voice' ? (
+                <Volume2 className="w-5 h-5 text-muted-foreground shrink-0" />
+              ) : activeChannel?.type === 'forum' ? (
+                <MessagesSquare className="w-5 h-5 text-muted-foreground shrink-0" />
               ) : (
                 <Hash className="w-5 h-5 text-muted-foreground shrink-0" />
               )}
-              <span className="text-sm font-semibold truncate text-foreground">
+              <span className="text-sm font-semibold truncate text-foreground flex items-center gap-1.5">
                 {activeChannel ? activeChannel.name : t('Belum ada channel')}
+                {activeChannel?.isPrivate && (
+                  <span className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold flex items-center gap-1">
+                    <Lock className="w-2.5 h-2.5" /> Private
+                  </span>
+                )}
               </span>
 
               {activeChannel?.description && (
@@ -5237,55 +5281,174 @@ export function CommunityPage() {
           </DialogContent>
         </Dialog>
 
-        {/* DIALOG: BUAT CHANNEL BARU (Channel CRUD: Create) */}
+        {/* DIALOG: BUAT CHANNEL BARU (Discord-Style: 3 Types + Private Toggle) */}
         <Dialog open={isCreateChannelOpen} onOpenChange={setIsCreateChannelOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <form onSubmit={handleCreateChannelSubmit}>
-              <DialogHeader>
-                <DialogTitle>{t('Buat Channel Baru')}</DialogTitle>
-                <DialogDescription>
-                  Tambahkan ruang diskusi baru untuk tim dan komunitas Anticeil.
-                </DialogDescription>
-              </DialogHeader>
+          <DialogContent className="sm:max-w-[460px] p-0 overflow-hidden bg-[#313338] border-[#232428] text-white">
+            <form onSubmit={handleCreateChannelSubmit} className="flex flex-col">
+              {/* Header */}
+              <div className="p-5 pb-3">
+                <DialogTitle className="text-xl font-bold text-white tracking-tight">
+                  {t('Create Channel')}
+                </DialogTitle>
+                <p className="text-xs text-[#949ba4] mt-0.5">
+                  in {newChannelCategory === 'CHANNELS' ? (activeHub?.name || 'Text Channels') : 'Direct Messages'}
+                </p>
+              </div>
 
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold">Nama Channel</label>
-                  <div className="relative">
-                    <Hash className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={newChannelName}
-                      onChange={(e) => setNewChannelName(e.target.value)}
-                      placeholder="contoh: tips-otomasi"
-                      className="pl-9 text-xs"
-                      required
-                    />
+              {/* Body */}
+              <div className="px-5 py-2 space-y-4 max-h-[70vh] overflow-y-auto [scrollbar-width:thin]">
+                {/* 1. CHANNEL TYPE */}
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#b5bac1] block mb-2">
+                    {t('CHANNEL TYPE')}
+                  </label>
+                  <div className="space-y-2">
+                    {/* Option 1: Text */}
+                    <div
+                      onClick={() => setNewChannelType('text')}
+                      className={cn(
+                        'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border',
+                        newChannelType === 'text'
+                          ? 'bg-[#3b3e45] border-[#5865f2] text-white'
+                          : 'bg-[#2b2d31] border-transparent hover:bg-[#35373c] text-[#dbdee1]',
+                      )}
+                    >
+                      {/* Radio dot */}
+                      <div className={cn(
+                        'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
+                        newChannelType === 'text' ? 'border-[#5865f2] bg-[#5865f2]' : 'border-[#80848e]',
+                      )}>
+                        {newChannelType === 'text' && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+                      <Hash className="w-6 h-6 text-[#949ba4] shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-white">Text</div>
+                        <div className="text-xs text-[#949ba4] leading-snug">
+                          Send messages, images, GIFs, emoji, opinions, and puns
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Option 2: Voice */}
+                    <div
+                      onClick={() => setNewChannelType('voice')}
+                      className={cn(
+                        'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border',
+                        newChannelType === 'voice'
+                          ? 'bg-[#3b3e45] border-[#5865f2] text-white'
+                          : 'bg-[#2b2d31] border-transparent hover:bg-[#35373c] text-[#dbdee1]',
+                      )}
+                    >
+                      {/* Radio dot */}
+                      <div className={cn(
+                        'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
+                        newChannelType === 'voice' ? 'border-[#5865f2] bg-[#5865f2]' : 'border-[#80848e]',
+                      )}>
+                        {newChannelType === 'voice' && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+                      <Volume2 className="w-6 h-6 text-[#949ba4] shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-white">Voice</div>
+                        <div className="text-xs text-[#949ba4] leading-snug">
+                          Hang out together with voice, video, and screen share
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Option 3: Forum */}
+                    <div
+                      onClick={() => setNewChannelType('forum')}
+                      className={cn(
+                        'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border',
+                        newChannelType === 'forum'
+                          ? 'bg-[#3b3e45] border-[#5865f2] text-white'
+                          : 'bg-[#2b2d31] border-transparent hover:bg-[#35373c] text-[#dbdee1]',
+                      )}
+                    >
+                      {/* Radio dot */}
+                      <div className={cn(
+                        'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
+                        newChannelType === 'forum' ? 'border-[#5865f2] bg-[#5865f2]' : 'border-[#80848e]',
+                      )}>
+                        {newChannelType === 'forum' && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+                      <MessagesSquare className="w-6 h-6 text-[#949ba4] shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-white">Forum</div>
+                        <div className="text-xs text-[#949ba4] leading-snug">
+                          Create a space for organized discussions
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid gap-1.5">
-                  <label className="text-xs font-semibold">Deskripsi / Topik</label>
-                  <Input
-                    value={newChannelDesc}
-                    onChange={(e) => setNewChannelDesc(e.target.value)}
-                    placeholder="Ruang diskusi untuk..."
-                    className="text-xs"
-                  />
+                {/* 2. CHANNEL NAME */}
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#b5bac1] block mb-2">
+                    {t('CHANNEL NAME')}
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#949ba4]">
+                      {newChannelType === 'text' && <Hash className="w-4 h-4" />}
+                      {newChannelType === 'voice' && <Volume2 className="w-4 h-4" />}
+                      {newChannelType === 'forum' && <MessagesSquare className="w-4 h-4" />}
+                    </div>
+                    <Input
+                      value={newChannelName}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewChannelName(newChannelType === 'voice' ? val : val.toLowerCase().replace(/\s+/g, '-'));
+                      }}
+                      placeholder="new-channel"
+                      className="pl-9 pr-9 bg-[#1e1f22] border-none text-white placeholder:text-[#80848e] rounded-md h-10 text-sm focus-visible:ring-1 focus-visible:ring-[#5865f2]"
+                      required
+                    />
+                    <Smile className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#949ba4] pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* 3. PRIVATE CHANNEL SWITCH */}
+                <div className="pt-2 border-t border-white/5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <Lock className="w-4 h-4 text-white mt-0.5 shrink-0" />
+                      <div>
+                        <div className="text-sm font-semibold text-white flex items-center gap-1.5">
+                          Private Channel
+                        </div>
+                        <p className="text-xs text-[#949ba4] leading-snug">
+                          Only selected members and roles will be able to view this channel.
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={newChannelIsPrivate}
+                      onCheckedChange={setNewChannelIsPrivate}
+                      className="data-[state=checked]:bg-[#5865f2]"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <DialogFooter>
+              {/* Footer */}
+              <div className="px-5 py-3.5 bg-[#2b2d31] flex items-center justify-end gap-3 mt-4">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => setIsCreateChannelOpen(false)}
+                  className="text-white hover:text-white hover:bg-white/10 text-xs font-semibold h-9 px-4"
                 >
-                  Batal
+                  Cancel
                 </Button>
-                <Button type="submit">
-                  Buat Channel
+                <Button
+                  type="submit"
+                  disabled={!newChannelName.trim()}
+                  className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold h-9 px-5 rounded-md shadow-sm transition-all"
+                >
+                  Create Channel
                 </Button>
-              </DialogFooter>
+              </div>
             </form>
           </DialogContent>
         </Dialog>
