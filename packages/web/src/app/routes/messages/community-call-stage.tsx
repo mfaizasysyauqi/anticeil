@@ -282,6 +282,11 @@ export function CommunityCallStage({
   const internalActivityOpen = activeAppId !== null;
   const isActivityOpen = internalActivityOpen;
 
+  // Screen Sharing computed states
+  const screenSharePeer = participants.find((p) => p.isScreenSharing);
+  const isAnyoneScreenSharing = isScreenSharing || Boolean(screenSharePeer);
+  const activeScreenStream = isScreenSharing ? screenStream : screenSharePeer?.stream || null;
+
   const handleLaunchApp = (appId: string) => {
     setActiveAppId(appId);
     setIsAppLauncherOpen(false);
@@ -783,7 +788,18 @@ export function CommunityCallStage({
 
     if (currentLocalStream) {
       currentLocalStream.getTracks().forEach((track) => {
-        pc.addTrack(track, currentLocalStream);
+        if (track.kind === 'video' && isScreenSharing && screenStream && screenStream.getVideoTracks()[0]) {
+          pc.addTrack(screenStream.getVideoTracks()[0], screenStream);
+        } else {
+          pc.addTrack(track, currentLocalStream);
+        }
+      });
+      if (isScreenSharing && screenStream && screenStream.getVideoTracks()[0] && !currentLocalStream.getVideoTracks().length) {
+        pc.addTrack(screenStream.getVideoTracks()[0], screenStream);
+      }
+    } else if (isScreenSharing && screenStream) {
+      screenStream.getTracks().forEach((track) => {
+        pc.addTrack(track, screenStream);
       });
     }
 
@@ -809,21 +825,20 @@ export function CommunityCallStage({
       );
     };
 
-    if (isInitiator) {
-      pc.onnegotiationneeded = async () => {
-        try {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          socket?.emit('COMMUNITY_CALL_SIGNAL', {
-            channelId: channel.id,
-            targetSocketId,
-            signal: offer,
-          });
-        } catch (err) {
-          console.error('Failed to create offer', err);
-        }
-      };
-    }
+    pc.onnegotiationneeded = async () => {
+      try {
+        if (pc.signalingState !== 'stable') return;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket?.emit('COMMUNITY_CALL_SIGNAL', {
+          channelId: channel.id,
+          targetSocketId,
+          signal: offer,
+        });
+      } catch (err) {
+        console.error('Failed to negotiate peer connection', err);
+      }
+    };
 
     return pc;
   };
@@ -1046,60 +1061,112 @@ export function CommunityCallStage({
         setScreenStream(null);
       }
       setIsScreenSharing(false);
+
+      const camTrack = (!isVideoOff && localStream) ? localStream.getVideoTracks()[0] : null;
+      for (const sId in peerConnections.current) {
+        const pc = peerConnections.current[sId];
+        const sender = pc.getSenders().find((s) => s.track?.kind === 'video' || s.kind === 'video');
+        if (sender) {
+          try {
+            await sender.replaceTrack(camTrack || null);
+          } catch (e) {
+            console.warn('Failed to revert track to camera', e);
+          }
+        }
+      }
+
       socket?.emit('COMMUNITY_CALL_TOGGLE_MEDIA', {
         channelId: channel.id,
         isScreenSharing: false,
       });
+      toast.info('Berbagi layar dihentikan');
       return;
     }
 
     try {
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true,
-      });
+      let displayStream: MediaStream;
+      try {
+        displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            cursor: 'always',
+          } as any,
+          audio: true,
+        });
+      } catch (audioErr: any) {
+        if (audioErr?.name === 'NotAllowedError' || audioErr?.name === 'AbortError') {
+          throw audioErr;
+        }
+        // Fallback to video only if user unchecks audio or browser does not permit system audio
+        displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+        });
+      }
 
       setScreenStream(displayStream);
       setIsScreenSharing(true);
 
-      if (screenVideoRef.current) {
-        screenVideoRef.current.srcObject = displayStream;
+      const screenTrack = displayStream.getVideoTracks()[0];
+      if (!screenTrack) {
+        throw new Error('Tidak ada trek video ditemukan pada layar');
       }
 
-      const screenTrack = displayStream.getVideoTracks()[0];
       for (const sId in peerConnections.current) {
         const pc = peerConnections.current[sId];
-        const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
-        if (sender && screenTrack) {
-          sender.replaceTrack(screenTrack);
+        const sender = pc.getSenders().find((s) => s.track?.kind === 'video' || s.kind === 'video');
+        if (sender) {
+          try {
+            await sender.replaceTrack(screenTrack);
+          } catch (e) {
+            console.warn('replaceTrack failed, adding track directly', e);
+          }
+        } else {
+          try {
+            pc.addTrack(screenTrack, displayStream);
+            if (pc.signalingState === 'stable') {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              socket?.emit('COMMUNITY_CALL_SIGNAL', {
+                channelId: channel.id,
+                targetSocketId: sId,
+                signal: offer,
+              });
+            }
+          } catch (negErr) {
+            console.warn('Renegotiation failed on screen share addTrack', negErr);
+          }
         }
       }
 
       screenTrack.onended = () => {
         setIsScreenSharing(false);
         setScreenStream(null);
-        if (localStream) {
-          const camTrack = localStream.getVideoTracks()[0];
-          for (const sId in peerConnections.current) {
-            const pc = peerConnections.current[sId];
-            const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
-            if (sender && camTrack) {
-              sender.replaceTrack(camTrack);
-            }
+        const camTrack = (!isVideoOff && localStream) ? localStream.getVideoTracks()[0] : null;
+        for (const sId in peerConnections.current) {
+          const pc = peerConnections.current[sId];
+          const sender = pc.getSenders().find((s) => s.track?.kind === 'video' || s.kind === 'video');
+          if (sender) {
+            sender.replaceTrack(camTrack || null).catch(() => {});
           }
         }
         socket?.emit('COMMUNITY_CALL_TOGGLE_MEDIA', {
           channelId: channel.id,
           isScreenSharing: false,
         });
+        toast.info('Berbagi layar dihentikan');
       };
 
       socket?.emit('COMMUNITY_CALL_TOGGLE_MEDIA', {
         channelId: channel.id,
         isScreenSharing: true,
       });
-    } catch (err) {
-      console.warn('Screen share cancelled or failed', err);
+      toast.success('Berbagi layar aktif');
+    } catch (err: any) {
+      if (err?.name === 'NotAllowedError' || err?.name === 'AbortError' || err?.message?.includes('Permission denied')) {
+        toast.info('Berbagi layar dibatalkan');
+      } else {
+        console.warn('Screen share error', err);
+        toast.error('Gagal berbagi layar: ' + (err?.message || 'Izin ditolak atau tidak didukung'));
+      }
     }
   };
 
@@ -2670,11 +2737,8 @@ export function CommunityCallStage({
                 {/* Screen Share Tile if sharing */}
                 {isScreenSharing && (
                   <div className="w-28 sm:w-36 h-20 sm:h-24 rounded-xl bg-[#2b2d31] border border-emerald-500/40 relative overflow-hidden shrink-0 flex items-center justify-center shadow-lg group">
-                    <video
-                      ref={screenVideoRef}
-                      autoPlay
-                      playsInline
-                      muted
+                    <ScreenVideoView
+                      stream={screenStream}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-red-600 text-[8px] font-extrabold text-white flex items-center gap-1 shadow-xs">
@@ -2708,8 +2772,115 @@ export function CommunityCallStage({
             )}
           </div>
         </div>
+      ) : isAnyoneScreenSharing ? (
+        /* CASE B1: DISCORD SCREEN SHARE SPOTLIGHT STAGE */
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden w-full h-full bg-[#111214] p-3 gap-3">
+          {/* Main Hero Screen View */}
+          <div className="flex-1 min-h-0 relative rounded-2xl overflow-hidden bg-black/95 border border-white/10 shadow-2xl flex items-center justify-center">
+            {activeScreenStream ? (
+              <ScreenVideoView stream={activeScreenStream} className="w-full h-full" />
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                <Monitor className="w-12 h-12 text-primary/60 animate-pulse" />
+                <span className="text-sm font-medium">Menghubungkan streaming layar...</span>
+              </div>
+            )}
+
+            {/* Top Badge Overlay */}
+            <div className="absolute top-3 left-3 px-3 py-1.5 rounded-lg bg-black/75 backdrop-blur-md flex items-center gap-2 border border-white/10 z-10 shadow-lg">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <Monitor className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs font-bold text-white tracking-wide">
+                {isScreenSharing
+                  ? 'Layar Anda (Live)'
+                  : `Layar ${screenSharePeer?.userName || 'Rekan'} (Live)`}
+              </span>
+            </div>
+
+            {/* Top Right Stop Button if Local Sharing */}
+            {isScreenSharing && (
+              <button
+                type="button"
+                onClick={handleToggleScreenShare}
+                className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-red-600/90 hover:bg-red-600 text-white text-xs font-semibold flex items-center gap-1.5 backdrop-blur-md shadow-lg transition-all cursor-pointer z-10"
+              >
+                <MonitorOff className="w-4 h-4" />
+                <span>Hentikan Berbagi</span>
+              </button>
+            )}
+          </div>
+
+          {/* Bottom Participant Filmstrip */}
+          <div className="h-24 sm:h-28 shrink-0 flex items-center gap-2.5 overflow-x-auto px-1 py-1 no-scrollbar">
+            {/* Local Participant Tile */}
+            <div className="w-32 sm:w-40 h-full rounded-xl bg-[#2b2d31] border border-white/10 relative overflow-hidden shrink-0 flex items-center justify-center shadow-lg group">
+              {!isVideoOff && localStream && localStream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled) ? (
+                <LocalVideoView stream={localStream} />
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-1">
+                  <div
+                    className={cn(
+                      'w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all',
+                      isSpeakingLocal
+                        ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-[#2b2d31]'
+                        : 'ring-1 ring-white/10',
+                    )}
+                  >
+                    <CommunityAvatar
+                      name={currentUserName}
+                      imageUrl={currentUser?.imageUrl}
+                      email={currentUser?.email}
+                      size={44}
+                      showStatus={false}
+                      className="w-full h-full rounded-full"
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-xs flex items-center gap-1 text-[10px] font-semibold text-white border border-white/10">
+                <span className="truncate max-w-[90px]">{currentUserName}</span>
+                {isMuted ? <MicOff className="w-2.5 h-2.5 text-red-400" /> : <Mic className="w-2.5 h-2.5 text-emerald-400" />}
+              </div>
+            </div>
+
+            {/* Remote Participants Tiles */}
+            {participants.map((peer) => (
+              <div
+                key={peer.socketId}
+                className="w-32 sm:w-40 h-full rounded-xl bg-[#2b2d31] border border-white/10 relative overflow-hidden shrink-0 flex items-center justify-center shadow-lg group"
+              >
+                {peer.hasVideo && peer.stream && !peer.isScreenSharing ? (
+                  <RemoteVideoView stream={peer.stream} />
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-1">
+                    <div
+                      className={cn(
+                        'w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all',
+                        peer.isSpeaking
+                          ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-[#2b2d31]'
+                          : 'ring-1 ring-white/10',
+                      )}
+                    >
+                      <CommunityAvatar
+                        name={peer.userName}
+                        imageUrl={peer.userAvatar}
+                        size={44}
+                        showStatus={false}
+                        className="w-full h-full rounded-full"
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-xs flex items-center gap-1 text-[10px] font-semibold text-white border border-white/10">
+                  <span className="truncate max-w-[90px]">{peer.userName}</span>
+                  {!peer.hasAudio ? <MicOff className="w-2.5 h-2.5 text-red-400" /> : <Mic className="w-2.5 h-2.5 text-emerald-400" />}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
-        /* CASE B: NORMAL DISCORD VIDEO GRID STAGE */
+        /* CASE B2: NORMAL DISCORD VIDEO GRID STAGE */
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden w-full h-full">
           <div className="flex-1 min-h-0 min-w-0 bg-transparent border-0 flex flex-col overflow-hidden w-full h-full">
             <div
@@ -3313,3 +3484,35 @@ function RemoteVideoView({
     />
   );
 }
+
+// ── Helper Subcomponent to render Screen Share Streams cleanly (non-mirrored) ──
+function ScreenVideoView({
+  stream,
+  className,
+}: {
+  stream: MediaStream | null;
+  className?: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && stream) {
+      video.srcObject = stream;
+      video.play().catch((err) => {
+        console.warn('Screen video play error:', err);
+      });
+    }
+  }, [stream]);
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      className={cn('w-full h-full object-contain bg-black/95', className)}
+    />
+  );
+}
+
