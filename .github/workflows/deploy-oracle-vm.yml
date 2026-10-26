@@ -68,75 +68,7 @@ jobs:
             cd ~/anticeil
 
             # Ensure latest docker-compose.yml is in place
-            cat << 'COMPOSE_EOF' > docker-compose.yml
-services:
-  app:
-    image: anticeil:latest
-    container_name: activepieces-app
-    restart: unless-stopped
-    ports:
-      - '8080:80'
-    depends_on:
-      - postgres
-      - redis
-    env_file: .env
-    environment:
-      - AP_CONTAINER_TYPE=APP
-      - AP_INTERNAL_URL=http://app
-    volumes:
-      - ./cache:/usr/src/app/cache
-    networks:
-      - activepieces
-  chat:
-    image: ghcr.io/mfaizasysyauqi/anticeil-chat:latest
-    container_name: anticeil-chat
-    restart: unless-stopped
-    ports:
-      - '3005:3005'
-    networks:
-      - activepieces
-  worker:
-    image: anticeil:latest
-    restart: unless-stopped
-    depends_on:
-      - app
-    env_file: .env
-    environment:
-      - AP_CONTAINER_TYPE=WORKER
-      - AP_INTERNAL_URL=http://app
-    deploy:
-      replicas: 5
-    volumes:
-      - ./cache:/usr/src/app/cache
-    networks:
-      - activepieces
-  postgres:
-    image: 'pgvector/pgvector:0.8.0-pg14'
-    container_name: postgres
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      - 'POSTGRES_DB=${AP_POSTGRES_DATABASE}'
-      - 'POSTGRES_PASSWORD=${AP_POSTGRES_PASSWORD}'
-      - 'POSTGRES_USER=${AP_POSTGRES_USERNAME}'
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - activepieces
-  redis:
-    image: 'redis:7.0.7'
-    container_name: redis
-    restart: unless-stopped
-    volumes:
-      - 'redis_data:/data'
-    networks:
-      - activepieces
-volumes:
-  postgres_data:
-  redis_data:
-networks:
-  activepieces:
-COMPOSE_EOF
+            echo "c2VydmljZXM6CiAgYXBwOgogICAgaW1hZ2U6IGFudGljZWlsOmxhdGVzdAogICAgY29udGFpbmVyX25hbWU6IGFjdGl2ZXBpZWNlcy1hcHAKICAgIHJlc3RhcnQ6IHVubGVzcy1zdG9wcGVkCiAgICBwb3J0czoKICAgICAgLSAnODA4MDo4MCcKICAgIGRlcGVuZHNfb246CiAgICAgIC0gcG9zdGdyZXMKICAgICAgLSByZWRpcwogICAgZW52X2ZpbGU6IC5lbnYKICAgIGVudmlyb25tZW50OgogICAgICAtIEFQX0NPTlRBSU5FUl9UWVBFPUFQUAogICAgICAtIEFQX0lOVEVSTkFMX1VSTD1odHRwOi8vYXBwCiAgICB2b2x1bWVzOgogICAgICAtIC4vY2FjaGU6L3Vzci9zcmMvYXBwL2NhY2hlCiAgICBuZXR3b3JrczoKICAgICAgLSBhY3RpdmVwaWVjZXMKICBjaGF0OgogICAgaW1hZ2U6IGdoY3IuaW8vbWZhaXphc3lzeWF1cWkvYW50aWNlaWwtY2hhdDpsYXRlc3QKICAgIGNvbnRhaW5lcl9uYW1lOiBhbnRpY2VpbC1jaGF0CiAgICByZXN0YXJ0OiB1bmxlc3Mtc3RvcHBlZAogICAgcG9ydHM6CiAgICAgIC0gJzMwMDU6MzAwNScKICAgIG5ldHdvcmtzOgogICAgICAtIGFjdGl2ZXBpZWNlcwogIHdvcmtlcjoKICAgIGltYWdlOiBhbnRpY2VpbDpsYXRlc3QKICAgIHJlc3RhcnQ6IHVubGVzcy1zdG9wcGVkCiAgICBkZXBlbmRzX29uOgogICAgICAtIGFwcAogICAgZW52X2ZpbGU6IC5lbnYKICAgIGVudmlyb25tZW50OgogICAgICAtIEFQX0NPTlRBSU5FUl9UWVBFPVdPUktFUgogICAgICAtIEFQX0lOVEVSTkFMX1VSTD1odHRwOi8vYXBwCiAgICBkZXBsb3k6CiAgICAgIHJlcGxpY2FzOiA1CiAgICB2b2x1bWVzOgogICAgICAtIC4vY2FjaGU6L3Vzci9zcmMvYXBwL2NhY2hlCiAgICBuZXR3b3JrczoKICAgICAgLSBhY3RpdmVwaWVjZXMKICBwb3N0Z3JlczoKICAgIGltYWdlOiAncGd2ZWN0b3IvcGd2ZWN0b3I6MC44LjAtcGcxNCcKICAgIGNvbnRhaW5lcl9uYW1lOiBwb3N0Z3JlcwogICAgcmVzdGFydDogdW5sZXNzLXN0b3BwZWQKICAgIGVudl9maWxlOiAuZW52CiAgICBlbnZpcm9ubWVudDoKICAgICAgLSAnUE9TVEdSRVNfREI9JHtBUF9QT1NUR1JFU19EQVRBQkFTRX0nCiAgICAgIC0gJ1BPU1RHUkVTX1BBU1NXT1JEPSR7QVBfUE9TVEdSRVNfUEFTU1dPUkR9JwogICAgICAtICdQT1NUR1JFU19VU0VSPSR7QVBfUE9TVEdSRVNfVVNFUk5BTUV9JwogICAgdm9sdW1lczoKICAgICAgLSBwb3N0Z3Jlc19kYXRhOi92YXIvbGliL3Bvc3RncmVzcWwvZGF0YQogICAgbmV0d29ya3M6CiAgICAgIC0gYWN0aXZlcGllY2VzCiAgcmVkaXM6CiAgICBpbWFnZTogJ3JlZGlzOjcuMC43JwogICAgY29udGFpbmVyX25hbWU6IHJlZGlzCiAgICByZXN0YXJ0OiB1bmxlc3Mtc3RvcHBlZAogICAgdm9sdW1lczoKICAgICAgLSAncmVkaXNfZGF0YTovZGF0YScKICAgIG5ldHdvcmtzOgogICAgICAtIGFjdGl2ZXBpZWNlcwp2b2x1bWVzOgogIHBvc3RncmVzX2RhdGE6CiAgcmVkaXNfZGF0YToKbmV0d29ya3M6CiAgYWN0aXZlcGllY2VzOgo=" | base64 -d > docker-compose.yml
 
             # Login to GHCR and pull new image (with prune/retry fallback if daemon lease error occurs)
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
