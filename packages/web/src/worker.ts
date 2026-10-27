@@ -270,6 +270,27 @@ export default {
       });
     }
 
+    // Handle OAuth redirect for cross-origin targets (e.g. chat.anticeil.com)
+    if (url.pathname === '/redirect') {
+      const code = url.searchParams.get('code');
+      const stateStr = url.searchParams.get('state') || '';
+      let fromUrl = '';
+      try {
+        const stateObj = JSON.parse(stateStr);
+        fromUrl = stateObj.from || '';
+      } catch {}
+
+      if (fromUrl && (fromUrl.startsWith('http://') || fromUrl.startsWith('https://'))) {
+        const target = new URL(fromUrl);
+        if (code) target.searchParams.set('code', code);
+        if (stateStr) target.searchParams.set('state', stateStr);
+        return Response.redirect(target.toString(), 302);
+      }
+
+      // If logging into anticeil.com (/flows), pass through to origin server
+      return fetch(request);
+    }
+
     // Handle WebSocket upgrades (e.g. Socket.IO / chat / real-time)
     if (request.headers.get('Upgrade') === 'websocket') {
       const pair = new WebSocketPair();

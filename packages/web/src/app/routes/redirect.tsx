@@ -30,9 +30,17 @@ const RedirectPage: React.FC = React.memo(() => {
     const params = new URLSearchParams(location.search);
     const code = params.get('code');
     const state = tryParseState(params.get(STATE_QUERY_PARAM));
-    if (state && state[LOGIN_QUERY_PARAM] && code) {
-      const providerName = state[PROVIDER_NAME_QUERY_PARAM];
-      const from = state[FROM_QUERY_PARAM];
+    const isLogin = Boolean(
+      state &&
+        (state[LOGIN_QUERY_PARAM] ||
+          state['activepiecesLogin'] ||
+          state['login'] ||
+          state.from),
+    );
+    if (isLogin && code) {
+      const providerName =
+        state[PROVIDER_NAME_QUERY_PARAM] || state.providerName || 'google';
+      const from = state[FROM_QUERY_PARAM] || state.from;
       const handleThirdPartyLogin = async () => {
         try {
           const data = await authenticationApi.claimThirdPartyRequest({
@@ -41,17 +49,20 @@ const RedirectPage: React.FC = React.memo(() => {
             attribution: acquisitionUtils.getAcquisitionParams(),
           });
           authenticationSession.saveResponse(data, false);
-          if (isNil(data.platformId)) {
-            navigate('/create-platform');
-            return;
-          }
-          if (from && (from.startsWith('http://') || from.startsWith('https://'))) {
+          if (
+            from &&
+            (from.startsWith('http://') || from.startsWith('https://'))
+          ) {
             const redirectUrl = new URL(from);
             redirectUrl.searchParams.set('token', data.token);
             window.location.href = redirectUrl.toString();
             return;
           }
-          navigate(from);
+          if (isNil(data.platformId)) {
+            navigate('/create-platform');
+            return;
+          }
+          navigate(from || '/');
         } catch (e) {
           if (
             api.isError(e) &&
