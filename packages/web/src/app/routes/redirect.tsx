@@ -81,6 +81,11 @@ const RedirectPage: React.FC = React.memo(() => {
         },
         '*',
       );
+      setTimeout(() => {
+        try {
+          window.close();
+        } catch {}
+      }, 300);
     }
     if (!window.opener && !code) {
       navigate('/');
