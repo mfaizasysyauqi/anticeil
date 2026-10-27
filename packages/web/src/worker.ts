@@ -293,20 +293,23 @@ export default {
 
     // Handle WebSocket upgrades (e.g. Socket.IO / chat / real-time)
     if (request.headers.get('Upgrade') === 'websocket') {
-      const pair = new WebSocketPair();
-      const [client, server] = Object.values(pair);
-      server.accept();
-      server.addEventListener('message', (event) => {
-        const data = String(event.data);
-        if (data === '2probe') {
-          server.send('3probe');
-        } else if (data === '2') {
-          server.send('3');
-        }
-      });
-      server.send('0{"sid":"anticeil_ws","upgrades":[],"pingInterval":25000,"pingTimeout":20000}');
-      server.send('40');
-      return new Response(null, { status: 101, webSocket: client });
+      const WebSocketPairClass = (globalThis as any).WebSocketPair;
+      if (WebSocketPairClass) {
+        const pair = new WebSocketPairClass();
+        const [client, server]: [any, any] = Object.values(pair) as any;
+        server.accept();
+        server.addEventListener('message', (event: any) => {
+          const data = String(event.data);
+          if (data === '2probe') {
+            server.send('3probe');
+          } else if (data === '2') {
+            server.send('3');
+          }
+        });
+        server.send('0{"sid":"anticeil_ws","upgrades":[],"pingInterval":25000,"pingTimeout":20000}');
+        server.send('40');
+        return new Response(null, { status: 101, webSocket: client } as any);
+      }
     }
 
     if (url.pathname.includes('/socket.io/')) {
@@ -510,7 +513,22 @@ export default {
               firstName,
               lastName,
               verified: true,
+              imageUrl: profile.picture || null,
             };
+          } else if (profile.picture && identity.imageUrl !== profile.picture) {
+            await querySupabase(
+              `user_identity?id=eq.${identity.id}`,
+              {
+                method: 'PATCH',
+                body: JSON.stringify({
+                  imageUrl: profile.picture,
+                  firstName,
+                  lastName,
+                }),
+              },
+              env,
+            );
+            identity.imageUrl = profile.picture;
           }
 
           // 2. Get Platform
