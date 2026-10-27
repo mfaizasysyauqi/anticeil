@@ -9,8 +9,13 @@ import { fileService } from '../file/file.service'
 import { userService } from '../user/user-service'
 
 export const usersController: FastifyPluginAsyncZod = async (app) => {
+    app.get('/me', GetMeRequest, async (req): Promise<UserWithMetaInformation> => {
+        const userId = req.principal.id
+        return userService(req.log).getMetaInformation({ id: userId })
+    })
+
     app.get('/:id', GetUserByIdRequest, async (req): Promise<UserWithMetaInformation> => {
-        const userId = req.params.id
+        const userId = req.params.id === 'me' ? req.principal.id : req.params.id
         const platformId = req.principal.platform.id
         return userService(req.log).getOneByIdAndPlatformIdOrThrow({ id: userId, platformId })
     })
@@ -160,6 +165,19 @@ const UpdateNameRequestOptions = {
         response: {
             [StatusCodes.OK]: UpdateMeResponse,
         },
+    },
+}
+
+const GetMeRequest = {
+    schema: {
+        tags: ['users'],
+        description: 'Get current user profile',
+        response: {
+            [StatusCodes.OK]: UserWithMetaInformation,
+        },
+    },
+    config: {
+        security: securityAccess.publicPlatform([PrincipalType.USER]),
     },
 }
 

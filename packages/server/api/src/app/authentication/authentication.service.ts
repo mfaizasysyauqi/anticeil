@@ -184,6 +184,9 @@ export const authenticationService = (log: FastifyBaseLogger) => ({
                 password: await cryptoUtils.generateRandomPassword(),
                 imageUrl: params.imageUrl,
             })
+        if (params.imageUrl && userIdentity.imageUrl !== params.imageUrl) {
+            await userIdentityService(log).update(userIdentity.id, { imageUrl: params.imageUrl })
+            userIdentity.imageUrl = params.imageUrl
         }
         const { user, created } = await userService(log).getOrCreateWithProject({
             identity: userIdentity,
