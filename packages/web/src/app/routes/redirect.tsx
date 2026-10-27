@@ -45,6 +45,12 @@ const RedirectPage: React.FC = React.memo(() => {
             navigate('/create-platform');
             return;
           }
+          if (from && (from.startsWith('http://') || from.startsWith('https://'))) {
+            const redirectUrl = new URL(from);
+            redirectUrl.searchParams.set('token', data.token);
+            window.location.href = redirectUrl.toString();
+            return;
+          }
           navigate(from);
         } catch (e) {
           if (
