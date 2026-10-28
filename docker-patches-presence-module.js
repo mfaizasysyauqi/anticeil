@@ -625,8 +625,9 @@ async function setupCommunityApi(app) {
                 if (hubId && hubId !== 'anticeil') {
                     const serverRows = rows.filter(r => (r.hub_id || 'anticeil') === hubId);
                     const types = serverRows.map(r => r.type || 'text');
+                    const hasGeneral = serverRows.some(r => (r.name || '').toLowerCase() === 'general' && (r.type === 'text' || !r.type));
 
-                    if (serverRows.length === 0 || !types.includes('text')) {
+                    if (!hasGeneral) {
                         const defaultChId = `ch-${hubId}-general`;
                         const defaultText = {
                             id: defaultChId,
@@ -644,7 +645,7 @@ async function setupCommunityApi(app) {
                                 'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id, type, is_private) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING',
                                 [defaultText.id, defaultText.name, defaultText.description, defaultText.category, defaultText.hub_id, false, platformId, 'text', false]
                             );
-                            rows.push(defaultText);
+                            rows.unshift(defaultText);
                         } catch (e) {}
                     }
                     if (!types.includes('voice')) {
@@ -771,7 +772,7 @@ async function setupCommunityApi(app) {
         const cleanName = type === 'voice' 
             ? name.trim() 
             : (name.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || `channel-${Date.now()}`);
-        const id = `ch-${Date.now().toString(36)}-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20) || 'ch'}`;
+        const id = `ch-${Date.now().toString(36)}-${type}-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20) || 'ch'}`;
         const newChannel = {
             id,
             name: cleanName,
@@ -2990,7 +2991,43 @@ async function setupCommunityApi(app) {
                         payload: { appId: act.appId, appName: act.appName || act.appId }
                     });
                 }
+            } else if (action === 'CHESS_MOVE') {
+                act.chessFen = payload?.fen;
+                act.chessHistory = payload?.history || [];
+                act.chessLastMove = payload?.move;
+                act.chessTurn = payload?.turn;
+                if (payload?.whitePlayer) act.chessWhitePlayer = payload.whitePlayer;
+                if (payload?.blackPlayer) act.chessBlackPlayer = payload.blackPlayer;
+            } else if (action === 'CHESS_CLAIM_ROLE') {
+                if (payload?.role === 'white') act.chessWhitePlayer = payload.player;
+                if (payload?.role === 'black') act.chessBlackPlayer = payload.player;
+            } else if (action === 'CHESS_RESET') {
+                delete act.chessFen;
+                delete act.chessHistory;
+                delete act.chessLastMove;
+                delete act.chessTurn;
+            } else if (action === 'CHESS_QUERY_STATE') {
+                if (act.chessFen || act.chessWhitePlayer || act.chessBlackPlayer) {
+                    socket.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+                        channelId,
+                        fromSocketId: 'server',
+                        fromUserId: 'server',
+                        action: 'CHESS_SYNC_STATE',
+                        payload: {
+                            fen: act.chessFen,
+                            history: act.chessHistory || [],
+                            lastMove: act.chessLastMove,
+                            turn: act.chessTurn,
+                            whitePlayer: act.chessWhitePlayer,
+                            blackPlayer: act.chessBlackPlayer
+                        }
+                    });
+                }
             }
+
+            try {
+                socket.join(`call_${channelId}`);
+            } catch (e) {}
 
             socket.to(`call_${channelId}`).emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
                 channelId,
