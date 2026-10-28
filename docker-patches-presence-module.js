@@ -1043,6 +1043,8 @@ async function setupCommunityApi(app) {
         return memoryMessages[channelId] || [];
     };
 
+    const messageRateLimitMap = {};
+
     const createMessageHandler = async (req, reply) => {
         await ensureTables();
         const { channelId } = req.params;
@@ -1050,6 +1052,18 @@ async function setupCommunityApi(app) {
         if (!body.content && (!body.attachments || body.attachments.length === 0)) {
             return reply.status(400).send({ message: 'Content or attachment is required' });
         }
+        if (body.content && typeof body.content === 'string' && body.content.length > 2000) {
+            return reply.status(400).send({ message: 'Pesan terlalu panjang. Maksimal 2.000 karakter.' });
+        }
+        const clientKey = body.senderId || req.ip || 'anon';
+        const now = Date.now();
+        if (!messageRateLimitMap[clientKey]) messageRateLimitMap[clientKey] = [];
+        messageRateLimitMap[clientKey] = messageRateLimitMap[clientKey].filter(t => now - t < 5000);
+        if (messageRateLimitMap[clientKey].length >= 5) {
+            return reply.status(429).send({ message: 'Terlalu cepat mengirim pesan. Harap tunggu beberapa detik.' });
+        }
+        messageRateLimitMap[clientKey].push(now);
+
         const id = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
         const newMessage = {
             id,
