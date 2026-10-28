@@ -195,7 +195,7 @@ function ProjectDashboardLayoutInner({
               variant="ghost"
               size="icon"
               onClick={handleBurgerClick}
-              aria-label={isChatMode ? 'Toggle chat navigation' : 'Toggle navigation menu'}
+              aria-label="Toggle navigation menu"
               className="size-9 shrink-0 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent cursor-pointer"
             >
               <Menu className="size-5" />
@@ -230,7 +230,7 @@ function ProjectDashboardLayoutInner({
       <SidebarProvider
         defaultOpen={false}
         hoverMode={!searchOpen}
-        className={cn('flex-1 min-w-0 w-full h-full min-h-0', !isChatMode && 'will-change-transform')}
+        className="flex-1 min-w-0 w-full h-full min-h-0 will-change-transform"
       >
         <SidebarInset className="flex flex-col h-full flex-1 min-h-0 overflow-hidden bg-sidebar">
           <div
