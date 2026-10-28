@@ -392,6 +392,9 @@ async function setupCommunityApi(app) {
                     CREATE INDEX IF NOT EXISTS idx_acc_platform ON anticeil_community_channels (platform_id);
                     ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS type VARCHAR(32) DEFAULT 'text';
                     ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE;
+                    UPDATE anticeil_community_channels SET type = 'voice' WHERE (LOWER(name) LIKE '%voice%' OR id LIKE '%voice%') AND (type = 'text' OR type IS NULL);
+                    UPDATE anticeil_community_channels SET type = 'forum' WHERE (LOWER(name) LIKE '%forum%' OR LOWER(name) LIKE '%diskusi%' OR id LIKE '%forum%') AND (type = 'text' OR type IS NULL);
+                    UPDATE anticeil_community_channels SET type = 'kanban' WHERE (LOWER(name) LIKE '%kanban%' OR id LIKE '%kanban%') AND (type = 'text' OR type IS NULL);
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT '[]';
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS emojis TEXT DEFAULT '[]';
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS boosts_count INT DEFAULT 0;
@@ -606,9 +609,10 @@ async function setupCommunityApi(app) {
                 const seenTypes = new Map();
                 for (const r of rows) {
                     const hId = r.hub_id || 'anticeil';
-                    const resolvedType = r.type || (
-                        ((r.name || '') + (r.id || '')).toLowerCase().includes('voice') ? 'voice' :
-                        ((r.name || '') + (r.id || '')).toLowerCase().includes('forum') ? 'forum' : 'text'
+                    const resolvedType = (r.type && r.type !== 'text') ? r.type : (
+                        ((r.name || '') + ' ' + (r.id || '')).toLowerCase().includes('voice') ? 'voice' :
+                        ((r.name || '') + ' ' + (r.id || '')).toLowerCase().includes('forum') || ((r.name || '') + ' ' + (r.id || '')).toLowerCase().includes('diskusi') ? 'forum' :
+                        ((r.name || '') + ' ' + (r.id || '')).toLowerCase().includes('kanban') ? 'kanban' : (r.type || 'text')
                     );
                     const key = `${hId}:${resolvedType}:${(r.name || '').trim().toLowerCase()}`;
                     if (!seenTypes.has(key)) {
@@ -688,9 +692,10 @@ async function setupCommunityApi(app) {
                 }
 
                 return (rows || []).map(r => {
-                    const resolvedType = r.type || (
-                        ((r.name || '') + (r.id || '')).toLowerCase().includes('voice') ? 'voice' :
-                        ((r.name || '') + (r.id || '')).toLowerCase().includes('forum') ? 'forum' : 'text'
+                    const resolvedType = (r.type && r.type !== 'text') ? r.type : (
+                        ((r.name || '') + ' ' + (r.id || '')).toLowerCase().includes('voice') ? 'voice' :
+                        ((r.name || '') + ' ' + (r.id || '')).toLowerCase().includes('forum') || ((r.name || '') + ' ' + (r.id || '')).toLowerCase().includes('diskusi') ? 'forum' :
+                        ((r.name || '') + ' ' + (r.id || '')).toLowerCase().includes('kanban') ? 'kanban' : (r.type || 'text')
                     );
                     return {
                         id: r.id,
@@ -2975,7 +2980,7 @@ async function setupCommunityApi(app) {
                         }
                     });
                 }
-            } else if (action === 'ACTIVITY_QUERY') {
+            } else if (action === 'ACTIVITY_QUERY' || action === 'QUERY_ACTIVE_ACTIVITY') {
                 if (act.appId) {
                     socket.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
                         channelId,
