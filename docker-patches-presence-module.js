@@ -235,6 +235,7 @@ async function setupCommunityApi(app) {
     const memoryBans = {};
     const memoryAuditLog = {};
     const activeCallRooms = {};
+    const activeCallActivities = {};
 
     function getPlatformId(req) {
         if (req.principal && req.principal.platform && req.principal.platform.id) {
@@ -2900,7 +2901,94 @@ async function setupCommunityApi(app) {
         socket.on('COMMUNITY_CALL_ACTIVITY_EVENT', (data) => {
             const { channelId, action, payload } = data || {};
             if (!channelId) return;
+
+            if (!activeCallActivities[channelId]) {
+                activeCallActivities[channelId] = {};
+            }
+            const act = activeCallActivities[channelId];
+
+            if (action === 'ACTIVITY_LAUNCH') {
+                act.appId = payload?.appId;
+                act.appName = payload?.appName;
+                act.hostUserId = payload?.hostUserId || socket.data?.activeCallUserId;
+                act.hostUserName = payload?.hostUserName;
+                act.hostUserAvatar = payload?.hostUserAvatar;
+            } else if (action === 'ACTIVITY_STOP') {
+                delete activeCallActivities[channelId];
+            } else if (action === 'YOUTUBE_CHANGE_VIDEO') {
+                act.videoId = payload?.videoId;
+                act.currentTime = 0;
+                act.isPlaying = true;
+                act.updatedAt = Date.now();
+                if (payload?.hostUserId) act.hostUserId = payload.hostUserId;
+            } else if (action === 'YOUTUBE_PLAY') {
+                act.isPlaying = true;
+                if (typeof payload?.currentTime === 'number') act.currentTime = payload.currentTime;
+                act.updatedAt = Date.now();
+            } else if (action === 'YOUTUBE_PAUSE') {
+                act.isPlaying = false;
+                if (typeof payload?.currentTime === 'number') act.currentTime = payload.currentTime;
+                act.updatedAt = Date.now();
+            } else if (action === 'YOUTUBE_SEEK') {
+                if (typeof payload?.currentTime === 'number') act.currentTime = payload.currentTime;
+                if (payload?.isPlaying !== undefined) act.isPlaying = payload.isPlaying;
+                act.updatedAt = Date.now();
+            } else if (action === 'YOUTUBE_TIME_SYNC') {
+                if (typeof payload?.currentTime === 'number') act.currentTime = payload.currentTime;
+                if (payload?.isPlaying !== undefined) act.isPlaying = payload.isPlaying;
+                act.updatedAt = Date.now();
+            } else if (action === 'YOUTUBE_UPDATE_PLAYLIST') {
+                if (Array.isArray(payload?.playlist)) act.playlist = payload.playlist;
+            } else if (action === 'YOUTUBE_CHANGE_HOST') {
+                if (payload?.hostUserId) act.hostUserId = payload.hostUserId;
+                if (payload?.hostUserName) act.hostUserName = payload.hostUserName;
+                if (payload?.hostUserAvatar !== undefined) act.hostUserAvatar = payload.hostUserAvatar;
+            } else if (action === 'YOUTUBE_TOGGLE_EDIT_PERMISSION') {
+                if (payload?.allowEveryoneEdit !== undefined) act.allowEveryoneEdit = payload.allowEveryoneEdit;
+            } else if (action === 'YOUTUBE_SYNC_STATE') {
+                if (payload?.videoId) act.videoId = payload.videoId;
+                if (Array.isArray(payload?.playlist)) act.playlist = payload.playlist;
+                if (payload?.hostUserId) act.hostUserId = payload.hostUserId;
+                if (payload?.hostUserName) act.hostUserName = payload.hostUserName;
+                if (payload?.hostUserAvatar !== undefined) act.hostUserAvatar = payload.hostUserAvatar;
+                if (typeof payload?.currentTime === 'number') act.currentTime = payload.currentTime;
+                if (payload?.isPlaying !== undefined) act.isPlaying = payload.isPlaying;
+                act.updatedAt = Date.now();
+            } else if (action === 'YOUTUBE_QUERY_STATE') {
+                if (act.videoId) {
+                    const elapsed = (act.isPlaying && act.updatedAt) ? (Date.now() - act.updatedAt) / 1000 : 0;
+                    const estimatedTime = Math.max(0, (act.currentTime || 0) + elapsed);
+                    socket.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+                        channelId,
+                        fromSocketId: 'server',
+                        fromUserId: 'server',
+                        action: 'YOUTUBE_SYNC_STATE',
+                        payload: {
+                            videoId: act.videoId,
+                            playlist: act.playlist || [],
+                            hostUserId: act.hostUserId,
+                            hostUserName: act.hostUserName,
+                            hostUserAvatar: act.hostUserAvatar,
+                            allowEveryoneEdit: act.allowEveryoneEdit ?? true,
+                            currentTime: estimatedTime,
+                            isPlaying: act.isPlaying ?? true,
+                        }
+                    });
+                }
+            } else if (action === 'ACTIVITY_QUERY') {
+                if (act.appId) {
+                    socket.emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+                        channelId,
+                        fromSocketId: 'server',
+                        fromUserId: 'server',
+                        action: 'ACTIVITY_LAUNCH',
+                        payload: { appId: act.appId, appName: act.appName || act.appId }
+                    });
+                }
+            }
+
             socket.to(`call_${channelId}`).emit('COMMUNITY_CALL_ACTIVITY_EVENT', {
+                channelId,
                 fromSocketId: socket.id,
                 fromUserId: socket.data?.activeCallUserId,
                 action,
@@ -2923,6 +3011,7 @@ async function setupCommunityApi(app) {
             const room = activeCallRooms[channelId];
             if (room && room.length === 0) {
                 delete activeCallRooms[channelId];
+                delete activeCallActivities[channelId];
             }
             const io = socket.server || getIOServer();
             if (io) {
