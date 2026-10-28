@@ -32,6 +32,20 @@ const ChatWithAIPage = lazyWithRetry(
   'chat-with-ai',
 );
 
+function chatElement() {
+  return (
+    <AllowOnlyLoggedInUserOnlyGuard>
+      <ProjectDashboardLayout>
+        <PageTitle title="Chatbot">
+          <Suspense fallback={<RouteLoadingBar />}>
+            <ChatWithAIPage />
+          </Suspense>
+        </PageTitle>
+      </ProjectDashboardLayout>
+    </AllowOnlyLoggedInUserOnlyGuard>
+  );
+}
+
 const chatRoutes = [
   { path: '/chat', element: chatElement() },
   { path: '/chat/:conversationId', element: chatElement() },
