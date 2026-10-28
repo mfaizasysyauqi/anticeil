@@ -95,6 +95,7 @@ export const federatedAuthnService = (log: FastifyBaseLogger) => ({
                 provider,
                 password: crypto.randomBytes(32).toString('hex'),
                 imageUrl,
+            })
         } else {
             if (imageUrl && identity.imageUrl !== imageUrl) {
                 await identityService.update(identity.id, { imageUrl })

@@ -1,6 +1,6 @@
 import { isNil } from '@activepieces/core-utils';
 import { ApEdition, ApFlagId } from '@activepieces/shared';
-import { Menu, Search, Unplug, MessagesSquare } from 'lucide-react';
+import { Menu, Search, Unplug } from 'lucide-react';
 import React, { ComponentType, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useSearchParams } from 'react-router-dom';
@@ -77,13 +77,6 @@ export function ProjectDashboardLayout({
       label: t('Impact'),
       show: !isEmbedded,
       icon: ChartLineIcon,
-      hasPermission: true,
-    },
-    {
-      to: '/messages',
-      label: t('Chat'),
-      show: !isEmbedded,
-      icon: MessagesSquare,
       hasPermission: true,
     },
     {
@@ -176,19 +169,10 @@ function ProjectDashboardLayoutInner({
   const { data: currentUser } = userHooks.useCurrentUser();
 
   const location = useLocation();
-  const isChatMode =
-    location.pathname.startsWith('/community') ||
-    location.pathname.startsWith('/messages');
-  const isFixedViewportRoute =
-    isChatMode ||
-    location.pathname.startsWith('/chat');
+  const isFixedViewportRoute = location.pathname.startsWith('/chat');
 
   const handleBurgerClick = () => {
-    if (isChatMode) {
-      window.dispatchEvent(new CustomEvent('anticeil_toggle_mobile_channels'));
-    } else {
-      setMobileNavOpen(true);
-    }
+    setMobileNavOpen(true);
   };
 
   return (

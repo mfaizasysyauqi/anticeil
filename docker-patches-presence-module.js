@@ -424,8 +424,111 @@ async function setupCommunityApi(app) {
                         reactions TEXT DEFAULT '{}',
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
+
+                    CREATE TABLE IF NOT EXISTS anticeil_friends (
+                        id VARCHAR(128) PRIMARY KEY,
+                        user_id VARCHAR(128) NOT NULL,
+                        friend_id VARCHAR(128) NOT NULL,
+                        friend_name VARCHAR(256) NOT NULL,
+                        friend_username VARCHAR(128),
+                        friend_avatar TEXT,
+                        friend_email VARCHAR(256),
+                        status VARCHAR(32) DEFAULT 'accepted',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        UNIQUE(user_id, friend_id)
+                    );
+
+                    CREATE TABLE IF NOT EXISTS anticeil_friend_requests (
+                        id VARCHAR(128) PRIMARY KEY,
+                        sender_id VARCHAR(128) NOT NULL,
+                        sender_name VARCHAR(256) NOT NULL,
+                        sender_username VARCHAR(128),
+                        sender_avatar TEXT,
+                        receiver_id VARCHAR(128) NOT NULL,
+                        receiver_name VARCHAR(256),
+                        status VARCHAR(32) DEFAULT 'pending',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
+                    CREATE TABLE IF NOT EXISTS anticeil_message_requests (
+                        id VARCHAR(128) PRIMARY KEY,
+                        receiver_id VARCHAR(128) NOT NULL,
+                        sender_id VARCHAR(128) NOT NULL,
+                        sender_name VARCHAR(256) NOT NULL,
+                        sender_username VARCHAR(128),
+                        sender_avatar TEXT,
+                        initial_message TEXT NOT NULL,
+                        is_spam BOOLEAN DEFAULT FALSE,
+                        mutual_servers INT DEFAULT 0,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
+                    CREATE TABLE IF NOT EXISTS anticeil_notifications (
+                        id VARCHAR(128) PRIMARY KEY,
+                        user_id VARCHAR(128) NOT NULL,
+                        actor_id VARCHAR(128),
+                        actor_name VARCHAR(256) NOT NULL,
+                        actor_avatar TEXT,
+                        type VARCHAR(64) DEFAULT 'mention',
+                        title VARCHAR(256) NOT NULL,
+                        summary TEXT DEFAULT '',
+                        channel_id VARCHAR(128),
+                        channel_name VARCHAR(128),
+                        hub_id VARCHAR(128),
+                        is_read BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
+                    CREATE TABLE IF NOT EXISTS anticeil_calendar_events (
+                        id VARCHAR(128) PRIMARY KEY,
+                        user_id VARCHAR(128) NOT NULL,
+                        hub_id VARCHAR(128) NOT NULL,
+                        hub_name VARCHAR(256) DEFAULT 'Anticeil',
+                        channel_id VARCHAR(128),
+                        channel_name VARCHAR(256),
+                        title VARCHAR(256) NOT NULL,
+                        description TEXT DEFAULT '',
+                        type VARCHAR(64) DEFAULT 'meeting',
+                        start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+                        end_time TIMESTAMP WITH TIME ZONE,
+                        status VARCHAR(64) DEFAULT 'scheduled',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
+                    CREATE TABLE IF NOT EXISTS anticeil_assignments (
+                        id VARCHAR(128) PRIMARY KEY,
+                        user_id VARCHAR(128) NOT NULL,
+                        title VARCHAR(256) NOT NULL,
+                        description TEXT DEFAULT '',
+                        column_id VARCHAR(64) DEFAULT 'todo',
+                        channel_id VARCHAR(128) DEFAULT 'kanban-dev',
+                        channel_name VARCHAR(128) DEFAULT 'tugas-tim',
+                        hub_id VARCHAR(128) DEFAULT 'anticeil',
+                        hub_name VARCHAR(128) DEFAULT 'Anticeil Official',
+                        priority VARCHAR(32) DEFAULT 'medium',
+                        due_date VARCHAR(64),
+                        tags TEXT DEFAULT '[]',
+                        completed_at TIMESTAMP WITH TIME ZONE,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
+                    CREATE TABLE IF NOT EXISTS anticeil_call_logs (
+                        id VARCHAR(128) PRIMARY KEY,
+                        user_id VARCHAR(128) NOT NULL,
+                        peer_id VARCHAR(128) NOT NULL,
+                        peer_name VARCHAR(256) NOT NULL,
+                        peer_avatar TEXT,
+                        type VARCHAR(32) DEFAULT 'incoming',
+                        is_video BOOLEAN DEFAULT FALSE,
+                        duration VARCHAR(64),
+                        timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
                 `);
             } catch (alterErr) {}
+
 
             // Seed default hub if none exists
             try {
@@ -2001,6 +2104,502 @@ async function setupCommunityApi(app) {
         });
     };
 
+    // Helper to get authenticated user ID
+    function getReqUserId(req) {
+        if (req.principal && req.principal.id) return req.principal.id;
+        try {
+            const auth = req.headers && req.headers.authorization;
+            if (auth && auth.startsWith('Bearer ')) {
+                const parts = auth.substring(7).split('.');
+                if (parts.length === 3) {
+                    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                    if (payload && (payload.id || payload.sub)) return payload.id || payload.sub;
+                }
+            }
+        } catch (e) {}
+        if (req.headers && req.headers['x-user-id']) return req.headers['x-user-id'];
+        return 'default-user';
+    }
+
+    // ── FRIENDS HANDLERS ──
+    const getFriendsHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_friends WHERE user_id = $1 OR user_id = $2 ORDER BY created_at DESC',
+                    [userId, 'all']
+                );
+                return reply.send(rows.map(r => ({
+                    id: r.id,
+                    name: r.friend_name,
+                    username: r.friend_username,
+                    avatar: r.friend_avatar,
+                    email: r.friend_email,
+                    status: r.status,
+                    createdAt: r.created_at
+                })));
+            } catch (e) {}
+        }
+        return reply.send([]);
+    };
+
+    const getFriendRequestsHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_friend_requests WHERE receiver_id = $1 OR receiver_id = $2 ORDER BY created_at DESC',
+                    [userId, 'all']
+                );
+                return reply.send(rows.map(r => ({
+                    id: r.id,
+                    senderId: r.sender_id,
+                    senderName: r.sender_name,
+                    senderUsername: r.sender_username,
+                    senderAvatar: r.sender_avatar,
+                    status: r.status,
+                    createdAt: r.created_at
+                })));
+            } catch (e) {}
+        }
+        return reply.send([]);
+    };
+
+    const sendFriendRequestHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const { targetUsername, targetUserId } = req.body || {};
+        if (!targetUsername && !targetUserId) {
+            return reply.status(400).send({ message: 'Target username or user ID required' });
+        }
+        const ds = await getDb();
+        const id = `freq_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const senderName = req.principal?.name || req.body?.senderName || 'Pengguna Anticeil';
+        const senderUsername = req.principal?.username || req.body?.senderUsername || 'user';
+        const senderAvatar = req.principal?.imageUrl || null;
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_friend_requests (id, sender_id, sender_name, sender_username, sender_avatar, receiver_id, receiver_name, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+                    [id, userId, senderName, senderUsername, senderAvatar, targetUserId || targetUsername, targetUsername || 'Teman', 'pending']
+                );
+                return reply.send({ success: true, id, message: `Permintaan pertemanan dikirim ke ${targetUsername || targetUserId}` });
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id, message: 'Permintaan pertemanan tersimpan' });
+    };
+
+    const acceptFriendRequestHandler = async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const userId = getReqUserId(req);
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const reqRows = await ds.query('SELECT * FROM anticeil_friend_requests WHERE id = $1', [id]);
+                if (reqRows && reqRows[0]) {
+                    const fr = reqRows[0];
+                    const fId = `friend_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+                    await ds.query(
+                        'INSERT INTO anticeil_friends (id, user_id, friend_id, friend_name, friend_username, friend_avatar, status) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (user_id, friend_id) DO NOTHING',
+                        [fId, userId, fr.sender_id, fr.sender_name, fr.sender_username, fr.sender_avatar, 'accepted']
+                    );
+                    await ds.query('DELETE FROM anticeil_friend_requests WHERE id = $1', [id]);
+                    return reply.send({ success: true, friendId: fr.sender_id });
+                }
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
+    };
+
+    const ignoreFriendRequestHandler = async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query('DELETE FROM anticeil_friend_requests WHERE id = $1', [id]);
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
+    };
+
+    const deleteFriendHandler = async (req, reply) => {
+        await ensureTables();
+        const { friendId } = req.params;
+        const userId = getReqUserId(req);
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query('DELETE FROM anticeil_friends WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)', [userId, friendId]);
+            } catch (e) {}
+        }
+        return reply.send({ success: true, friendId });
+    };
+
+    // ── MESSAGE REQUESTS HANDLERS ──
+    const getMessageRequestsHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_message_requests WHERE receiver_id = $1 OR receiver_id = $2 ORDER BY created_at DESC',
+                    [userId, 'all']
+                );
+                return reply.send(rows.map(r => ({
+                    id: r.id,
+                    userId: r.sender_id,
+                    name: r.sender_name,
+                    username: r.sender_username,
+                    avatar: r.sender_avatar,
+                    initialMessage: r.initial_message,
+                    isSpam: r.is_spam,
+                    mutualServers: r.mutual_servers,
+                    date: new Date(r.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                })));
+            } catch (e) {}
+        }
+        return reply.send([]);
+    };
+
+    const acceptMessageRequestHandler = async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query('DELETE FROM anticeil_message_requests WHERE id = $1', [id]);
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
+    };
+
+    const ignoreMessageRequestHandler = async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query('DELETE FROM anticeil_message_requests WHERE id = $1', [id]);
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
+    };
+
+    const spamMessageRequestHandler = async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query('UPDATE anticeil_message_requests SET is_spam = TRUE WHERE id = $1', [id]);
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
+    };
+
+    // ── NOTIFICATIONS HANDLERS ──
+    const getNotificationsHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_notifications WHERE user_id = $1 OR user_id = $2 ORDER BY created_at DESC LIMIT 50',
+                    [userId, 'all']
+                );
+                return reply.send(rows.map(r => ({
+                    id: r.id,
+                    actorId: r.actor_id,
+                    actorName: r.actor_name,
+                    actorAvatar: r.actor_avatar,
+                    type: r.type,
+                    title: r.title,
+                    summary: r.summary,
+                    channelId: r.channel_id,
+                    channelName: r.channel_name,
+                    hubId: r.hub_id,
+                    isRead: r.is_read,
+                    createdAt: r.created_at
+                })));
+            } catch (e) {}
+        }
+        return reply.send([]);
+    };
+
+    const markNotificationReadHandler = async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query('UPDATE anticeil_notifications SET is_read = TRUE WHERE id = $1', [id]);
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
+    };
+
+    const markAllNotificationsReadHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query('UPDATE anticeil_notifications SET is_read = TRUE WHERE user_id = $1 OR user_id = $2', [userId, 'all']);
+            } catch (e) {}
+        }
+        return reply.send({ success: true });
+    };
+
+    const createNotificationHandler = async (req, reply) => {
+        await ensureTables();
+        const { actorName, title, summary = '', type = 'mention', channelId, channelName, hubId } = req.body || {};
+        const id = `notif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const userId = req.body?.userId || 'all';
+        const actorId = req.body?.actorId || getReqUserId(req);
+        const actorAvatar = req.body?.actorAvatar || null;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_notifications (id, user_id, actor_id, actor_name, actor_avatar, type, title, summary, channel_id, channel_name, hub_id, is_read) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)',
+                    [id, userId, actorId, actorName, actorAvatar, type, title, summary, channelId || null, channelName || null, hubId || null, false]
+                );
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
+    };
+
+    // ── CALENDAR EVENTS HANDLERS ──
+    const getCalendarEventsHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query('SELECT * FROM anticeil_calendar_events ORDER BY start_time ASC');
+                return reply.send(rows.map(r => ({
+                    id: r.id,
+                    hubId: r.hub_id,
+                    hubName: r.hub_name,
+                    channelId: r.channel_id,
+                    channelName: r.channel_name,
+                    title: r.title,
+                    description: r.description,
+                    type: r.type,
+                    startTime: r.start_time,
+                    endTime: r.end_time,
+                    status: r.status,
+                    createdAt: r.created_at
+                })));
+            } catch (e) {}
+        }
+        return reply.send([]);
+    };
+
+    const createCalendarEventHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const { title, description = '', hubId = 'anticeil', hubName = 'Anticeil', channelId, channelName, type = 'meeting', startTime, endTime } = req.body || {};
+        if (!title || !startTime) return reply.status(400).send({ message: 'Title and startTime required' });
+        const id = `cal_ev_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const ds = await getDb();
+        const event = {
+            id,
+            userId,
+            hubId,
+            hubName,
+            channelId,
+            channelName,
+            title,
+            description,
+            type,
+            startTime,
+            endTime: endTime || null,
+            status: 'scheduled',
+            createdAt: new Date().toISOString()
+        };
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_calendar_events (id, user_id, hub_id, hub_name, channel_id, channel_name, title, description, type, start_time, end_time, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)',
+                    [id, userId, hubId, hubName, channelId || null, channelName || null, title, description, type, startTime, endTime || null, 'scheduled']
+                );
+            } catch (e) {}
+        }
+        return reply.send(event);
+    };
+
+    const deleteCalendarEventHandler = async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query('DELETE FROM anticeil_calendar_events WHERE id = $1', [id]);
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
+    };
+
+    // ── ASSIGNMENTS HANDLERS ──
+    const getAssignmentsHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_assignments WHERE user_id = $1 OR user_id = $2 ORDER BY created_at DESC',
+                    [userId, 'all']
+                );
+                return reply.send(rows.map(r => ({
+                    id: r.id,
+                    title: r.title,
+                    description: r.description,
+                    columnId: r.column_id,
+                    channelId: r.channel_id,
+                    channelName: r.channel_name,
+                    hubId: r.hub_id,
+                    hubName: r.hub_name,
+                    priority: r.priority,
+                    dueDate: r.due_date,
+                    tags: typeof r.tags === 'string' ? JSON.parse(r.tags || '[]') : (r.tags || []),
+                    completedAt: r.completed_at,
+                    createdAt: r.created_at
+                })));
+            } catch (e) {}
+        }
+        return reply.send([]);
+    };
+
+    const createAssignmentHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const { title, description = '', columnId = 'todo', channelId = 'kanban-dev', channelName = 'tugas-tim', hubId = 'anticeil', hubName = 'Anticeil Official', priority = 'medium', dueDate, tags = [] } = req.body || {};
+        if (!title) return reply.status(400).send({ message: 'Title is required' });
+        const id = `assign_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const ds = await getDb();
+        const tagsJson = JSON.stringify(tags);
+        const now = new Date().toISOString();
+        const assignment = {
+            id,
+            title,
+            description,
+            columnId,
+            channelId,
+            channelName,
+            hubId,
+            hubName,
+            priority,
+            dueDate,
+            tags,
+            createdAt: now
+        };
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_assignments (id, user_id, title, description, column_id, channel_id, channel_name, hub_id, hub_name, priority, due_date, tags, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)',
+                    [id, userId, title, description, columnId, channelId, channelName, hubId, hubName, priority, dueDate || null, tagsJson, now, now]
+                );
+            } catch (e) {}
+        }
+        return reply.send(assignment);
+    };
+
+    const updateAssignmentHandler = async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const { columnId, isCompleted } = req.body || {};
+        const ds = await getDb();
+        const completedAt = isCompleted || columnId === 'done' ? new Date().toISOString() : null;
+        if (ds && dbReady) {
+            try {
+                const targetColumn = columnId || (isCompleted ? 'done' : 'in_progress');
+                await ds.query(
+                    'UPDATE anticeil_assignments SET column_id = COALESCE($1, column_id), completed_at = $2, updated_at = NOW() WHERE id = $3',
+                    [targetColumn, completedAt, id]
+                );
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id, columnId, completedAt });
+    };
+
+    const deleteAssignmentHandler = async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query('DELETE FROM anticeil_assignments WHERE id = $1', [id]);
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
+    };
+
+    // ── CALL LOGS HANDLERS ──
+    const getCallLogsHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_call_logs WHERE user_id = $1 OR user_id = $2 ORDER BY timestamp DESC LIMIT 50',
+                    [userId, 'all']
+                );
+                return reply.send(rows.map(r => ({
+                    id: r.id,
+                    peerId: r.peer_id,
+                    peerName: r.peer_name,
+                    peerAvatar: r.peer_avatar,
+                    type: r.type,
+                    isVideo: r.is_video,
+                    duration: r.duration,
+                    timestamp: r.timestamp
+                })));
+            } catch (e) {}
+        }
+        return reply.send([]);
+    };
+
+    const createCallLogHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const { peerId, peerName, peerAvatar = null, type = 'outgoing', isVideo = false, duration = null } = req.body || {};
+        const id = `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const ds = await getDb();
+        const now = new Date().toISOString();
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_call_logs (id, user_id, peer_id, peer_name, peer_avatar, type, is_video, duration, timestamp, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+                    [id, userId, peerId, peerName, peerAvatar, type, isVideo, duration, now, now]
+                );
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
+    };
+
+    const deleteCallLogHandler = async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query('DELETE FROM anticeil_call_logs WHERE id = $1', [id]);
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
+    };
+
     // --- REGISTER ROUTE ALIASES (Supports both /v1/community/* and /v1/messages/*) ---
     const routePrefixes = ['/v1/community', '/v1/messages'];
     for (const prefix of routePrefixes) {
@@ -2063,6 +2662,42 @@ async function setupCommunityApi(app) {
         app.delete(`${prefix}/hubs/:hubId/bans/:userId`, deleteBanHandler);
         app.get(`${prefix}/hubs/:hubId/audit-log`, getAuditLogHandler);
         app.get(`${prefix}/hubs/:hubId/stats`, getStatsHandler);
+
+        // Friends & Requests
+        app.get(`${prefix}/friends`, getFriendsHandler);
+        app.get(`${prefix}/friends/requests`, getFriendRequestsHandler);
+        app.post(`${prefix}/friends/request`, sendFriendRequestHandler);
+        app.post(`${prefix}/friends/request/:id/accept`, acceptFriendRequestHandler);
+        app.post(`${prefix}/friends/request/:id/ignore`, ignoreFriendRequestHandler);
+        app.delete(`${prefix}/friends/:friendId`, deleteFriendHandler);
+
+        // Message Requests
+        app.get(`${prefix}/message-requests`, getMessageRequestsHandler);
+        app.post(`${prefix}/message-requests/:id/accept`, acceptMessageRequestHandler);
+        app.post(`${prefix}/message-requests/:id/ignore`, ignoreMessageRequestHandler);
+        app.post(`${prefix}/message-requests/:id/spam`, spamMessageRequestHandler);
+
+        // Notifications
+        app.get(`${prefix}/notifications`, getNotificationsHandler);
+        app.put(`${prefix}/notifications/:id/read`, markNotificationReadHandler);
+        app.put(`${prefix}/notifications/read-all`, markAllNotificationsReadHandler);
+        app.post(`${prefix}/notifications`, createNotificationHandler);
+
+        // Calendar Events
+        app.get(`${prefix}/calendar/events`, getCalendarEventsHandler);
+        app.post(`${prefix}/calendar/events`, createCalendarEventHandler);
+        app.delete(`${prefix}/calendar/events/:id`, deleteCalendarEventHandler);
+
+        // Assignments (Kanban tasks)
+        app.get(`${prefix}/assignments`, getAssignmentsHandler);
+        app.post(`${prefix}/assignments`, createAssignmentHandler);
+        app.put(`${prefix}/assignments/:id`, updateAssignmentHandler);
+        app.delete(`${prefix}/assignments/:id`, deleteAssignmentHandler);
+
+        // Call Logs
+        app.get(`${prefix}/calls/logs`, getCallLogsHandler);
+        app.post(`${prefix}/calls/logs`, createCallLogHandler);
+        app.delete(`${prefix}/calls/logs/:id`, deleteCallLogHandler);
 
         // Voice/Video Call Room Info
         app.get(`${prefix}/channels/:channelId/call`, async (req, reply) => {

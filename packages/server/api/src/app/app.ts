@@ -99,7 +99,6 @@ import { systemSnapshot } from './helper/system-snapshot'
 import { validateEnvPropsOnStartup } from './helper/system-validator'
 import { shutdownTelemetry } from './helper/telemetry.utils'
 import { knowledgeBaseModule } from './knowledge-base/knowledge-base.module'
-import { messagesModule } from './messages/messages.module'
 import { mcpActivityController } from './mcp/activity/mcp-activity-controller'
 import { mcpServerModule } from './mcp/mcp-module'
 import { mcpOAuthApproveController } from './mcp/oauth/code/mcp-oauth-approve.controller'
@@ -271,7 +270,6 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     await app.register(licenseKeyUsageReportModule)
     await app.register(tablesModule)
     await app.register(knowledgeBaseModule)
-    await app.register(messagesModule)
     await app.register(userModule)
     await app.register(templateModule)
     await app.register(platformAnalyticsModule)
