@@ -514,6 +514,10 @@ async function setupCommunityApi(app) {
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
 
+                    ALTER TABLE anticeil_assignments ADD COLUMN IF NOT EXISTS assignee_id VARCHAR(128);
+                    ALTER TABLE anticeil_assignments ADD COLUMN IF NOT EXISTS assignee_name VARCHAR(256);
+                    ALTER TABLE anticeil_assignments ADD COLUMN IF NOT EXISTS assignee_avatar TEXT;
+
                     CREATE TABLE IF NOT EXISTS anticeil_call_logs (
                         id VARCHAR(128) PRIMARY KEY,
                         user_id VARCHAR(128) NOT NULL,
@@ -2453,13 +2457,23 @@ async function setupCommunityApi(app) {
     const getAssignmentsHandler = async (req, reply) => {
         await ensureTables();
         const userId = getReqUserId(req);
+        const { channelId, hubId } = req.query || {};
         const ds = await getDb();
         if (ds && dbReady) {
             try {
-                const rows = await ds.query(
-                    'SELECT * FROM anticeil_assignments WHERE user_id = $1 OR user_id = $2 ORDER BY created_at DESC',
-                    [userId, 'all']
-                );
+                let query = 'SELECT * FROM anticeil_assignments';
+                let params = [];
+                if (channelId) {
+                    query += ' WHERE channel_id = $1 ORDER BY created_at DESC';
+                    params = [channelId];
+                } else if (hubId) {
+                    query += ' WHERE hub_id = $1 ORDER BY created_at DESC';
+                    params = [hubId];
+                } else {
+                    query += ' WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at DESC';
+                    params = [userId, 'all'];
+                }
+                const rows = await ds.query(query, params);
                 return reply.send(rows.map(r => ({
                     id: r.id,
                     title: r.title,
@@ -2469,6 +2483,9 @@ async function setupCommunityApi(app) {
                     channelName: r.channel_name,
                     hubId: r.hub_id,
                     hubName: r.hub_name,
+                    assigneeId: r.assignee_id || r.user_id,
+                    assigneeName: r.assignee_name || 'Member',
+                    assigneeAvatar: r.assignee_avatar || null,
                     priority: r.priority,
                     dueDate: r.due_date,
                     tags: typeof r.tags === 'string' ? JSON.parse(r.tags || '[]') : (r.tags || []),
@@ -2483,12 +2500,30 @@ async function setupCommunityApi(app) {
     const createAssignmentHandler = async (req, reply) => {
         await ensureTables();
         const userId = getReqUserId(req);
-        const { title, description = '', columnId = 'todo', channelId = 'kanban-dev', channelName = 'tugas-tim', hubId = 'anticeil', hubName = 'Anticeil Official', priority = 'medium', dueDate, tags = [] } = req.body || {};
+        const {
+            id: reqId,
+            title,
+            description = '',
+            columnId = 'todo',
+            channelId = 'kanban-dev',
+            channelName = 'tugas-tim',
+            hubId = 'anticeil',
+            hubName = 'Anticeil Official',
+            assigneeId,
+            assigneeName,
+            assigneeAvatar,
+            priority = 'medium',
+            dueDate,
+            tags = []
+        } = req.body || {};
         if (!title) return reply.status(400).send({ message: 'Title is required' });
-        const id = `assign_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const id = reqId || `assign_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         const ds = await getDb();
         const tagsJson = JSON.stringify(tags);
         const now = new Date().toISOString();
+        const finalAssigneeId = assigneeId || userId;
+        const finalAssigneeName = assigneeName || 'Member';
+        const finalAssigneeAvatar = assigneeAvatar || null;
         const assignment = {
             id,
             title,
@@ -2498,6 +2533,9 @@ async function setupCommunityApi(app) {
             channelName,
             hubId,
             hubName,
+            assigneeId: finalAssigneeId,
+            assigneeName: finalAssigneeName,
+            assigneeAvatar: finalAssigneeAvatar,
             priority,
             dueDate,
             tags,
@@ -2506,8 +2544,8 @@ async function setupCommunityApi(app) {
         if (ds && dbReady) {
             try {
                 await ds.query(
-                    'INSERT INTO anticeil_assignments (id, user_id, title, description, column_id, channel_id, channel_name, hub_id, hub_name, priority, due_date, tags, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)',
-                    [id, userId, title, description, columnId, channelId, channelName, hubId, hubName, priority, dueDate || null, tagsJson, now, now]
+                    'INSERT INTO anticeil_assignments (id, user_id, title, description, column_id, channel_id, channel_name, hub_id, hub_name, assignee_id, assignee_name, assignee_avatar, priority, due_date, tags, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)',
+                    [id, userId, title, description, columnId, channelId, channelName, hubId, hubName, finalAssigneeId, finalAssigneeName, finalAssigneeAvatar, priority, dueDate || null, tagsJson, now, now]
                 );
             } catch (e) {}
         }
@@ -2517,15 +2555,14 @@ async function setupCommunityApi(app) {
     const updateAssignmentHandler = async (req, reply) => {
         await ensureTables();
         const { id } = req.params;
-        const { columnId, isCompleted } = req.body || {};
+        const { columnId, title, description, priority, isCompleted, completedAt: reqCompletedAt } = req.body || {};
         const ds = await getDb();
-        const completedAt = isCompleted || columnId === 'done' ? new Date().toISOString() : null;
+        const completedAt = reqCompletedAt !== undefined ? reqCompletedAt : (isCompleted || columnId === 'done' ? new Date().toISOString() : null);
         if (ds && dbReady) {
             try {
-                const targetColumn = columnId || (isCompleted ? 'done' : 'in_progress');
                 await ds.query(
-                    'UPDATE anticeil_assignments SET column_id = COALESCE($1, column_id), completed_at = $2, updated_at = NOW() WHERE id = $3',
-                    [targetColumn, completedAt, id]
+                    'UPDATE anticeil_assignments SET column_id = COALESCE($1, column_id), title = COALESCE($2, title), description = COALESCE($3, description), priority = COALESCE($4, priority), completed_at = $5, updated_at = NOW() WHERE id = $6',
+                    [columnId || null, title || null, description || null, priority || null, completedAt, id]
                 );
             } catch (e) {}
         }
