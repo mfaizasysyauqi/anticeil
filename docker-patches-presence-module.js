@@ -534,6 +534,14 @@ async function setupCommunityApi(app) {
                         timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
+
+                    CREATE TABLE IF NOT EXISTS anticeil_community_channel_reads (
+                        user_id VARCHAR(128) NOT NULL,
+                        channel_id VARCHAR(128) NOT NULL,
+                        last_read_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        PRIMARY KEY (user_id, channel_id)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_acc_reads ON anticeil_community_channel_reads (user_id, channel_id);
                 `);
             } catch (alterErr) {}
 
@@ -1186,6 +1194,160 @@ async function setupCommunityApi(app) {
             app.io.emit('COMMUNITY_REACTION_UPDATED', { id, channelId, reactions });
         }
         return { id, channelId, reactions };
+    };
+
+    // --- CHANNEL READS & UNREAD COUNTS HANDLERS ---
+    const memoryChannelReads = {};
+
+    const markChannelReadHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = req.body?.userId || req.query?.userId || getReqUserId(req);
+        const { channelId } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query(`
+                    INSERT INTO anticeil_community_channel_reads (user_id, channel_id, last_read_at)
+                    VALUES ($1, $2, NOW())
+                    ON CONFLICT (user_id, channel_id)
+                    DO UPDATE SET last_read_at = NOW()
+                `, [userId, channelId]);
+            } catch (e) {
+                console.error('Failed to update channel read timestamp:', e);
+            }
+        }
+        memoryChannelReads[`${userId}_${channelId}`] = Date.now();
+        if (app.io) {
+            app.io.emit('COMMUNITY_CHANNEL_READ', { userId, channelId, readAt: new Date().toISOString() });
+        }
+        return reply.send({ success: true, channelId, userId });
+    };
+
+    const getUnreadCountsHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = req.query?.userId || getReqUserId(req);
+        const ds = await getDb();
+        const counts = {
+            anticeil: 0,
+            servers: {},
+            friends: {},
+            channels: {},
+            total: 0
+        };
+
+        if (ds && dbReady) {
+            try {
+                // 1. Calculate unread messages from database where message was created after user's last_read_at
+                const rows = await ds.query(`
+                    SELECT 
+                        m.channel_id,
+                        c.hub_id,
+                        c.category,
+                        c.is_direct_message,
+                        c.dm_user_id,
+                        COUNT(m.id)::int AS unread_count
+                    FROM anticeil_community_messages m
+                    LEFT JOIN anticeil_community_channels c 
+                        ON c.id = m.channel_id
+                    LEFT JOIN anticeil_community_channel_reads r 
+                        ON r.channel_id = m.channel_id AND r.user_id = $1
+                    WHERE m.sender_id != $1
+                      AND (r.last_read_at IS NULL OR m.created_at > r.last_read_at)
+                    GROUP BY m.channel_id, c.hub_id, c.category, c.is_direct_message, c.dm_user_id
+                `, [userId]);
+
+                let totalDmUnread = 0;
+
+                for (const r of (rows || [])) {
+                    const count = parseInt(r.unread_count, 10) || 0;
+                    if (count <= 0) continue;
+
+                    const chId = r.channel_id;
+                    const hubId = r.hub_id || 'anticeil';
+                    const isDm = r.is_direct_message || r.category === 'DIRECT MESSAGES' || chId.startsWith('dm-');
+
+                    counts.channels[chId] = (counts.channels[chId] || 0) + count;
+                    counts.total += count;
+
+                    if (isDm) {
+                        totalDmUnread += count;
+                        let friendId = r.dm_user_id;
+                        if (!friendId && chId.startsWith('dm-')) {
+                            const parts = chId.slice(3).split('-');
+                            friendId = parts.find(p => p !== userId) || parts[0];
+                        }
+                        if (friendId) {
+                            counts.friends[friendId] = (counts.friends[friendId] || 0) + count;
+                            counts.friends[`dm-${friendId}`] = (counts.friends[`dm-${friendId}`] || 0) + count;
+                        }
+                    } else if (hubId && hubId !== 'anticeil') {
+                        counts.servers[hubId] = (counts.servers[hubId] || 0) + count;
+                    }
+                }
+
+                // 2. Add unread direct notifications for anticeil logo
+                let unreadNotifs = 0;
+                try {
+                    const notifRows = await ds.query(`
+                        SELECT COUNT(*)::int AS count
+                        FROM anticeil_notifications
+                        WHERE (user_id = $1 OR user_id = 'all')
+                          AND is_read = FALSE
+                    `, [userId]);
+                    unreadNotifs = parseInt(notifRows?.[0]?.count, 10) || 0;
+                } catch (e) {}
+
+                counts.anticeil = totalDmUnread + unreadNotifs;
+
+                const flatMap = {
+                    anticeil: counts.anticeil,
+                    ...counts.servers,
+                    ...counts.friends,
+                    ...counts.channels
+                };
+
+                return reply.send({
+                    success: true,
+                    counts,
+                    unreadCounts: flatMap
+                });
+            } catch (e) {
+                console.error('Error calculating database unread counts:', e);
+            }
+        }
+
+        // In-memory fallback calculation
+        try {
+            let totalDmUnread = 0;
+            for (const chId in memoryMessages) {
+                const msgs = memoryMessages[chId] || [];
+                const lastRead = memoryChannelReads[`${userId}_${chId}`] || 0;
+                const unread = msgs.filter(m => m.senderId !== userId && new Date(m.createdAt).getTime() > lastRead).length;
+                if (unread > 0) {
+                    counts.channels[chId] = unread;
+                    counts.total += unread;
+                    if (chId.startsWith('dm-')) {
+                        totalDmUnread += unread;
+                        const friendId = chId.replace('dm-', '');
+                        counts.friends[friendId] = (counts.friends[friendId] || 0) + unread;
+                        counts.friends[`dm-${friendId}`] = (counts.friends[`dm-${friendId}`] || 0) + unread;
+                    }
+                }
+            }
+            counts.anticeil = totalDmUnread;
+            return reply.send({
+                success: true,
+                counts,
+                unreadCounts: {
+                    anticeil: counts.anticeil,
+                    ...counts.servers,
+                    ...counts.friends,
+                    ...counts.channels
+                }
+            });
+        } catch (e) {}
+
+        return reply.send({ success: true, counts, unreadCounts: { anticeil: 0 } });
     };
 
     // --- MEMBERS HANDLER ---
