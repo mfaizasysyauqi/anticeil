@@ -542,6 +542,39 @@ async function setupCommunityApi(app) {
                         PRIMARY KEY (user_id, channel_id)
                     );
                     CREATE INDEX IF NOT EXISTS idx_acc_reads ON anticeil_community_channel_reads (user_id, channel_id);
+
+                    ALTER TABLE anticeil_community_messages ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;
+                    ALTER TABLE anticeil_community_messages ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMP WITH TIME ZONE;
+                    ALTER TABLE anticeil_community_messages ADD COLUMN IF NOT EXISTS pinned_by VARCHAR(256);
+
+                    CREATE TABLE IF NOT EXISTS anticeil_channel_notifications (
+                        user_id VARCHAR(128) NOT NULL,
+                        channel_id VARCHAR(128) NOT NULL,
+                        level VARCHAR(32) DEFAULT 'all',
+                        is_muted BOOLEAN DEFAULT FALSE,
+                        mute_duration VARCHAR(64),
+                        muted_until TIMESTAMP WITH TIME ZONE,
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        PRIMARY KEY (user_id, channel_id)
+                    );
+
+                    CREATE TABLE IF NOT EXISTS anticeil_community_server_emojis (
+                        id VARCHAR(128) PRIMARY KEY,
+                        hub_id VARCHAR(128) NOT NULL,
+                        name VARCHAR(128) NOT NULL,
+                        code VARCHAR(128) NOT NULL,
+                        url TEXT NOT NULL,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
+                    CREATE TABLE IF NOT EXISTS anticeil_community_server_stickers (
+                        id VARCHAR(128) PRIMARY KEY,
+                        hub_id VARCHAR(128) NOT NULL,
+                        name VARCHAR(128) NOT NULL,
+                        url TEXT NOT NULL,
+                        tags TEXT DEFAULT '[]',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
                 `);
             } catch (alterErr) {}
 
@@ -1044,7 +1077,10 @@ async function setupCommunityApi(app) {
                     content: r.content,
                     createdAt: (r.created_at instanceof Date) ? r.created_at.toISOString() : String(r.created_at),
                     attachments: typeof r.attachments === 'string' ? JSON.parse(r.attachments || '[]') : (r.attachments || []),
-                    reactions: typeof r.reactions === 'string' ? JSON.parse(r.reactions || '{}') : (r.reactions || {})
+                    reactions: typeof r.reactions === 'string' ? JSON.parse(r.reactions || '{}') : (r.reactions || {}),
+                    isPinned: Boolean(r.is_pinned),
+                    pinnedAt: r.pinned_at ? ((r.pinned_at instanceof Date) ? r.pinned_at.toISOString() : String(r.pinned_at)) : null,
+                    pinnedBy: r.pinned_by || null
                 }));
             } catch (e) {}
         }
@@ -1194,6 +1230,317 @@ async function setupCommunityApi(app) {
             app.io.emit('COMMUNITY_REACTION_UPDATED', { id, channelId, reactions });
         }
         return { id, channelId, reactions };
+    };
+
+    // --- PINNED MESSAGES HANDLERS ---
+    const getPinsHandler = async (req) => {
+        await ensureTables();
+        const { channelId } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_community_messages WHERE channel_id = $1 AND is_pinned = true ORDER BY pinned_at DESC LIMIT 50',
+                    [channelId]
+                );
+                return (rows || []).map(r => ({
+                    id: r.id,
+                    channelId: r.channel_id,
+                    senderId: r.sender_id,
+                    senderName: r.sender_name,
+                    senderEmail: r.sender_email,
+                    senderAvatar: r.sender_avatar || null,
+                    senderRole: r.sender_role || 'member',
+                    content: r.content,
+                    createdAt: (r.created_at instanceof Date) ? r.created_at.toISOString() : String(r.created_at),
+                    attachments: typeof r.attachments === 'string' ? JSON.parse(r.attachments || '[]') : (r.attachments || []),
+                    reactions: typeof r.reactions === 'string' ? JSON.parse(r.reactions || '{}') : (r.reactions || {}),
+                    isPinned: true,
+                    pinnedAt: r.pinned_at ? ((r.pinned_at instanceof Date) ? r.pinned_at.toISOString() : String(r.pinned_at)) : null,
+                    pinnedBy: r.pinned_by || null
+                }));
+            } catch (e) {}
+        }
+        const memList = memoryMessages[channelId] || [];
+        return memList.filter(m => m.isPinned);
+    };
+
+    const togglePinHandler = async (req, reply) => {
+        await ensureTables();
+        const { id, messageId, channelId: paramChannelId } = req.params;
+        const targetId = id || messageId || req.body?.messageId;
+        const body = req.body || {};
+        const userName = body.userName || 'Admin';
+        const channelId = body.channelId || paramChannelId;
+        const ds = await getDb();
+        let updatedMsg = null;
+
+        if (ds && dbReady && targetId) {
+            try {
+                const found = await ds.query('SELECT * FROM anticeil_community_messages WHERE id = $1', [targetId]);
+                if (found && found.length > 0) {
+                    const row = found[0];
+                    const nextPinned = !row.is_pinned;
+                    const now = new Date();
+                    const pinnedAt = nextPinned ? now.toISOString() : null;
+                    const pinnedBy = nextPinned ? userName : null;
+
+                    await ds.query(
+                        'UPDATE anticeil_community_messages SET is_pinned = $1, pinned_at = $2, pinned_by = $3, updated_at = $4 WHERE id = $5',
+                        [nextPinned, pinnedAt, pinnedBy, now.toISOString(), targetId]
+                    );
+
+                    updatedMsg = {
+                        id: row.id,
+                        channelId: row.channel_id,
+                        senderId: row.sender_id,
+                        senderName: row.sender_name,
+                        senderEmail: row.sender_email,
+                        senderAvatar: row.sender_avatar || null,
+                        senderRole: row.sender_role || 'member',
+                        content: row.content,
+                        createdAt: (row.created_at instanceof Date) ? row.created_at.toISOString() : String(row.created_at),
+                        attachments: typeof row.attachments === 'string' ? JSON.parse(row.attachments || '[]') : (row.attachments || []),
+                        reactions: typeof row.reactions === 'string' ? JSON.parse(row.reactions || '{}') : (row.reactions || {}),
+                        isPinned: nextPinned,
+                        pinnedAt,
+                        pinnedBy,
+                    };
+                }
+            } catch (e) {}
+        }
+
+        if (!updatedMsg && targetId) {
+            for (const chId in memoryMessages) {
+                const list = memoryMessages[chId];
+                for (let i = 0; i < list.length; i++) {
+                    if (list[i].id === targetId) {
+                        list[i].isPinned = !list[i].isPinned;
+                        list[i].pinnedAt = list[i].isPinned ? new Date().toISOString() : null;
+                        list[i].pinnedBy = list[i].isPinned ? userName : null;
+                        updatedMsg = list[i];
+                        break;
+                    }
+                }
+                if (updatedMsg) break;
+            }
+        }
+
+        if (!updatedMsg) {
+            return reply.status(404).send({ message: 'Message not found' });
+        }
+
+        if (app.io) {
+            app.io.emit('COMMUNITY_MESSAGE_PINNED', updatedMsg);
+        }
+        return updatedMsg;
+    };
+
+    const claimGiftHandler = async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const body = req.body || {};
+        const userName = body.userName || 'You';
+        const ds = await getDb();
+        let updatedMsg = null;
+
+        if (ds && dbReady && id) {
+            try {
+                const found = await ds.query('SELECT * FROM anticeil_community_messages WHERE id = $1', [id]);
+                if (found && found.length > 0) {
+                    const row = found[0];
+                    let attachments = typeof row.attachments === 'string' ? JSON.parse(row.attachments || '[]') : (row.attachments || []);
+                    attachments = attachments.map(att => {
+                        if (att.type === 'gift') {
+                            return {
+                                ...att,
+                                giftData: {
+                                    ...(att.giftData || {}),
+                                    claimed: true,
+                                    claimedBy: userName,
+                                    claimedAt: new Date().toISOString()
+                                }
+                            };
+                        }
+                        return att;
+                    });
+                    await ds.query('UPDATE anticeil_community_messages SET attachments = $1 WHERE id = $2', [JSON.stringify(attachments), id]);
+                    updatedMsg = {
+                        id: row.id,
+                        channelId: row.channel_id,
+                        attachments
+                    };
+                }
+            } catch (e) {}
+        }
+        if (app.io && updatedMsg) {
+            app.io.emit('COMMUNITY_GIFT_CLAIMED', updatedMsg);
+        }
+        return { success: true, messageId: id, claimedBy: userName };
+    };
+
+    // --- CHANNEL NOTIFICATIONS HANDLERS ---
+    const getChannelNotificationsHandler = async (req) => {
+        await ensureTables();
+        const { channelId } = req.params;
+        const userId = req.query?.userId || getReqUserId(req);
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_channel_notifications WHERE user_id = $1 AND channel_id = $2',
+                    [userId, channelId]
+                );
+                if (rows && rows.length > 0) {
+                    const r = rows[0];
+                    return {
+                        channelId: r.channel_id,
+                        userId: r.user_id,
+                        level: r.level || 'all',
+                        isMuted: Boolean(r.is_muted),
+                        muteDuration: r.mute_duration || null,
+                        mutedUntil: r.muted_until ? ((r.muted_until instanceof Date) ? r.muted_until.toISOString() : String(r.muted_until)) : null
+                    };
+                }
+            } catch (e) {}
+        }
+        return { channelId, isMuted: false, level: 'all', mutedUntil: null };
+    };
+
+    const updateChannelNotificationsHandler = async (req) => {
+        await ensureTables();
+        const { channelId } = req.params;
+        const userId = req.body?.userId || getReqUserId(req);
+        const { level = 'all', isMuted = false, muteDuration = null, mutedUntil = null } = req.body || {};
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query(`
+                    INSERT INTO anticeil_channel_notifications (user_id, channel_id, level, is_muted, mute_duration, muted_until, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                    ON CONFLICT (user_id, channel_id) DO UPDATE SET
+                        level = EXCLUDED.level,
+                        is_muted = EXCLUDED.is_muted,
+                        mute_duration = EXCLUDED.mute_duration,
+                        muted_until = EXCLUDED.muted_until,
+                        updated_at = NOW()
+                `, [userId, channelId, level, isMuted, muteDuration, mutedUntil]);
+            } catch (e) {}
+        }
+        return { success: true, channelId, level, isMuted, muteDuration, mutedUntil };
+    };
+
+    // --- SERVER CUSTOM EMOJIS & STICKERS HANDLERS ---
+    const getHubEmojisHandler = async (req) => {
+        await ensureTables();
+        const { hubId } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query('SELECT * FROM anticeil_community_server_emojis WHERE hub_id = $1 ORDER BY created_at DESC', [hubId]);
+                return (rows || []).map(r => ({
+                    id: r.id,
+                    hubId: r.hub_id,
+                    name: r.name,
+                    code: r.code,
+                    url: r.url,
+                    createdAt: r.created_at
+                }));
+            } catch (e) {}
+        }
+        return [];
+    };
+
+    const createHubEmojiHandler = async (req) => {
+        await ensureTables();
+        const { hubId } = req.params;
+        const { name, code, url } = req.body || {};
+        const id = `emj_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const ds = await getDb();
+        if (ds && dbReady && name && url) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_community_server_emojis (id, hub_id, name, code, url, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
+                    [id, hubId, name, code || `:${name}:`, url]
+                );
+            } catch (e) {}
+        }
+        return { success: true, id, hubId, name, code: code || `:${name}:`, url };
+    };
+
+    const getHubStickersHandler = async (req) => {
+        await ensureTables();
+        const { hubId } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query('SELECT * FROM anticeil_community_server_stickers WHERE hub_id = $1 ORDER BY created_at DESC', [hubId]);
+                return (rows || []).map(r => ({
+                    id: r.id,
+                    hubId: r.hub_id,
+                    name: r.name,
+                    url: r.url,
+                    tags: typeof r.tags === 'string' ? JSON.parse(r.tags || '[]') : (r.tags || []),
+                    createdAt: r.created_at
+                }));
+            } catch (e) {}
+        }
+        return [];
+    };
+
+    const createHubStickerHandler = async (req) => {
+        await ensureTables();
+        const { hubId } = req.params;
+        const { name, url, tags = [] } = req.body || {};
+        const id = `stk_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const ds = await getDb();
+        if (ds && dbReady && name && url) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_community_server_stickers (id, hub_id, name, url, tags, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
+                    [id, hubId, name, url, JSON.stringify(tags)]
+                );
+            } catch (e) {}
+        }
+        return { success: true, id, hubId, name, url, tags };
+    };
+
+    const deleteHubStickerHandler = async (req) => {
+        await ensureTables();
+        const { stickerId } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady && stickerId) {
+            try {
+                await ds.query('DELETE FROM anticeil_community_server_stickers WHERE id = $1', [stickerId]);
+            } catch (e) {}
+        }
+        return { success: true, id: stickerId };
+    };
+
+    // --- GIF SEARCH & TRENDING HANDLER ---
+    const searchGifsHandler = async (req) => {
+        const query = req.query?.q || '';
+        const limit = parseInt(req.query?.limit || '20', 10);
+        const catalog = [
+            { id: 'g1', title: 'Happy Dance Celebration', url: 'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif', previewUrl: 'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/200w.gif', category: 'dance' },
+            { id: 'g2', title: 'Celebration Birthday', url: 'https://media.giphy.com/media/10hO3rDNqqg2Xe/giphy.gif', previewUrl: 'https://media.giphy.com/media/10hO3rDNqqg2Xe/200w.gif', category: 'happy-birthday' },
+            { id: 'g3', title: 'Cute Cat Laugh LOL', url: 'https://media.giphy.com/media/MDJ9IbxxvDUQM/giphy.gif', previewUrl: 'https://media.giphy.com/media/MDJ9IbxxvDUQM/200w.gif', category: 'lol' },
+            { id: 'g4', title: 'Laughing Dog LOL', url: 'https://media.giphy.com/media/10yXFkBJ0MwGQg/giphy.gif', previewUrl: 'https://media.giphy.com/media/10yXFkBJ0MwGQg/200w.gif', category: 'lol' },
+            { id: 'g5', title: 'Bear Wave Hello', url: 'https://media.giphy.com/media/VbEC9WchxkiWTL5PFo/giphy.gif', previewUrl: 'https://media.giphy.com/media/VbEC9WchxkiWTL5PFo/200w.gif', category: 'hello' },
+            { id: 'g6', title: 'Tom Hanks Wave Hello', url: 'https://media.giphy.com/media/xT9IgG50Fb7Mi0prBC/giphy.gif', previewUrl: 'https://media.giphy.com/media/xT9IgG50Fb7Mi0prBC/200w.gif', category: 'hello' },
+            { id: 'g7', title: 'Warm Hug Love', url: 'https://media.giphy.com/media/KztT2c4uNxKKBosTht/giphy.gif', previewUrl: 'https://media.giphy.com/media/KztT2c4uNxKKBosTht/200w.gif', category: 'love' },
+            { id: 'g8', title: 'Gamer Rage Smash', url: 'https://media.giphy.com/media/8vUEXZA2me7vnuUvrs/giphy.gif', previewUrl: 'https://media.giphy.com/media/8vUEXZA2me7vnuUvrs/200w.gif', category: 'gaming' },
+            { id: 'g9', title: 'Mind Blown Reaction', url: 'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif', previewUrl: 'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/200w.gif', category: 'reaction' },
+            { id: 'g10', title: 'Applause Great Job', url: 'https://media.giphy.com/media/l3q2XhfQ8oCkm1GhO/giphy.gif', previewUrl: 'https://media.giphy.com/media/l3q2XhfQ8oCkm1GhO/200w.gif', category: 'clap' },
+            { id: 'g11', title: 'Thumbs Up Cool', url: 'https://media.giphy.com/media/111ebonMs90YLu/giphy.gif', previewUrl: 'https://media.giphy.com/media/111ebonMs90YLu/200w.gif', category: 'reaction' },
+            { id: 'g12', title: 'Victory Groove Dance', url: 'https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif', previewUrl: 'https://media.giphy.com/media/artj92V8o75VPL7AeQ/200w.gif', category: 'dance' },
+            { id: 'g13', title: 'Gaming Victory Royale', url: 'https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif', previewUrl: 'https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/200w.gif', category: 'gaming' },
+            { id: 'g14', title: 'Thank You Heart Love', url: 'https://media.giphy.com/media/3oEdva9BUHPIs2SkGk/giphy.gif', previewUrl: 'https://media.giphy.com/media/3oEdva9BUHPIs2SkGk/200w.gif', category: 'love' }
+        ];
+        if (!query) return catalog.slice(0, limit);
+        const lower = query.toLowerCase();
+        const filtered = catalog.filter(g => g.title.toLowerCase().includes(lower) || g.category.toLowerCase().includes(lower));
+        return (filtered.length > 0 ? filtered : catalog).slice(0, limit);
     };
 
     // --- CHANNEL READS & UNREAD COUNTS HANDLERS ---
@@ -2767,13 +3114,13 @@ async function setupCommunityApi(app) {
     // ── CALL LOGS HANDLERS ──
     const getCallLogsHandler = async (req, reply) => {
         await ensureTables();
-        const userId = getReqUserId(req);
+        const userId = req.query?.userId || getReqUserId(req);
         const ds = await getDb();
         if (ds && dbReady) {
             try {
                 const rows = await ds.query(
-                    'SELECT * FROM anticeil_call_logs WHERE user_id = $1 OR user_id = $2 ORDER BY timestamp DESC LIMIT 50',
-                    [userId, 'all']
+                    'SELECT * FROM anticeil_call_logs WHERE user_id = $1 OR user_id = $2 OR user_id = $3 ORDER BY timestamp DESC LIMIT 50',
+                    [userId, 'all', 'default-user']
                 );
                 return reply.send(rows.map(r => ({
                     id: r.id,
@@ -2792,7 +3139,7 @@ async function setupCommunityApi(app) {
 
     const createCallLogHandler = async (req, reply) => {
         await ensureTables();
-        const userId = getReqUserId(req);
+        const userId = req.body?.userId || getReqUserId(req);
         const { peerId, peerName, peerAvatar = null, type = 'outgoing', isVideo = false, duration = null } = req.body || {};
         const id = `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         const ds = await getDb();
@@ -2820,9 +3167,120 @@ async function setupCommunityApi(app) {
         return reply.send({ success: true, id });
     };
 
+    // --- ZERO-QUOTA YOUTUBE SEARCH & TRENDING SCRAPER (UNLIMITED) ---
+    const ytScrapeCache = new Map();
+    const getYouTubeSearchHandler = async (req, reply) => {
+        const query = (req.query?.q || '').trim();
+        const category = (req.query?.category || '').trim();
+        const cacheKey = query ? `q:${query.toLowerCase()}` : `cat:${category || 'trending'}`;
+
+        const cached = ytScrapeCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < 1000 * 60 * 30) {
+            return reply.send({ items: cached.items });
+        }
+
+        try {
+            const searchUrl = query
+                ? `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
+                : `https://www.youtube.com/feed/trending`;
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 6500);
+
+            const res = await fetch(searchUrl, {
+                signal: controller.signal,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                    'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+                }
+            });
+            clearTimeout(timeoutId);
+
+            if (!res.ok) {
+                return reply.send({ items: cached ? cached.items : [] });
+            }
+
+            const html = await res.text();
+            const match = html.match(/ytInitialData\s*=\s*({.+?});<\/script>/);
+            if (!match) {
+                return reply.send({ items: cached ? cached.items : [] });
+            }
+
+            const json = JSON.parse(match[1]);
+            const items = [];
+
+            // 1. Search Results extraction
+            const searchContents = json.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents;
+            if (Array.isArray(searchContents)) {
+                for (const section of searchContents) {
+                    const itemSection = section.itemSectionRenderer?.contents;
+                    if (Array.isArray(itemSection)) {
+                        for (const item of itemSection) {
+                            const v = item.videoRenderer;
+                            if (v && v.videoId) {
+                                items.push({
+                                    id: v.videoId,
+                                    title: v.title?.runs?.[0]?.text || 'YouTube Video',
+                                    channel: v.ownerText?.runs?.[0]?.text || 'YouTube',
+                                    duration: v.lengthText?.simpleText || '',
+                                    views: v.viewCountText?.simpleText || '',
+                                    uploadedAt: v.publishedTimeText?.simpleText || '',
+                                    thumbnail: v.thumbnail?.thumbnails?.slice(-1)[0]?.url || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Trending / Feed extraction
+            if (items.length === 0) {
+                const tabs = json.contents?.twoColumnBrowseResultsRenderer?.tabs;
+                if (Array.isArray(tabs)) {
+                    for (const tab of tabs) {
+                        const tabContents = tab.tabRenderer?.content?.sectionListRenderer?.contents;
+                        if (Array.isArray(tabContents)) {
+                            for (const sec of tabContents) {
+                                const subItems = sec.itemSectionRenderer?.contents?.[0]?.shelfRenderer?.content?.expandedShelfContentsRenderer?.items;
+                                if (Array.isArray(subItems)) {
+                                    for (const it of subItems) {
+                                        const v = it.videoRenderer;
+                                        if (v && v.videoId) {
+                                            items.push({
+                                                id: v.videoId,
+                                                title: v.title?.runs?.[0]?.text || 'YouTube Video',
+                                                channel: v.ownerText?.runs?.[0]?.text || 'YouTube',
+                                                duration: v.lengthText?.simpleText || '',
+                                                views: v.viewCountText?.simpleText || '',
+                                                uploadedAt: v.publishedTimeText?.simpleText || '',
+                                                thumbnail: v.thumbnail?.thumbnails?.slice(-1)[0]?.url || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            const limitedItems = items.slice(0, 24);
+            if (limitedItems.length > 0) {
+                ytScrapeCache.set(cacheKey, { timestamp: Date.now(), items: limitedItems });
+            }
+            return reply.send({ items: limitedItems });
+        } catch (err) {
+            return reply.send({ items: cached ? cached.items : [] });
+        }
+    };
+
     // --- REGISTER ROUTE ALIASES (Supports both /v1/community/* and /v1/messages/*) ---
     const routePrefixes = ['/v1/community', '/v1/messages'];
     for (const prefix of routePrefixes) {
+        // Zero-Quota YouTube Search & Trending
+        app.get(`${prefix}/youtube/search`, getYouTubeSearchHandler);
+
         // Channels
         app.get(`${prefix}/channels`, getChannelsHandler);
         app.post(`${prefix}/channels`, createChannelHandler);
@@ -2842,24 +3300,27 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/messages/:id/reactions`, toggleReactionHandler);
 
         // Channel Notifications & Pins
-        app.get(`${prefix}/channels/:channelId/notifications`, async (req) => {
-            const { channelId } = req.params;
-            return { channelId, isMuted: false, level: 'ALL_MESSAGES', mutedUntil: null };
-        });
-        app.put(`${prefix}/channels/:channelId/notifications`, async () => ({ success: true }));
-        app.get(`${prefix}/channels/:channelId/pins`, async () => []);
-        app.post(`${prefix}/channels/:channelId/pins`, async () => ({ success: true }));
-        app.delete(`${prefix}/channels/:channelId/pins/:messageId`, async () => ({ success: true }));
+        app.get(`${prefix}/channels/:channelId/notifications`, getChannelNotificationsHandler);
+        app.put(`${prefix}/channels/:channelId/notifications`, updateChannelNotificationsHandler);
+        app.get(`${prefix}/channels/:channelId/pins`, getPinsHandler);
+        app.post(`${prefix}/channels/:channelId/pins`, togglePinHandler);
+        app.delete(`${prefix}/channels/:channelId/pins/:messageId`, togglePinHandler);
+        app.post(`${prefix}/messages/:id/pin`, togglePinHandler);
+        app.post(`${prefix}/messages/:id/claim-gift`, claimGiftHandler);
 
         // Members
         app.get(`${prefix}/members`, getMembersHandler);
 
         // Hub Stickers & Emojis
-        app.get(`${prefix}/hubs/:hubId/stickers`, async () => []);
-        app.post(`${prefix}/hubs/:hubId/stickers`, async () => ({ success: true }));
-        app.delete(`${prefix}/hubs/:hubId/stickers/:stickerId`, async () => ({ success: true }));
-        app.get(`${prefix}/hubs/:hubId/emojis`, async () => []);
-        app.post(`${prefix}/hubs/:hubId/emojis`, async () => ({ success: true }));
+        app.get(`${prefix}/hubs/:hubId/stickers`, getHubStickersHandler);
+        app.post(`${prefix}/hubs/:hubId/stickers`, createHubStickerHandler);
+        app.delete(`${prefix}/hubs/:hubId/stickers/:stickerId`, deleteHubStickerHandler);
+        app.get(`${prefix}/hubs/:hubId/emojis`, getHubEmojisHandler);
+        app.post(`${prefix}/hubs/:hubId/emojis`, createHubEmojiHandler);
+
+        // GIFs Live Search & Trending
+        app.get(`${prefix}/gifs/search`, searchGifsHandler);
+        app.get(`${prefix}/gifs/trending`, searchGifsHandler);
 
         // Hubs (Servers) & Server Features
         app.get(`${prefix}/hubs`, getHubsHandler);
@@ -2944,6 +3405,65 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/bot/message`, botWebhookHandler);
         app.post(`${prefix}/bot`, botWebhookHandler);
     }
+
+    // --- AUTOMATIC BACKGROUND SCHEDULER FOR SCHEDULED MESSAGES ---
+    setInterval(async () => {
+        try {
+            const ds = await getDb();
+            if (!ds || !dbReady) return;
+            const nowIso = new Date().toISOString();
+            const dueEvents = await ds.query(
+                "SELECT * FROM anticeil_calendar_events WHERE status = 'scheduled' AND start_time <= $1 ORDER BY start_time ASC LIMIT 10",
+                [nowIso]
+            );
+            if (!dueEvents || dueEvents.length === 0) return;
+
+            for (const ev of dueEvents) {
+                const channelId = ev.channel_id;
+                if (!channelId) {
+                    await ds.query("UPDATE anticeil_calendar_events SET status = 'cancelled' WHERE id = $1", [ev.id]);
+                    continue;
+                }
+                const msgId = `msg-sched-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+                const senderId = ev.user_id || 'system-scheduler';
+                const senderName = 'Jadwal Pesan (Scheduler)';
+                const senderEmail = 'scheduler@anticeil.com';
+                const content = ev.description || ev.title;
+                const now = new Date().toISOString();
+
+                await ds.query(
+                    `INSERT INTO anticeil_community_messages (id, channel_id, sender_id, sender_name, sender_email, sender_avatar, sender_role, content, attachments, reactions, created_at, updated_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                    [msgId, channelId, senderId, senderName, senderEmail, null, 'bot', content, '[]', '{}', now, now]
+                );
+
+                await ds.query("UPDATE anticeil_calendar_events SET status = 'sent' WHERE id = $1", [ev.id]);
+
+                const schedMsg = {
+                    id: msgId,
+                    channelId,
+                    senderId,
+                    senderName,
+                    senderEmail,
+                    senderAvatar: null,
+                    senderRole: 'bot',
+                    content,
+                    createdAt: now,
+                    attachments: [],
+                    reactions: {},
+                    isPinned: false,
+                    pinnedAt: null,
+                    pinnedBy: null
+                };
+                if (!memoryMessages[channelId]) memoryMessages[channelId] = [];
+                memoryMessages[channelId].push(schedMsg);
+
+                if (app.io) {
+                    app.io.emit('COMMUNITY_CHAT_MESSAGE', schedMsg);
+                }
+            }
+        } catch (schedErr) {}
+    }, 15000);
 
     // --- REALTIME WEBRTC VIDEO/VOICE CALL & ACTIVITY ENGINE ---
     function getIOServer() {
