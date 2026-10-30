@@ -455,6 +455,17 @@ async function setupCommunityApi(app) {
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
 
+                    CREATE TABLE IF NOT EXISTS anticeil_server_invitations (
+                        id VARCHAR(128) PRIMARY KEY,
+                        hub_id VARCHAR(128) NOT NULL,
+                        inviter_id VARCHAR(128) NOT NULL,
+                        invitee_id VARCHAR(128) NOT NULL,
+                        status VARCHAR(32) DEFAULT 'pending',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        UNIQUE(hub_id, invitee_id)
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_comm_mem_hub_user ON anticeil_community_members(hub_id, user_id);
+
                     CREATE TABLE IF NOT EXISTS anticeil_message_requests (
                         id VARCHAR(128) PRIMARY KEY,
                         receiver_id VARCHAR(128) NOT NULL,
@@ -2655,6 +2666,65 @@ async function setupCommunityApi(app) {
         return 'default-user';
     }
 
+    // Database user profile lookup helper (fullstack real profile from DB)
+    async function getDbUserProfile(ds, userId) {
+        if (!ds || !userId) return null;
+        try {
+            const rows = await ds.query(`
+                SELECT u.id, ui."firstName", ui."lastName", ui.email, ui."imageUrl"
+                FROM "user" u
+                LEFT JOIN "user_identity" ui ON u."identityId" = ui.id
+                WHERE u.id = $1
+                LIMIT 1
+            `, [userId]);
+            if (rows && rows[0]) {
+                const u = rows[0];
+                const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email?.split('@')[0] || 'Pengguna Anticeil';
+                const username = u.email ? u.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : null;
+                return {
+                    id: u.id,
+                    name,
+                    username,
+                    email: u.email || '',
+                    avatar: u.imageUrl || null
+                };
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    async function findDbUser(ds, query) {
+        if (!ds || !query) return null;
+        const clean = String(query).trim().replace(/^@/, '').toLowerCase();
+        try {
+            const rows = await ds.query(`
+                SELECT u.id, ui."firstName", ui."lastName", ui.email, ui."imageUrl"
+                FROM "user" u
+                LEFT JOIN "user_identity" ui ON u."identityId" = ui.id
+                WHERE u.id = $1
+                   OR LOWER(ui.email) = $2
+                   OR LOWER(ui.email) LIKE $3
+                   OR LOWER(ui."firstName") = $2
+                   OR LOWER(ui."lastName") = $2
+                   OR LOWER(CONCAT(ui."firstName", ' ', ui."lastName")) = $2
+                LIMIT 1
+            `, [query, clean, `${clean}@%`]);
+            if (rows && rows[0]) {
+                const u = rows[0];
+                const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email?.split('@')[0] || 'Pengguna Anticeil';
+                const username = u.email ? u.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : null;
+                return {
+                    id: u.id,
+                    name,
+                    username,
+                    email: u.email || '',
+                    avatar: u.imageUrl || null
+                };
+            }
+        } catch (e) {}
+        return null;
+    }
+
     // ── FRIENDS HANDLERS ──
     const getFriendsHandler = async (req, reply) => {
         await ensureTables();
@@ -2662,20 +2732,34 @@ async function setupCommunityApi(app) {
         const ds = await getDb();
         if (ds && dbReady) {
             try {
-                const rows = await ds.query(
-                    'SELECT * FROM anticeil_friends WHERE user_id = $1 OR user_id = $2 ORDER BY created_at DESC',
-                    [userId, 'all']
-                );
-                return reply.send(rows.map(r => ({
-                    id: r.id,
-                    name: r.friend_name,
-                    username: r.friend_username,
-                    avatar: r.friend_avatar,
-                    email: r.friend_email,
-                    status: r.status,
+                const rows = await ds.query(`
+                    SELECT 
+                        f.id,
+                        f.friend_id,
+                        COALESCE(NULLIF(TRIM(CONCAT(ui."firstName", ' ', ui."lastName")), ''), ui.email, f.friend_name) as real_name,
+                        ui.email as real_email,
+                        COALESCE(ui."imageUrl", f.friend_avatar) as real_avatar,
+                        f.status,
+                        f.created_at
+                    FROM anticeil_friends f
+                    LEFT JOIN "user" u ON f.friend_id = u.id
+                    LEFT JOIN "user_identity" ui ON u."identityId" = ui.id
+                    WHERE f.user_id = $1 OR f.user_id = 'all'
+                    ORDER BY f.created_at DESC
+                `, [userId]);
+
+                return reply.send((rows || []).map(r => ({
+                    id: r.friend_id || r.id,
+                    name: r.real_name || 'Pengguna Anticeil',
+                    username: r.real_email ? r.real_email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : null,
+                    avatar: r.real_avatar || null,
+                    email: r.real_email || '',
+                    status: 'online',
                     createdAt: r.created_at
                 })));
-            } catch (e) {}
+            } catch (e) {
+                console.error('[getFriendsHandler] Error:', e);
+            }
         }
         return reply.send([]);
     };
@@ -2686,20 +2770,54 @@ async function setupCommunityApi(app) {
         const ds = await getDb();
         if (ds && dbReady) {
             try {
-                const rows = await ds.query(
-                    'SELECT * FROM anticeil_friend_requests WHERE receiver_id = $1 OR receiver_id = $2 ORDER BY created_at DESC',
-                    [userId, 'all']
-                );
-                return reply.send(rows.map(r => ({
-                    id: r.id,
-                    senderId: r.sender_id,
-                    senderName: r.sender_name,
-                    senderUsername: r.sender_username,
-                    senderAvatar: r.sender_avatar,
-                    status: r.status,
-                    createdAt: r.created_at
-                })));
-            } catch (e) {}
+                const rows = await ds.query(`
+                    SELECT 
+                        fr.id,
+                        fr.sender_id,
+                        fr.receiver_id,
+                        fr.status,
+                        fr.created_at,
+                        -- sender live info
+                        COALESCE(NULLIF(TRIM(CONCAT(s_ui."firstName", ' ', s_ui."lastName")), ''), s_ui.email, fr.sender_name) as s_name,
+                        s_ui.email as s_email,
+                        COALESCE(s_ui."imageUrl", fr.sender_avatar) as s_avatar,
+                        -- receiver live info
+                        COALESCE(NULLIF(TRIM(CONCAT(r_ui."firstName", ' ', r_ui."lastName")), ''), r_ui.email, fr.receiver_name) as r_name,
+                        r_ui.email as r_email,
+                        r_ui."imageUrl" as r_avatar
+                    FROM anticeil_friend_requests fr
+                    LEFT JOIN "user" su ON fr.sender_id = su.id
+                    LEFT JOIN "user_identity" s_ui ON su."identityId" = s_ui.id
+                    LEFT JOIN "user" ru ON fr.receiver_id = ru.id
+                    LEFT JOIN "user_identity" r_ui ON ru."identityId" = r_ui.id
+                    WHERE fr.receiver_id = $1 OR fr.sender_id = $1 OR fr.receiver_id = 'all'
+                    ORDER BY fr.created_at DESC
+                `, [userId]);
+
+                return reply.send((rows || []).map(r => {
+                    const isIncoming = r.receiver_id === userId || r.receiver_id === 'all';
+                    const targetName = isIncoming ? r.s_name : r.r_name;
+                    const targetEmail = isIncoming ? r.s_email : r.r_email;
+                    const targetAvatar = isIncoming ? r.s_avatar : r.r_avatar;
+                    const targetUsername = targetEmail 
+                        ? targetEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') 
+                        : null;
+
+                    return {
+                        id: r.id,
+                        name: targetName || 'Pengguna Anticeil',
+                        username: targetUsername,
+                        avatar: targetAvatar || null,
+                        direction: isIncoming ? 'incoming' : 'outgoing',
+                        status: r.status,
+                        createdAt: r.created_at,
+                        senderId: r.sender_id,
+                        receiverId: r.receiver_id
+                    };
+                }));
+            } catch (e) {
+                console.error('[getFriendRequestsHandler] Error:', e);
+            }
         }
         return reply.send([]);
     };
@@ -2709,21 +2827,62 @@ async function setupCommunityApi(app) {
         const userId = getReqUserId(req);
         const { targetUsername, targetUserId } = req.body || {};
         if (!targetUsername && !targetUserId) {
-            return reply.status(400).send({ message: 'Target username or user ID required' });
+            return reply.status(400).send({ message: 'Target username atau user ID wajib diisi' });
         }
         const ds = await getDb();
         const id = `freq_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        const senderName = req.principal?.name || req.body?.senderName || 'Pengguna Anticeil';
-        const senderUsername = req.principal?.username || req.body?.senderUsername || 'user';
-        const senderAvatar = req.principal?.imageUrl || null;
+
+        let sender = null;
+        let receiver = null;
+
+        if (ds && dbReady) {
+            sender = await getDbUserProfile(ds, userId);
+            if (targetUserId) receiver = await getDbUserProfile(ds, targetUserId);
+            if (!receiver && targetUsername) receiver = await findDbUser(ds, targetUsername);
+        }
+
+        const senderName = sender?.name || req.body?.senderName || req.principal?.name || 'Pengguna Anticeil';
+        const senderUsername = sender?.username || req.body?.senderUsername || req.principal?.username || 'user';
+        const senderAvatar = sender?.avatar || req.body?.senderAvatar || req.principal?.imageUrl || null;
+
+        const resolvedReceiverId = receiver?.id || targetUserId || targetUsername;
+        const resolvedReceiverName = receiver?.name || targetUsername || 'Teman';
+
+        if (resolvedReceiverId === userId) {
+            return reply.status(400).send({ message: 'Tidak bisa menambahkan diri sendiri sebagai teman' });
+        }
+
         if (ds && dbReady) {
             try {
+                // Check if already friends
+                const existingFriends = await ds.query(
+                    'SELECT 1 FROM anticeil_friends WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)',
+                    [userId, resolvedReceiverId]
+                );
+                if (existingFriends && existingFriends.length > 0) {
+                    return reply.status(400).send({ message: 'Sudah berteman dengan pengguna ini' });
+                }
+
+                // Check if friend request already exists
+                const existingReqs = await ds.query(
+                    'SELECT 1 FROM anticeil_friend_requests WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)',
+                    [userId, resolvedReceiverId]
+                );
+                if (existingReqs && existingReqs.length > 0) {
+                    return reply.status(400).send({ message: 'Permintaan pertemanan sudah pernah dikirim sebelumnya' });
+                }
+
                 await ds.query(
                     'INSERT INTO anticeil_friend_requests (id, sender_id, sender_name, sender_username, sender_avatar, receiver_id, receiver_name, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-                    [id, userId, senderName, senderUsername, senderAvatar, targetUserId || targetUsername, targetUsername || 'Teman', 'pending']
+                    [id, userId, senderName, senderUsername, senderAvatar, resolvedReceiverId, resolvedReceiverName, 'pending']
                 );
-                return reply.send({ success: true, id, message: `Permintaan pertemanan dikirim ke ${targetUsername || targetUserId}` });
-            } catch (e) {}
+                if (app.io) {
+                    app.io.emit('COMMUNITY_FRIEND_REQUEST_SENT', { senderId: userId, receiverId: resolvedReceiverId });
+                }
+                return reply.send({ success: true, id, message: `Permintaan pertemanan dikirim ke ${resolvedReceiverName}` });
+            } catch (e) {
+                console.error('[sendFriendRequestHandler] Error:', e);
+            }
         }
         return reply.send({ success: true, id, message: 'Permintaan pertemanan tersimpan' });
     };
@@ -2738,15 +2897,43 @@ async function setupCommunityApi(app) {
                 const reqRows = await ds.query('SELECT * FROM anticeil_friend_requests WHERE id = $1', [id]);
                 if (reqRows && reqRows[0]) {
                     const fr = reqRows[0];
-                    const fId = `friend_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+                    const otherUserId = fr.sender_id === userId ? fr.receiver_id : fr.sender_id;
+
+                    const userMe = await getDbUserProfile(ds, userId);
+                    const userOther = await getDbUserProfile(ds, otherUserId);
+
+                    const meName = userMe?.name || 'Pengguna';
+                    const meUsername = userMe?.username || 'user';
+                    const meAvatar = userMe?.avatar || null;
+                    const meEmail = userMe?.email || null;
+
+                    const otherName = userOther?.name || fr.sender_name || 'Teman';
+                    const otherUsername = userOther?.username || fr.sender_username || 'user';
+                    const otherAvatar = userOther?.avatar || fr.sender_avatar || null;
+                    const otherEmail = userOther?.email || null;
+
+                    const fId1 = `friend_${Date.now()}_1`;
+                    const fId2 = `friend_${Date.now()}_2`;
+
+                    // Bidirectional friendship
                     await ds.query(
-                        'INSERT INTO anticeil_friends (id, user_id, friend_id, friend_name, friend_username, friend_avatar, status) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (user_id, friend_id) DO NOTHING',
-                        [fId, userId, fr.sender_id, fr.sender_name, fr.sender_username, fr.sender_avatar, 'accepted']
+                        'INSERT INTO anticeil_friends (id, user_id, friend_id, friend_name, friend_username, friend_avatar, friend_email, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (user_id, friend_id) DO UPDATE SET friend_name = $4, friend_username = $5, friend_avatar = $6',
+                        [fId1, userId, otherUserId, otherName, otherUsername, otherAvatar, otherEmail, 'accepted']
                     );
+                    await ds.query(
+                        'INSERT INTO anticeil_friends (id, user_id, friend_id, friend_name, friend_username, friend_avatar, friend_email, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (user_id, friend_id) DO UPDATE SET friend_name = $4, friend_username = $5, friend_avatar = $6',
+                        [fId2, otherUserId, userId, meName, meUsername, meAvatar, meEmail, 'accepted']
+                    );
+
                     await ds.query('DELETE FROM anticeil_friend_requests WHERE id = $1', [id]);
-                    return reply.send({ success: true, friendId: fr.sender_id });
+                    if (app.io) {
+                        app.io.emit('COMMUNITY_FRIEND_REQUEST_ACCEPTED', { userId, friendId: otherUserId });
+                    }
+                    return reply.send({ success: true, friendId: otherUserId });
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error('[acceptFriendRequestHandler] Error:', e);
+            }
         }
         return reply.send({ success: true, id });
     };
@@ -2774,6 +2961,180 @@ async function setupCommunityApi(app) {
             } catch (e) {}
         }
         return reply.send({ success: true, friendId });
+    };
+
+    // ── SERVER INVITATIONS HANDLERS ──
+    const getServerInvitationsHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(`
+                    SELECT 
+                        si.id,
+                        si.hub_id as "serverId",
+                        h.name as "serverName",
+                        h.description as "serverDescription",
+                        h.icon_url as "serverIconUrl",
+                        COALESCE(NULLIF(TRIM(CONCAT(ui."firstName", ' ', ui."lastName")), ''), ui.email, 'Admin') as "inviterName",
+                        ui.email as "inviterEmail",
+                        ui."imageUrl" as "inviterAvatar",
+                        si.created_at as "createdAt",
+                        (SELECT COUNT(*) FROM anticeil_community_members cm WHERE cm.hub_id = si.hub_id) as "membersCount"
+                    FROM anticeil_server_invitations si
+                    JOIN anticeil_community_hubs h ON si.hub_id = h.id
+                    LEFT JOIN "user" u ON si.inviter_id = u.id
+                    LEFT JOIN "user_identity" ui ON u."identityId" = ui.id
+                    WHERE si.invitee_id = $1 AND si.status = 'pending'
+                    ORDER BY si.created_at DESC
+                `, [userId]);
+
+                return reply.send((rows || []).map(r => ({
+                    id: r.id,
+                    serverId: r.serverId,
+                    serverName: r.serverName,
+                    serverDescription: r.serverDescription || 'Komunitas Anticeil untuk kolaborasi dan obrolan santai.',
+                    serverIconUrl: r.serverIconUrl || null,
+                    inviterName: r.inviterName,
+                    inviterUsername: r.inviterEmail ? r.inviterEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : null,
+                    inviterAvatar: r.inviterAvatar || null,
+                    createdAt: new Date(r.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+                    membersCount: Number(r.membersCount || 1)
+                })));
+            } catch (e) {
+                console.error('[getServerInvitationsHandler] Error:', e);
+            }
+        }
+        return reply.send([]);
+    };
+
+    const inviteUserToHubHandler = async (req, reply) => {
+        await ensureTables();
+        const inviterId = getReqUserId(req);
+        const { hubId } = req.params;
+        const { targetUserId, targetUsername } = req.body || {};
+        if (!targetUserId && !targetUsername) {
+            return reply.status(400).send({ success: false, message: 'Target user ID atau username wajib diisi' });
+        }
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                let targetUser = null;
+                if (targetUserId) targetUser = await getDbUserProfile(ds, targetUserId);
+                if (!targetUser && targetUsername) targetUser = await findDbUser(ds, targetUsername);
+
+                if (!targetUser) {
+                    return reply.status(404).send({ success: false, code: 'USER_NOT_FOUND', message: 'Pengguna tidak ditemukan di database' });
+                }
+
+                // Check if already a member of the server
+                const memberRows = await ds.query(
+                    'SELECT 1 FROM anticeil_community_members WHERE hub_id = $1 AND user_id = $2',
+                    [hubId, targetUser.id]
+                );
+                if (memberRows && memberRows.length > 0) {
+                    return reply.send({ success: false, alreadyMember: true, message: `Pengguna @${targetUser.username || targetUser.name} sudah menjadi anggota server ini` });
+                }
+
+                // Check if already pending invitation
+                const pendingRows = await ds.query(
+                    'SELECT 1 FROM anticeil_server_invitations WHERE hub_id = $1 AND invitee_id = $2 AND status = $3',
+                    [hubId, targetUser.id, 'pending']
+                );
+                if (pendingRows && pendingRows.length > 0) {
+                    return reply.send({ success: false, alreadyInvited: true, message: `Undangan sudah pernah dikirim ke @${targetUser.username || targetUser.name}` });
+                }
+
+                const invId = `sinv_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+                await ds.query(
+                    'INSERT INTO anticeil_server_invitations (id, hub_id, inviter_id, invitee_id, status) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (hub_id, invitee_id) DO UPDATE SET status = $5, created_at = NOW()',
+                    [invId, hubId, inviterId, targetUser.id, 'pending']
+                );
+
+                if (app.io) {
+                    app.io.emit('COMMUNITY_SERVER_INVITATION_RECEIVED', { hubId, inviteeId: targetUser.id });
+                }
+
+                return reply.send({ success: true, message: `Undangan ke server berhasil dikirim ke ${targetUser.name}!`, user: targetUser });
+            } catch (e) {
+                console.error('[inviteUserToHubHandler] Error:', e);
+                return reply.status(500).send({ success: false, message: 'Gagal mengirim undangan server' });
+            }
+        }
+        return reply.send({ success: true, message: 'Undangan tersimpan' });
+    };
+
+    const acceptServerInvitationHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const { id } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const invRows = await ds.query(
+                    'SELECT * FROM anticeil_server_invitations WHERE id = $1 AND invitee_id = $2',
+                    [id, userId]
+                );
+                if (!invRows || !invRows[0]) {
+                    return reply.status(404).send({ success: false, message: 'Undangan tidak ditemukan' });
+                }
+                const inv = invRows[0];
+                const memId = `mem_${inv.hub_id}_${userId}`;
+                await ds.query(
+                    'INSERT INTO anticeil_community_members (id, hub_id, user_id, role, role_label) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (hub_id, user_id) DO NOTHING',
+                    [memId, inv.hub_id, userId, 'member', 'Anggota']
+                );
+                await ds.query('DELETE FROM anticeil_server_invitations WHERE id = $1', [id]);
+
+                // Fetch hub details to return to frontend
+                const hubRows = await ds.query('SELECT * FROM anticeil_community_hubs WHERE id = $1', [inv.hub_id]);
+                let hub = null;
+                if (hubRows && hubRows[0]) {
+                    const r = hubRows[0];
+                    hub = {
+                        id: r.id,
+                        name: r.name,
+                        iconType: r.icon_type || 'code',
+                        initials: r.initials || (r.name || 'SV').slice(0, 2).toUpperCase(),
+                        description: r.description || '',
+                        inviteCode: r.invite_code,
+                        color: r.color || 'bg-indigo-600',
+                        iconUrl: r.icon_url || null,
+                        role: 'member'
+                    };
+                }
+
+                if (app.io) {
+                    app.io.emit('COMMUNITY_MEMBER_JOINED', { hubId: inv.hub_id, userId });
+                }
+
+                return reply.send({ success: true, hub });
+            } catch (e) {
+                console.error('[acceptServerInvitationHandler] Error:', e);
+                return reply.status(500).send({ success: false, message: 'Gagal menerima undangan server' });
+            }
+        }
+        return reply.send({ success: true, id });
+    };
+
+    const rejectServerInvitationHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const { id } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'DELETE FROM anticeil_server_invitations WHERE id = $1 AND invitee_id = $2',
+                    [id, userId]
+                );
+                return reply.send({ success: true, id });
+            } catch (e) {
+                console.error('[rejectServerInvitationHandler] Error:', e);
+            }
+        }
+        return reply.send({ success: true, id });
     };
 
     // ── MESSAGE REQUESTS HANDLERS ──
@@ -3351,6 +3712,12 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/friends/request/:id/accept`, acceptFriendRequestHandler);
         app.post(`${prefix}/friends/request/:id/ignore`, ignoreFriendRequestHandler);
         app.delete(`${prefix}/friends/:friendId`, deleteFriendHandler);
+
+        // Server Invitations (Fullstack database pending server invites)
+        app.get(`${prefix}/server-invitations`, getServerInvitationsHandler);
+        app.post(`${prefix}/hubs/:hubId/invite-user`, inviteUserToHubHandler);
+        app.post(`${prefix}/server-invitations/:id/accept`, acceptServerInvitationHandler);
+        app.post(`${prefix}/server-invitations/:id/reject`, rejectServerInvitationHandler);
 
         // Message Requests
         app.get(`${prefix}/message-requests`, getMessageRequestsHandler);
