@@ -1142,7 +1142,7 @@ async function setupCommunityApi(app) {
         if (ds && dbReady) {
             try {
                 await ds.query(
-                    'INSERT INTO anticeil_community_messages (id, channel_id, sender_id, sender_name, sender_email, sender_avatar, sender_role, content, attachments, reactions, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+                    'INSERT INTO anticeil_community_messages (id, channel_id, sender_id, sender_name, sender_email, sender_avatar, sender_role, content, attachments, reactions, created_at, reply_to) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)',
                     [
                         id,
                         channelId,
@@ -1154,7 +1154,8 @@ async function setupCommunityApi(app) {
                         newMessage.content,
                         JSON.stringify(newMessage.attachments),
                         JSON.stringify(newMessage.reactions),
-                        newMessage.createdAt
+                        newMessage.createdAt,
+                        newMessage.replyTo ? JSON.stringify(newMessage.replyTo) : null
                     ]
                 );
             } catch (e) {}
@@ -2007,7 +2008,7 @@ async function setupCommunityApi(app) {
         if (ds && dbReady) {
             try {
                 await ds.query(
-                    'INSERT INTO anticeil_community_messages (id, channel_id, sender_id, sender_name, sender_email, sender_avatar, sender_role, content, attachments, reactions, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+                    'INSERT INTO anticeil_community_messages (id, channel_id, sender_id, sender_name, sender_email, sender_avatar, sender_role, content, attachments, reactions, created_at, reply_to) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)',
                     [
                         newMessage.id,
                         newMessage.channelId,
@@ -2019,7 +2020,8 @@ async function setupCommunityApi(app) {
                         newMessage.content,
                         JSON.stringify(newMessage.attachments),
                         JSON.stringify(newMessage.reactions),
-                        newMessage.createdAt
+                        newMessage.createdAt,
+                        newMessage.replyTo ? JSON.stringify(newMessage.replyTo) : null
                     ]
                 );
             } catch (e) {
