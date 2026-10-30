@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.presenceModule = void 0;
 const fp = require("fastify-plugin");
@@ -3663,6 +3663,7 @@ async function setupCommunityApi(app) {
         // Messages
         app.get(`${prefix}/channels/:channelId/messages`, getMessagesHandler);
         app.post(`${prefix}/channels/:channelId/messages`, createMessageHandler);
+        app.post(`${prefix}/channels/:channelId/read`, markChannelReadHandler);
         app.delete(`${prefix}/messages/:id`, deleteMessageHandler);
         app.post(`${prefix}/messages/:id/reactions`, toggleReactionHandler);
 
