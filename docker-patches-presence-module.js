@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.presenceModule = void 0;
 const fp = require("fastify-plugin");
@@ -557,6 +557,7 @@ async function setupCommunityApi(app) {
                     ALTER TABLE anticeil_community_messages ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE;
                     ALTER TABLE anticeil_community_messages ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMP WITH TIME ZONE;
                     ALTER TABLE anticeil_community_messages ADD COLUMN IF NOT EXISTS pinned_by VARCHAR(256);
+                    ALTER TABLE anticeil_community_messages ADD COLUMN IF NOT EXISTS reply_to TEXT;
 
                     CREATE TABLE IF NOT EXISTS anticeil_channel_notifications (
                         user_id VARCHAR(128) NOT NULL,
@@ -1024,6 +1025,7 @@ async function setupCommunityApi(app) {
             content: content || '',
             attachments,
             reactions: {},
+            replyTo: body.replyTo || null,
             createdAt: now
         };
         const ds = await getDb();
@@ -1091,7 +1093,8 @@ async function setupCommunityApi(app) {
                     reactions: typeof r.reactions === 'string' ? JSON.parse(r.reactions || '{}') : (r.reactions || {}),
                     isPinned: Boolean(r.is_pinned),
                     pinnedAt: r.pinned_at ? ((r.pinned_at instanceof Date) ? r.pinned_at.toISOString() : String(r.pinned_at)) : null,
-                    pinnedBy: r.pinned_by || null
+                    pinnedBy: r.pinned_by || null,
+                    replyTo: typeof r.reply_to === 'string' ? JSON.parse(r.reply_to || 'null') : (r.reply_to || null)
                 }));
             } catch (e) {}
         }
@@ -1131,7 +1134,8 @@ async function setupCommunityApi(app) {
             content: body.content || '',
             createdAt: new Date().toISOString(),
             attachments: body.attachments || [],
-            reactions: {}
+            reactions: {},
+            replyTo: body.replyTo || null
         };
 
         const ds = await getDb();
@@ -1268,7 +1272,8 @@ async function setupCommunityApi(app) {
                     reactions: typeof r.reactions === 'string' ? JSON.parse(r.reactions || '{}') : (r.reactions || {}),
                     isPinned: true,
                     pinnedAt: r.pinned_at ? ((r.pinned_at instanceof Date) ? r.pinned_at.toISOString() : String(r.pinned_at)) : null,
-                    pinnedBy: r.pinned_by || null
+                    pinnedBy: r.pinned_by || null,
+                    replyTo: typeof r.reply_to === 'string' ? JSON.parse(r.reply_to || 'null') : (r.reply_to || null)
                 }));
             } catch (e) {}
         }
@@ -1995,7 +2000,8 @@ async function setupCommunityApi(app) {
             content,
             createdAt: nowIso,
             attachments,
-            reactions: {}
+            reactions: {},
+            replyTo: body.replyTo || null
         };
 
         if (ds && dbReady) {
@@ -3818,6 +3824,7 @@ async function setupCommunityApi(app) {
                     createdAt: now,
                     attachments: [],
                     reactions: {},
+            replyTo: body.replyTo || null,
                     isPinned: false,
                     pinnedAt: null,
                     pinnedBy: null
