@@ -587,6 +587,18 @@ async function setupCommunityApi(app) {
                         tags TEXT DEFAULT '[]',
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
+
+                    -- 100% Unified Colony Database Views (Zero-Downtime Migration)
+                    CREATE OR REPLACE VIEW anticeil_colonies AS SELECT * FROM anticeil_community_hubs;
+                    CREATE OR REPLACE VIEW anticeil_colony_channels AS SELECT * FROM anticeil_community_channels;
+                    CREATE OR REPLACE VIEW anticeil_colony_messages AS SELECT * FROM anticeil_community_messages;
+                    CREATE OR REPLACE VIEW anticeil_colony_members AS SELECT * FROM anticeil_community_members;
+                    CREATE OR REPLACE VIEW anticeil_colony_roles AS SELECT * FROM anticeil_community_roles;
+                    CREATE OR REPLACE VIEW anticeil_colony_invites AS SELECT * FROM anticeil_community_invites;
+                    CREATE OR REPLACE VIEW anticeil_colony_bans AS SELECT * FROM anticeil_community_bans;
+                    CREATE OR REPLACE VIEW anticeil_colony_audit_log AS SELECT * FROM anticeil_community_audit_log;
+                    CREATE OR REPLACE VIEW anticeil_colony_emojis AS SELECT * FROM anticeil_community_server_emojis;
+                    CREATE OR REPLACE VIEW anticeil_colony_stickers AS SELECT * FROM anticeil_community_server_stickers;
                 `);
             } catch (alterErr) {}
 
@@ -3733,6 +3745,35 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/message-requests/:id/accept`, acceptMessageRequestHandler);
         app.post(`${prefix}/message-requests/:id/ignore`, ignoreMessageRequestHandler);
         app.post(`${prefix}/message-requests/:id/spam`, spamMessageRequestHandler);
+
+        // ── 100% Unified Colony API Endpoints ─────────────────────────────────
+        app.get(`${prefix}/colonies`, getHubsHandler);
+        app.post(`${prefix}/colonies`, createHubHandler);
+        app.put(`${prefix}/colonies/:id`, updateHubHandler);
+        app.delete(`${prefix}/colonies/:id`, deleteHubHandler);
+        app.post(`${prefix}/colonies/:id/boost`, boostHubHandler);
+        app.get(`${prefix}/colonies/:hubId/stickers`, getHubStickersHandler);
+        app.post(`${prefix}/colonies/:hubId/stickers`, createHubStickerHandler);
+        app.delete(`${prefix}/colonies/:hubId/stickers/:stickerId`, deleteHubStickerHandler);
+        app.get(`${prefix}/colonies/:hubId/emojis`, getHubEmojisHandler);
+        app.post(`${prefix}/colonies/:hubId/emojis`, createHubEmojiHandler);
+        app.put(`${prefix}/colonies/:hubId/members/:userId/role`, updateMemberRoleHandler);
+        app.delete(`${prefix}/colonies/:hubId/members/:userId`, kickMemberHandler);
+        app.get(`${prefix}/colonies/:hubId/roles`, getRolesHandler);
+        app.post(`${prefix}/colonies/:hubId/roles`, createRoleHandler);
+        app.delete(`${prefix}/colonies/:hubId/roles/:roleId`, deleteRoleHandler);
+        app.get(`${prefix}/colonies/:hubId/invites`, getInvitesHandler);
+        app.post(`${prefix}/colonies/:hubId/invites`, createInviteHandler);
+        app.delete(`${prefix}/colonies/:hubId/invites/:inviteId`, deleteInviteHandler);
+        app.get(`${prefix}/colonies/:hubId/bans`, getBansHandler);
+        app.post(`${prefix}/colonies/:hubId/bans`, createBanHandler);
+        app.delete(`${prefix}/colonies/:hubId/bans/:userId`, deleteBanHandler);
+        app.get(`${prefix}/colonies/:hubId/audit-log`, getAuditLogHandler);
+        app.get(`${prefix}/colonies/:hubId/stats`, getStatsHandler);
+        app.get(`${prefix}/colony-invitations`, getServerInvitationsHandler);
+        app.post(`${prefix}/colonies/:hubId/invite-user`, inviteUserToHubHandler);
+        app.post(`${prefix}/colony-invitations/:id/accept`, acceptServerInvitationHandler);
+        app.post(`${prefix}/colony-invitations/:id/reject`, rejectServerInvitationHandler);
 
         // Notifications
         app.get(`${prefix}/notifications`, getNotificationsHandler);
