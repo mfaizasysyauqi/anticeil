@@ -588,6 +588,17 @@ async function setupCommunityApi(app) {
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
 
+                    CREATE TABLE IF NOT EXISTS anticeil_user_profiles (
+                        user_id VARCHAR(128) PRIMARY KEY,
+                        bio TEXT DEFAULT 'Your life in one sentence',
+                        pronouns VARCHAR(64) DEFAULT '',
+                        banner_color VARCHAR(32) DEFAULT '#5c4d44',
+                        status_thought TEXT DEFAULT 'Shower thought?',
+                        widgets JSONB DEFAULT '{}'::jsonb,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
                     -- 100% Unified Colony Database Views (Zero-Downtime Migration)
                     CREATE OR REPLACE VIEW anticeil_colonies AS SELECT * FROM anticeil_community_hubs;
                     CREATE OR REPLACE VIEW anticeil_colony_channels AS SELECT * FROM anticeil_community_channels;
@@ -3656,8 +3667,8 @@ async function setupCommunityApi(app) {
         }
     };
 
-    // --- REGISTER ROUTE ALIASES (Supports both /v1/community/* and /v1/messages/*) ---
-    const routePrefixes = ['/v1/community', '/v1/messages'];
+    // --- REGISTER ROUTE ALIASES (Supports /v1/community/*, /v1/messages/*, and /v1/colony/*) ---
+    const routePrefixes = ['/v1/community', '/v1/messages', '/v1/colony'];
     for (const prefix of routePrefixes) {
         // Zero-Quota YouTube Search & Trending
         app.get(`${prefix}/youtube/search`, getYouTubeSearchHandler);
@@ -3822,6 +3833,66 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/bot/message`, botWebhookHandler);
         app.post(`${prefix}/bot`, botWebhookHandler);
     }
+
+    // --- USER PROFILE (Discord-style Edit Profile Customization) ---
+    const getUserProfileHandler = async (req, reply) => {
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const targetUserId = req.params?.userId || currentUserId;
+        if (ds) {
+            try {
+                const rows = await ds.query('SELECT * FROM anticeil_user_profiles WHERE user_id = $1 LIMIT 1', [targetUserId]);
+                if (rows && rows.length > 0) {
+                    const r = rows[0];
+                    return reply.send({
+                        bio: r.bio || 'Your life in one sentence',
+                        pronouns: r.pronouns || '',
+                        bannerColor: r.banner_color || '#5c4d44',
+                        statusThought: r.status_thought || 'Shower thought?',
+                        widgets: typeof r.widgets === 'string' ? JSON.parse(r.widgets) : (r.widgets || { favoriteGame: 'Neverness to Everness', gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true })
+                    });
+                }
+            } catch (e) {}
+        }
+        return reply.send({
+            bio: 'Your life in one sentence',
+            pronouns: '',
+            bannerColor: '#5c4d44',
+            statusThought: 'Shower thought?',
+            widgets: { favoriteGame: 'Neverness to Everness', gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true }
+        });
+    };
+
+    const updateUserProfileHandler = async (req, reply) => {
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const { bio, pronouns, bannerColor, statusThought, widgets } = req.body || {};
+        if (ds) {
+            try {
+                await ds.query(`
+                    INSERT INTO anticeil_user_profiles (user_id, bio, pronouns, banner_color, status_thought, widgets, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                    ON CONFLICT (user_id) DO UPDATE SET
+                        bio = COALESCE($2, anticeil_user_profiles.bio),
+                        pronouns = COALESCE($3, anticeil_user_profiles.pronouns),
+                        banner_color = COALESCE($4, anticeil_user_profiles.banner_color),
+                        status_thought = COALESCE($5, anticeil_user_profiles.status_thought),
+                        widgets = CASE WHEN $6::jsonb IS NOT NULL THEN $6::jsonb ELSE anticeil_user_profiles.widgets END,
+                        updated_at = NOW()
+                `, [currentUserId, bio || null, pronouns || null, bannerColor || null, statusThought || null, widgets ? JSON.stringify(widgets) : null]);
+            } catch (e) {}
+        }
+        return reply.send({
+            bio: bio || 'Your life in one sentence',
+            pronouns: pronouns || '',
+            bannerColor: bannerColor || '#5c4d44',
+            statusThought: statusThought || 'Shower thought?',
+            widgets: widgets || {}
+        });
+    };
+
+    app.get('/v1/users/me/profile', getUserProfileHandler);
+    app.put('/v1/users/me/profile', updateUserProfileHandler);
+    app.get('/v1/users/:userId/profile', getUserProfileHandler);
+    app.put('/v1/users/:userId/profile', updateUserProfileHandler);
 
     // --- AUTOMATIC BACKGROUND SCHEDULER FOR SCHEDULED MESSAGES ---
     setInterval(async () => {
