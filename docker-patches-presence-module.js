@@ -3836,6 +3836,7 @@ async function setupCommunityApi(app) {
 
     // --- USER PROFILE (Discord-style Edit Profile Customization) ---
     const getUserProfileHandler = async (req, reply) => {
+        const ds = await getDb();
         const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
         const targetUserId = req.params?.userId || currentUserId;
         if (ds) {
@@ -3863,6 +3864,7 @@ async function setupCommunityApi(app) {
     };
 
     const updateUserProfileHandler = async (req, reply) => {
+        const ds = await getDb();
         const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
         const { bio, pronouns, bannerColor, statusThought, widgets } = req.body || {};
         if (ds) {
