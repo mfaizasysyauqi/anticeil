@@ -2764,7 +2764,7 @@ async function setupCommunityApi(app) {
                     FROM anticeil_friends f
                     LEFT JOIN "user" u ON f.friend_id = u.id
                     LEFT JOIN "user_identity" ui ON u."identityId" = ui.id
-                    WHERE f.user_id = $1 OR f.user_id = 'all'
+                    WHERE f.user_id = $1
                     ORDER BY f.created_at DESC
                 `, [userId]);
 
@@ -2810,12 +2810,12 @@ async function setupCommunityApi(app) {
                     LEFT JOIN "user_identity" s_ui ON su."identityId" = s_ui.id
                     LEFT JOIN "user" ru ON fr.receiver_id = ru.id
                     LEFT JOIN "user_identity" r_ui ON ru."identityId" = r_ui.id
-                    WHERE fr.receiver_id = $1 OR fr.sender_id = $1 OR fr.receiver_id = 'all'
+                    WHERE fr.receiver_id = $1 OR fr.sender_id = $1
                     ORDER BY fr.created_at DESC
                 `, [userId]);
 
                 return reply.send((rows || []).map(r => {
-                    const isIncoming = r.receiver_id === userId || r.receiver_id === 'all';
+                    const isIncoming = r.receiver_id === userId;
                     const targetName = isIncoming ? r.s_name : r.r_name;
                     const targetEmail = isIncoming ? r.s_email : r.r_email;
                     const targetAvatar = isIncoming ? r.s_avatar : r.r_avatar;
@@ -3165,8 +3165,8 @@ async function setupCommunityApi(app) {
         if (ds && dbReady) {
             try {
                 const rows = await ds.query(
-                    'SELECT * FROM anticeil_message_requests WHERE receiver_id = $1 OR receiver_id = $2 ORDER BY created_at DESC',
-                    [userId, 'all']
+                    'SELECT * FROM anticeil_message_requests WHERE receiver_id = $1 ORDER BY created_at DESC',
+                    [userId]
                 );
                 return reply.send(rows.map(r => ({
                     id: r.id,
