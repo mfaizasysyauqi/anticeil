@@ -103,6 +103,7 @@ import { mcpActivityController } from './mcp/activity/mcp-activity-controller'
 import { mcpServerModule } from './mcp/mcp-module'
 import { mcpOAuthApproveController } from './mcp/oauth/code/mcp-oauth-approve.controller'
 import { mcpOAuthGrantsController } from './mcp/oauth/token/mcp-oauth-grants.controller'
+import { communityModule } from './community/community.module'
 import { communityPiecesModule } from './pieces/community-piece-module'
 import { startDevPieceWatcher } from './pieces/dev-piece-watcher'
 import { pieceModule } from './pieces/metadata/piece-metadata-controller'
@@ -271,9 +272,9 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     await app.register(tablesModule)
     await app.register(knowledgeBaseModule)
     await app.register(userModule)
+    await app.register(communityModule)
     await app.register(templateModule)
     await app.register(platformAnalyticsModule)
-
     // Dev-only: accept browser debug logs into the shared evlog fs drain so a
     // chat run can be reconstructed end-to-end (web + api + worker). Never in cloud/prod.
     const clientLogsEnabled = system.get(AppSystemProp.LOG_FILE) === 'true' && system.getEdition() !== ApEdition.CLOUD
