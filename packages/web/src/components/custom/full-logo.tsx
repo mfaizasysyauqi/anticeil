@@ -1,16 +1,12 @@
 import { t } from 'i18next';
 
-import { flagsHooks } from '@/hooks/flags-hooks';
 import { cn } from '@/lib/utils';
+import { AnticeilLogo } from './anticeil-logo';
 
 const FullLogo = ({ className }: { className?: string }) => {
   return (
     <div className={cn('flex items-center gap-2.5 select-none', className)}>
-      <img
-        className="h-8 w-8 object-contain shrink-0 rounded-md"
-        src="/logo.png"
-        alt="Anticeil"
-      />
+      <AnticeilLogo className="h-7 w-7 text-foreground" />
       <span className="font-bold text-[20px] tracking-tight text-foreground font-sans">
         Anticeil
       </span>
