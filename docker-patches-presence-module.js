@@ -593,11 +593,15 @@ async function setupCommunityApi(app) {
                         bio TEXT DEFAULT 'Your life in one sentence',
                         pronouns VARCHAR(64) DEFAULT '',
                         banner_color VARCHAR(32) DEFAULT '#5c4d44',
+                        banner_url TEXT,
+                        avatar_url TEXT,
                         status_thought TEXT DEFAULT 'Shower thought?',
                         widgets JSONB DEFAULT '{}'::jsonb,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
+                    ALTER TABLE anticeil_user_profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+                    ALTER TABLE anticeil_user_profiles ADD COLUMN IF NOT EXISTS banner_url TEXT;
 
                     CREATE TABLE IF NOT EXISTS anticeil_user_subscriptions (
                         user_id VARCHAR(128) PRIMARY KEY,
@@ -3866,6 +3870,11 @@ async function setupCommunityApi(app) {
         const targetUserId = req.params?.userId || currentUserId;
         if (ds) {
             try {
+                let userAvatar = null;
+                if (targetUserId !== 'me') {
+                    const uProfile = await getDbUserProfile(ds, targetUserId);
+                    if (uProfile && uProfile.avatar) userAvatar = uProfile.avatar;
+                }
                 const rows = await ds.query('SELECT * FROM anticeil_user_profiles WHERE user_id = $1 LIMIT 1', [targetUserId]);
                 if (rows && rows.length > 0) {
                     const r = rows[0];
@@ -3873,8 +3882,21 @@ async function setupCommunityApi(app) {
                         bio: r.bio || 'Your life in one sentence',
                         pronouns: r.pronouns || '',
                         bannerColor: r.banner_color || '#5c4d44',
+                        bannerUrl: r.banner_url || null,
+                        avatarUrl: r.avatar_url || userAvatar,
                         statusThought: r.status_thought || 'Shower thought?',
                         widgets: typeof r.widgets === 'string' ? JSON.parse(r.widgets) : (r.widgets || { favoriteGame: 'Neverness to Everness', gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true })
+                    });
+                }
+                if (userAvatar) {
+                    return reply.send({
+                        bio: 'Your life in one sentence',
+                        pronouns: '',
+                        bannerColor: '#5c4d44',
+                        bannerUrl: null,
+                        avatarUrl: userAvatar,
+                        statusThought: 'Shower thought?',
+                        widgets: { favoriteGame: 'Neverness to Everness', gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true }
                     });
                 }
             } catch (e) {}
@@ -3883,6 +3905,8 @@ async function setupCommunityApi(app) {
             bio: 'Your life in one sentence',
             pronouns: '',
             bannerColor: '#5c4d44',
+            bannerUrl: null,
+            avatarUrl: null,
             statusThought: 'Shower thought?',
             widgets: { favoriteGame: 'Neverness to Everness', gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true }
         });
@@ -3891,26 +3915,49 @@ async function setupCommunityApi(app) {
     const updateUserProfileHandler = async (req, reply) => {
         const ds = await getDb();
         const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
-        const { bio, pronouns, bannerColor, statusThought, widgets } = req.body || {};
+        const { bio, pronouns, bannerColor, bannerUrl, avatarUrl, statusThought, widgets } = req.body || {};
         if (ds) {
             try {
                 await ds.query(`
-                    INSERT INTO anticeil_user_profiles (user_id, bio, pronouns, banner_color, status_thought, widgets, updated_at)
-                    VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                    INSERT INTO anticeil_user_profiles (user_id, bio, pronouns, banner_color, banner_url, avatar_url, status_thought, widgets, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
                     ON CONFLICT (user_id) DO UPDATE SET
                         bio = COALESCE($2, anticeil_user_profiles.bio),
                         pronouns = COALESCE($3, anticeil_user_profiles.pronouns),
                         banner_color = COALESCE($4, anticeil_user_profiles.banner_color),
-                        status_thought = COALESCE($5, anticeil_user_profiles.status_thought),
-                        widgets = CASE WHEN $6::jsonb IS NOT NULL THEN $6::jsonb ELSE anticeil_user_profiles.widgets END,
+                        banner_url = CASE WHEN $5 IS NOT NULL THEN $5 ELSE anticeil_user_profiles.banner_url END,
+                        avatar_url = CASE WHEN $6 IS NOT NULL THEN $6 ELSE anticeil_user_profiles.avatar_url END,
+                        status_thought = COALESCE($7, anticeil_user_profiles.status_thought),
+                        widgets = CASE WHEN $8::jsonb IS NOT NULL THEN $8::jsonb ELSE anticeil_user_profiles.widgets END,
                         updated_at = NOW()
-                `, [currentUserId, bio || null, pronouns || null, bannerColor || null, statusThought || null, widgets ? JSON.stringify(widgets) : null]);
+                `, [
+                    currentUserId,
+                    bio || null,
+                    pronouns || null,
+                    bannerColor || null,
+                    bannerUrl !== undefined ? bannerUrl : null,
+                    avatarUrl !== undefined ? avatarUrl : null,
+                    statusThought || null,
+                    widgets ? JSON.stringify(widgets) : null
+                ]);
+
+                if (avatarUrl && currentUserId !== 'me') {
+                    try {
+                        await ds.query(`
+                            UPDATE "user_identity"
+                            SET "imageUrl" = $1
+                            WHERE id = (SELECT "identityId" FROM "user" WHERE id = $2 LIMIT 1)
+                        `, [avatarUrl, currentUserId]);
+                    } catch (e) {}
+                }
             } catch (e) {}
         }
         return reply.send({
             bio: bio || 'Your life in one sentence',
             pronouns: pronouns || '',
             bannerColor: bannerColor || '#5c4d44',
+            bannerUrl: bannerUrl || null,
+            avatarUrl: avatarUrl || null,
             statusThought: statusThought || 'Shower thought?',
             widgets: widgets || {}
         });
