@@ -599,6 +599,31 @@ async function setupCommunityApi(app) {
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
 
+                    CREATE TABLE IF NOT EXISTS anticeil_user_subscriptions (
+                        user_id VARCHAR(128) PRIMARY KEY,
+                        plan_id VARCHAR(64) NOT NULL DEFAULT 'free',
+                        plan_name VARCHAR(128) NOT NULL DEFAULT 'Anticeil Free Tier',
+                        status VARCHAR(32) NOT NULL DEFAULT 'none',
+                        boost_slots INT DEFAULT 0,
+                        renews_at TIMESTAMP WITH TIME ZONE,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
+                    CREATE TABLE IF NOT EXISTS anticeil_billing_transactions (
+                        id VARCHAR(128) PRIMARY KEY,
+                        user_id VARCHAR(128) NOT NULL,
+                        plan_id VARCHAR(64) NOT NULL,
+                        description VARCHAR(255) NOT NULL,
+                        amount INT NOT NULL,
+                        currency VARCHAR(10) DEFAULT 'IDR',
+                        status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                        payment_type VARCHAR(64),
+                        snap_token TEXT,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
                     -- 100% Unified Colony Database Views (Zero-Downtime Migration)
                     CREATE OR REPLACE VIEW anticeil_colonies AS SELECT * FROM anticeil_community_hubs;
                     CREATE OR REPLACE VIEW anticeil_colony_channels AS SELECT * FROM anticeil_community_channels;
@@ -3895,6 +3920,356 @@ async function setupCommunityApi(app) {
     app.put('/v1/users/me/profile', updateUserProfileHandler);
     app.get('/v1/users/:userId/profile', getUserProfileHandler);
     app.put('/v1/users/:userId/profile', updateUserProfileHandler);
+
+    // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
+    const getSubscriptionHandler = async (req, reply) => {
+        const ds = await getDb();
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        if (ds) {
+            try {
+                const rows = await ds.query('SELECT * FROM anticeil_user_subscriptions WHERE user_id = $1 LIMIT 1', [currentUserId]);
+                if (rows && rows.length > 0) {
+                    const r = rows[0];
+                    return reply.send({
+                        planId: r.plan_id || 'free',
+                        planName: r.plan_name || 'Anticeil Free Tier',
+                        status: r.status || 'none',
+                        renewsAt: r.renews_at,
+                        boostSlots: Number(r.boost_slots) || 0,
+                        perks: r.plan_id === 'nectar_boost'
+                            ? ['Custom Emojis di semua colony', 'Upload file hingga 500MB', 'Streaming HD 1080p 60fps', '2x Colony Boost gratis tiap bulan']
+                            : r.plan_id === 'nectar_basic'
+                            ? ['Custom Emojis di semua colony', 'Upload file hingga 50MB', 'Streaming HD 720p 60fps', 'Akses lencana Pollen eksklusif']
+                            : ['Akses chat standar', 'Upload file hingga 25MB', 'Voice chat 64kbps']
+                    });
+                }
+            } catch (e) {}
+        }
+        return reply.send({
+            planId: 'free',
+            planName: 'Anticeil Free Tier',
+            status: 'none',
+            boostSlots: 0,
+            perks: ['Akses chat standar', 'Upload file hingga 25MB', 'Voice chat 64kbps']
+        });
+    };
+
+    const updateSubscriptionHandler = async (req, reply) => {
+        const ds = await getDb();
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const { planId, status, boostSlots, renewsAt } = req.body || {};
+        const safePlanId = planId || 'free';
+        const safePlanName = safePlanId === 'nectar_boost' ? 'Nectar Tier' : safePlanId === 'nectar_basic' ? 'Pollen Tier' : 'Anticeil Free Tier';
+        const safeStatus = status || 'active';
+        const safeBoost = boostSlots !== undefined ? boostSlots : (safePlanId === 'nectar_boost' ? 2 : 0);
+        const renewDate = renewsAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        if (ds) {
+            try {
+                await ds.query(`
+                    INSERT INTO anticeil_user_subscriptions (user_id, plan_id, plan_name, status, boost_slots, renews_at, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                    ON CONFLICT (user_id) DO UPDATE SET
+                        plan_id = $2,
+                        plan_name = $3,
+                        status = $4,
+                        boost_slots = $5,
+                        renews_at = $6,
+                        updated_at = NOW()
+                `, [currentUserId, safePlanId, safePlanName, safeStatus, safeBoost, renewDate]);
+            } catch (e) {}
+        }
+
+        return reply.send({
+            planId: safePlanId,
+            planName: safePlanName,
+            status: safeStatus,
+            renewsAt: renewDate,
+            boostSlots: safeBoost,
+            perks: safePlanId === 'nectar_boost'
+                ? ['Custom Emojis di semua colony', 'Upload file hingga 500MB', 'Streaming HD 1080p 60fps', '2x Colony Boost gratis tiap bulan']
+                : safePlanId === 'nectar_basic'
+                ? ['Custom Emojis di semua colony', 'Upload file hingga 50MB', 'Streaming HD 720p 60fps', 'Akses lencana Pollen eksklusif']
+                : ['Akses chat standar', 'Upload file hingga 25MB', 'Voice chat 64kbps']
+        });
+    };
+
+    const cancelSubscriptionHandler = async (req, reply) => {
+        const ds = await getDb();
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        if (ds) {
+            try {
+                await ds.query(`
+                    UPDATE anticeil_user_subscriptions
+                    SET status = 'canceled', plan_id = 'free', plan_name = 'Anticeil Free Tier', boost_slots = 0, updated_at = NOW()
+                    WHERE user_id = $1
+                `, [currentUserId]);
+            } catch (e) {}
+        }
+        return reply.send({
+            planId: 'free',
+            planName: 'Anticeil Free Tier',
+            status: 'none',
+            boostSlots: 0,
+            perks: ['Akses chat standar', 'Upload file hingga 25MB', 'Voice chat 64kbps']
+        });
+    };
+
+    const createMidtransTokenHandler = async (req, reply) => {
+        const ds = await getDb();
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const { plan } = req.body || {};
+        const planKey = (plan || 'nectar_boost').toLowerCase();
+        const isPollen = planKey === 'nectar_basic' || planKey === 'pollen';
+        const planId = isPollen ? 'nectar_basic' : 'nectar_boost';
+        const grossAmount = isPollen ? 29000 : 85000;
+        const itemName = isPollen ? 'Anticeil Pollen Monthly Subscription' : 'Anticeil Nectar VIP Monthly Subscription';
+
+        const serverKey = process.env.AP_MIDTRANS_SERVER_KEY ?? '';
+        const clientKey = process.env.AP_MIDTRANS_CLIENT_KEY ?? '';
+        const isProduction = process.env.AP_MIDTRANS_IS_PRODUCTION === 'true';
+        const auth = Buffer.from(`${serverKey}:`).toString('base64');
+
+        const orderId = `AC-SUB-${isPollen ? 'POL' : 'NEC'}-${Date.now()}`;
+        let userEmail = 'anticeil.user@gmail.com';
+        let userName = 'Anticeil User';
+
+        if (ds && currentUserId !== 'me') {
+            try {
+                const profile = await getDbUserProfile(ds, currentUserId);
+                if (profile) {
+                    if (profile.email) userEmail = profile.email;
+                    if (profile.name) userName = profile.name;
+                }
+            } catch (e) {}
+        }
+
+        const snapPayload = {
+            transaction_details: { order_id: orderId, gross_amount: grossAmount },
+            customer_details: { first_name: userName, email: userEmail },
+            item_details: [{ id: planId, price: grossAmount, quantity: 1, name: itemName }],
+        };
+
+        const endpoint = isProduction
+            ? 'https://app.midtrans.com/snap/v1/transactions'
+            : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
+
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    Authorization: `Basic ${auth}`,
+                },
+                body: JSON.stringify(snapPayload),
+            });
+            const data = await res.json();
+            if (data?.token) {
+                if (ds) {
+                    try {
+                        await ds.query(`
+                            INSERT INTO anticeil_billing_transactions (id, user_id, plan_id, description, amount, currency, status, snap_token)
+                            VALUES ($1, $2, $3, $4, $5, 'IDR', 'pending', $6)
+                            ON CONFLICT (id) DO UPDATE SET snap_token = $6, updated_at = NOW()
+                        `, [orderId, currentUserId, planId, itemName, grossAmount, data.token]);
+                    } catch (e) {}
+                }
+                return reply.send({
+                    snapToken: data.token,
+                    redirectUrl: data.redirect_url,
+                    orderId,
+                    clientKey
+                });
+            }
+            return reply.status(502).send({ error: data?.error_messages?.[0] || 'Gagal membuat token pembayaran Midtrans' });
+        } catch (err) {
+            return reply.status(500).send({ error: err.message });
+        }
+    };
+
+    const verifyMidtransPaymentHandler = async (req, reply) => {
+        const ds = await getDb();
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const { orderId } = req.body || {};
+        if (!orderId) {
+            return reply.status(400).send({ success: false, message: 'orderId diperlukan' });
+        }
+
+        const serverKey = process.env.AP_MIDTRANS_SERVER_KEY ?? '';
+        const isProduction = process.env.AP_MIDTRANS_IS_PRODUCTION === 'true';
+        const auth = Buffer.from(`${serverKey}:`).toString('base64');
+
+        const endpoint = isProduction
+            ? `https://api.midtrans.com/v2/${orderId}/status`
+            : `https://api.sandbox.midtrans.com/v2/${orderId}/status`;
+
+        try {
+            const res = await fetch(endpoint, {
+                headers: {
+                    Accept: 'application/json',
+                    Authorization: `Basic ${auth}`,
+                },
+            });
+            const data = await res.json();
+            const txStatus = data?.transaction_status;
+            const fraudStatus = data?.fraud_status;
+
+            const isSuccess = txStatus === 'settlement' || (txStatus === 'capture' && fraudStatus === 'accept');
+
+            if (isSuccess) {
+                let planId = orderId.includes('-POL-') ? 'nectar_basic' : 'nectar_boost';
+                let targetUserId = currentUserId;
+
+                if (ds) {
+                    try {
+                        const txRows = await ds.query('SELECT user_id, plan_id FROM anticeil_billing_transactions WHERE id = $1 LIMIT 1', [orderId]);
+                        if (txRows && txRows.length > 0) {
+                            if (txRows[0].user_id) targetUserId = txRows[0].user_id;
+                            if (txRows[0].plan_id) planId = txRows[0].plan_id;
+                        }
+
+                        await ds.query(`
+                            UPDATE anticeil_billing_transactions
+                            SET status = 'settlement', payment_type = $2, updated_at = NOW()
+                            WHERE id = $1
+                        `, [orderId, data.payment_type || 'midtrans']);
+
+                        const planName = planId === 'nectar_boost' ? 'Nectar Tier' : 'Pollen Tier';
+                        const boostSlots = planId === 'nectar_boost' ? 2 : 0;
+                        const renewDate = new Date();
+                        renewDate.setMonth(renewDate.getMonth() + 1);
+
+                        await ds.query(`
+                            INSERT INTO anticeil_user_subscriptions (user_id, plan_id, plan_name, status, boost_slots, renews_at, updated_at)
+                            VALUES ($1, $2, $3, 'active', $4, $5, NOW())
+                            ON CONFLICT (user_id) DO UPDATE SET
+                                plan_id = $2,
+                                plan_name = $3,
+                                status = 'active',
+                                boost_slots = $4,
+                                renews_at = $5,
+                                updated_at = NOW()
+                        `, [targetUserId, planId, planName, boostSlots, renewDate.toISOString()]);
+                    } catch (e) {}
+                }
+
+                return reply.send({
+                    success: true,
+                    status: 'settlement',
+                    plan: planId,
+                    message: 'Langganan berhasil diaktifkan!'
+                });
+            }
+
+            return reply.send({
+                success: false,
+                status: txStatus || 'unknown',
+                message: data?.status_message || 'Pembayaran belum diselesaikan'
+            });
+        } catch (err) {
+            return reply.status(500).send({ success: false, message: err.message });
+        }
+    };
+
+    const handleMidtransWebhookHandler = async (req, reply) => {
+        const body = req.body || {};
+        const orderId = body.order_id;
+        const txStatus = body.transaction_status;
+        const fraudStatus = body.fraud_status;
+
+        if (orderId && (txStatus === 'settlement' || (txStatus === 'capture' && fraudStatus === 'accept'))) {
+            const ds = await getDb();
+            if (ds) {
+                try {
+                    let planId = orderId.includes('-POL-') ? 'nectar_basic' : 'nectar_boost';
+                    let targetUserId = 'me';
+
+                    const txRows = await ds.query('SELECT user_id, plan_id FROM anticeil_billing_transactions WHERE id = $1 LIMIT 1', [orderId]);
+                    if (txRows && txRows.length > 0) {
+                        if (txRows[0].user_id) targetUserId = txRows[0].user_id;
+                        if (txRows[0].plan_id) planId = txRows[0].plan_id;
+                    }
+
+                    await ds.query(`
+                        UPDATE anticeil_billing_transactions
+                        SET status = 'settlement', payment_type = $2, updated_at = NOW()
+                        WHERE id = $1
+                    `, [orderId, body.payment_type || 'midtrans']);
+
+                    const planName = planId === 'nectar_boost' ? 'Nectar Tier' : 'Pollen Tier';
+                    const boostSlots = planId === 'nectar_boost' ? 2 : 0;
+                    const renewDate = new Date();
+                    renewDate.setMonth(renewDate.getMonth() + 1);
+
+                    await ds.query(`
+                        INSERT INTO anticeil_user_subscriptions (user_id, plan_id, plan_name, status, boost_slots, renews_at, updated_at)
+                        VALUES ($1, $2, $3, 'active', $4, $5, NOW())
+                        ON CONFLICT (user_id) DO UPDATE SET
+                            plan_id = $2,
+                            plan_name = $3,
+                            status = 'active',
+                            boost_slots = $4,
+                            renews_at = $5,
+                            updated_at = NOW()
+                    `, [targetUserId, planId, planName, boostSlots, renewDate.toISOString()]);
+                } catch (e) {}
+            }
+        }
+        return reply.send({ status: 'ok' });
+    };
+
+    const getTransactionsHandler = async (req, reply) => {
+        const ds = await getDb();
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        if (ds) {
+            try {
+                const rows = await ds.query(`
+                    SELECT id, description, amount, currency, status, payment_type as "paymentMethod", created_at as date
+                    FROM anticeil_billing_transactions
+                    WHERE user_id = $1
+                    ORDER BY created_at DESC
+                    LIMIT 20
+                `, [currentUserId]);
+                if (rows && rows.length > 0) {
+                    return reply.send(rows);
+                }
+            } catch (e) {}
+        }
+        return reply.send([]);
+    };
+
+    const getPaymentMethodsHandler = async (req, reply) => {
+        return reply.send([
+            {
+                id: 'pm-qris',
+                name: 'QRIS / GoPay / ShopeePay (Midtrans)',
+                type: 'e-wallet',
+                details: 'Instant QRIS, GoPay & E-Wallet Sandbox',
+                isDefault: true,
+                createdAt: new Date().toISOString(),
+            },
+            {
+                id: 'pm-va',
+                name: 'Virtual Account (BCA, BNI, Mandiri, BRI)',
+                type: 'bank_transfer',
+                details: 'Instant Bank Virtual Account',
+                isDefault: false,
+                createdAt: new Date().toISOString(),
+            }
+        ]);
+    };
+
+    // --- REGISTER BILLING ENDPOINTS ---
+    app.get('/v1/billing/subscriptions', getSubscriptionHandler);
+    app.post('/v1/billing/subscriptions', updateSubscriptionHandler);
+    app.post('/v1/billing/subscriptions/cancel', cancelSubscriptionHandler);
+    app.post('/v1/billing/midtrans-token', createMidtransTokenHandler);
+    app.post('/v1/billing/midtrans-verify', verifyMidtransPaymentHandler);
+    app.all('/v1/billing/midtrans-notification', handleMidtransWebhookHandler);
+    app.all('/v1/billing/midtrans-webhook', handleMidtransWebhookHandler);
+    app.get('/v1/billing/transactions', getTransactionsHandler);
+    app.get('/v1/billing/payment-methods', getPaymentMethodsHandler);
 
     // --- AUTOMATIC BACKGROUND SCHEDULER FOR SCHEDULED MESSAGES ---
     setInterval(async () => {
