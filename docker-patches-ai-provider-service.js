@@ -423,12 +423,15 @@ async function fetchModels({ aiProvider, platformId, log }) {
             await (0, exports.aiProviderService)(log).recordKeyObservation({ platformId, providerId: aiProvider.id, signal: (0, core_utils_1.toProviderOutcomeSignal)(error) });
             throw error;
         }
-        const catalog = await server_utils_1.modelCatalog.load();
+        let catalog = { lookup: () => undefined };
+        try {
+            catalog = await server_utils_1.modelCatalog.load();
+        } catch (e) {}
         modelsCache.set(cacheKey, data.map(model => ({
             id: model.id,
             name: model.name,
             type: model.type,
-            ...(0, core_utils_1.spreadIfDefined)('metadata', catalog.lookup({ provider, modelId: model.id })),
+            ...(0, core_utils_1.spreadIfDefined)('metadata', catalog?.lookup?.({ provider, modelId: model.id })),
         })));
     }
     return modelsCache.get(cacheKey);

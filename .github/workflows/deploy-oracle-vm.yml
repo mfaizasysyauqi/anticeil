@@ -145,8 +145,22 @@ jobs:
             # Flush Redis cache so platform plan & billing cache are reloaded
             docker exec $(docker ps -q -f name=redis) redis-cli flushall 2>/dev/null || true
 
-            # Restart cloudflared tunnel and dev chat container if present to refresh routes and DNS
-            sudo systemctl restart cloudflared 2>/dev/null || docker compose restart cloudflared 2>/dev/null || true
+            # Wait for NestJS/Fastify to fully bind ports
+            sleep 20
+            echo "=== Activepieces App Logs (Full Boot) ==="
+            docker logs activepieces-app --tail 100 || true
+            echo "=== Local Port Checks ==="
+            curl -Iv http://127.0.0.1:8080/ || true
+            curl -Iv http://127.0.0.1:3005/ || true
+
+            # Check and show Cloudflare Tunnel status and configuration
+            echo "=== Cloudflared Tunnel Config & Status ==="
+            cat ~/.cloudflared/config.yml 2>/dev/null || cat /etc/cloudflared/config.yml 2>/dev/null || true
+            sudo systemctl status cloudflared --no-pager || true
+            sudo systemctl restart cloudflared || docker compose restart cloudflared 2>/dev/null || true
+            sleep 3
+            sudo systemctl status cloudflared --no-pager || true
+
             docker restart anticeil_chat_dev 2>/dev/null || true
 
             # Cleanup old images
