@@ -715,6 +715,30 @@ async function setupCommunityApi(app) {
                     );
                     CREATE INDEX IF NOT EXISTS idx_colony_templates_hub ON anticeil_colony_templates(hub_id);
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS template_settings TEXT DEFAULT '{}';
+                    ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS installed_apps TEXT DEFAULT '[]';
+
+                    CREATE TABLE IF NOT EXISTS anticeil_colony_apps (
+                        id VARCHAR(128) PRIMARY KEY,
+                        hub_id VARCHAR(128) NOT NULL,
+                        app_id VARCHAR(128) NOT NULL,
+                        name VARCHAR(128) NOT NULL,
+                        description TEXT DEFAULT '',
+                        category VARCHAR(64) DEFAULT 'Utilities',
+                        icon TEXT,
+                        banner TEXT,
+                        badge VARCHAR(128),
+                        verified BOOLEAN DEFAULT FALSE,
+                        slash_commands TEXT DEFAULT '[]',
+                        permissions TEXT DEFAULT '[]',
+                        allowed_channels TEXT DEFAULT '[]',
+                        settings TEXT DEFAULT '{}',
+                        enabled BOOLEAN DEFAULT TRUE,
+                        installed_by VARCHAR(128) DEFAULT 'Admin',
+                        installed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        UNIQUE(hub_id, app_id)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_colony_apps_hub ON anticeil_colony_apps(hub_id);
 
                     -- 100% Unified Colony Database Views (Zero-Downtime Migration)
                     CREATE OR REPLACE VIEW anticeil_colonies AS SELECT * FROM anticeil_community_hubs;
@@ -2613,7 +2637,8 @@ async function setupCommunityApi(app) {
                         onboarding: r.onboarding ? (typeof r.onboarding === 'string' ? JSON.parse(r.onboarding) : r.onboarding) : { enabled: false },
                         safetySettings: r.safety_settings ? (typeof r.safety_settings === 'string' ? JSON.parse(r.safety_settings) : r.safety_settings) : undefined,
                         serverTag: r.server_tag ? (typeof r.server_tag === 'string' ? JSON.parse(r.server_tag) : r.server_tag) : undefined,
-                        accessSettings: r.access_settings ? (typeof r.access_settings === 'string' ? JSON.parse(r.access_settings) : r.access_settings) : undefined
+                        accessSettings: r.access_settings ? (typeof r.access_settings === 'string' ? JSON.parse(r.access_settings) : r.access_settings) : undefined,
+                        installedApps: r.installed_apps ? (typeof r.installed_apps === 'string' ? JSON.parse(r.installed_apps) : r.installed_apps) : []
                     }));
                 }
             } catch (e) {}
@@ -3038,7 +3063,7 @@ async function setupCommunityApi(app) {
         const ds = await getDb();
         const { id } = req.params;
         const platformId = await resolvePlatformId(req, ds);
-        const { name, description, color, icon, iconUrl, tags, emojis, boostsCount, boostTier, onboarding, safetySettings, serverTag, accessSettings } = req.body || {};
+        const { name, description, color, icon, iconUrl, tags, emojis, boostsCount, boostTier, onboarding, safetySettings, serverTag, accessSettings, installedApps } = req.body || {};
 
         if (ds && dbReady) {
             try {
@@ -3057,8 +3082,9 @@ async function setupCommunityApi(app) {
                         safety_settings = CASE WHEN $11::text IS NOT NULL THEN $11 ELSE safety_settings END,
                         server_tag = CASE WHEN $12::text IS NOT NULL THEN $12 ELSE server_tag END,
                         access_settings = CASE WHEN $13::text IS NOT NULL THEN $13 ELSE access_settings END,
+                        installed_apps = CASE WHEN $14::text IS NOT NULL THEN $14 ELSE installed_apps END,
                         updated_at = NOW()
-                     WHERE id = $14 AND (platform_id = $15 OR platform_id IS NULL)`,
+                     WHERE id = $15 AND (platform_id = $16 OR platform_id IS NULL)`,
                     [
                         name || null,
                         description !== undefined ? description : null,
@@ -3073,6 +3099,7 @@ async function setupCommunityApi(app) {
                         safetySettings !== undefined ? (typeof safetySettings === 'string' ? safetySettings : JSON.stringify(safetySettings)) : null,
                         serverTag !== undefined ? (typeof serverTag === 'string' ? serverTag : JSON.stringify(serverTag)) : null,
                         accessSettings !== undefined ? (typeof accessSettings === 'string' ? accessSettings : JSON.stringify(accessSettings)) : null,
+                        installedApps !== undefined ? (typeof installedApps === 'string' ? installedApps : JSON.stringify(installedApps)) : null,
                         id,
                         platformId
                     ]
@@ -3094,10 +3121,11 @@ async function setupCommunityApi(app) {
             if (safetySettings !== undefined) memoryHubs[idx].safetySettings = safetySettings;
             if (serverTag !== undefined) memoryHubs[idx].serverTag = serverTag;
             if (accessSettings !== undefined) memoryHubs[idx].accessSettings = accessSettings;
+            if (installedApps !== undefined) memoryHubs[idx].installedApps = installedApps;
         }
 
-        await recordAuditLog(ds, id, 'HUB_UPDATED', req.principal?.name || 'Admin', name || id, { name, tags, emojis, onboarding, safetySettings, serverTag, accessSettings });
-        const updated = (idx >= 0 ? memoryHubs[idx] : { id, name, description, color, tags, emojis, boostsCount, boostTier, onboarding, safetySettings, serverTag, accessSettings });
+        await recordAuditLog(ds, id, 'HUB_UPDATED', req.principal?.name || 'Admin', name || id, { name, tags, emojis, onboarding, safetySettings, serverTag, accessSettings, installedApps });
+        const updated = (idx >= 0 ? memoryHubs[idx] : { id, name, description, color, tags, emojis, boostsCount, boostTier, onboarding, safetySettings, serverTag, accessSettings, installedApps });
         if (app.io) app.io.emit('COMMUNITY_HUB_UPDATED', updated);
         return updated;
     };
@@ -3477,6 +3505,300 @@ async function setupCommunityApi(app) {
         return reply.send({ success: true });
     };
 
+    const getColonyAppsHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_colony_apps WHERE hub_id = $1 ORDER BY installed_at DESC',
+                    [targetHubId]
+                );
+                if (rows && rows.length > 0) {
+                    const apps = rows.map(r => ({
+                        id: r.app_id,
+                        name: r.name,
+                        description: r.description || '',
+                        category: r.category || 'Utilities',
+                        icon: r.icon,
+                        banner: r.banner,
+                        badge: r.badge,
+                        verified: Boolean(r.verified),
+                        slashCommands: r.slash_commands ? (typeof r.slash_commands === 'string' ? JSON.parse(r.slash_commands) : r.slash_commands) : [],
+                        permissions: r.permissions ? (typeof r.permissions === 'string' ? JSON.parse(r.permissions) : r.permissions) : [],
+                        allowedChannels: r.allowed_channels ? (typeof r.allowed_channels === 'string' ? JSON.parse(r.allowed_channels) : r.allowed_channels) : [],
+                        settings: r.settings ? (typeof r.settings === 'string' ? JSON.parse(r.settings) : r.settings) : {},
+                        enabled: r.enabled !== false,
+                        installedBy: r.installed_by || 'Admin',
+                        installedAt: r.installed_at
+                    }));
+                    return reply.send(apps);
+                }
+
+                // Fallback to installed_apps in anticeil_community_hubs
+                const hubRows = await ds.query('SELECT installed_apps FROM anticeil_community_hubs WHERE id = $1 LIMIT 1', [targetHubId]);
+                if (hubRows && hubRows.length > 0 && hubRows[0].installed_apps) {
+                    const parsed = typeof hubRows[0].installed_apps === 'string' ? JSON.parse(hubRows[0].installed_apps) : hubRows[0].installed_apps;
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        return reply.send(parsed);
+                    }
+                }
+            } catch (e) {}
+        }
+
+        const idx = memoryHubs.findIndex(h => h.id === targetHubId);
+        if (idx >= 0 && Array.isArray(memoryHubs[idx].installedApps)) {
+            return reply.send(memoryHubs[idx].installedApps);
+        }
+        return reply.send([]);
+    };
+
+    const installColonyAppHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId, appId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+        const body = req.body || {};
+
+        const appData = {
+            id: appId,
+            name: body.name || appId,
+            description: body.description || '',
+            category: body.category || 'Utilities',
+            icon: body.icon || '🤖',
+            banner: body.banner || '',
+            badge: body.badge || 'Colony Bot',
+            verified: body.verified !== undefined ? Boolean(body.verified) : true,
+            slashCommands: Array.isArray(body.slashCommands) ? body.slashCommands : (body.commands || []),
+            permissions: Array.isArray(body.permissions) ? body.permissions : ['Send Messages', 'Embed Links', 'Use Slash Commands'],
+            allowedChannels: Array.isArray(body.allowedChannels) ? body.allowedChannels : [],
+            settings: body.settings || {},
+            enabled: true,
+            installedBy: req.principal?.name || 'Admin',
+            installedAt: new Date().toISOString()
+        };
+
+        if (ds && dbReady) {
+            try {
+                const rowId = `app_${targetHubId}_${appId}`;
+                await ds.query(
+                    `INSERT INTO anticeil_colony_apps (
+                        id, hub_id, app_id, name, description, category, icon, banner, badge, verified,
+                        slash_commands, permissions, allowed_channels, settings, enabled, installed_by, installed_at, updated_at
+                    ) VALUES (
+                        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                        $11, $12, $13, $14, true, $15, NOW(), NOW()
+                    )
+                    ON CONFLICT (hub_id, app_id) DO UPDATE SET
+                        name = EXCLUDED.name,
+                        description = EXCLUDED.description,
+                        category = EXCLUDED.category,
+                        icon = EXCLUDED.icon,
+                        banner = EXCLUDED.banner,
+                        badge = EXCLUDED.badge,
+                        verified = EXCLUDED.verified,
+                        slash_commands = EXCLUDED.slash_commands,
+                        permissions = EXCLUDED.permissions,
+                        enabled = true,
+                        updated_at = NOW()`,
+                    [
+                        rowId,
+                        targetHubId,
+                        appId,
+                        appData.name,
+                        appData.description,
+                        appData.category,
+                        appData.icon,
+                        appData.banner,
+                        appData.badge,
+                        appData.verified,
+                        JSON.stringify(appData.slashCommands),
+                        JSON.stringify(appData.permissions),
+                        JSON.stringify(appData.allowedChannels),
+                        JSON.stringify(appData.settings),
+                        appData.installedBy
+                    ]
+                );
+
+                // Sync to anticeil_community_hubs.installed_apps
+                const hubRows = await ds.query('SELECT installed_apps FROM anticeil_community_hubs WHERE id = $1 LIMIT 1', [targetHubId]);
+                let currApps = [];
+                if (hubRows && hubRows.length > 0 && hubRows[0].installed_apps) {
+                    try {
+                        currApps = typeof hubRows[0].installed_apps === 'string' ? JSON.parse(hubRows[0].installed_apps) : hubRows[0].installed_apps;
+                        if (!Array.isArray(currApps)) currApps = [];
+                    } catch (e) {}
+                }
+                const filtered = currApps.filter(a => a.id !== appId);
+                filtered.push(appData);
+                await ds.query(
+                    'UPDATE anticeil_community_hubs SET installed_apps = $1, updated_at = NOW() WHERE id = $2',
+                    [JSON.stringify(filtered), targetHubId]
+                );
+
+                // Add bot as colony member
+                const botUserId = `bot_${appId}`;
+                const botMemberId = `mem_${targetHubId}_${botUserId}`;
+                await ds.query(
+                    `INSERT INTO anticeil_community_members (id, hub_id, user_id, role, role_label)
+                     VALUES ($1, $2, $3, 'bot', 'Bot')
+                     ON CONFLICT (hub_id, user_id) DO UPDATE SET role = 'bot', role_label = 'Bot'`,
+                    [botMemberId, targetHubId, botUserId]
+                );
+            } catch (e) {}
+        }
+
+        const idx = memoryHubs.findIndex(h => h.id === targetHubId);
+        if (idx >= 0) {
+            const list = Array.isArray(memoryHubs[idx].installedApps) ? memoryHubs[idx].installedApps : [];
+            const filtered = list.filter(a => a.id !== appId);
+            filtered.push(appData);
+            memoryHubs[idx].installedApps = filtered;
+        }
+
+        await recordAuditLog(ds, targetHubId, 'APP_INSTALLED', req.principal?.name || 'Admin', appData.name, { appId, permissions: appData.permissions });
+        if (app.io) {
+            app.io.emit('COLONY_APP_INSTALLED', { hubId: targetHubId, app: appData });
+            app.io.emit('COMMUNITY_MEMBER_JOINED', {
+                hubId: targetHubId,
+                member: {
+                    id: `bot_${appId}`,
+                    name: appData.name,
+                    role: 'bot',
+                    roleLabel: 'Bot',
+                    avatarUrl: appData.icon,
+                    isBot: true
+                }
+            });
+            app.io.emit('COMMUNITY_HUB_UPDATED', { id: targetHubId });
+        }
+
+        return reply.send({ success: true, app: appData });
+    };
+
+    const uninstallColonyAppHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId, appId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+
+        if (ds && dbReady) {
+            try {
+                await ds.query('DELETE FROM anticeil_colony_apps WHERE hub_id = $1 AND app_id = $2', [targetHubId, appId]);
+
+                // Sync to anticeil_community_hubs.installed_apps
+                const hubRows = await ds.query('SELECT installed_apps FROM anticeil_community_hubs WHERE id = $1 LIMIT 1', [targetHubId]);
+                if (hubRows && hubRows.length > 0 && hubRows[0].installed_apps) {
+                    try {
+                        const currApps = typeof hubRows[0].installed_apps === 'string' ? JSON.parse(hubRows[0].installed_apps) : hubRows[0].installed_apps;
+                        if (Array.isArray(currApps)) {
+                            const filtered = currApps.filter(a => a.id !== appId);
+                            await ds.query('UPDATE anticeil_community_hubs SET installed_apps = $1, updated_at = NOW() WHERE id = $2', [JSON.stringify(filtered), targetHubId]);
+                        }
+                    } catch (e) {}
+                }
+
+                // Remove bot member
+                const botUserId = `bot_${appId}`;
+                await ds.query('DELETE FROM anticeil_community_members WHERE hub_id = $1 AND user_id = $2', [targetHubId, botUserId]);
+            } catch (e) {}
+        }
+
+        const idx = memoryHubs.findIndex(h => h.id === targetHubId);
+        if (idx >= 0 && Array.isArray(memoryHubs[idx].installedApps)) {
+            memoryHubs[idx].installedApps = memoryHubs[idx].installedApps.filter(a => a.id !== appId);
+        }
+
+        await recordAuditLog(ds, targetHubId, 'APP_UNINSTALLED', req.principal?.name || 'Admin', appId, { appId });
+        if (app.io) {
+            app.io.emit('COLONY_APP_UNINSTALLED', { hubId: targetHubId, appId });
+            app.io.emit('COMMUNITY_MEMBER_REMOVED', { hubId: targetHubId, userId: `bot_${appId}` });
+            app.io.emit('COMMUNITY_HUB_UPDATED', { id: targetHubId });
+        }
+
+        return reply.send({ success: true, appId });
+    };
+
+    const updateColonyAppPermissionsHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId, appId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+        const { permissions, allowedChannels, enabled, settings } = req.body || {};
+
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    `UPDATE anticeil_colony_apps
+                     SET permissions = CASE WHEN $1::text IS NOT NULL THEN $1 ELSE permissions END,
+                         allowed_channels = CASE WHEN $2::text IS NOT NULL THEN $2 ELSE allowed_channels END,
+                         enabled = COALESCE($3, enabled),
+                         settings = CASE WHEN $4::text IS NOT NULL THEN $4 ELSE settings END,
+                         updated_at = NOW()
+                     WHERE hub_id = $5 AND app_id = $6`,
+                    [
+                        permissions ? JSON.stringify(permissions) : null,
+                        allowedChannels ? JSON.stringify(allowedChannels) : null,
+                        typeof enabled === 'boolean' ? enabled : null,
+                        settings ? JSON.stringify(settings) : null,
+                        targetHubId,
+                        appId
+                    ]
+                );
+
+                // Update hub installed_apps json
+                const hubRows = await ds.query('SELECT installed_apps FROM anticeil_community_hubs WHERE id = $1 LIMIT 1', [targetHubId]);
+                if (hubRows && hubRows.length > 0 && hubRows[0].installed_apps) {
+                    try {
+                        const curr = typeof hubRows[0].installed_apps === 'string' ? JSON.parse(hubRows[0].installed_apps) : hubRows[0].installed_apps;
+                        if (Array.isArray(curr)) {
+                            const updated = curr.map(a => {
+                                if (a.id === appId) {
+                                    return {
+                                        ...a,
+                                        permissions: permissions !== undefined ? permissions : a.permissions,
+                                        allowedChannels: allowedChannels !== undefined ? allowedChannels : a.allowedChannels,
+                                        enabled: enabled !== undefined ? enabled : a.enabled,
+                                        settings: settings !== undefined ? settings : a.settings
+                                    };
+                                }
+                                return a;
+                            });
+                            await ds.query('UPDATE anticeil_community_hubs SET installed_apps = $1, updated_at = NOW() WHERE id = $2', [JSON.stringify(updated), targetHubId]);
+                        }
+                    } catch (e) {}
+                }
+            } catch (e) {}
+        }
+
+        const idx = memoryHubs.findIndex(h => h.id === targetHubId);
+        if (idx >= 0 && Array.isArray(memoryHubs[idx].installedApps)) {
+            memoryHubs[idx].installedApps = memoryHubs[idx].installedApps.map(a => {
+                if (a.id === appId) {
+                    return {
+                        ...a,
+                        permissions: permissions !== undefined ? permissions : a.permissions,
+                        allowedChannels: allowedChannels !== undefined ? allowedChannels : a.allowedChannels,
+                        enabled: enabled !== undefined ? enabled : a.enabled,
+                        settings: settings !== undefined ? settings : a.settings
+                    };
+                }
+                return a;
+            });
+        }
+
+        await recordAuditLog(ds, targetHubId, 'APP_PERMISSIONS_UPDATED', req.principal?.name || 'Admin', appId, { permissions, allowedChannels, enabled });
+        if (app.io) {
+            app.io.emit('COLONY_APP_UPDATED', { hubId: targetHubId, appId, permissions, allowedChannels, enabled });
+            app.io.emit('COMMUNITY_HUB_UPDATED', { id: targetHubId });
+        }
+
+        return reply.send({ success: true, appId, permissions, allowedChannels, enabled });
+    };
+
     const deleteHubHandler = async (req, reply) => {
         await ensureTables();
         const ds = await getDb();
@@ -3485,6 +3807,7 @@ async function setupCommunityApi(app) {
 
         if (ds && dbReady) {
             try {
+                await ds.query('DELETE FROM anticeil_colony_apps WHERE hub_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_community_messages WHERE channel_id IN (SELECT id FROM anticeil_community_channels WHERE hub_id = $1)', [id]);
                 await ds.query('DELETE FROM anticeil_community_channels WHERE hub_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_community_members WHERE hub_id = $1', [id]);
@@ -5264,6 +5587,10 @@ async function setupCommunityApi(app) {
     app.get('/v1/colonies/:colonyId/webhooks', getColonyWebhooksHandler);
     app.post('/v1/colonies/:colonyId/webhooks', createColonyWebhookHandler);
     app.delete('/v1/colonies/:colonyId/webhooks/:webhookId', deleteColonyWebhookHandler);
+    app.get('/v1/colonies/:hubId/apps', getColonyAppsHandler);
+    app.post('/v1/colonies/:hubId/apps/:appId/install', installColonyAppHandler);
+    app.delete('/v1/colonies/:hubId/apps/:appId', uninstallColonyAppHandler);
+    app.put('/v1/colonies/:hubId/apps/:appId/permissions', updateColonyAppPermissionsHandler);
     app.all('/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
     app.all('/api/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
 
@@ -5446,6 +5773,16 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/colonies/:hubId/invite-user`, inviteUserToHubHandler);
         app.post(`${prefix}/colony-invitations/:id/accept`, acceptServerInvitationHandler);
         app.post(`${prefix}/colony-invitations/:id/reject`, rejectServerInvitationHandler);
+
+        // Colony Apps & Bot Ecosystem
+        app.get(`${prefix}/colonies/:hubId/apps`, getColonyAppsHandler);
+        app.post(`${prefix}/colonies/:hubId/apps/:appId/install`, installColonyAppHandler);
+        app.delete(`${prefix}/colonies/:hubId/apps/:appId`, uninstallColonyAppHandler);
+        app.put(`${prefix}/colonies/:hubId/apps/:appId/permissions`, updateColonyAppPermissionsHandler);
+        app.get(`${prefix}/hubs/:hubId/apps`, getColonyAppsHandler);
+        app.post(`${prefix}/hubs/:hubId/apps/:appId/install`, installColonyAppHandler);
+        app.delete(`${prefix}/hubs/:hubId/apps/:appId`, uninstallColonyAppHandler);
+        app.put(`${prefix}/hubs/:hubId/apps/:appId/permissions`, updateColonyAppPermissionsHandler);
 
         // Notifications
         app.get(`${prefix}/notifications`, getNotificationsHandler);
