@@ -628,6 +628,13 @@ async function setupCommunityApi(app) {
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
 
+                    CREATE TABLE IF NOT EXISTS anticeil_community_boosters (
+                        id VARCHAR(128) PRIMARY KEY,
+                        hub_id VARCHAR(128) NOT NULL,
+                        user_id VARCHAR(128) NOT NULL,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
                     -- 100% Unified Colony Database Views (Zero-Downtime Migration)
                     CREATE OR REPLACE VIEW anticeil_colonies AS SELECT * FROM anticeil_community_hubs;
                     CREATE OR REPLACE VIEW anticeil_colony_channels AS SELECT * FROM anticeil_community_channels;
@@ -1828,6 +1835,19 @@ async function setupCommunityApi(app) {
                     LIMIT 200
                 `, [platformId, projectId || null]);
 
+                let boostersSet = new Set();
+                let subscriptionsMap = {};
+                try {
+                    const boosterRows = await ds.query('SELECT DISTINCT user_id FROM anticeil_community_boosters');
+                    for (const b of boosterRows || []) {
+                        if (b.user_id) boostersSet.add(b.user_id);
+                    }
+                    const subRows = await ds.query("SELECT user_id, plan_id FROM anticeil_user_subscriptions WHERE status = 'active'");
+                    for (const s of subRows || []) {
+                        if (s.user_id) subscriptionsMap[s.user_id] = s.plan_id;
+                    }
+                } catch (err) {}
+
                 return (users || []).map(u => {
                     let role = 'member';
                     let roleLabel = 'Anggota Platform';
@@ -1858,6 +1878,8 @@ async function setupCommunityApi(app) {
                         roleLabel,
                         platformRole: u.platformRole,
                         projectRole: u.projectRoleName || null,
+                        isBooster: Boolean(boostersSet.has(u.id)),
+                        subscriptionPlan: subscriptionsMap[u.id] || 'free',
                         status: 'online'
                     };
                 });
@@ -2322,16 +2344,49 @@ async function setupCommunityApi(app) {
         await ensureTables();
         const ds = await getDb();
         const { id } = req.params;
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
         let count = 1;
         let tier = 0;
+        let remainingBoostSlots = 0;
 
         if (ds && dbReady) {
             try {
+                let hasUnlimited = false;
+                if (currentUserId !== 'me') {
+                    const subRows = await ds.query('SELECT plan_id, status, boost_slots FROM anticeil_user_subscriptions WHERE user_id = $1 LIMIT 1', [currentUserId]);
+                    if (subRows && subRows[0]) {
+                        remainingBoostSlots = Number(subRows[0].boost_slots) || 0;
+                    }
+                    if (remainingBoostSlots <= 0) {
+                        const userRows = await ds.query('SELECT "platformRole" FROM "user" WHERE id = $1 LIMIT 1', [currentUserId]);
+                        if (userRows && userRows[0] && userRows[0].platformRole === 'ADMIN') {
+                            hasUnlimited = true;
+                            remainingBoostSlots = 99;
+                        } else {
+                            return reply.status(403).send({
+                                success: false,
+                                error: 'NO_BOOST_SLOTS',
+                                message: 'Anda tidak memiliki slot Colony Boost. Berlangganan Nectar untuk mendapatkan 2 slot Colony Boost gratis!'
+                            });
+                        }
+                    }
+                } else {
+                    remainingBoostSlots = 2;
+                }
+
                 const rows = await ds.query('SELECT boosts_count FROM anticeil_community_hubs WHERE id = $1', [id]);
                 if (rows && rows[0]) {
                     count = Number(rows[0].boosts_count || 0) + 1;
                     tier = count >= 14 ? 3 : count >= 7 ? 2 : count >= 2 ? 1 : 0;
                     await ds.query('UPDATE anticeil_community_hubs SET boosts_count = $1, boost_tier = $2, updated_at = NOW() WHERE id = $3', [count, tier, id]);
+
+                    if (!hasUnlimited && currentUserId !== 'me') {
+                        await ds.query('UPDATE anticeil_user_subscriptions SET boost_slots = GREATEST(0, boost_slots - 1), updated_at = NOW() WHERE user_id = $1', [currentUserId]);
+                        remainingBoostSlots = Math.max(0, remainingBoostSlots - 1);
+                    }
+
+                    const boosterId = `bst_${id}_${currentUserId}_${Date.now()}`;
+                    await ds.query('INSERT INTO anticeil_community_boosters (id, hub_id, user_id) VALUES ($1, $2, $3)', [boosterId, id, currentUserId]);
                 }
             } catch (e) {}
         }
@@ -2343,8 +2398,8 @@ async function setupCommunityApi(app) {
         }
 
         await recordAuditLog(ds, id, 'SERVER_BOOST', req.principal?.name || 'Admin', `Tingkat ${tier}`, { boostsCount: count });
-        if (app.io) app.io.emit('COMMUNITY_SERVER_BOOSTED', { id, boostsCount: count, boostTier: tier });
-        return { success: true, boostsCount: count, boostTier: tier };
+        if (app.io) app.io.emit('COMMUNITY_SERVER_BOOSTED', { id, boostsCount: count, boostTier: tier, userId: currentUserId });
+        return { success: true, boostsCount: count, boostTier: tier, remainingBoostSlots };
     };
 
     const updateMemberRoleHandler = async (req, reply) => {
