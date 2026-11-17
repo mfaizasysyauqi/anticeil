@@ -2484,14 +2484,20 @@ async function setupCommunityApi(app) {
             try {
                 const rows = await ds.query('SELECT * FROM anticeil_community_roles WHERE hub_id = $1 ORDER BY position ASC, created_at ASC', [hubId]);
                 if (rows && rows.length > 0) {
-                    return rows.map(r => ({
-                        id: r.id,
-                        hubId: r.hub_id,
-                        name: r.name,
-                        color: r.color || '#6366f1',
-                        permissions: r.permissions ? JSON.parse(r.permissions) : ['SEND_MESSAGES'],
-                        position: r.position || 0
-                    }));
+                    return rows.map(r => {
+                        let parsedPerms = ['SEND_MESSAGES'];
+                        try {
+                            parsedPerms = typeof r.permissions === 'string' ? JSON.parse(r.permissions) : (r.permissions || ['SEND_MESSAGES']);
+                        } catch (e) {}
+                        return {
+                            id: r.id,
+                            hubId: r.hub_id,
+                            name: r.name,
+                            color: r.color || '#6366f1',
+                            permissions: parsedPerms,
+                            position: r.position || 0
+                        };
+                    });
                 }
             } catch (e) {}
         }
@@ -2524,7 +2530,64 @@ async function setupCommunityApi(app) {
         if (!memoryRoles[hubId]) memoryRoles[hubId] = [];
         memoryRoles[hubId].push(newRole);
         await recordAuditLog(ds, hubId, 'ROLE_CREATED', req.principal?.name || 'Admin', name, { color });
+        if (app.io) app.io.emit('COMMUNITY_ROLE_CREATED', { hubId, role: newRole });
         return reply.status(201).send(newRole);
+    };
+
+    const updateRoleHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { hubId, roleId } = req.params;
+        const { name, color, permissions, position } = req.body || {};
+
+        let updatedRole = null;
+        if (ds && dbReady) {
+            try {
+                const permsJson = permissions !== undefined ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : null;
+                await ds.query(`
+                    UPDATE anticeil_community_roles
+                    SET name = COALESCE($1, name),
+                        color = COALESCE($2, color),
+                        permissions = CASE WHEN $3 IS NOT NULL THEN $3 ELSE permissions END,
+                        position = COALESCE($4, position)
+                    WHERE hub_id = $5 AND id = $6
+                `, [name || null, color || null, permsJson, position !== undefined && position !== null ? position : null, hubId, roleId]);
+
+                const rows = await ds.query('SELECT * FROM anticeil_community_roles WHERE hub_id = $1 AND id = $2', [hubId, roleId]);
+                if (rows && rows.length > 0) {
+                    const r = rows[0];
+                    let parsedPerms = ['SEND_MESSAGES'];
+                    try {
+                        parsedPerms = typeof r.permissions === 'string' ? JSON.parse(r.permissions) : (r.permissions || ['SEND_MESSAGES']);
+                    } catch (e) {}
+                    updatedRole = {
+                        id: r.id,
+                        hubId: r.hub_id,
+                        name: r.name,
+                        color: r.color || '#6366f1',
+                        permissions: parsedPerms,
+                        position: r.position || 0
+                    };
+                }
+            } catch (e) {}
+        }
+        if (!updatedRole) {
+            if (!memoryRoles[hubId]) memoryRoles[hubId] = [];
+            let r = memoryRoles[hubId].find(x => x.id === roleId);
+            if (!r) {
+                r = { id: roleId, hubId, name: name || 'Role', color: color || '#6366f1', permissions: permissions || ['SEND_MESSAGES'], position: position || 0 };
+                memoryRoles[hubId].push(r);
+            } else {
+                if (name) r.name = name;
+                if (color) r.color = color;
+                if (permissions) r.permissions = permissions;
+                if (position !== undefined) r.position = position;
+            }
+            updatedRole = r;
+        }
+        await recordAuditLog(ds, hubId, 'ROLE_UPDATED', req.principal?.name || 'Admin', name || roleId, { color, permissions });
+        if (app.io) app.io.emit('COMMUNITY_ROLE_UPDATED', { hubId, role: updatedRole });
+        return reply.send(updatedRole);
     };
 
     const deleteRoleHandler = async (req, reply) => {
@@ -2540,6 +2603,7 @@ async function setupCommunityApi(app) {
             memoryRoles[hubId] = memoryRoles[hubId].filter(r => r.id !== roleId);
         }
         await recordAuditLog(ds, hubId, 'ROLE_DELETED', req.principal?.name || 'Admin', roleId);
+        if (app.io) app.io.emit('COMMUNITY_ROLE_DELETED', { hubId, roleId });
         return { success: true, id: roleId };
     };
 
@@ -3846,6 +3910,7 @@ async function setupCommunityApi(app) {
         app.delete(`${prefix}/hubs/:hubId/members/:userId`, kickMemberHandler);
         app.get(`${prefix}/hubs/:hubId/roles`, getRolesHandler);
         app.post(`${prefix}/hubs/:hubId/roles`, createRoleHandler);
+        app.put(`${prefix}/hubs/:hubId/roles/:roleId`, updateRoleHandler);
         app.delete(`${prefix}/hubs/:hubId/roles/:roleId`, deleteRoleHandler);
         app.get(`${prefix}/hubs/:hubId/invites`, getInvitesHandler);
         app.post(`${prefix}/hubs/:hubId/invites`, createInviteHandler);
@@ -3891,6 +3956,7 @@ async function setupCommunityApi(app) {
         app.delete(`${prefix}/colonies/:hubId/members/:userId`, kickMemberHandler);
         app.get(`${prefix}/colonies/:hubId/roles`, getRolesHandler);
         app.post(`${prefix}/colonies/:hubId/roles`, createRoleHandler);
+        app.put(`${prefix}/colonies/:hubId/roles/:roleId`, updateRoleHandler);
         app.delete(`${prefix}/colonies/:hubId/roles/:roleId`, deleteRoleHandler);
         app.get(`${prefix}/colonies/:hubId/invites`, getInvitesHandler);
         app.post(`${prefix}/colonies/:hubId/invites`, createInviteHandler);
@@ -4306,6 +4372,13 @@ async function setupCommunityApi(app) {
     app.all('/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
     app.all('/api/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
     app.post('/v1/colony/webhook', botWebhookHandler);
+
+    // Direct /v1/colonies role & member routes
+    app.get('/v1/colonies/:hubId/roles', getRolesHandler);
+    app.post('/v1/colonies/:hubId/roles', createRoleHandler);
+    app.put('/v1/colonies/:hubId/roles/:roleId', updateRoleHandler);
+    app.delete('/v1/colonies/:hubId/roles/:roleId', deleteRoleHandler);
+    app.put('/v1/colonies/:hubId/members/:userId/role', updateMemberRoleHandler);
 
     // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
     const getSubscriptionHandler = async (req, reply) => {
