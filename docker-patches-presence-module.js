@@ -395,6 +395,7 @@ async function setupCommunityApi(app) {
                     CREATE INDEX IF NOT EXISTS idx_acc_platform ON anticeil_community_channels (platform_id);
                     ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS type VARCHAR(32) DEFAULT 'text';
                     ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE;
+                    ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS permission_overwrites TEXT DEFAULT '[]';
                     UPDATE anticeil_community_channels SET type = 'voice' WHERE (LOWER(name) LIKE '%voice%' OR id LIKE '%voice%') AND (type = 'text' OR type IS NULL);
                     UPDATE anticeil_community_channels SET type = 'forum' WHERE (LOWER(name) LIKE '%forum%' OR LOWER(name) LIKE '%diskusi%' OR id LIKE '%forum%') AND (type = 'text' OR type IS NULL);
                     UPDATE anticeil_community_channels SET type = 'kanban' WHERE (LOWER(name) LIKE '%kanban%' OR id LIKE '%kanban%') AND (type = 'text' OR type IS NULL);
@@ -860,6 +861,12 @@ async function setupCommunityApi(app) {
                         ((r.name || '') + ' ' + (r.id || '')).toLowerCase().includes('forum') || ((r.name || '') + ' ' + (r.id || '')).toLowerCase().includes('diskusi') ? 'forum' :
                         ((r.name || '') + ' ' + (r.id || '')).toLowerCase().includes('kanban') ? 'kanban' : (r.type || 'text')
                     );
+                    let overwrites = [];
+                    if (r.permission_overwrites) {
+                        try {
+                            overwrites = typeof r.permission_overwrites === 'string' ? JSON.parse(r.permission_overwrites) : r.permission_overwrites;
+                        } catch {}
+                    }
                     return {
                         id: r.id,
                         name: r.name,
@@ -869,7 +876,8 @@ async function setupCommunityApi(app) {
                         type: resolvedType,
                         isPrivate: Boolean(r.is_private),
                         isDirectMessage: Boolean(r.is_direct_message),
-                        dmUserId: r.dm_user_id || undefined
+                        dmUserId: r.dm_user_id || undefined,
+                        permissionOverwrites: Array.isArray(overwrites) ? overwrites : []
                     };
                 });
             } catch (e) {}
@@ -964,17 +972,24 @@ async function setupCommunityApi(app) {
     const updateChannelHandler = async (req, reply) => {
         await ensureTables();
         const { id } = req.params;
-        const { name, description, type, isPrivate } = req.body || {};
+        const { name, description, type, isPrivate, permissionOverwrites } = req.body || {};
+        const jsonOverwrites = permissionOverwrites !== undefined ? JSON.stringify(permissionOverwrites) : null;
         const ds = await getDb();
         let updatedChannel = null;
         if (ds && dbReady) {
             try {
                 const platformId = await resolvePlatformId(req, ds);
                 const res = await ds.query(
-                    'UPDATE anticeil_community_channels SET name = COALESCE($1, name), description = COALESCE($2, description), type = COALESCE($3, type), is_private = COALESCE($4, is_private), updated_at = NOW() WHERE id = $5 AND (platform_id = $6 OR platform_id IS NULL) RETURNING *',
-                    [name, description, type, typeof isPrivate === 'boolean' ? isPrivate : null, id, platformId]
+                    'UPDATE anticeil_community_channels SET name = COALESCE($1, name), description = COALESCE($2, description), type = COALESCE($3, type), is_private = COALESCE($4, is_private), permission_overwrites = COALESCE($5, permission_overwrites), updated_at = NOW() WHERE id = $6 AND (platform_id = $7 OR platform_id IS NULL) RETURNING *',
+                    [name, description, type, typeof isPrivate === 'boolean' ? isPrivate : null, jsonOverwrites, id, platformId]
                 );
                 if (res && res[0]) {
+                    let overwrites = [];
+                    if (res[0].permission_overwrites) {
+                        try {
+                            overwrites = typeof res[0].permission_overwrites === 'string' ? JSON.parse(res[0].permission_overwrites) : res[0].permission_overwrites;
+                        } catch {}
+                    }
                     updatedChannel = {
                         id: res[0].id,
                         name: res[0].name,
@@ -983,7 +998,8 @@ async function setupCommunityApi(app) {
                         hubId: res[0].hub_id,
                         type: res[0].type || 'text',
                         isPrivate: Boolean(res[0].is_private),
-                        isDirectMessage: Boolean(res[0].is_direct_message)
+                        isDirectMessage: Boolean(res[0].is_direct_message),
+                        permissionOverwrites: Array.isArray(overwrites) ? overwrites : []
                     };
                 }
             } catch (e) {}
@@ -994,6 +1010,7 @@ async function setupCommunityApi(app) {
             if (description !== undefined) memoryChannels[memIdx].description = description;
             if (type) memoryChannels[memIdx].type = type;
             if (isPrivate !== undefined) memoryChannels[memIdx].isPrivate = isPrivate;
+            if (permissionOverwrites !== undefined) memoryChannels[memIdx].permissionOverwrites = permissionOverwrites;
             if (!updatedChannel) {
                 updatedChannel = {
                     id,
@@ -1003,17 +1020,160 @@ async function setupCommunityApi(app) {
                     hubId: memoryChannels[memIdx].hub_id,
                     type: memoryChannels[memIdx].type || 'text',
                     isPrivate: Boolean(memoryChannels[memIdx].isPrivate),
-                    isDirectMessage: Boolean(memoryChannels[memIdx].isDirectMessage)
+                    isDirectMessage: Boolean(memoryChannels[memIdx].isDirectMessage),
+                    permissionOverwrites: memoryChannels[memIdx].permissionOverwrites || []
                 };
             }
         }
         if (!updatedChannel) {
-            updatedChannel = { id, name: name || 'channel', description: description || '', category: 'CHANNELS', hubId: 'anticeil', type: type || 'text', isPrivate: Boolean(isPrivate), isDirectMessage: false };
+            updatedChannel = { id, name: name || 'channel', description: description || '', category: 'CHANNELS', hubId: 'anticeil', type: type || 'text', isPrivate: Boolean(isPrivate), isDirectMessage: false, permissionOverwrites: permissionOverwrites || [] };
         }
         if (app.io && updatedChannel) {
             app.io.emit('COMMUNITY_CHANNEL_UPDATED', updatedChannel);
         }
         return updatedChannel;
+    };
+
+    const getChannelPermissionsHandler = async (req, reply) => {
+        await ensureTables();
+        const { channelId } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query('SELECT permission_overwrites FROM anticeil_community_channels WHERE id = $1', [channelId]);
+                if (rows && rows[0] && rows[0].permission_overwrites) {
+                    const parsed = typeof rows[0].permission_overwrites === 'string'
+                        ? JSON.parse(rows[0].permission_overwrites)
+                        : rows[0].permission_overwrites;
+                    return Array.isArray(parsed) ? parsed : [];
+                }
+            } catch (e) {}
+        }
+        const mem = memoryChannels.find(c => c.id === channelId);
+        return mem?.permissionOverwrites || [];
+    };
+
+    const updateChannelPermissionHandler = async (req, reply) => {
+        await ensureTables();
+        const { channelId, targetId } = req.params;
+        const { type = 'role', name = targetId, allow = [], deny = [] } = req.body || {};
+        const ds = await getDb();
+        const overwriteItem = {
+            id: targetId,
+            type,
+            name,
+            allow: Array.isArray(allow) ? allow : [],
+            deny: Array.isArray(deny) ? deny : []
+        };
+        let hubId = 'anticeil';
+        let chName = channelId;
+
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query('SELECT hub_id, name, permission_overwrites FROM anticeil_community_channels WHERE id = $1', [channelId]);
+                if (rows && rows[0]) {
+                    hubId = rows[0].hub_id || 'anticeil';
+                    chName = rows[0].name || channelId;
+                    let currentOverwrites = [];
+                    if (rows[0].permission_overwrites) {
+                        try {
+                            currentOverwrites = typeof rows[0].permission_overwrites === 'string'
+                                ? JSON.parse(rows[0].permission_overwrites)
+                                : rows[0].permission_overwrites;
+                        } catch {}
+                    }
+                    if (!Array.isArray(currentOverwrites)) currentOverwrites = [];
+                    const nextOverwrites = [
+                        ...currentOverwrites.filter(o => o.id !== targetId),
+                        overwriteItem
+                    ];
+                    await ds.query(
+                        'UPDATE anticeil_community_channels SET permission_overwrites = $1, updated_at = NOW() WHERE id = $2',
+                        [JSON.stringify(nextOverwrites), channelId]
+                    );
+                }
+            } catch (e) {}
+        }
+
+        const mem = memoryChannels.find(c => c.id === channelId);
+        if (mem) {
+            if (!Array.isArray(mem.permissionOverwrites)) mem.permissionOverwrites = [];
+            mem.permissionOverwrites = [
+                ...mem.permissionOverwrites.filter(o => o.id !== targetId),
+                overwriteItem
+            ];
+            hubId = mem.hubId || hubId;
+            chName = mem.name || chName;
+        }
+
+        await recordAuditLog(ds, hubId, 'CHANNEL_PERMISSION_UPDATE', req.principal?.name || 'Admin', `#${chName}`, {
+            targetId,
+            type,
+            allowCount: allow.length,
+            denyCount: deny.length
+        });
+
+        if (app.io) {
+            app.io.emit('COMMUNITY_CHANNEL_PERMISSIONS_UPDATED', {
+                channelId,
+                overwrite: overwriteItem
+            });
+        }
+
+        return overwriteItem;
+    };
+
+    const deleteChannelPermissionHandler = async (req, reply) => {
+        await ensureTables();
+        const { channelId, targetId } = req.params;
+        const ds = await getDb();
+        let hubId = 'anticeil';
+        let chName = channelId;
+
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query('SELECT hub_id, name, permission_overwrites FROM anticeil_community_channels WHERE id = $1', [channelId]);
+                if (rows && rows[0]) {
+                    hubId = rows[0].hub_id || 'anticeil';
+                    chName = rows[0].name || channelId;
+                    let currentOverwrites = [];
+                    if (rows[0].permission_overwrites) {
+                        try {
+                            currentOverwrites = typeof rows[0].permission_overwrites === 'string'
+                                ? JSON.parse(rows[0].permission_overwrites)
+                                : rows[0].permission_overwrites;
+                        } catch {}
+                    }
+                    if (Array.isArray(currentOverwrites)) {
+                        const nextOverwrites = currentOverwrites.filter(o => o.id !== targetId);
+                        await ds.query(
+                            'UPDATE anticeil_community_channels SET permission_overwrites = $1, updated_at = NOW() WHERE id = $2',
+                            [JSON.stringify(nextOverwrites), channelId]
+                        );
+                    }
+                }
+            } catch (e) {}
+        }
+
+        const mem = memoryChannels.find(c => c.id === channelId);
+        if (mem && Array.isArray(mem.permissionOverwrites)) {
+            mem.permissionOverwrites = mem.permissionOverwrites.filter(o => o.id !== targetId);
+            hubId = mem.hubId || hubId;
+            chName = mem.name || chName;
+        }
+
+        await recordAuditLog(ds, hubId, 'CHANNEL_PERMISSION_DELETE', req.principal?.name || 'Admin', `#${chName}`, {
+            targetId
+        });
+
+        if (app.io) {
+            app.io.emit('COMMUNITY_CHANNEL_PERMISSIONS_UPDATED', {
+                channelId,
+                deletedTargetId: targetId
+            });
+        }
+
+        return { success: true, channelId, targetId };
     };
 
     // --- FORUM THREADS HANDLERS ---
@@ -3994,6 +4154,9 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/channels`, createChannelHandler);
         app.put(`${prefix}/channels/:id`, updateChannelHandler);
         app.delete(`${prefix}/channels/:id`, deleteChannelHandler);
+        app.get(`${prefix}/channels/:channelId/permissions`, getChannelPermissionsHandler);
+        app.put(`${prefix}/channels/:channelId/permissions/:targetId`, updateChannelPermissionHandler);
+        app.delete(`${prefix}/channels/:channelId/permissions/:targetId`, deleteChannelPermissionHandler);
 
         // Threads (For Forum Channels)
         app.get(`${prefix}/channels/:channelId/threads`, getThreadsHandler);
@@ -4542,6 +4705,9 @@ async function setupCommunityApi(app) {
     app.delete('/v1/colonies/:hubId/bans/:userId', deleteBanHandler);
     app.get('/v1/colonies/:hubId/audit-logs', getAuditLogHandler);
     app.get('/v1/colonies/:hubId/audit-log', getAuditLogHandler);
+    app.get('/v1/channels/:channelId/permissions', getChannelPermissionsHandler);
+    app.put('/v1/channels/:channelId/permissions/:targetId', updateChannelPermissionHandler);
+    app.delete('/v1/channels/:channelId/permissions/:targetId', deleteChannelPermissionHandler);
 
     // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
     const getSubscriptionHandler = async (req, reply) => {
