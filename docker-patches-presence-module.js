@@ -5266,7 +5266,6 @@ async function setupCommunityApi(app) {
     app.delete('/v1/colonies/:colonyId/webhooks/:webhookId', deleteColonyWebhookHandler);
     app.all('/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
     app.all('/api/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
-    app.post('/v1/colony/webhook', botWebhookHandler);
 
     // --- REGISTER ROUTE ALIASES (Supports /v1/community/*, /v1/messages/*, and /v1/colony/*) ---
     const routePrefixes = ['/v1/community', '/v1/messages', '/v1/colony'];
