@@ -406,6 +406,7 @@ async function setupCommunityApi(app) {
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS icon_url TEXT;
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS platform_id VARCHAR(128);
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS onboarding TEXT DEFAULT '{}';
+                    ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS safety_settings TEXT DEFAULT '{}';
 
                     CREATE TABLE IF NOT EXISTS anticeil_community_threads (
                         id VARCHAR(128) PRIMARY KEY,
@@ -1406,6 +1407,68 @@ async function setupCommunityApi(app) {
         }
         messageRateLimitMap[clientKey].push(now);
 
+        const ds = await getDb();
+        // AutoMod & Colony Safety Interceptor
+        if (ds && dbReady) {
+            try {
+                const chRows = await ds.query('SELECT hub_id FROM anticeil_community_channels WHERE id = $1 LIMIT 1', [channelId]);
+                if (chRows && chRows.length > 0) {
+                    const targetHubId = chRows[0].hub_id;
+                    const hubRows = await ds.query('SELECT safety_settings FROM anticeil_community_hubs WHERE id = $1 LIMIT 1', [targetHubId]);
+                    if (hubRows && hubRows.length > 0 && hubRows[0].safety_settings) {
+                        const safety = typeof hubRows[0].safety_settings === 'string' ? JSON.parse(hubRows[0].safety_settings) : hubRows[0].safety_settings;
+                        const rawContent = (body.content || '').toLowerCase();
+                        const senderRole = body.senderRole || 'member';
+
+                        // 1. Restrict @everyone / @here mentions
+                        if (safety.autoMod?.blockEveryoneMentions && (rawContent.includes('@everyone') || rawContent.includes('@here'))) {
+                            if (senderRole !== 'owner' && senderRole !== 'admin') {
+                                return reply.status(400).send({
+                                    message: 'Pesan diblokir oleh AutoMod: penyebutan @everyone dibatasi untuk moderator.'
+                                });
+                            }
+                        }
+
+                        // 2. Custom Blocklist keywords check
+                        const blocklist = safety.autoMod?.customBlocklist || [];
+                        if (blocklist.length > 0) {
+                            const matchedKeyword = blocklist.find(kw => kw && rawContent.includes(kw.toLowerCase()));
+                            if (matchedKeyword) {
+                                await recordAuditLog(ds, targetHubId, 'AUTOMOD_BLOCK', 'AutoMod', body.senderName || 'Member', {
+                                    keyword: matchedKeyword,
+                                    channelId
+                                });
+                                if (app.io) {
+                                    app.io.emit('COMMUNITY_SAFETY_ALERT', {
+                                        type: 'AUTOMOD_BLOCK',
+                                        hubId: targetHubId,
+                                        channelId,
+                                        senderName: body.senderName,
+                                        matchedKeyword,
+                                        timestamp: new Date().toISOString()
+                                    });
+                                }
+                                return reply.status(400).send({
+                                    message: `Pesan diblokir oleh AutoMod: mengandung frasa terlarang ("${matchedKeyword}").`
+                                });
+                            }
+                        }
+
+                        // 3. Severe Profanity filter
+                        if (safety.autoMod?.blockSevereProfanity) {
+                            const severeWords = ['anjing', 'bangsat', 'babi', 'kontol', 'memek', 'ngentot', 'fuck', 'bitch', 'asshole'];
+                            const matchedProfanity = severeWords.find(w => rawContent.includes(w));
+                            if (matchedProfanity) {
+                                return reply.status(400).send({
+                                    message: 'Pesan diblokir oleh AutoMod: mengandung kata-kata tidak pantas.'
+                                });
+                            }
+                        }
+                    }
+                }
+            } catch (e) {}
+        }
+
         const id = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
         const newMessage = {
             id,
@@ -1422,7 +1485,6 @@ async function setupCommunityApi(app) {
             replyTo: body.replyTo || null
         };
 
-        const ds = await getDb();
         if (ds && dbReady) {
             try {
                 await ds.query(
@@ -1899,7 +1961,6 @@ async function setupCommunityApi(app) {
             createdAt: new Date().toISOString()
         };
 
-        const ds = await getDb();
         if (ds && dbReady) {
             try {
                 await ds.query(
@@ -2534,7 +2595,8 @@ async function setupCommunityApi(app) {
                         emojis: r.emojis ? (typeof r.emojis === 'string' ? JSON.parse(r.emojis) : r.emojis) : [],
                         boostsCount: Number(r.boosts_count || 0),
                         boostTier: Number(r.boost_tier || 0),
-                        onboarding: r.onboarding ? (typeof r.onboarding === 'string' ? JSON.parse(r.onboarding) : r.onboarding) : { enabled: false }
+                        onboarding: r.onboarding ? (typeof r.onboarding === 'string' ? JSON.parse(r.onboarding) : r.onboarding) : { enabled: false },
+                        safetySettings: r.safety_settings ? (typeof r.safety_settings === 'string' ? JSON.parse(r.safety_settings) : r.safety_settings) : undefined
                     }));
                 }
             } catch (e) {}
@@ -2959,7 +3021,7 @@ async function setupCommunityApi(app) {
         const ds = await getDb();
         const { id } = req.params;
         const platformId = await resolvePlatformId(req, ds);
-        const { name, description, color, icon, iconUrl, tags, emojis, boostsCount, boostTier, onboarding } = req.body || {};
+        const { name, description, color, icon, iconUrl, tags, emojis, boostsCount, boostTier, onboarding, safetySettings } = req.body || {};
 
         if (ds && dbReady) {
             try {
@@ -2975,8 +3037,9 @@ async function setupCommunityApi(app) {
                         boosts_count = COALESCE($8, boosts_count),
                         boost_tier = COALESCE($9, boost_tier),
                         onboarding = CASE WHEN $10::text IS NOT NULL THEN $10 ELSE onboarding END,
+                        safety_settings = CASE WHEN $11::text IS NOT NULL THEN $11 ELSE safety_settings END,
                         updated_at = NOW()
-                     WHERE id = $11 AND (platform_id = $12 OR platform_id IS NULL)`,
+                     WHERE id = $12 AND (platform_id = $13 OR platform_id IS NULL)`,
                     [
                         name || null,
                         description !== undefined ? description : null,
@@ -2988,6 +3051,7 @@ async function setupCommunityApi(app) {
                         typeof boostsCount === 'number' ? boostsCount : null,
                         typeof boostTier === 'number' ? boostTier : null,
                         onboarding !== undefined ? (typeof onboarding === 'string' ? onboarding : JSON.stringify(onboarding)) : null,
+                        safetySettings !== undefined ? (typeof safetySettings === 'string' ? safetySettings : JSON.stringify(safetySettings)) : null,
                         id,
                         platformId
                     ]
@@ -3006,10 +3070,11 @@ async function setupCommunityApi(app) {
             if (typeof boostsCount === 'number') memoryHubs[idx].boostsCount = boostsCount;
             if (typeof boostTier === 'number') memoryHubs[idx].boostTier = boostTier;
             if (onboarding !== undefined) memoryHubs[idx].onboarding = onboarding;
+            if (safetySettings !== undefined) memoryHubs[idx].safetySettings = safetySettings;
         }
 
-        await recordAuditLog(ds, id, 'HUB_UPDATED', req.principal?.name || 'Admin', name || id, { name, tags, emojis, onboarding });
-        const updated = (idx >= 0 ? memoryHubs[idx] : { id, name, description, color, tags, emojis, boostsCount, boostTier, onboarding });
+        await recordAuditLog(ds, id, 'HUB_UPDATED', req.principal?.name || 'Admin', name || id, { name, tags, emojis, onboarding, safetySettings });
+        const updated = (idx >= 0 ? memoryHubs[idx] : { id, name, description, color, tags, emojis, boostsCount, boostTier, onboarding, safetySettings });
         if (app.io) app.io.emit('COMMUNITY_HUB_UPDATED', updated);
         return updated;
     };
@@ -3074,6 +3139,81 @@ async function setupCommunityApi(app) {
             app.io.emit('COMMUNITY_MEMBER_ONBOARDED', { hubId: targetId, userId, userName, answers });
         }
         return reply.send({ success: true, message: 'Onboarding completed successfully' });
+    };
+
+    const getHubSafetyHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+
+        const defaultSafety = {
+            raidProtection: {
+                captchaOnJoin: true,
+                raidAlerts: true,
+                autoPauseInvites: false
+            },
+            dmSpamProtection: {
+                filterExplicitMedia: true,
+                blockKnownSpam: true,
+                rateLimitNewMembers: true,
+                warnUnverifiedLinks: true,
+                filterInvites: true
+            },
+            autoMod: {
+                blockFlaggedWords: true,
+                blockSevereProfanity: false,
+                blockSpamRepeated: false,
+                blockEveryoneMentions: false,
+                customBlocklist: ['free nitro', 'crypto-airdrop', 'steam-gift-card']
+            },
+            permissions: {
+                restrictEveryoneMention: true,
+                disableUploadsUnverified: false,
+                require2faModeration: false
+            }
+        };
+
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query('SELECT safety_settings FROM anticeil_community_hubs WHERE id = $1 LIMIT 1', [targetHubId]);
+                if (rows && rows.length > 0 && rows[0].safety_settings) {
+                    const parsed = typeof rows[0].safety_settings === 'string' ? JSON.parse(rows[0].safety_settings) : rows[0].safety_settings;
+                    return reply.send({ ...defaultSafety, ...parsed });
+                }
+            } catch (e) {}
+        }
+        return reply.send(defaultSafety);
+    };
+
+    const updateHubSafetyHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+        const safetyPayload = req.body || {};
+
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    `UPDATE anticeil_community_hubs 
+                     SET safety_settings = $1, updated_at = NOW() 
+                     WHERE id = $2`,
+                    [JSON.stringify(safetyPayload), targetHubId]
+                );
+            } catch (e) {}
+        }
+
+        const idx = memoryHubs.findIndex(h => h.id === targetHubId);
+        if (idx >= 0) {
+            memoryHubs[idx].safetySettings = safetyPayload;
+        }
+
+        await recordAuditLog(ds, targetHubId, 'SAFETY_SETTINGS_UPDATED', req.principal?.name || 'Admin', targetHubId, safetyPayload);
+        if (app.io) {
+            app.io.emit('COMMUNITY_SAFETY_UPDATED', { hubId: targetHubId, safetySettings: safetyPayload });
+        }
+        return reply.send(safetyPayload);
     };
 
     const deleteHubHandler = async (req, reply) => {
@@ -4874,6 +5014,10 @@ async function setupCommunityApi(app) {
         app.delete(`${prefix}/colonies/:hubId/template`, deleteTemplateHandler);
         app.post(`${prefix}/hubs/:hubId/template`, createOrSyncTemplateHandler);
         app.delete(`${prefix}/hubs/:hubId/template`, deleteTemplateHandler);
+        app.get(`${prefix}/colonies/:hubId/safety`, getHubSafetyHandler);
+        app.put(`${prefix}/colonies/:hubId/safety`, updateHubSafetyHandler);
+        app.get(`${prefix}/hubs/:hubId/safety`, getHubSafetyHandler);
+        app.put(`${prefix}/hubs/:hubId/safety`, updateHubSafetyHandler);
         app.get(`${prefix}/colony-invitations`, getServerInvitationsHandler);
         app.post(`${prefix}/colonies/:hubId/invite-user`, inviteUserToHubHandler);
         app.post(`${prefix}/colony-invitations/:id/accept`, acceptServerInvitationHandler);
@@ -5332,6 +5476,10 @@ async function setupCommunityApi(app) {
     app.get('/v1/hubs/:hubId/insights', getInsightsHandler);
     app.get('/v1/colonies/:hubId/stats', getStatsHandler);
     app.get('/v1/hubs/:hubId/stats', getStatsHandler);
+    app.get('/v1/colonies/:hubId/safety', getHubSafetyHandler);
+    app.put('/v1/colonies/:hubId/safety', updateHubSafetyHandler);
+    app.get('/v1/hubs/:hubId/safety', getHubSafetyHandler);
+    app.put('/v1/hubs/:hubId/safety', updateHubSafetyHandler);
 
     // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
     const getSubscriptionHandler = async (req, reply) => {
