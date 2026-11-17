@@ -635,6 +635,21 @@ async function setupCommunityApi(app) {
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
 
+                    CREATE TABLE IF NOT EXISTS anticeil_gifts (
+                        id VARCHAR(128) PRIMARY KEY,
+                        sender_user_id VARCHAR(128) NOT NULL,
+                        code VARCHAR(64) UNIQUE NOT NULL,
+                        type VARCHAR(64) NOT NULL,
+                        title VARCHAR(128) NOT NULL,
+                        recipient_email VARCHAR(128),
+                        recipient_user_id VARCHAR(128),
+                        redeemed BOOLEAN DEFAULT FALSE,
+                        redeemed_at TIMESTAMP WITH TIME ZONE,
+                        order_id VARCHAR(128),
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
                     -- 100% Unified Colony Database Views (Zero-Downtime Migration)
                     CREATE OR REPLACE VIEW anticeil_colonies AS SELECT * FROM anticeil_community_hubs;
                     CREATE OR REPLACE VIEW anticeil_colony_channels AS SELECT * FROM anticeil_community_channels;
@@ -4121,19 +4136,47 @@ async function setupCommunityApi(app) {
     const createMidtransTokenHandler = async (req, reply) => {
         const ds = await getDb();
         const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
-        const { plan } = req.body || {};
-        const planKey = (plan || 'nectar_boost').toLowerCase();
-        const isPollen = planKey === 'nectar_basic' || planKey === 'pollen';
-        const planId = isPollen ? 'nectar_basic' : 'nectar_boost';
-        const grossAmount = isPollen ? 29000 : 85000;
-        const itemName = isPollen ? 'Anticeil Pollen Monthly Subscription' : 'Anticeil Nectar VIP Monthly Subscription';
+        const { plan, isGift, giftType } = req.body || {};
+        const isGiftOrder = isGift === true || (typeof plan === 'string' && plan.startsWith('gift_'));
+        let planId = 'nectar_boost';
+        let grossAmount = 85000;
+        let itemName = 'Anticeil Nectar VIP Monthly Subscription';
+
+        if (isGiftOrder) {
+            const type = giftType || plan;
+            if (type === 'nectar_basic' || type === 'pollen' || type === 'pollen_1m' || type === 'gift_pollen') {
+                planId = 'nectar_basic';
+                grossAmount = 29000;
+                itemName = 'Hadiah Anticeil: Pollen Tier (1 Bulan)';
+            } else if (type === 'boost_1m' || type === 'gift_boost') {
+                planId = 'boost_1m';
+                grossAmount = 65000;
+                itemName = 'Hadiah Anticeil: 2x Colony Boost (1 Bulan)';
+            } else if (type === 'nectar_1y' || type === 'gift_nectar_1y') {
+                planId = 'nectar_1y';
+                grossAmount = 850000;
+                itemName = 'Hadiah Anticeil: Nectar VIP (1 Tahun)';
+            } else {
+                planId = 'nectar_boost';
+                grossAmount = 85000;
+                itemName = 'Hadiah Anticeil: Nectar VIP (1 Bulan)';
+            }
+        } else {
+            const planKey = (plan || 'nectar_boost').toLowerCase();
+            const isPollen = planKey === 'nectar_basic' || planKey === 'pollen';
+            planId = isPollen ? 'nectar_basic' : 'nectar_boost';
+            grossAmount = isPollen ? 29000 : 85000;
+            itemName = isPollen ? 'Anticeil Pollen Monthly Subscription' : 'Anticeil Nectar VIP Monthly Subscription';
+        }
 
         const serverKey = process.env.AP_MIDTRANS_SERVER_KEY ?? '';
         const clientKey = process.env.AP_MIDTRANS_CLIENT_KEY ?? '';
         const isProduction = process.env.AP_MIDTRANS_IS_PRODUCTION === 'true';
         const auth = Buffer.from(`${serverKey}:`).toString('base64');
 
-        const orderId = `AC-SUB-${isPollen ? 'POL' : 'NEC'}-${Date.now()}`;
+        const orderId = isGiftOrder
+            ? `AC-GFT-${planId === 'nectar_basic' ? 'POL' : planId === 'boost_1m' ? 'BST' : planId === 'nectar_1y' ? 'YEA' : 'NEC'}-${Date.now()}`
+            : `AC-SUB-${planId === 'nectar_basic' ? 'POL' : 'NEC'}-${Date.now()}`;
         let userEmail = 'anticeil.user@gmail.com';
         let userName = 'Anticeil User';
 
@@ -4221,15 +4264,18 @@ async function setupCommunityApi(app) {
             const isSuccess = txStatus === 'settlement' || (txStatus === 'capture' && fraudStatus === 'accept');
 
             if (isSuccess) {
-                let planId = orderId.includes('-POL-') ? 'nectar_basic' : 'nectar_boost';
+                const isGift = orderId.includes('-GFT-');
+                let planId = orderId.includes('-POL-') ? 'nectar_basic' : orderId.includes('-BST-') ? 'boost_1m' : orderId.includes('-YEA-') ? 'nectar_1y' : 'nectar_boost';
                 let targetUserId = currentUserId;
 
                 if (ds) {
                     try {
-                        const txRows = await ds.query('SELECT user_id, plan_id FROM anticeil_billing_transactions WHERE id = $1 LIMIT 1', [orderId]);
+                        const txRows = await ds.query('SELECT user_id, plan_id, description FROM anticeil_billing_transactions WHERE id = $1 LIMIT 1', [orderId]);
+                        let itemDesc = '';
                         if (txRows && txRows.length > 0) {
                             if (txRows[0].user_id) targetUserId = txRows[0].user_id;
                             if (txRows[0].plan_id) planId = txRows[0].plan_id;
+                            if (txRows[0].description) itemDesc = txRows[0].description;
                         }
 
                         await ds.query(`
@@ -4238,6 +4284,51 @@ async function setupCommunityApi(app) {
                             WHERE id = $1
                         `, [orderId, data.payment_type || 'midtrans']);
 
+                        if (isGift) {
+                            // Check if gift already generated
+                            const existingGifts = await ds.query('SELECT * FROM anticeil_gifts WHERE order_id = $1 LIMIT 1', [orderId]);
+                            if (existingGifts && existingGifts.length > 0) {
+                                const eg = existingGifts[0];
+                                return reply.send({
+                                    success: true,
+                                    status: 'settlement',
+                                    isGift: true,
+                                    code: eg.code,
+                                    gift: eg,
+                                    message: 'Hadiah berhasil diverifikasi!'
+                                });
+                            }
+
+                            const prefix = planId === 'nectar_basic' ? 'POLLEN' : planId === 'boost_1m' ? 'BOOST' : 'NECTAR';
+                            const randPart1 = Math.random().toString(36).substring(2, 6).toUpperCase();
+                            const randPart2 = Math.random().toString(36).substring(2, 6).toUpperCase();
+                            const code = `${prefix}-${randPart1}-${randPart2}`;
+                            const giftId = `gift-${Date.now()}-${randPart1}`;
+                            const giftTitle = itemDesc || (planId === 'nectar_basic' ? 'Hadiah Pollen (1 Bulan)' : planId === 'boost_1m' ? 'Hadiah 2x Colony Boost' : planId === 'nectar_1y' ? 'Hadiah Nectar VIP (1 Tahun)' : 'Hadiah Nectar VIP (1 Bulan)');
+
+                            await ds.query(`
+                                INSERT INTO anticeil_gifts (id, sender_user_id, code, type, title, order_id, redeemed, created_at, updated_at)
+                                VALUES ($1, $2, $3, $4, $5, $6, FALSE, NOW(), NOW())
+                            `, [giftId, targetUserId, code, planId, giftTitle, orderId]);
+
+                            return reply.send({
+                                success: true,
+                                status: 'settlement',
+                                isGift: true,
+                                code,
+                                gift: {
+                                    id: giftId,
+                                    code,
+                                    type: planId,
+                                    title: giftTitle,
+                                    redeemed: false,
+                                    createdAt: new Date().toISOString()
+                                },
+                                message: 'Hadiah berhasil dibeli! Kode voucher telah siap dibagikan.'
+                            });
+                        }
+
+                        // Regular subscription activation
                         const planName = planId === 'nectar_boost' ? 'Nectar Tier' : 'Pollen Tier';
                         const boostSlots = planId === 'nectar_boost' ? 2 : 0;
                         const renewDate = new Date();
@@ -4285,13 +4376,16 @@ async function setupCommunityApi(app) {
             const ds = await getDb();
             if (ds) {
                 try {
-                    let planId = orderId.includes('-POL-') ? 'nectar_basic' : 'nectar_boost';
+                    const isGift = orderId.includes('-GFT-');
+                    let planId = orderId.includes('-POL-') ? 'nectar_basic' : orderId.includes('-BST-') ? 'boost_1m' : orderId.includes('-YEA-') ? 'nectar_1y' : 'nectar_boost';
                     let targetUserId = 'me';
+                    let itemDesc = '';
 
-                    const txRows = await ds.query('SELECT user_id, plan_id FROM anticeil_billing_transactions WHERE id = $1 LIMIT 1', [orderId]);
+                    const txRows = await ds.query('SELECT user_id, plan_id, description FROM anticeil_billing_transactions WHERE id = $1 LIMIT 1', [orderId]);
                     if (txRows && txRows.length > 0) {
                         if (txRows[0].user_id) targetUserId = txRows[0].user_id;
                         if (txRows[0].plan_id) planId = txRows[0].plan_id;
+                        if (txRows[0].description) itemDesc = txRows[0].description;
                     }
 
                     await ds.query(`
@@ -4300,22 +4394,39 @@ async function setupCommunityApi(app) {
                         WHERE id = $1
                     `, [orderId, body.payment_type || 'midtrans']);
 
-                    const planName = planId === 'nectar_boost' ? 'Nectar Tier' : 'Pollen Tier';
-                    const boostSlots = planId === 'nectar_boost' ? 2 : 0;
-                    const renewDate = new Date();
-                    renewDate.setMonth(renewDate.getMonth() + 1);
+                    if (isGift) {
+                        const existingGifts = await ds.query('SELECT * FROM anticeil_gifts WHERE order_id = $1 LIMIT 1', [orderId]);
+                        if (!existingGifts || existingGifts.length === 0) {
+                            const prefix = planId === 'nectar_basic' ? 'POLLEN' : planId === 'boost_1m' ? 'BOOST' : 'NECTAR';
+                            const randPart1 = Math.random().toString(36).substring(2, 6).toUpperCase();
+                            const randPart2 = Math.random().toString(36).substring(2, 6).toUpperCase();
+                            const code = `${prefix}-${randPart1}-${randPart2}`;
+                            const giftId = `gift-${Date.now()}-${randPart1}`;
+                            const giftTitle = itemDesc || (planId === 'nectar_basic' ? 'Hadiah Pollen (1 Bulan)' : planId === 'boost_1m' ? 'Hadiah 2x Colony Boost' : planId === 'nectar_1y' ? 'Hadiah Nectar VIP (1 Tahun)' : 'Hadiah Nectar VIP (1 Bulan)');
 
-                    await ds.query(`
-                        INSERT INTO anticeil_user_subscriptions (user_id, plan_id, plan_name, status, boost_slots, renews_at, updated_at)
-                        VALUES ($1, $2, $3, 'active', $4, $5, NOW())
-                        ON CONFLICT (user_id) DO UPDATE SET
-                            plan_id = $2,
-                            plan_name = $3,
-                            status = 'active',
-                            boost_slots = $4,
-                            renews_at = $5,
-                            updated_at = NOW()
-                    `, [targetUserId, planId, planName, boostSlots, renewDate.toISOString()]);
+                            await ds.query(`
+                                INSERT INTO anticeil_gifts (id, sender_user_id, code, type, title, order_id, redeemed, created_at, updated_at)
+                                VALUES ($1, $2, $3, $4, $5, $6, FALSE, NOW(), NOW())
+                            `, [giftId, targetUserId, code, planId, giftTitle, orderId]);
+                        }
+                    } else {
+                        const planName = planId === 'nectar_boost' ? 'Nectar Tier' : 'Pollen Tier';
+                        const boostSlots = planId === 'nectar_boost' ? 2 : 0;
+                        const renewDate = new Date();
+                        renewDate.setMonth(renewDate.getMonth() + 1);
+
+                        await ds.query(`
+                            INSERT INTO anticeil_user_subscriptions (user_id, plan_id, plan_name, status, boost_slots, renews_at, updated_at)
+                            VALUES ($1, $2, $3, 'active', $4, $5, NOW())
+                            ON CONFLICT (user_id) DO UPDATE SET
+                                plan_id = $2,
+                                plan_name = $3,
+                                status = 'active',
+                                boost_slots = $4,
+                                renews_at = $5,
+                                updated_at = NOW()
+                        `, [targetUserId, planId, planName, boostSlots, renewDate.toISOString()]);
+                    }
                 } catch (e) {}
             }
         }
@@ -4363,6 +4474,121 @@ async function setupCommunityApi(app) {
         ]);
     };
 
+    const getGiftsHandler = async (req, reply) => {
+        const ds = await getDb();
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        let gifts = [];
+        let giftingCount = 0;
+        if (ds) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_gifts WHERE sender_user_id = $1 OR recipient_user_id = $1 ORDER BY created_at DESC',
+                    [currentUserId]
+                );
+                if (rows) {
+                    gifts = rows.map(r => ({
+                        id: r.id,
+                        code: r.code,
+                        type: r.type,
+                        title: r.title,
+                        senderUserId: r.sender_user_id,
+                        recipientEmail: r.recipient_email,
+                        recipientUserId: r.recipient_user_id,
+                        redeemed: r.redeemed,
+                        redeemedAt: r.redeemed_at,
+                        orderId: r.order_id,
+                        createdAt: r.created_at
+                    }));
+                }
+                const countRes = await ds.query(
+                    'SELECT COUNT(*)::int as count FROM anticeil_gifts WHERE sender_user_id = $1',
+                    [currentUserId]
+                );
+                if (countRes && countRes.length > 0) {
+                    giftingCount = countRes[0].count || 0;
+                }
+            } catch (e) {}
+        }
+        return reply.send({ gifts, giftingCount });
+    };
+
+    const redeemGiftHandler = async (req, reply) => {
+        const ds = await getDb();
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const { code } = req.body || {};
+        if (!code || !code.trim()) {
+            return reply.status(400).send({ success: false, message: 'Kode hadiah tidak boleh kosong' });
+        }
+        const cleanCode = code.trim().toUpperCase();
+
+        if (ds) {
+            try {
+                const rows = await ds.query('SELECT * FROM anticeil_gifts WHERE UPPER(code) = $1 LIMIT 1', [cleanCode]);
+                if (!rows || rows.length === 0) {
+                    return reply.status(404).send({ success: false, message: 'Kode hadiah tidak ditemukan atau tidak valid' });
+                }
+                const g = rows[0];
+                if (g.redeemed) {
+                    return reply.status(400).send({ success: false, message: 'Kode hadiah ini sudah pernah diklaim sebelumnya' });
+                }
+
+                await ds.query(
+                    'UPDATE anticeil_gifts SET redeemed = TRUE, redeemed_at = NOW(), recipient_user_id = $2, updated_at = NOW() WHERE id = $1',
+                    [g.id, currentUserId]
+                );
+
+                let planId = g.type === 'nectar_basic' ? 'nectar_basic' : 'nectar_boost';
+                let planName = planId === 'nectar_basic' ? 'Pollen Tier (Hadiah)' : 'Nectar VIP (Hadiah)';
+                let boostSlots = planId === 'nectar_basic' ? 0 : 2;
+                const renewDate = new Date();
+                if (g.type === 'nectar_1y') {
+                    renewDate.setFullYear(renewDate.getFullYear() + 1);
+                } else {
+                    renewDate.setMonth(renewDate.getMonth() + 1);
+                }
+
+                if (g.type === 'boost_1m') {
+                    await ds.query(`
+                        INSERT INTO anticeil_user_subscriptions (user_id, plan_id, plan_name, status, boost_slots, renews_at, updated_at)
+                        VALUES ($1, 'free', 'Anticeil Free Tier', 'active', 2, $2, NOW())
+                        ON CONFLICT (user_id) DO UPDATE SET
+                            boost_slots = anticeil_user_subscriptions.boost_slots + 2,
+                            updated_at = NOW()
+                    `, [currentUserId, renewDate.toISOString()]);
+                } else {
+                    await ds.query(`
+                        INSERT INTO anticeil_user_subscriptions (user_id, plan_id, plan_name, status, boost_slots, renews_at, updated_at)
+                        VALUES ($1, $2, $3, 'active', $4, $5, NOW())
+                        ON CONFLICT (user_id) DO UPDATE SET
+                            plan_id = $2,
+                            plan_name = $3,
+                            status = 'active',
+                            boost_slots = CASE WHEN $4 > 0 THEN anticeil_user_subscriptions.boost_slots + $4 ELSE anticeil_user_subscriptions.boost_slots END,
+                            renews_at = $5,
+                            updated_at = NOW()
+                    `, [currentUserId, planId, planName, boostSlots, renewDate.toISOString()]);
+                }
+
+                return reply.send({
+                    success: true,
+                    gift: {
+                        id: g.id,
+                        code: g.code,
+                        type: g.type,
+                        title: g.title,
+                        redeemed: true,
+                        redeemedAt: new Date().toISOString()
+                    },
+                    message: `Selamat! Hadiah "${g.title}" berhasil diklaim dan paket Anda aktif!`
+                });
+            } catch (e) {
+                return reply.status(500).send({ success: false, message: e.message });
+            }
+        }
+
+        return reply.status(500).send({ success: false, message: 'Database tidak tersedia' });
+    };
+
     // --- REGISTER BILLING ENDPOINTS ---
     app.get('/v1/billing/subscriptions', getSubscriptionHandler);
     app.post('/v1/billing/subscriptions', updateSubscriptionHandler);
@@ -4373,6 +4599,8 @@ async function setupCommunityApi(app) {
     app.all('/v1/billing/midtrans-webhook', handleMidtransWebhookHandler);
     app.get('/v1/billing/transactions', getTransactionsHandler);
     app.get('/v1/billing/payment-methods', getPaymentMethodsHandler);
+    app.get('/v1/billing/gifts', getGiftsHandler);
+    app.post('/v1/billing/gifts/redeem', redeemGiftHandler);
 
     // --- AUTOMATIC BACKGROUND SCHEDULER FOR SCHEDULED MESSAGES ---
     setInterval(async () => {
