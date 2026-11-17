@@ -2541,6 +2541,126 @@ async function setupCommunityApi(app) {
         }];
     };
 
+    const getDiscoverColoniesHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { q, category } = req.query || {};
+        let hubs = [];
+
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    `SELECT h.*, 
+                        COUNT(m.id) as members_count
+                     FROM anticeil_community_hubs h
+                     LEFT JOIN anticeil_community_members m ON m.hub_id = h.id
+                     WHERE h.id != 'anticeil'
+                     GROUP BY h.id
+                     ORDER BY h.boosts_count DESC, h.created_at ASC`
+                );
+                if (rows && rows.length > 0) {
+                    hubs = rows.map(r => ({
+                        id: r.id,
+                        name: r.name,
+                        iconType: r.icon_type || 'code',
+                        initials: r.initials || (r.name || 'SV').slice(0, 2).toUpperCase(),
+                        description: r.description || '',
+                        inviteCode: r.invite_code,
+                        color: r.color || 'bg-indigo-600',
+                        iconUrl: r.icon_url || null,
+                        role: 'member',
+                        tags: r.tags ? (typeof r.tags === 'string' ? JSON.parse(r.tags) : r.tags) : ['komunitas'],
+                        emojis: r.emojis ? (typeof r.emojis === 'string' ? JSON.parse(r.emojis) : r.emojis) : [],
+                        boostsCount: Number(r.boosts_count || 0),
+                        boostTier: Number(r.boost_tier || 0),
+                        membersCount: Math.max(Number(r.members_count || 1), 5),
+                        onlineCount: Math.max(Math.floor(Number(r.members_count || 1) * 0.4), 2),
+                        verified: Number(r.boost_tier || 0) >= 1 || (r.tags && r.tags.includes('verified'))
+                    }));
+                }
+            } catch (e) {}
+        }
+
+        if (hubs.length === 0) {
+            hubs = memoryHubs.filter(h => h.id !== 'anticeil').map(h => ({
+                ...h,
+                membersCount: 12,
+                onlineCount: 4,
+                verified: false,
+            }));
+        }
+
+        // Add curated default discoverable colonies if list is sparse
+        if (hubs.length < 3) {
+            const defaults = [
+                {
+                    id: 'colony_gamers_id',
+                    name: 'Anticeil Gaming Lounge',
+                    description: 'Komunitas gaming santai, mabar Valorant, Genshin, Apex, dan Neverness to Everness.',
+                    initials: 'GL',
+                    iconType: 'gamepad',
+                    color: 'bg-emerald-600',
+                    tags: ['gaming', 'mabar', 'esports'],
+                    membersCount: 148,
+                    onlineCount: 42,
+                    verified: true,
+                    boostTier: 2,
+                },
+                {
+                    id: 'colony_devs_id',
+                    name: 'Developer & Tech Guild',
+                    description: 'Pusat diskusi Fullstack, React, TypeScript, Rust, AI coding agent, dan Cloudflare Workers.',
+                    initials: 'TG',
+                    iconType: 'code',
+                    color: 'bg-teal-700',
+                    tags: ['tech', 'coding', 'webdev'],
+                    membersCount: 230,
+                    onlineCount: 68,
+                    verified: true,
+                    boostTier: 3,
+                },
+                {
+                    id: 'colony_music_id',
+                    name: 'Lo-Fi & Music Jam',
+                    description: 'Ruang santai mendengarkan musik, voice jam, soundboard custom, dan diskusi audio synth.',
+                    initials: 'MJ',
+                    iconType: 'music',
+                    color: 'bg-cyan-700',
+                    tags: ['music', 'lofi', 'chill'],
+                    membersCount: 89,
+                    onlineCount: 19,
+                    verified: false,
+                    boostTier: 1,
+                },
+            ];
+            for (const d of defaults) {
+                if (!hubs.some(h => h.id === d.id)) {
+                    hubs.push(d);
+                }
+            }
+        }
+
+        // Apply filters
+        let filtered = hubs;
+        if (q && typeof q === 'string') {
+            const cleanQ = q.toLowerCase();
+            filtered = filtered.filter(h =>
+                h.name.toLowerCase().includes(cleanQ) ||
+                (h.description && h.description.toLowerCase().includes(cleanQ)) ||
+                (h.tags && h.tags.some(t => t.toLowerCase().includes(cleanQ)))
+            );
+        }
+        if (category && category !== 'all') {
+            const cleanCat = category.toLowerCase();
+            filtered = filtered.filter(h =>
+                (h.tags && h.tags.some(t => t.toLowerCase().includes(cleanCat))) ||
+                (h.description && h.description.toLowerCase().includes(cleanCat))
+            );
+        }
+
+        return reply.send(filtered);
+    };
+
     const createHubHandler = async (req, reply) => {
         await ensureTables();
         const ds = await getDb();
@@ -4358,6 +4478,8 @@ async function setupCommunityApi(app) {
         app.get(`${prefix}/colonies/:hubId/audit-log`, getAuditLogHandler);
         app.get(`${prefix}/colonies/:hubId/audit-logs`, getAuditLogHandler);
         app.get(`${prefix}/colonies/:hubId/stats`, getStatsHandler);
+        app.get(`${prefix}/colonies/discover`, getDiscoverColoniesHandler);
+        app.get(`${prefix}/hubs/discover`, getDiscoverColoniesHandler);
         app.get(`${prefix}/colonies/:colonyId/webhooks`, getColonyWebhooksHandler);
         app.post(`${prefix}/colonies/:colonyId/webhooks`, createColonyWebhookHandler);
         app.delete(`${prefix}/colonies/:colonyId/webhooks/:webhookId`, deleteColonyWebhookHandler);
@@ -4816,6 +4938,8 @@ async function setupCommunityApi(app) {
     app.post('/v1/channels/:channelId/pins/:messageId', togglePinHandler);
     app.delete('/v1/channels/:channelId/pins/:messageId', togglePinHandler);
     app.post('/v1/messages/:id/pin', togglePinHandler);
+    app.get('/v1/colonies/discover', getDiscoverColoniesHandler);
+    app.get('/v1/hubs/discover', getDiscoverColoniesHandler);
 
     // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
     const getSubscriptionHandler = async (req, reply) => {
