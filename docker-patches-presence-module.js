@@ -4276,6 +4276,12 @@ async function setupCommunityApi(app) {
         app.get(`${prefix}/colonies/:hubId/audit-log`, getAuditLogHandler);
         app.get(`${prefix}/colonies/:hubId/audit-logs`, getAuditLogHandler);
         app.get(`${prefix}/colonies/:hubId/stats`, getStatsHandler);
+        app.get(`${prefix}/colonies/:colonyId/webhooks`, getColonyWebhooksHandler);
+        app.post(`${prefix}/colonies/:colonyId/webhooks`, createColonyWebhookHandler);
+        app.delete(`${prefix}/colonies/:colonyId/webhooks/:webhookId`, deleteColonyWebhookHandler);
+        app.get(`${prefix}/hubs/:colonyId/webhooks`, getColonyWebhooksHandler);
+        app.post(`${prefix}/hubs/:colonyId/webhooks`, createColonyWebhookHandler);
+        app.delete(`${prefix}/hubs/:colonyId/webhooks/:webhookId`, deleteColonyWebhookHandler);
         app.get(`${prefix}/colony-invitations`, getServerInvitationsHandler);
         app.post(`${prefix}/colonies/:hubId/invite-user`, inviteUserToHubHandler);
         app.post(`${prefix}/colony-invitations/:id/accept`, acceptServerInvitationHandler);
@@ -4594,6 +4600,8 @@ async function setupCommunityApi(app) {
                     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
                 `, [webhookId, colonyId, channelId, cleanName, avatarUrl || null, token, currentUserId]);
 
+                await recordAuditLog(ds, colonyId, 'WEBHOOK_CREATE', req.principal?.name || 'Admin', cleanName, { channelId });
+
                 return reply.send({
                     id: webhookId,
                     colonyId,
@@ -4618,6 +4626,7 @@ async function setupCommunityApi(app) {
         if (ds && webhookId) {
             try {
                 await ds.query('DELETE FROM anticeil_colony_webhooks WHERE id = $1 AND colony_id = $2', [webhookId, colonyId]);
+                await recordAuditLog(ds, colonyId, 'WEBHOOK_DELETE', req.principal?.name || 'Admin', webhookId);
                 return reply.send({ success: true, id: webhookId });
             } catch (e) {
                 app.log.error({ e }, '[Colony Webhook] Error deleting webhook');
