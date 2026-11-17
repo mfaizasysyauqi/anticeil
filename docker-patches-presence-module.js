@@ -408,6 +408,20 @@ async function setupCommunityApi(app) {
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS onboarding TEXT DEFAULT '{}';
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS safety_settings TEXT DEFAULT '{}';
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS server_tag TEXT DEFAULT '{}';
+                    ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS access_settings TEXT DEFAULT '{}';
+
+                    CREATE TABLE IF NOT EXISTS anticeil_community_applications (
+                        id VARCHAR(128) PRIMARY KEY,
+                        hub_id VARCHAR(128) NOT NULL,
+                        user_id VARCHAR(128) NOT NULL,
+                        user_name VARCHAR(256) NOT NULL,
+                        user_avatar TEXT,
+                        answers TEXT DEFAULT '{}',
+                        status VARCHAR(32) DEFAULT 'pending',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_community_applications_hub ON anticeil_community_applications(hub_id);
 
                     CREATE TABLE IF NOT EXISTS anticeil_community_threads (
                         id VARCHAR(128) PRIMARY KEY,
@@ -2598,7 +2612,8 @@ async function setupCommunityApi(app) {
                         boostTier: Number(r.boost_tier || 0),
                         onboarding: r.onboarding ? (typeof r.onboarding === 'string' ? JSON.parse(r.onboarding) : r.onboarding) : { enabled: false },
                         safetySettings: r.safety_settings ? (typeof r.safety_settings === 'string' ? JSON.parse(r.safety_settings) : r.safety_settings) : undefined,
-                        serverTag: r.server_tag ? (typeof r.server_tag === 'string' ? JSON.parse(r.server_tag) : r.server_tag) : undefined
+                        serverTag: r.server_tag ? (typeof r.server_tag === 'string' ? JSON.parse(r.server_tag) : r.server_tag) : undefined,
+                        accessSettings: r.access_settings ? (typeof r.access_settings === 'string' ? JSON.parse(r.access_settings) : r.access_settings) : undefined
                     }));
                 }
             } catch (e) {}
@@ -3023,7 +3038,7 @@ async function setupCommunityApi(app) {
         const ds = await getDb();
         const { id } = req.params;
         const platformId = await resolvePlatformId(req, ds);
-        const { name, description, color, icon, iconUrl, tags, emojis, boostsCount, boostTier, onboarding, safetySettings, serverTag } = req.body || {};
+        const { name, description, color, icon, iconUrl, tags, emojis, boostsCount, boostTier, onboarding, safetySettings, serverTag, accessSettings } = req.body || {};
 
         if (ds && dbReady) {
             try {
@@ -3041,8 +3056,9 @@ async function setupCommunityApi(app) {
                         onboarding = CASE WHEN $10::text IS NOT NULL THEN $10 ELSE onboarding END,
                         safety_settings = CASE WHEN $11::text IS NOT NULL THEN $11 ELSE safety_settings END,
                         server_tag = CASE WHEN $12::text IS NOT NULL THEN $12 ELSE server_tag END,
+                        access_settings = CASE WHEN $13::text IS NOT NULL THEN $13 ELSE access_settings END,
                         updated_at = NOW()
-                     WHERE id = $13 AND (platform_id = $14 OR platform_id IS NULL)`,
+                     WHERE id = $14 AND (platform_id = $15 OR platform_id IS NULL)`,
                     [
                         name || null,
                         description !== undefined ? description : null,
@@ -3056,6 +3072,7 @@ async function setupCommunityApi(app) {
                         onboarding !== undefined ? (typeof onboarding === 'string' ? onboarding : JSON.stringify(onboarding)) : null,
                         safetySettings !== undefined ? (typeof safetySettings === 'string' ? safetySettings : JSON.stringify(safetySettings)) : null,
                         serverTag !== undefined ? (typeof serverTag === 'string' ? serverTag : JSON.stringify(serverTag)) : null,
+                        accessSettings !== undefined ? (typeof accessSettings === 'string' ? accessSettings : JSON.stringify(accessSettings)) : null,
                         id,
                         platformId
                     ]
@@ -3076,10 +3093,11 @@ async function setupCommunityApi(app) {
             if (onboarding !== undefined) memoryHubs[idx].onboarding = onboarding;
             if (safetySettings !== undefined) memoryHubs[idx].safetySettings = safetySettings;
             if (serverTag !== undefined) memoryHubs[idx].serverTag = serverTag;
+            if (accessSettings !== undefined) memoryHubs[idx].accessSettings = accessSettings;
         }
 
-        await recordAuditLog(ds, id, 'HUB_UPDATED', req.principal?.name || 'Admin', name || id, { name, tags, emojis, onboarding, safetySettings, serverTag });
-        const updated = (idx >= 0 ? memoryHubs[idx] : { id, name, description, color, tags, emojis, boostsCount, boostTier, onboarding, safetySettings, serverTag });
+        await recordAuditLog(ds, id, 'HUB_UPDATED', req.principal?.name || 'Admin', name || id, { name, tags, emojis, onboarding, safetySettings, serverTag, accessSettings });
+        const updated = (idx >= 0 ? memoryHubs[idx] : { id, name, description, color, tags, emojis, boostsCount, boostTier, onboarding, safetySettings, serverTag, accessSettings });
         if (app.io) app.io.emit('COMMUNITY_HUB_UPDATED', updated);
         return updated;
     };
@@ -3268,6 +3286,195 @@ async function setupCommunityApi(app) {
             app.io.emit('COMMUNITY_HUB_UPDATED', { id: targetHubId, serverTag: tagPayload });
         }
         return reply.send({ success: true, serverTag: tagPayload });
+    };
+
+    const getHubAccessHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+
+        const defaultAccess = {
+            joinMethod: 'invite_only',
+            ageRestricted: false,
+            rulesEnabled: true,
+            rules: [
+                'Be civil and respectful to all members.',
+                'No spamming, advertising, or self-promotion without permission.',
+                'Keep discussions in relevant channels.'
+            ],
+            questions: [
+                'Kenapa Anda ingin bergabung dengan komunitas ini?',
+                'Dari mana Anda mengetahui server kami?'
+            ]
+        };
+
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query('SELECT access_settings FROM anticeil_community_hubs WHERE id = $1 LIMIT 1', [targetHubId]);
+                if (rows && rows.length > 0 && rows[0].access_settings) {
+                    const parsed = typeof rows[0].access_settings === 'string' ? JSON.parse(rows[0].access_settings) : rows[0].access_settings;
+                    return reply.send({ ...defaultAccess, ...parsed });
+                }
+            } catch (e) {}
+        }
+        return reply.send(defaultAccess);
+    };
+
+    const updateHubAccessHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+        const accessPayload = req.body || {};
+
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    `UPDATE anticeil_community_hubs 
+                     SET access_settings = $1, updated_at = NOW() 
+                     WHERE id = $2`,
+                    [JSON.stringify(accessPayload), targetHubId]
+                );
+            } catch (e) {}
+        }
+
+        const idx = memoryHubs.findIndex(h => h.id === targetHubId);
+        if (idx >= 0) {
+            memoryHubs[idx].accessSettings = accessPayload;
+        }
+
+        await recordAuditLog(ds, targetHubId, 'ACCESS_SETTINGS_UPDATED', req.principal?.name || 'Admin', targetHubId, accessPayload);
+        if (app.io) {
+            app.io.emit('COMMUNITY_ACCESS_UPDATED', { hubId: targetHubId, accessSettings: accessPayload });
+            app.io.emit('COMMUNITY_HUB_UPDATED', { id: targetHubId, accessSettings: accessPayload });
+        }
+        return reply.send({ success: true, accessSettings: accessPayload });
+    };
+
+    const getHubApplicationsHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_community_applications WHERE hub_id = $1 ORDER BY created_at DESC',
+                    [targetHubId]
+                );
+                const list = (rows || []).map(r => ({
+                    id: r.id,
+                    hubId: r.hub_id,
+                    userId: r.user_id,
+                    userName: r.user_name,
+                    userAvatar: r.user_avatar,
+                    answers: typeof r.answers === 'string' ? JSON.parse(r.answers) : (r.answers || {}),
+                    status: r.status,
+                    createdAt: r.created_at
+                }));
+                return reply.send(list);
+            } catch (e) {}
+        }
+        return reply.send([]);
+    };
+
+    const createHubApplicationHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+        const userId = req.principal?.id || (req.user && req.user.id) || req.body?.userId || 'guest';
+        const userName = req.principal?.name || (req.user && req.user.name) || req.body?.userName || 'Calon Anggota';
+        const userAvatar = req.body?.userAvatar || null;
+        const answers = req.body?.answers || {};
+
+        const appId = `app_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    `INSERT INTO anticeil_community_applications (id, hub_id, user_id, user_name, user_avatar, answers, status, created_at, updated_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, 'pending', NOW(), NOW())`,
+                    [appId, targetHubId, userId, userName, userAvatar, JSON.stringify(answers)]
+                );
+            } catch (e) {}
+        }
+
+        const appItem = {
+            id: appId,
+            hubId: targetHubId,
+            userId,
+            userName,
+            userAvatar,
+            answers,
+            status: 'pending',
+            createdAt: new Date().toISOString()
+        };
+
+        if (app.io) {
+            app.io.emit('COMMUNITY_APPLICATION_SUBMITTED', appItem);
+        }
+        return reply.send({ success: true, application: appItem });
+    };
+
+    const approveHubApplicationHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId, appId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_community_applications WHERE id = $1 AND hub_id = $2 LIMIT 1',
+                    [appId, targetHubId]
+                );
+                if (rows && rows.length > 0) {
+                    const applicant = rows[0];
+                    await ds.query(
+                        'UPDATE anticeil_community_applications SET status = $1, updated_at = NOW() WHERE id = $2',
+                        ['approved', appId]
+                    );
+
+                    const memId = `mem_${targetHubId}_${applicant.user_id}`;
+                    await ds.query(
+                        'INSERT INTO anticeil_community_members (id, hub_id, user_id, role, role_label) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (hub_id, user_id) DO NOTHING',
+                        [memId, targetHubId, applicant.user_id, 'member', 'Anggota']
+                    );
+
+                    await recordAuditLog(ds, targetHubId, 'APPLICATION_APPROVED', req.principal?.name || 'Admin', applicant.user_name, { appId });
+                    if (app.io) {
+                        app.io.emit('COMMUNITY_APPLICATION_RESOLVED', { hubId: targetHubId, appId, status: 'approved' });
+                        app.io.emit('COMMUNITY_MEMBER_JOINED', { hubId: targetHubId, userId: applicant.user_id });
+                    }
+                    return reply.send({ success: true, message: 'Permohonan berhasil disetujui' });
+                }
+            } catch (e) {}
+        }
+        return reply.status(404).send({ success: false, message: 'Permohonan tidak ditemukan' });
+    };
+
+    const rejectHubApplicationHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId, appId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'UPDATE anticeil_community_applications SET status = $1, updated_at = NOW() WHERE id = $2',
+                    ['rejected', appId]
+                );
+                await recordAuditLog(ds, targetHubId, 'APPLICATION_REJECTED', req.principal?.name || 'Admin', appId);
+                if (app.io) {
+                    app.io.emit('COMMUNITY_APPLICATION_RESOLVED', { hubId: targetHubId, appId, status: 'rejected' });
+                }
+                return reply.send({ success: true, message: 'Permohonan berhasil ditolak' });
+            } catch (e) {}
+        }
+        return reply.send({ success: true });
     };
 
     const deleteHubHandler = async (req, reply) => {
@@ -5076,6 +5283,18 @@ async function setupCommunityApi(app) {
         app.put(`${prefix}/colonies/:hubId/tag`, updateHubTagHandler);
         app.get(`${prefix}/hubs/:hubId/tag`, getHubTagHandler);
         app.put(`${prefix}/hubs/:hubId/tag`, updateHubTagHandler);
+        app.get(`${prefix}/colonies/:hubId/access`, getHubAccessHandler);
+        app.put(`${prefix}/colonies/:hubId/access`, updateHubAccessHandler);
+        app.get(`${prefix}/hubs/:hubId/access`, getHubAccessHandler);
+        app.put(`${prefix}/hubs/:hubId/access`, updateHubAccessHandler);
+        app.get(`${prefix}/colonies/:hubId/applications`, getHubApplicationsHandler);
+        app.post(`${prefix}/colonies/:hubId/applications`, createHubApplicationHandler);
+        app.post(`${prefix}/colonies/:hubId/applications/:appId/approve`, approveHubApplicationHandler);
+        app.post(`${prefix}/colonies/:hubId/applications/:appId/reject`, rejectHubApplicationHandler);
+        app.get(`${prefix}/hubs/:hubId/applications`, getHubApplicationsHandler);
+        app.post(`${prefix}/hubs/:hubId/applications`, createHubApplicationHandler);
+        app.post(`${prefix}/hubs/:hubId/applications/:appId/approve`, approveHubApplicationHandler);
+        app.post(`${prefix}/hubs/:hubId/applications/:appId/reject`, rejectHubApplicationHandler);
         app.get(`${prefix}/colony-invitations`, getServerInvitationsHandler);
         app.post(`${prefix}/colonies/:hubId/invite-user`, inviteUserToHubHandler);
         app.post(`${prefix}/colony-invitations/:id/accept`, acceptServerInvitationHandler);
@@ -5542,6 +5761,18 @@ async function setupCommunityApi(app) {
     app.put('/v1/colonies/:hubId/tag', updateHubTagHandler);
     app.get('/v1/hubs/:hubId/tag', getHubTagHandler);
     app.put('/v1/hubs/:hubId/tag', updateHubTagHandler);
+    app.get('/v1/colonies/:hubId/access', getHubAccessHandler);
+    app.put('/v1/colonies/:hubId/access', updateHubAccessHandler);
+    app.get('/v1/hubs/:hubId/access', getHubAccessHandler);
+    app.put('/v1/hubs/:hubId/access', updateHubAccessHandler);
+    app.get('/v1/colonies/:hubId/applications', getHubApplicationsHandler);
+    app.post('/v1/colonies/:hubId/applications', createHubApplicationHandler);
+    app.post('/v1/colonies/:hubId/applications/:appId/approve', approveHubApplicationHandler);
+    app.post('/v1/colonies/:hubId/applications/:appId/reject', rejectHubApplicationHandler);
+    app.get('/v1/hubs/:hubId/applications', getHubApplicationsHandler);
+    app.post('/v1/hubs/:hubId/applications', createHubApplicationHandler);
+    app.post('/v1/hubs/:hubId/applications/:appId/approve', approveHubApplicationHandler);
+    app.post('/v1/hubs/:hubId/applications/:appId/reject', rejectHubApplicationHandler);
 
     // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
     const getSubscriptionHandler = async (req, reply) => {
