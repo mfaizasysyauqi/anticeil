@@ -5120,6 +5120,154 @@ async function setupCommunityApi(app) {
         }
     };
 
+    // --- COLONY WEBHOOKS & BOT INTEGRATIONS SYSTEM ---
+    const getColonyWebhooksHandler = async (req, reply) => {
+        const ds = await getDb();
+        const colonyId = req.params?.colonyId;
+        if (!colonyId) return reply.status(400).send({ error: 'colonyId is required' });
+
+        if (ds) {
+            try {
+                const rows = await ds.query(`
+                    SELECT w.*, c.name as channel_name
+                    FROM anticeil_colony_webhooks w
+                    LEFT JOIN anticeil_community_channels c ON c.id = w.channel_id
+                    WHERE w.colony_id = $1
+                    ORDER BY w.created_at DESC
+                `, [colonyId]);
+
+                const webhooks = (rows || []).map(r => ({
+                    id: r.id,
+                    colonyId: r.colony_id,
+                    channelId: r.channel_id,
+                    channelName: r.channel_name || 'general',
+                    name: r.name,
+                    avatarUrl: r.avatar_url,
+                    token: r.token,
+                    url: `/api/v1/webhooks/${r.id}/${r.token}`,
+                    createdAt: r.created_at
+                }));
+                return reply.send(webhooks);
+            } catch (e) {
+                app.log.error({ e }, '[Colony Webhook] Error fetching webhooks');
+            }
+        }
+        return reply.send([]);
+    };
+
+    const createColonyWebhookHandler = async (req, reply) => {
+        const ds = await getDb();
+        const colonyId = req.params?.colonyId;
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const { name, channelId, avatarUrl } = req.body || {};
+
+        if (!colonyId || !channelId) {
+            return reply.status(400).send({ error: 'colonyId and channelId are required' });
+        }
+
+        const webhookId = `wh_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const token = `tok_${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+        const cleanName = (name && String(name).trim()) || 'Captain Hook';
+
+        if (ds) {
+            try {
+                await ds.query(`
+                    INSERT INTO anticeil_colony_webhooks (id, colony_id, channel_id, name, avatar_url, token, created_by, created_at, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+                `, [webhookId, colonyId, channelId, cleanName, avatarUrl || null, token, currentUserId]);
+
+                await recordAuditLog(ds, colonyId, 'WEBHOOK_CREATE', req.principal?.name || 'Admin', cleanName, { channelId });
+
+                return reply.send({
+                    id: webhookId,
+                    colonyId,
+                    channelId,
+                    name: cleanName,
+                    avatarUrl: avatarUrl || null,
+                    token,
+                    url: `/api/v1/webhooks/${webhookId}/${token}`,
+                    createdAt: new Date().toISOString()
+                });
+            } catch (e) {
+                app.log.error({ e }, '[Colony Webhook] Error creating webhook');
+                return reply.status(500).send({ error: 'Failed to create webhook' });
+            }
+        }
+        return reply.status(500).send({ error: 'Database not available' });
+    };
+
+    const deleteColonyWebhookHandler = async (req, reply) => {
+        const ds = await getDb();
+        const { colonyId, webhookId } = req.params || {};
+        if (ds && webhookId) {
+            try {
+                await ds.query('DELETE FROM anticeil_colony_webhooks WHERE id = $1 AND colony_id = $2', [webhookId, colonyId]);
+                await recordAuditLog(ds, colonyId, 'WEBHOOK_DELETE', req.principal?.name || 'Admin', webhookId);
+                return reply.send({ success: true, id: webhookId });
+            } catch (e) {
+                app.log.error({ e }, '[Colony Webhook] Error deleting webhook');
+            }
+        }
+        return reply.send({ success: false });
+    };
+
+    const publicWebhookIngestHandler = async (req, reply) => {
+        const ds = await getDb();
+        const { webhookId, token } = req.params || {};
+        const body = req.body || {};
+
+        if (!webhookId || !token) {
+            return reply.status(400).send({ error: 'Invalid webhook URL' });
+        }
+
+        let webhook = null;
+        if (ds) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_colony_webhooks WHERE id = $1 AND token = $2 LIMIT 1',
+                    [webhookId, token]
+                );
+                if (rows && rows[0]) {
+                    webhook = rows[0];
+                }
+            } catch (e) {
+                app.log.error({ e }, '[Colony Webhook] Error resolving webhook from DB');
+            }
+        }
+
+        if (!webhook) {
+            return reply.status(404).send({ error: 'Webhook not found or invalid token' });
+        }
+
+        const content = typeof body.content === 'string' ? body.content.trim() : (body.message ? String(body.message).trim() : '');
+        const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+        if (!content && attachments.length === 0) {
+            return reply.status(400).send({ error: 'content or attachments required' });
+        }
+
+        const botName = String(body.username || body.botName || webhook.name || 'Webhook Bot').trim();
+        const botAvatar = body.avatar_url || body.botAvatar || webhook.avatar_url || null;
+
+        req.body = {
+            ...body,
+            channelId: webhook.channel_id,
+            hubId: webhook.colony_id,
+            botName,
+            botAvatar,
+            content,
+            attachments
+        };
+
+        return botWebhookHandler(req, reply);
+    };
+
+    app.get('/v1/colonies/:colonyId/webhooks', getColonyWebhooksHandler);
+    app.post('/v1/colonies/:colonyId/webhooks', createColonyWebhookHandler);
+    app.delete('/v1/colonies/:colonyId/webhooks/:webhookId', deleteColonyWebhookHandler);
+    app.all('/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
+    app.all('/api/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
+    app.post('/v1/colony/webhook', botWebhookHandler);
+
     // --- REGISTER ROUTE ALIASES (Supports /v1/community/*, /v1/messages/*, and /v1/colony/*) ---
     const routePrefixes = ['/v1/community', '/v1/messages', '/v1/colony'];
     for (const prefix of routePrefixes) {
@@ -5557,153 +5705,6 @@ async function setupCommunityApi(app) {
     app.put('/v1/users/me/settings', updateUserSettingsHandler);
     app.get('/v1/users/:userId/settings', getUserSettingsHandler);
 
-    // --- COLONY WEBHOOKS & BOT INTEGRATIONS SYSTEM ---
-    const getColonyWebhooksHandler = async (req, reply) => {
-        const ds = await getDb();
-        const colonyId = req.params?.colonyId;
-        if (!colonyId) return reply.status(400).send({ error: 'colonyId is required' });
-
-        if (ds) {
-            try {
-                const rows = await ds.query(`
-                    SELECT w.*, c.name as channel_name
-                    FROM anticeil_colony_webhooks w
-                    LEFT JOIN anticeil_community_channels c ON c.id = w.channel_id
-                    WHERE w.colony_id = $1
-                    ORDER BY w.created_at DESC
-                `, [colonyId]);
-
-                const webhooks = (rows || []).map(r => ({
-                    id: r.id,
-                    colonyId: r.colony_id,
-                    channelId: r.channel_id,
-                    channelName: r.channel_name || 'general',
-                    name: r.name,
-                    avatarUrl: r.avatar_url,
-                    token: r.token,
-                    url: `/api/v1/webhooks/${r.id}/${r.token}`,
-                    createdAt: r.created_at
-                }));
-                return reply.send(webhooks);
-            } catch (e) {
-                app.log.error({ e }, '[Colony Webhook] Error fetching webhooks');
-            }
-        }
-        return reply.send([]);
-    };
-
-    const createColonyWebhookHandler = async (req, reply) => {
-        const ds = await getDb();
-        const colonyId = req.params?.colonyId;
-        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
-        const { name, channelId, avatarUrl } = req.body || {};
-
-        if (!colonyId || !channelId) {
-            return reply.status(400).send({ error: 'colonyId and channelId are required' });
-        }
-
-        const webhookId = `wh_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        const token = `tok_${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
-        const cleanName = (name && String(name).trim()) || 'Captain Hook';
-
-        if (ds) {
-            try {
-                await ds.query(`
-                    INSERT INTO anticeil_colony_webhooks (id, colony_id, channel_id, name, avatar_url, token, created_by, created_at, updated_at)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-                `, [webhookId, colonyId, channelId, cleanName, avatarUrl || null, token, currentUserId]);
-
-                await recordAuditLog(ds, colonyId, 'WEBHOOK_CREATE', req.principal?.name || 'Admin', cleanName, { channelId });
-
-                return reply.send({
-                    id: webhookId,
-                    colonyId,
-                    channelId,
-                    name: cleanName,
-                    avatarUrl: avatarUrl || null,
-                    token,
-                    url: `/api/v1/webhooks/${webhookId}/${token}`,
-                    createdAt: new Date().toISOString()
-                });
-            } catch (e) {
-                app.log.error({ e }, '[Colony Webhook] Error creating webhook');
-                return reply.status(500).send({ error: 'Failed to create webhook' });
-            }
-        }
-        return reply.status(500).send({ error: 'Database not available' });
-    };
-
-    const deleteColonyWebhookHandler = async (req, reply) => {
-        const ds = await getDb();
-        const { colonyId, webhookId } = req.params || {};
-        if (ds && webhookId) {
-            try {
-                await ds.query('DELETE FROM anticeil_colony_webhooks WHERE id = $1 AND colony_id = $2', [webhookId, colonyId]);
-                await recordAuditLog(ds, colonyId, 'WEBHOOK_DELETE', req.principal?.name || 'Admin', webhookId);
-                return reply.send({ success: true, id: webhookId });
-            } catch (e) {
-                app.log.error({ e }, '[Colony Webhook] Error deleting webhook');
-            }
-        }
-        return reply.send({ success: false });
-    };
-
-    const publicWebhookIngestHandler = async (req, reply) => {
-        const ds = await getDb();
-        const { webhookId, token } = req.params || {};
-        const body = req.body || {};
-
-        if (!webhookId || !token) {
-            return reply.status(400).send({ error: 'Invalid webhook URL' });
-        }
-
-        let webhook = null;
-        if (ds) {
-            try {
-                const rows = await ds.query(
-                    'SELECT * FROM anticeil_colony_webhooks WHERE id = $1 AND token = $2 LIMIT 1',
-                    [webhookId, token]
-                );
-                if (rows && rows[0]) {
-                    webhook = rows[0];
-                }
-            } catch (e) {
-                app.log.error({ e }, '[Colony Webhook] Error resolving webhook from DB');
-            }
-        }
-
-        if (!webhook) {
-            return reply.status(404).send({ error: 'Webhook not found or invalid token' });
-        }
-
-        const content = typeof body.content === 'string' ? body.content.trim() : (body.message ? String(body.message).trim() : '');
-        const attachments = Array.isArray(body.attachments) ? body.attachments : [];
-        if (!content && attachments.length === 0) {
-            return reply.status(400).send({ error: 'content or attachments required' });
-        }
-
-        const botName = String(body.username || body.botName || webhook.name || 'Webhook Bot').trim();
-        const botAvatar = body.avatar_url || body.botAvatar || webhook.avatar_url || null;
-
-        req.body = {
-            ...body,
-            channelId: webhook.channel_id,
-            hubId: webhook.colony_id,
-            botName,
-            botAvatar,
-            content,
-            attachments
-        };
-
-        return botWebhookHandler(req, reply);
-    };
-
-    app.get('/v1/colonies/:colonyId/webhooks', getColonyWebhooksHandler);
-    app.post('/v1/colonies/:colonyId/webhooks', createColonyWebhookHandler);
-    app.delete('/v1/colonies/:colonyId/webhooks/:webhookId', deleteColonyWebhookHandler);
-    app.all('/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
-    app.all('/api/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
-    app.post('/v1/colony/webhook', botWebhookHandler);
 
     // Direct /v1/colonies role & member routes
     app.get('/v1/colonies/:hubId/roles', getRolesHandler);
