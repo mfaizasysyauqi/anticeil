@@ -405,6 +405,7 @@ async function setupCommunityApi(app) {
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS boost_tier INT DEFAULT 0;
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS icon_url TEXT;
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS platform_id VARCHAR(128);
+                    ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS onboarding TEXT DEFAULT '{}';
 
                     CREATE TABLE IF NOT EXISTS anticeil_community_threads (
                         id VARCHAR(128) PRIMARY KEY,
@@ -2503,7 +2504,8 @@ async function setupCommunityApi(app) {
                         tags: r.tags ? (typeof r.tags === 'string' ? JSON.parse(r.tags) : r.tags) : ['komunitas'],
                         emojis: r.emojis ? (typeof r.emojis === 'string' ? JSON.parse(r.emojis) : r.emojis) : [],
                         boostsCount: Number(r.boosts_count || 0),
-                        boostTier: Number(r.boost_tier || 0)
+                        boostTier: Number(r.boost_tier || 0),
+                        onboarding: r.onboarding ? (typeof r.onboarding === 'string' ? JSON.parse(r.onboarding) : r.onboarding) : { enabled: false }
                     }));
                 }
             } catch (e) {}
@@ -2592,7 +2594,7 @@ async function setupCommunityApi(app) {
         const ds = await getDb();
         const { id } = req.params;
         const platformId = await resolvePlatformId(req, ds);
-        const { name, description, color, icon, iconUrl, tags, emojis, boostsCount, boostTier } = req.body || {};
+        const { name, description, color, icon, iconUrl, tags, emojis, boostsCount, boostTier, onboarding } = req.body || {};
 
         if (ds && dbReady) {
             try {
@@ -2607,8 +2609,9 @@ async function setupCommunityApi(app) {
                         emojis = CASE WHEN $7::text IS NOT NULL THEN $7 ELSE emojis END,
                         boosts_count = COALESCE($8, boosts_count),
                         boost_tier = COALESCE($9, boost_tier),
+                        onboarding = CASE WHEN $10::text IS NOT NULL THEN $10 ELSE onboarding END,
                         updated_at = NOW()
-                     WHERE id = $10 AND (platform_id = $11 OR platform_id IS NULL)`,
+                     WHERE id = $11 AND (platform_id = $12 OR platform_id IS NULL)`,
                     [
                         name || null,
                         description !== undefined ? description : null,
@@ -2619,6 +2622,7 @@ async function setupCommunityApi(app) {
                         emojis ? JSON.stringify(emojis) : null,
                         typeof boostsCount === 'number' ? boostsCount : null,
                         typeof boostTier === 'number' ? boostTier : null,
+                        onboarding !== undefined ? (typeof onboarding === 'string' ? onboarding : JSON.stringify(onboarding)) : null,
                         id,
                         platformId
                     ]
@@ -2636,12 +2640,75 @@ async function setupCommunityApi(app) {
             if (emojis) memoryHubs[idx].emojis = emojis;
             if (typeof boostsCount === 'number') memoryHubs[idx].boostsCount = boostsCount;
             if (typeof boostTier === 'number') memoryHubs[idx].boostTier = boostTier;
+            if (onboarding !== undefined) memoryHubs[idx].onboarding = onboarding;
         }
 
-        await recordAuditLog(ds, id, 'HUB_UPDATED', req.principal?.name || 'Admin', name || id, { name, tags, emojis });
-        const updated = (idx >= 0 ? memoryHubs[idx] : { id, name, description, color, tags, emojis, boostsCount, boostTier });
+        await recordAuditLog(ds, id, 'HUB_UPDATED', req.principal?.name || 'Admin', name || id, { name, tags, emojis, onboarding });
+        const updated = (idx >= 0 ? memoryHubs[idx] : { id, name, description, color, tags, emojis, boostsCount, boostTier, onboarding });
         if (app.io) app.io.emit('COMMUNITY_HUB_UPDATED', updated);
         return updated;
+    };
+
+    const getHubOnboardingHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetId = id || hubId || colonyId;
+        if (ds && dbReady) {
+            try {
+                const res = await ds.query('SELECT onboarding FROM anticeil_community_hubs WHERE id = $1', [targetId]);
+                if (res && res.length > 0 && res[0].onboarding) {
+                    const parsed = typeof res[0].onboarding === 'string' ? JSON.parse(res[0].onboarding) : res[0].onboarding;
+                    return reply.send(parsed);
+                }
+            } catch (e) {}
+        }
+        const hub = memoryHubs.find(h => h.id === targetId);
+        return reply.send(hub?.onboarding || { enabled: false });
+    };
+
+    const updateHubOnboardingHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetId = id || hubId || colonyId;
+        const onboarding = req.body || {};
+        const onboardingJson = JSON.stringify(onboarding);
+
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'UPDATE anticeil_community_hubs SET onboarding = $1, updated_at = NOW() WHERE id = $2',
+                    [onboardingJson, targetId]
+                );
+            } catch (e) {}
+        }
+        const idx = memoryHubs.findIndex(h => h.id === targetId);
+        if (idx >= 0) {
+            memoryHubs[idx].onboarding = onboarding;
+        }
+        await recordAuditLog(ds, targetId, 'ONBOARDING_UPDATED', req.principal?.name || 'Admin', targetId, onboarding);
+        if (app.io) {
+            app.io.emit('COMMUNITY_ONBOARDING_UPDATED', { hubId: targetId, onboarding });
+            if (idx >= 0) app.io.emit('COMMUNITY_HUB_UPDATED', memoryHubs[idx]);
+        }
+        return reply.send({ success: true, onboarding });
+    };
+
+    const completeHubOnboardingHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetId = id || hubId || colonyId;
+        const userId = req.principal?.id || req.body?.userId || 'guest';
+        const userName = req.principal?.name || req.body?.userName || 'Member';
+        const { answers, agreedRules } = req.body || {};
+
+        await recordAuditLog(ds, targetId, 'MEMBER_ONBOARDED', userName, userId, { answers, agreedRules });
+        if (app.io) {
+            app.io.emit('COMMUNITY_MEMBER_ONBOARDED', { hubId: targetId, userId, userName, answers });
+        }
+        return reply.send({ success: true, message: 'Onboarding completed successfully' });
     };
 
     const deleteHubHandler = async (req, reply) => {
@@ -4282,6 +4349,12 @@ async function setupCommunityApi(app) {
         app.get(`${prefix}/hubs/:colonyId/webhooks`, getColonyWebhooksHandler);
         app.post(`${prefix}/hubs/:colonyId/webhooks`, createColonyWebhookHandler);
         app.delete(`${prefix}/hubs/:colonyId/webhooks/:webhookId`, deleteColonyWebhookHandler);
+        app.get(`${prefix}/colonies/:hubId/onboarding`, getHubOnboardingHandler);
+        app.put(`${prefix}/colonies/:hubId/onboarding`, updateHubOnboardingHandler);
+        app.post(`${prefix}/colonies/:hubId/onboarding/complete`, completeHubOnboardingHandler);
+        app.get(`${prefix}/hubs/:hubId/onboarding`, getHubOnboardingHandler);
+        app.put(`${prefix}/hubs/:hubId/onboarding`, updateHubOnboardingHandler);
+        app.post(`${prefix}/hubs/:hubId/onboarding/complete`, completeHubOnboardingHandler);
         app.get(`${prefix}/colony-invitations`, getServerInvitationsHandler);
         app.post(`${prefix}/colonies/:hubId/invite-user`, inviteUserToHubHandler);
         app.post(`${prefix}/colony-invitations/:id/accept`, acceptServerInvitationHandler);
@@ -4717,6 +4790,12 @@ async function setupCommunityApi(app) {
     app.get('/v1/channels/:channelId/permissions', getChannelPermissionsHandler);
     app.put('/v1/channels/:channelId/permissions/:targetId', updateChannelPermissionHandler);
     app.delete('/v1/channels/:channelId/permissions/:targetId', deleteChannelPermissionHandler);
+    app.get('/v1/colonies/:hubId/onboarding', getHubOnboardingHandler);
+    app.put('/v1/colonies/:hubId/onboarding', updateHubOnboardingHandler);
+    app.post('/v1/colonies/:hubId/onboarding/complete', completeHubOnboardingHandler);
+    app.get('/v1/hubs/:hubId/onboarding', getHubOnboardingHandler);
+    app.put('/v1/hubs/:hubId/onboarding', updateHubOnboardingHandler);
+    app.post('/v1/hubs/:hubId/onboarding/complete', completeHubOnboardingHandler);
 
     // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
     const getSubscriptionHandler = async (req, reply) => {
