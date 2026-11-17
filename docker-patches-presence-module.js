@@ -1426,6 +1426,7 @@ async function setupCommunityApi(app) {
     };
 
     const messageRateLimitMap = {};
+    const messageLastContentMap = {};
 
     const createMessageHandler = async (req, reply) => {
         await ensureTables();
@@ -1500,6 +1501,39 @@ async function setupCommunityApi(app) {
                             if (matchedProfanity) {
                                 return reply.status(400).send({
                                     message: 'Pesan diblokir oleh AutoMod: mengandung kata-kata tidak pantas.'
+                                });
+                            }
+                        }
+
+                        // 4. Repeated Spam Protection
+                        if (safety.autoMod?.blockSpamRepeated && body.content) {
+                            const spamKey = `${clientKey}_${channelId}`;
+                            const lastEntry = messageLastContentMap[spamKey];
+                            if (lastEntry && lastEntry.content === body.content && (now - lastEntry.time < 5000)) {
+                                return reply.status(400).send({
+                                    message: 'Pesan diblokir oleh AutoMod: pengiriman pesan berulang terdeteksi (Spam Protection).'
+                                });
+                            }
+                            messageLastContentMap[spamKey] = { content: body.content, time: now };
+                        }
+
+                        // 5. External Invite Links Filter
+                        if (safety.dmSpamProtection?.filterInvites) {
+                            const inviteRegex = /(discord\.(gg|com\/invite)|t\.me\/joinchat|t\.me\/[a-zA-Z0-9_]+)/i;
+                            if (inviteRegex.test(body.content || '')) {
+                                if (senderRole !== 'owner' && senderRole !== 'admin') {
+                                    return reply.status(400).send({
+                                        message: 'Pesan diblokir: tautan undangan komunitas luar tidak diizinkan oleh kebijakan keamanan server.'
+                                    });
+                                }
+                            }
+                        }
+
+                        // 6. Restrict File Uploads for Unverified Members
+                        if (safety.permissions?.disableUploadsUnverified && body.attachments && body.attachments.length > 0) {
+                            if (senderRole === 'member') {
+                                return reply.status(403).send({
+                                    message: 'Unggahan file dinonaktifkan untuk anggota biasa oleh kebijakan keamanan server.'
                                 });
                             }
                         }
@@ -3267,6 +3301,36 @@ async function setupCommunityApi(app) {
         return reply.send(safetyPayload);
     };
 
+    const getHubSafetyIncidentsHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    `SELECT * FROM anticeil_community_audit_log
+                     WHERE hub_id = $1 AND action IN ('AUTOMOD_BLOCK', 'SAFETY_SETTINGS_UPDATED', 'RAID_ALERT', 'INVITES_PAUSED')
+                     ORDER BY created_at DESC LIMIT 50`,
+                    [targetHubId]
+                );
+                if (rows && rows.length > 0) {
+                    return reply.send(rows.map(r => ({
+                        id: r.id,
+                        hubId: r.hub_id,
+                        action: r.action,
+                        actorName: r.actor_name,
+                        targetName: r.target_name,
+                        details: typeof r.details === 'string' ? JSON.parse(r.details) : (r.details || {}),
+                        createdAt: r.created_at
+                    })));
+                }
+            } catch (e) {}
+        }
+        return reply.send([]);
+    };
+
     const getHubTagHandler = async (req, reply) => {
         await ensureTables();
         const ds = await getDb();
@@ -4887,6 +4951,13 @@ async function setupCommunityApi(app) {
                     return reply.status(404).send({ success: false, message: 'Undangan tidak ditemukan' });
                 }
                 const inv = invRows[0];
+                const hubSafetyRows = await ds.query('SELECT safety_settings FROM anticeil_community_hubs WHERE id = $1 LIMIT 1', [inv.hub_id]);
+                if (hubSafetyRows && hubSafetyRows[0] && hubSafetyRows[0].safety_settings) {
+                    const safety = typeof hubSafetyRows[0].safety_settings === 'string' ? JSON.parse(hubSafetyRows[0].safety_settings) : hubSafetyRows[0].safety_settings;
+                    if (safety.raidProtection?.autoPauseInvites) {
+                        return reply.status(403).send({ success: false, message: 'Tautan undangan ke server ini sedang dijeda sementara karena proteksi Anti-Raid aktif.' });
+                    }
+                }
                 const memId = `mem_${inv.hub_id}_${userId}`;
                 await ds.query(
                     'INSERT INTO anticeil_community_members (id, hub_id, user_id, role, role_label) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (hub_id, user_id) DO NOTHING',
@@ -5591,6 +5662,7 @@ async function setupCommunityApi(app) {
     app.post('/v1/colonies/:hubId/apps/:appId/install', installColonyAppHandler);
     app.delete('/v1/colonies/:hubId/apps/:appId', uninstallColonyAppHandler);
     app.put('/v1/colonies/:hubId/apps/:appId/permissions', updateColonyAppPermissionsHandler);
+    app.get('/v1/colonies/:hubId/safety/incidents', getHubSafetyIncidentsHandler);
     app.all('/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
     app.all('/api/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
 
@@ -5751,8 +5823,10 @@ async function setupCommunityApi(app) {
         app.delete(`${prefix}/hubs/:hubId/template`, deleteTemplateHandler);
         app.get(`${prefix}/colonies/:hubId/safety`, getHubSafetyHandler);
         app.put(`${prefix}/colonies/:hubId/safety`, updateHubSafetyHandler);
+        app.get(`${prefix}/colonies/:hubId/safety/incidents`, getHubSafetyIncidentsHandler);
         app.get(`${prefix}/hubs/:hubId/safety`, getHubSafetyHandler);
         app.put(`${prefix}/hubs/:hubId/safety`, updateHubSafetyHandler);
+        app.get(`${prefix}/hubs/:hubId/safety/incidents`, getHubSafetyIncidentsHandler);
         app.get(`${prefix}/colonies/:hubId/tag`, getHubTagHandler);
         app.put(`${prefix}/colonies/:hubId/tag`, updateHubTagHandler);
         app.get(`${prefix}/hubs/:hubId/tag`, getHubTagHandler);
