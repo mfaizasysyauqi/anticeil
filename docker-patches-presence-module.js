@@ -4058,6 +4058,7 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/hubs/:hubId/bans`, createBanHandler);
         app.delete(`${prefix}/hubs/:hubId/bans/:userId`, deleteBanHandler);
         app.get(`${prefix}/hubs/:hubId/audit-log`, getAuditLogHandler);
+        app.get(`${prefix}/hubs/:hubId/audit-logs`, getAuditLogHandler);
         app.get(`${prefix}/hubs/:hubId/stats`, getStatsHandler);
 
         // Friends & Requests
@@ -4110,6 +4111,7 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/colonies/:hubId/bans`, createBanHandler);
         app.delete(`${prefix}/colonies/:hubId/bans/:userId`, deleteBanHandler);
         app.get(`${prefix}/colonies/:hubId/audit-log`, getAuditLogHandler);
+        app.get(`${prefix}/colonies/:hubId/audit-logs`, getAuditLogHandler);
         app.get(`${prefix}/colonies/:hubId/stats`, getStatsHandler);
         app.get(`${prefix}/colony-invitations`, getServerInvitationsHandler);
         app.post(`${prefix}/colonies/:hubId/invite-user`, inviteUserToHubHandler);
@@ -4535,6 +4537,11 @@ async function setupCommunityApi(app) {
     app.delete('/v1/colonies/:hubId/sounds/:soundId', deleteHubSoundHandler);
     app.post('/v1/colonies/:hubId/sounds/:soundId/play', playHubSoundHandler);
     app.post('/v1/colonies/:hubId/soundboard/play', playHubSoundHandler);
+    app.get('/v1/colonies/:hubId/bans', getBansHandler);
+    app.post('/v1/colonies/:hubId/bans', createBanHandler);
+    app.delete('/v1/colonies/:hubId/bans/:userId', deleteBanHandler);
+    app.get('/v1/colonies/:hubId/audit-logs', getAuditLogHandler);
+    app.get('/v1/colonies/:hubId/audit-log', getAuditLogHandler);
 
     // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
     const getSubscriptionHandler = async (req, reply) => {
