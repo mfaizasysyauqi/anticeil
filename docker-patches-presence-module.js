@@ -686,6 +686,20 @@ async function setupCommunityApi(app) {
                     );
                     CREATE INDEX IF NOT EXISTS idx_colony_webhooks ON anticeil_colony_webhooks(colony_id);
 
+                    CREATE TABLE IF NOT EXISTS anticeil_colony_templates (
+                        code VARCHAR(64) PRIMARY KEY,
+                        hub_id VARCHAR(128) NOT NULL,
+                        name VARCHAR(128) NOT NULL,
+                        description TEXT DEFAULT '',
+                        creator_name VARCHAR(128) DEFAULT 'Admin',
+                        usage_count INT DEFAULT 0,
+                        blueprint TEXT DEFAULT '{}',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_colony_templates_hub ON anticeil_colony_templates(hub_id);
+                    ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS template_settings TEXT DEFAULT '{}';
+
                     -- 100% Unified Colony Database Views (Zero-Downtime Migration)
                     CREATE OR REPLACE VIEW anticeil_colonies AS SELECT * FROM anticeil_community_hubs;
                     CREATE OR REPLACE VIEW anticeil_colony_channels AS SELECT * FROM anticeil_community_channels;
@@ -2661,6 +2675,222 @@ async function setupCommunityApi(app) {
         return reply.send(filtered);
     };
 
+    const getTemplateHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { code } = req.params;
+        if (!code) return reply.status(400).send({ message: 'Template code is required' });
+
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query(
+                    'SELECT * FROM anticeil_colony_templates WHERE code = $1 LIMIT 1',
+                    [code]
+                );
+                if (rows && rows.length > 0) {
+                    const r = rows[0];
+                    return reply.send({
+                        code: r.code,
+                        hubId: r.hub_id,
+                        name: r.name,
+                        description: r.description,
+                        creatorName: r.creator_name,
+                        usageCount: Number(r.usage_count || 0),
+                        blueprint: typeof r.blueprint === 'string' ? JSON.parse(r.blueprint) : r.blueprint,
+                        createdAt: r.created_at,
+                        updatedAt: r.updated_at
+                    });
+                }
+            } catch (e) {
+                app.log.error({ e }, '[Colony Template] Error getting template');
+            }
+        }
+        return reply.status(404).send({ message: 'Template tidak ditemukan' });
+    };
+
+    const createOrSyncTemplateHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { hubId, colonyId } = req.params;
+        const targetHubId = hubId || colonyId;
+        const body = req.body || {};
+        const templateName = body.name || 'Server Template';
+        const templateDesc = body.description || '';
+        const code = body.code || `tpl-${targetHubId.substring(0, 6)}`;
+        const creatorName = req.principal?.name || 'Admin';
+
+        let blueprint = { channels: [], categories: [], roles: [] };
+
+        if (ds && dbReady) {
+            try {
+                const channels = await ds.query(
+                    'SELECT id, name, description, category, type FROM anticeil_community_channels WHERE hub_id = $1 ORDER BY created_at ASC',
+                    [targetHubId]
+                );
+                const roles = await ds.query(
+                    'SELECT id, name, color, permissions, position FROM anticeil_community_roles WHERE hub_id = $1 ORDER BY position ASC',
+                    [targetHubId]
+                );
+                blueprint = {
+                    name: templateName,
+                    description: templateDesc,
+                    channels: (channels || []).map(c => ({
+                        name: c.name,
+                        description: c.description || '',
+                        category: c.category || 'CHANNELS',
+                        type: c.type || 'text'
+                    })),
+                    roles: (roles || []).map(r => ({
+                        name: r.name,
+                        color: r.color,
+                        permissions: typeof r.permissions === 'string' ? JSON.parse(r.permissions || '[]') : r.permissions,
+                        position: r.position
+                    }))
+                };
+
+                const templateSettings = {
+                    name: templateName,
+                    description: templateDesc,
+                    code,
+                    lastSyncedAt: new Date().toISOString()
+                };
+
+                await ds.query(
+                    `INSERT INTO anticeil_colony_templates (code, hub_id, name, description, creator_name, blueprint, created_at, updated_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+                     ON CONFLICT (code) DO UPDATE SET
+                        name = EXCLUDED.name,
+                        description = EXCLUDED.description,
+                        blueprint = EXCLUDED.blueprint,
+                        updated_at = NOW()`,
+                    [code, targetHubId, templateName, templateDesc, creatorName, JSON.stringify(blueprint)]
+                );
+
+                await ds.query(
+                    'UPDATE anticeil_community_hubs SET template_settings = $1, updated_at = NOW() WHERE id = $2',
+                    [JSON.stringify(templateSettings), targetHubId]
+                );
+
+                await recordAuditLog(ds, targetHubId, 'TEMPLATE_SYNC', creatorName, templateName, { code });
+
+                return reply.send({
+                    success: true,
+                    code,
+                    templateSettings,
+                    blueprint
+                });
+            } catch (e) {
+                app.log.error({ e }, '[Colony Template] Error syncing template');
+            }
+        }
+
+        return reply.status(500).send({ message: 'Gagal menyinkronkan template server' });
+    };
+
+    const deleteTemplateHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { hubId, colonyId } = req.params;
+        const targetHubId = hubId || colonyId;
+
+        if (ds && dbReady) {
+            try {
+                await ds.query('DELETE FROM anticeil_colony_templates WHERE hub_id = $1', [targetHubId]);
+                await ds.query("UPDATE anticeil_community_hubs SET template_settings = '{}', updated_at = NOW() WHERE id = $1", [targetHubId]);
+                await recordAuditLog(ds, targetHubId, 'TEMPLATE_DELETE', req.principal?.name || 'Admin', targetHubId);
+                return reply.send({ success: true });
+            } catch (e) {
+                app.log.error({ e }, '[Colony Template] Error deleting template');
+            }
+        }
+        return reply.send({ success: false });
+    };
+
+    const useTemplateHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { code } = req.params;
+        const body = req.body || {};
+        const newServerName = body.name || 'Server Baru';
+        const platformId = await resolvePlatformId(req, ds);
+        const creatorId = req.principal?.id || 'admin';
+
+        if (ds && dbReady) {
+            try {
+                const tRows = await ds.query('SELECT * FROM anticeil_colony_templates WHERE code = $1 LIMIT 1', [code]);
+                if (!tRows || tRows.length === 0) {
+                    return reply.status(404).send({ message: 'Template tidak ditemukan' });
+                }
+                const tpl = tRows[0];
+                const blueprint = typeof tpl.blueprint === 'string' ? JSON.parse(tpl.blueprint) : tpl.blueprint;
+
+                // Create new hub
+                const newHubId = `hub_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                const initials = (newServerName || 'SV').slice(0, 2).toUpperCase();
+                const inviteCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+
+                await ds.query(
+                    `INSERT INTO anticeil_community_hubs (id, name, description, icon_type, initials, invite_code, color, tags, emojis, boosts_count, boost_tier, platform_id)
+                     VALUES ($1, $2, $3, 'code', $4, $5, 'bg-emerald-600', '["komunitas","template"]', '[]', 0, 0, $6)`,
+                    [newHubId, newServerName, tpl.description || '', initials, inviteCode, platformId]
+                );
+
+                // Add creator as owner member
+                await ds.query(
+                    `INSERT INTO anticeil_community_members (id, hub_id, user_id, role, role_label, platform_id)
+                     VALUES ($1, $2, $3, 'owner', 'Pemilik', $4)`,
+                    [`mem_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, newHubId, creatorId, platformId]
+                );
+
+                // Create blueprint channels
+                const createdChannels = [];
+                const bChannels = blueprint.channels && blueprint.channels.length > 0 ? blueprint.channels : [{ name: 'general', category: 'CHANNELS', type: 'text' }];
+
+                for (let i = 0; i < bChannels.length; i++) {
+                    const ch = bChannels[i];
+                    const chId = `ch_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 5)}`;
+                    await ds.query(
+                        `INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, type, platform_id)
+                         VALUES ($1, $2, $3, $4, $5, FALSE, $6, $7)`,
+                        [chId, ch.name, ch.description || '', ch.category || 'CHANNELS', newHubId, ch.type || 'text', platformId]
+                    );
+                    createdChannels.push({
+                        id: chId,
+                        name: ch.name,
+                        description: ch.description || '',
+                        category: ch.category || 'CHANNELS',
+                        hubId: newHubId,
+                        type: ch.type || 'text'
+                    });
+                }
+
+                // Increment usage count
+                await ds.query('UPDATE anticeil_colony_templates SET usage_count = usage_count + 1 WHERE code = $1', [code]);
+
+                const newHub = {
+                    id: newHubId,
+                    name: newServerName,
+                    description: tpl.description || '',
+                    initials,
+                    inviteCode,
+                    color: 'bg-emerald-600',
+                    role: 'owner',
+                    channels: createdChannels
+                };
+
+                if (app.io) {
+                    app.io.emit('COMMUNITY_HUB_CREATED', newHub);
+                }
+
+                return reply.status(201).send(newHub);
+            } catch (e) {
+                app.log.error({ e }, '[Colony Template] Error instantiating server from template');
+            }
+        }
+
+        return reply.status(500).send({ message: 'Gagal membuat server dari template' });
+    };
+
     const createHubHandler = async (req, reply) => {
         await ensureTables();
         const ds = await getDb();
@@ -4492,6 +4722,12 @@ async function setupCommunityApi(app) {
         app.get(`${prefix}/hubs/:hubId/onboarding`, getHubOnboardingHandler);
         app.put(`${prefix}/hubs/:hubId/onboarding`, updateHubOnboardingHandler);
         app.post(`${prefix}/hubs/:hubId/onboarding/complete`, completeHubOnboardingHandler);
+        app.get(`${prefix}/templates/:code`, getTemplateHandler);
+        app.post(`${prefix}/templates/:code/use`, useTemplateHandler);
+        app.post(`${prefix}/colonies/:hubId/template`, createOrSyncTemplateHandler);
+        app.delete(`${prefix}/colonies/:hubId/template`, deleteTemplateHandler);
+        app.post(`${prefix}/hubs/:hubId/template`, createOrSyncTemplateHandler);
+        app.delete(`${prefix}/hubs/:hubId/template`, deleteTemplateHandler);
         app.get(`${prefix}/colony-invitations`, getServerInvitationsHandler);
         app.post(`${prefix}/colonies/:hubId/invite-user`, inviteUserToHubHandler);
         app.post(`${prefix}/colony-invitations/:id/accept`, acceptServerInvitationHandler);
@@ -4940,6 +5176,12 @@ async function setupCommunityApi(app) {
     app.post('/v1/messages/:id/pin', togglePinHandler);
     app.get('/v1/colonies/discover', getDiscoverColoniesHandler);
     app.get('/v1/hubs/discover', getDiscoverColoniesHandler);
+    app.get('/v1/templates/:code', getTemplateHandler);
+    app.post('/v1/templates/:code/use', useTemplateHandler);
+    app.post('/v1/colonies/:hubId/template', createOrSyncTemplateHandler);
+    app.delete('/v1/colonies/:hubId/template', deleteTemplateHandler);
+    app.post('/v1/hubs/:hubId/template', createOrSyncTemplateHandler);
+    app.delete('/v1/hubs/:hubId/template', deleteTemplateHandler);
 
     // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
     const getSubscriptionHandler = async (req, reply) => {
