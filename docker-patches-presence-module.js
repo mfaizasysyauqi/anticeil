@@ -5743,8 +5743,6 @@ async function setupCommunityApi(app) {
     app.post('/v1/messages/:id/pin', togglePinHandler);
     app.get('/v1/colonies/discover', getDiscoverColoniesHandler);
     app.get('/v1/hubs/discover', getDiscoverColoniesHandler);
-    app.get('/v1/templates/:code', getTemplateHandler);
-    app.post('/v1/templates/:code/use', useTemplateHandler);
     app.post('/v1/colonies/:hubId/template', createOrSyncTemplateHandler);
     app.delete('/v1/colonies/:hubId/template', deleteTemplateHandler);
     app.post('/v1/hubs/:hubId/template', createOrSyncTemplateHandler);
