@@ -650,6 +650,13 @@ async function setupCommunityApi(app) {
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
 
+                    CREATE TABLE IF NOT EXISTS anticeil_user_settings (
+                        user_id VARCHAR(128) PRIMARY KEY,
+                        settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
                     -- 100% Unified Colony Database Views (Zero-Downtime Migration)
                     CREATE OR REPLACE VIEW anticeil_colonies AS SELECT * FROM anticeil_community_hubs;
                     CREATE OR REPLACE VIEW anticeil_colony_channels AS SELECT * FROM anticeil_community_channels;
@@ -3948,6 +3955,7 @@ async function setupCommunityApi(app) {
                 const rows = await ds.query('SELECT * FROM anticeil_user_profiles WHERE user_id = $1 LIMIT 1', [targetUserId]);
                 if (rows && rows.length > 0) {
                     const r = rows[0];
+                    const widgets = typeof r.widgets === 'string' ? JSON.parse(r.widgets) : (r.widgets || {});
                     return reply.send({
                         bio: r.bio || 'Your life in one sentence',
                         pronouns: r.pronouns || '',
@@ -3955,7 +3963,11 @@ async function setupCommunityApi(app) {
                         bannerUrl: r.banner_url || null,
                         avatarUrl: r.avatar_url || userAvatar,
                         statusThought: r.status_thought || 'Shower thought?',
-                        widgets: typeof r.widgets === 'string' ? JSON.parse(r.widgets) : (r.widgets || { favoriteGame: 'Neverness to Everness', gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true }),
+                        widgets: widgets,
+                        nameplate: widgets.nameplate || 'none',
+                        profileFrame: widgets.profileFrame || 'none',
+                        profileEffect: widgets.profileEffect || 'none',
+                        theme: widgets.profileTheme || widgets.theme || 'teal',
                         createdAt: r.created_at || null
                     });
                 }
@@ -3967,7 +3979,11 @@ async function setupCommunityApi(app) {
                         bannerUrl: null,
                         avatarUrl: userAvatar,
                         statusThought: 'Shower thought?',
-                        widgets: { favoriteGame: 'Neverness to Everness', gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true }
+                        widgets: { favoriteGame: { title: 'Neverness to Everness', accountName: 'DartX', region: 'SEA' }, gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true },
+                        nameplate: 'none',
+                        profileFrame: 'none',
+                        profileEffect: 'none',
+                        theme: 'teal'
                     });
                 }
             } catch (e) {}
@@ -3979,14 +3995,27 @@ async function setupCommunityApi(app) {
             bannerUrl: null,
             avatarUrl: null,
             statusThought: 'Shower thought?',
-            widgets: { favoriteGame: 'Neverness to Everness', gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true }
+            widgets: { favoriteGame: { title: 'Neverness to Everness', accountName: 'DartX', region: 'SEA' }, gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true },
+            nameplate: 'none',
+            profileFrame: 'none',
+            profileEffect: 'none',
+            theme: 'teal'
         });
     };
 
     const updateUserProfileHandler = async (req, reply) => {
         const ds = await getDb();
         const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
-        const { bio, pronouns, bannerColor, bannerUrl, avatarUrl, statusThought, widgets } = req.body || {};
+        const { bio, pronouns, bannerColor, bannerUrl, avatarUrl, statusThought, widgets, nameplate, profileFrame, profileEffect, theme } = req.body || {};
+        
+        const bannerProvided = bannerUrl !== undefined;
+        const avatarProvided = avatarUrl !== undefined;
+        const mergedWidgets = typeof widgets === 'object' && widgets !== null ? { ...widgets } : {};
+        if (nameplate) mergedWidgets.nameplate = nameplate;
+        if (profileFrame) mergedWidgets.profileFrame = profileFrame;
+        if (profileEffect) mergedWidgets.profileEffect = profileEffect;
+        if (theme) mergedWidgets.profileTheme = theme;
+
         if (ds) {
             try {
                 await ds.query(`
@@ -3996,8 +4025,8 @@ async function setupCommunityApi(app) {
                         bio = COALESCE($2, anticeil_user_profiles.bio),
                         pronouns = COALESCE($3, anticeil_user_profiles.pronouns),
                         banner_color = COALESCE($4, anticeil_user_profiles.banner_color),
-                        banner_url = CASE WHEN $5 IS NOT NULL THEN $5 ELSE anticeil_user_profiles.banner_url END,
-                        avatar_url = CASE WHEN $6 IS NOT NULL THEN $6 ELSE anticeil_user_profiles.avatar_url END,
+                        banner_url = CASE WHEN $9 = true THEN $5 ELSE anticeil_user_profiles.banner_url END,
+                        avatar_url = CASE WHEN $10 = true THEN $6 ELSE anticeil_user_profiles.avatar_url END,
                         status_thought = COALESCE($7, anticeil_user_profiles.status_thought),
                         widgets = CASE WHEN $8::jsonb IS NOT NULL THEN $8::jsonb ELSE anticeil_user_profiles.widgets END,
                         updated_at = NOW()
@@ -4006,10 +4035,12 @@ async function setupCommunityApi(app) {
                     bio || null,
                     pronouns || null,
                     bannerColor || null,
-                    bannerUrl !== undefined ? bannerUrl : null,
-                    avatarUrl !== undefined ? avatarUrl : null,
+                    bannerUrl || null,
+                    avatarUrl || null,
                     statusThought || null,
-                    widgets ? JSON.stringify(widgets) : null
+                    JSON.stringify(mergedWidgets),
+                    bannerProvided,
+                    avatarProvided
                 ]);
 
                 if (avatarUrl && currentUserId !== 'me') {
@@ -4023,21 +4054,100 @@ async function setupCommunityApi(app) {
                 }
             } catch (e) {}
         }
-        return reply.send({
-            bio: bio || 'Your life in one sentence',
-            pronouns: pronouns || '',
-            bannerColor: bannerColor || '#5c4d44',
-            bannerUrl: bannerUrl || null,
-            avatarUrl: avatarUrl || null,
-            statusThought: statusThought || 'Shower thought?',
-            widgets: widgets || {}
-        });
+        return getUserProfileHandler(req, reply);
     };
 
     app.get('/v1/users/me/profile', getUserProfileHandler);
     app.put('/v1/users/me/profile', updateUserProfileHandler);
     app.get('/v1/users/:userId/profile', getUserProfileHandler);
     app.put('/v1/users/:userId/profile', updateUserProfileHandler);
+
+    // --- USER SETTINGS PERSISTENCE SYSTEM ---
+    const DEFAULT_USER_SETTINGS = {
+        privacy: {
+            safeDirectMessaging: 'safe',
+            allowDmsFromServerMembers: true,
+            allowFriendRequestsFrom: {
+                everyone: true,
+                friendsOfFriends: true,
+                serverMembers: true
+            },
+            useDataForImprovement: true,
+            useDataForPersonalization: true
+        },
+        notifications: {
+            enableDesktopNotifications: true,
+            enableTaskbarFlashing: true,
+            soundNewMessage: true,
+            soundCurrentChannel: false,
+            soundIncomingRing: true,
+            disableAllSounds: false,
+            enableUnreadBadges: true,
+            emailCommunication: true,
+            emailSocial: true,
+            notifyReactions: 'all'
+        },
+        appearance: {
+            theme: 'dark',
+            accentColor: 'teal',
+            chatFontScale: 'normal',
+            messageDisplay: 'cozy'
+        },
+        voiceVideo: {
+            inputVolume: 100,
+            outputVolume: 100,
+            noiseSuppression: true,
+            echoCancellation: true
+        },
+        language: 'id',
+        developer: {
+            developerMode: false
+        }
+    };
+
+    const getUserSettingsHandler = async (req, reply) => {
+        const ds = await getDb();
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        if (ds) {
+            try {
+                const rows = await ds.query('SELECT settings FROM anticeil_user_settings WHERE user_id = $1 LIMIT 1', [currentUserId]);
+                if (rows && rows.length > 0 && rows[0].settings) {
+                    const saved = typeof rows[0].settings === 'string' ? JSON.parse(rows[0].settings) : rows[0].settings;
+                    return reply.send({
+                        ...DEFAULT_USER_SETTINGS,
+                        ...saved,
+                        privacy: { ...DEFAULT_USER_SETTINGS.privacy, ...(saved.privacy || {}) },
+                        notifications: { ...DEFAULT_USER_SETTINGS.notifications, ...(saved.notifications || {}) },
+                        appearance: { ...DEFAULT_USER_SETTINGS.appearance, ...(saved.appearance || {}) },
+                        voiceVideo: { ...DEFAULT_USER_SETTINGS.voiceVideo, ...(saved.voiceVideo || {}) }
+                    });
+                }
+            } catch (e) {}
+        }
+        return reply.send(DEFAULT_USER_SETTINGS);
+    };
+
+    const updateUserSettingsHandler = async (req, reply) => {
+        const ds = await getDb();
+        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const incomingSettings = req.body || {};
+        if (ds) {
+            try {
+                await ds.query(`
+                    INSERT INTO anticeil_user_settings (user_id, settings, updated_at)
+                    VALUES ($1, $2::jsonb, NOW())
+                    ON CONFLICT (user_id) DO UPDATE SET
+                        settings = COALESCE(anticeil_user_settings.settings, '{}'::jsonb) || $2::jsonb,
+                        updated_at = NOW()
+                `, [currentUserId, JSON.stringify(incomingSettings)]);
+            } catch (e) {}
+        }
+        return getUserSettingsHandler(req, reply);
+    };
+
+    app.get('/v1/users/me/settings', getUserSettingsHandler);
+    app.put('/v1/users/me/settings', updateUserSettingsHandler);
+    app.get('/v1/users/:userId/settings', getUserSettingsHandler);
 
     // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
     const getSubscriptionHandler = async (req, reply) => {
