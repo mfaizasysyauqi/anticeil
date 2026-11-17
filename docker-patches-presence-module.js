@@ -395,6 +395,8 @@ async function setupCommunityApi(app) {
                     CREATE INDEX IF NOT EXISTS idx_acc_platform ON anticeil_community_channels (platform_id);
                     ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS type VARCHAR(32) DEFAULT 'text';
                     ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE;
+                    ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS category_id VARCHAR(128);
+                    ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS category_name VARCHAR(128);
                     ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS permission_overwrites TEXT DEFAULT '[]';
                     UPDATE anticeil_community_channels SET type = 'voice' WHERE (LOWER(name) LIKE '%voice%' OR id LIKE '%voice%') AND (type = 'text' OR type IS NULL);
                     UPDATE anticeil_community_channels SET type = 'forum' WHERE (LOWER(name) LIKE '%forum%' OR LOWER(name) LIKE '%diskusi%' OR id LIKE '%forum%') AND (type = 'text' OR type IS NULL);
@@ -928,6 +930,9 @@ async function setupCommunityApi(app) {
                         description: r.description || '',
                         category: r.category || 'CHANNELS',
                         hubId: r.hub_id || 'anticeil',
+                        colonyId: r.hub_id || 'anticeil',
+                        categoryId: r.category_id || undefined,
+                        categoryName: r.category_name || undefined,
                         type: resolvedType,
                         isPrivate: Boolean(r.is_private),
                         isDirectMessage: Boolean(r.is_direct_message),
@@ -937,7 +942,7 @@ async function setupCommunityApi(app) {
                 });
             } catch (e) {}
         }
-        let filtered = memoryChannels.filter(c => !hubId || c.hubId === hubId);
+        let filtered = memoryChannels.filter(c => !hubId || c.hubId === hubId || c.colonyId === hubId);
         if (hubId && hubId !== 'anticeil') {
             const types = filtered.map(c => c.type || 'text');
             if (filtered.length === 0) {
@@ -947,6 +952,7 @@ async function setupCommunityApi(app) {
                     description: 'Saluran obrolan umum',
                     category: 'CHANNELS',
                     hubId: hubId,
+                    colonyId: hubId,
                     type: 'text',
                     isPrivate: false,
                     isDirectMessage: false
@@ -961,6 +967,7 @@ async function setupCommunityApi(app) {
                     description: 'Saluran suara dan video',
                     category: 'CHANNELS',
                     hubId: hubId,
+                    colonyId: hubId,
                     type: 'voice',
                     isPrivate: false,
                     isDirectMessage: false
@@ -975,6 +982,7 @@ async function setupCommunityApi(app) {
                     description: 'Ruang diskusi terorganisir',
                     category: 'CHANNELS',
                     hubId: hubId,
+                    colonyId: hubId,
                     type: 'forum',
                     isPrivate: false,
                     isDirectMessage: false
@@ -988,7 +996,11 @@ async function setupCommunityApi(app) {
 
     const createChannelHandler = async (req, reply) => {
         await ensureTables();
-        const { name, description = '', category = 'CHANNELS', hubId = 'anticeil', type = 'text', isPrivate = false } = req.body || {};
+        const body = req.body || {};
+        const { name, description = '', category = 'CHANNELS', type = 'text', isPrivate = false } = body;
+        const targetHubId = body.hubId || body.colonyId || 'anticeil';
+        const targetCategoryId = body.categoryId || null;
+        const targetCategoryName = body.categoryName || null;
         if (!name) {
             return reply.status(400).send({ message: 'Channel name is required' });
         }
@@ -1003,7 +1015,10 @@ async function setupCommunityApi(app) {
             name: cleanName,
             description,
             category,
-            hubId,
+            hubId: targetHubId,
+            colonyId: targetHubId,
+            categoryId: targetCategoryId,
+            categoryName: targetCategoryName,
             type,
             isPrivate: Boolean(isPrivate),
             isDirectMessage: false
@@ -1012,8 +1027,8 @@ async function setupCommunityApi(app) {
         if (ds && dbReady) {
             try {
                 await ds.query(
-                    'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id, type, is_private) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO UPDATE SET name=$2, description=$3, type=$8, is_private=$9',
-                    [id, cleanName, description, category, hubId, false, platformId, type, Boolean(isPrivate)]
+                    'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id, type, is_private, category_id, category_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (id) DO UPDATE SET name=$2, description=$3, type=$8, is_private=$9, category_id=$10, category_name=$11',
+                    [id, cleanName, description, category, targetHubId, false, platformId, type, Boolean(isPrivate), targetCategoryId, targetCategoryName]
                 );
             } catch (e) {}
         }
@@ -5042,16 +5057,59 @@ async function setupCommunityApi(app) {
         return reply.send([]);
     };
 
+    const createMessageRequestHandler = async (req, reply) => {
+        await ensureTables();
+        const userId = getReqUserId(req);
+        const { receiverId, initialMessage, isSpam = false, mutualServers = 0 } = req.body || {};
+        if (!receiverId) {
+            return reply.status(400).send({ message: 'receiverId is required' });
+        }
+        const ds = await getDb();
+        const id = `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        let senderName = 'Pengguna Anticeil';
+        let senderUsername = 'pengguna';
+        let senderAvatar = null;
+        if (ds && dbReady) {
+            try {
+                const uRows = await ds.query('SELECT name, email, avatar FROM "user" WHERE id = $1', [userId]);
+                if (uRows && uRows[0]) {
+                    senderName = uRows[0].name || senderName;
+                    senderUsername = (uRows[0].email ? uRows[0].email.split('@')[0] : senderUsername);
+                    senderAvatar = uRows[0].avatar || null;
+                }
+                await ds.query(
+                    `INSERT INTO anticeil_message_requests (id, receiver_id, sender_id, sender_name, sender_username, sender_avatar, initial_message, is_spam, mutual_servers, created_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
+                    [id, receiverId, userId, senderName, senderUsername, senderAvatar, initialMessage || '', Boolean(isSpam), Number(mutualServers)]
+                );
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
+    };
+
     const acceptMessageRequestHandler = async (req, reply) => {
         await ensureTables();
         const { id } = req.params;
         const ds = await getDb();
+        let targetDMChannel = null;
         if (ds && dbReady) {
             try {
+                const reqRows = await ds.query('SELECT * FROM anticeil_message_requests WHERE id = $1', [id]);
+                if (reqRows && reqRows[0]) {
+                    const r = reqRows[0];
+                    const chId = `dm_${[r.receiver_id, r.sender_id].sort().join('_')}`;
+                    await ds.query(
+                        `INSERT INTO anticeil_community_channels (id, name, category, hub_id, is_direct_message, dm_user_id)
+                         VALUES ($1, $2, 'DIRECT MESSAGES', 'anticeil', true, $3)
+                         ON CONFLICT (id) DO NOTHING`,
+                        [chId, r.sender_name, r.sender_id]
+                    );
+                    targetDMChannel = { id: chId, name: r.sender_name, isDirectMessage: true, dmUserId: r.sender_id };
+                }
                 await ds.query('DELETE FROM anticeil_message_requests WHERE id = $1', [id]);
             } catch (e) {}
         }
-        return reply.send({ success: true, id });
+        return reply.send({ success: true, id, channel: targetDMChannel });
     };
 
     const ignoreMessageRequestHandler = async (req, reply) => {
@@ -5764,6 +5822,7 @@ async function setupCommunityApi(app) {
 
         // Message Requests
         app.get(`${prefix}/message-requests`, getMessageRequestsHandler);
+        app.post(`${prefix}/message-requests`, createMessageRequestHandler);
         app.post(`${prefix}/message-requests/:id/accept`, acceptMessageRequestHandler);
         app.post(`${prefix}/message-requests/:id/ignore`, ignoreMessageRequestHandler);
         app.post(`${prefix}/message-requests/:id/spam`, spamMessageRequestHandler);
