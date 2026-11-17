@@ -3940,7 +3940,8 @@ async function setupCommunityApi(app) {
                         bannerUrl: r.banner_url || null,
                         avatarUrl: r.avatar_url || userAvatar,
                         statusThought: r.status_thought || 'Shower thought?',
-                        widgets: typeof r.widgets === 'string' ? JSON.parse(r.widgets) : (r.widgets || { favoriteGame: 'Neverness to Everness', gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true })
+                        widgets: typeof r.widgets === 'string' ? JSON.parse(r.widgets) : (r.widgets || { favoriteGame: 'Neverness to Everness', gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true }),
+                        createdAt: r.created_at || null
                     });
                 }
                 if (userAvatar) {
