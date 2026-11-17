@@ -234,6 +234,9 @@ async function setupCommunityApi(app) {
     const memoryInvites = {};
     const memoryBans = {};
     const memoryAuditLog = {};
+    const memorySounds = {};
+    const memoryEmojis = {};
+    const memoryStickers = {};
     const activeCallRooms = {};
     const activeCallActivities = {};
 
@@ -588,6 +591,17 @@ async function setupCommunityApi(app) {
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
 
+                    CREATE TABLE IF NOT EXISTS anticeil_community_server_sounds (
+                        id VARCHAR(128) PRIMARY KEY,
+                        hub_id VARCHAR(128) NOT NULL,
+                        name VARCHAR(128) NOT NULL,
+                        emoji VARCHAR(32) DEFAULT '🔊',
+                        volume NUMERIC DEFAULT 1.0,
+                        sound_url TEXT,
+                        sound_type VARCHAR(64) DEFAULT 'synthesized',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+
                     CREATE TABLE IF NOT EXISTS anticeil_user_profiles (
                         user_id VARCHAR(128) PRIMARY KEY,
                         bio TEXT DEFAULT 'Your life in one sentence',
@@ -681,6 +695,7 @@ async function setupCommunityApi(app) {
                     CREATE OR REPLACE VIEW anticeil_colony_audit_log AS SELECT * FROM anticeil_community_audit_log;
                     CREATE OR REPLACE VIEW anticeil_colony_emojis AS SELECT * FROM anticeil_community_server_emojis;
                     CREATE OR REPLACE VIEW anticeil_colony_stickers AS SELECT * FROM anticeil_community_server_stickers;
+                    CREATE OR REPLACE VIEW anticeil_colony_sounds AS SELECT * FROM anticeil_community_server_sounds;
                 `);
             } catch (alterErr) {}
 
@@ -1625,7 +1640,125 @@ async function setupCommunityApi(app) {
                 await ds.query('DELETE FROM anticeil_community_server_stickers WHERE id = $1', [stickerId]);
             } catch (e) {}
         }
+        if (app.io) app.io.emit('COMMUNITY_STICKER_DELETED', { stickerId });
         return { success: true, id: stickerId };
+    };
+
+    const deleteHubEmojiHandler = async (req) => {
+        await ensureTables();
+        const { emojiId } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady && emojiId) {
+            try {
+                await ds.query('DELETE FROM anticeil_community_server_emojis WHERE id = $1', [emojiId]);
+            } catch (e) {}
+        }
+        if (app.io) app.io.emit('COMMUNITY_EMOJI_DELETED', { emojiId });
+        return { success: true, id: emojiId };
+    };
+
+    // --- SOUNDBOARD HANDLERS ---
+    const defaultColonySounds = [
+        { id: 'def_airhorn', name: 'Airhorn', emoji: '🎺', volume: 0.8, soundType: 'airhorn' },
+        { id: 'def_quack', name: 'Quack', emoji: '🦆', volume: 0.7, soundType: 'quack' },
+        { id: 'def_tada', name: 'Tada 🎉', emoji: '🎉', volume: 0.8, soundType: 'tada' },
+        { id: 'def_bonk', name: 'Bonk', emoji: '💥', volume: 0.9, soundType: 'bonk' },
+        { id: 'def_ding', name: 'Bell Ding', emoji: '🔔', volume: 0.7, soundType: 'ding' },
+    ];
+
+    const getHubSoundsHandler = async (req) => {
+        await ensureTables();
+        const { hubId } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query('SELECT * FROM anticeil_community_server_sounds WHERE hub_id = $1 ORDER BY created_at ASC', [hubId]);
+                if (rows && rows.length > 0) {
+                    return rows.map(r => ({
+                        id: r.id,
+                        hubId: r.hub_id,
+                        name: r.name,
+                        emoji: r.emoji || '🔊',
+                        volume: Number(r.volume || 1.0),
+                        url: r.sound_url,
+                        soundType: r.sound_type || 'synthesized',
+                        createdAt: r.created_at
+                    }));
+                }
+            } catch (e) {}
+        }
+        if (memorySounds[hubId] && memorySounds[hubId].length > 0) return memorySounds[hubId];
+        return defaultColonySounds.map(s => ({ ...s, hubId }));
+    };
+
+    const createHubSoundHandler = async (req, reply) => {
+        await ensureTables();
+        const { hubId } = req.params;
+        const { name, emoji = '🔊', volume = 1.0, url, soundType = 'synthesized' } = req.body || {};
+        if (!name) return reply.status(400).send({ message: 'Nama suara wajib diisi' });
+
+        const id = `snd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const soundItem = {
+            id,
+            hubId,
+            name,
+            emoji,
+            volume: Number(volume || 1.0),
+            url: url || null,
+            soundType,
+            createdAt: new Date().toISOString()
+        };
+
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_community_server_sounds (id, hub_id, name, emoji, volume, sound_url, sound_type, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())',
+                    [id, hubId, name, emoji, volume, url || null, soundType]
+                );
+            } catch (e) {}
+        }
+        if (!memorySounds[hubId]) memorySounds[hubId] = [...defaultColonySounds.map(s => ({ ...s, hubId }))];
+        memorySounds[hubId].push(soundItem);
+        if (app.io) app.io.emit('COMMUNITY_SOUND_CREATED', { hubId, sound: soundItem });
+        return reply.status(201).send(soundItem);
+    };
+
+    const deleteHubSoundHandler = async (req) => {
+        await ensureTables();
+        const { soundId } = req.params;
+        const ds = await getDb();
+        if (ds && dbReady && soundId) {
+            try {
+                await ds.query('DELETE FROM anticeil_community_server_sounds WHERE id = $1', [soundId]);
+            } catch (e) {}
+        }
+        for (const hid of Object.keys(memorySounds)) {
+            memorySounds[hid] = memorySounds[hid].filter(s => s.id !== soundId);
+        }
+        if (app.io) app.io.emit('COMMUNITY_SOUND_DELETED', { soundId });
+        return { success: true, id: soundId };
+    };
+
+    const playHubSoundHandler = async (req) => {
+        const { soundId } = req.params;
+        const { hubId, channelId, name, emoji, url, soundType, volume } = req.body || {};
+        const payload = {
+            hubId: hubId || req.params.hubId,
+            channelId: channelId || null,
+            soundId,
+            name: name || 'Sound',
+            emoji: emoji || '🔊',
+            url: url || null,
+            soundType: soundType || (soundId.startsWith('def_') ? soundId.replace('def_', '') : 'synthesized'),
+            volume: volume !== undefined ? Number(volume) : 1.0,
+            triggeredBy: req.principal?.name || 'Member',
+            timestamp: Date.now()
+        };
+        if (app.io) {
+            app.io.emit('COMMUNITY_SOUNDBOARD_PLAYED', payload);
+        }
+        return { success: true, ...payload };
     };
 
     // --- GIF SEARCH & TRENDING HANDLER ---
@@ -3887,12 +4020,18 @@ async function setupCommunityApi(app) {
         // Members
         app.get(`${prefix}/members`, getMembersHandler);
 
-        // Hub Stickers & Emojis
+        // Hub Stickers, Emojis, & Sounds
         app.get(`${prefix}/hubs/:hubId/stickers`, getHubStickersHandler);
         app.post(`${prefix}/hubs/:hubId/stickers`, createHubStickerHandler);
         app.delete(`${prefix}/hubs/:hubId/stickers/:stickerId`, deleteHubStickerHandler);
         app.get(`${prefix}/hubs/:hubId/emojis`, getHubEmojisHandler);
         app.post(`${prefix}/hubs/:hubId/emojis`, createHubEmojiHandler);
+        app.delete(`${prefix}/hubs/:hubId/emojis/:emojiId`, deleteHubEmojiHandler);
+        app.get(`${prefix}/hubs/:hubId/sounds`, getHubSoundsHandler);
+        app.post(`${prefix}/hubs/:hubId/sounds`, createHubSoundHandler);
+        app.delete(`${prefix}/hubs/:hubId/sounds/:soundId`, deleteHubSoundHandler);
+        app.post(`${prefix}/hubs/:hubId/sounds/:soundId/play`, playHubSoundHandler);
+        app.post(`${prefix}/hubs/:hubId/soundboard/play`, playHubSoundHandler);
 
         // GIFs Live Search & Trending
         app.get(`${prefix}/gifs/search`, searchGifsHandler);
@@ -3952,6 +4091,12 @@ async function setupCommunityApi(app) {
         app.delete(`${prefix}/colonies/:hubId/stickers/:stickerId`, deleteHubStickerHandler);
         app.get(`${prefix}/colonies/:hubId/emojis`, getHubEmojisHandler);
         app.post(`${prefix}/colonies/:hubId/emojis`, createHubEmojiHandler);
+        app.delete(`${prefix}/colonies/:hubId/emojis/:emojiId`, deleteHubEmojiHandler);
+        app.get(`${prefix}/colonies/:hubId/sounds`, getHubSoundsHandler);
+        app.post(`${prefix}/colonies/:hubId/sounds`, createHubSoundHandler);
+        app.delete(`${prefix}/colonies/:hubId/sounds/:soundId`, deleteHubSoundHandler);
+        app.post(`${prefix}/colonies/:hubId/sounds/:soundId/play`, playHubSoundHandler);
+        app.post(`${prefix}/colonies/:hubId/soundboard/play`, playHubSoundHandler);
         app.put(`${prefix}/colonies/:hubId/members/:userId/role`, updateMemberRoleHandler);
         app.delete(`${prefix}/colonies/:hubId/members/:userId`, kickMemberHandler);
         app.get(`${prefix}/colonies/:hubId/roles`, getRolesHandler);
@@ -4379,6 +4524,17 @@ async function setupCommunityApi(app) {
     app.put('/v1/colonies/:hubId/roles/:roleId', updateRoleHandler);
     app.delete('/v1/colonies/:hubId/roles/:roleId', deleteRoleHandler);
     app.put('/v1/colonies/:hubId/members/:userId/role', updateMemberRoleHandler);
+    app.get('/v1/colonies/:hubId/emojis', getHubEmojisHandler);
+    app.post('/v1/colonies/:hubId/emojis', createHubEmojiHandler);
+    app.delete('/v1/colonies/:hubId/emojis/:emojiId', deleteHubEmojiHandler);
+    app.get('/v1/colonies/:hubId/stickers', getHubStickersHandler);
+    app.post('/v1/colonies/:hubId/stickers', createHubStickerHandler);
+    app.delete('/v1/colonies/:hubId/stickers/:stickerId', deleteHubStickerHandler);
+    app.get('/v1/colonies/:hubId/sounds', getHubSoundsHandler);
+    app.post('/v1/colonies/:hubId/sounds', createHubSoundHandler);
+    app.delete('/v1/colonies/:hubId/sounds/:soundId', deleteHubSoundHandler);
+    app.post('/v1/colonies/:hubId/sounds/:soundId/play', playHubSoundHandler);
+    app.post('/v1/colonies/:hubId/soundboard/play', playHubSoundHandler);
 
     // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
     const getSubscriptionHandler = async (req, reply) => {
