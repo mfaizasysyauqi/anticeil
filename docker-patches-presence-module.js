@@ -407,6 +407,7 @@ async function setupCommunityApi(app) {
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS platform_id VARCHAR(128);
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS onboarding TEXT DEFAULT '{}';
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS safety_settings TEXT DEFAULT '{}';
+                    ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS server_tag TEXT DEFAULT '{}';
 
                     CREATE TABLE IF NOT EXISTS anticeil_community_threads (
                         id VARCHAR(128) PRIMARY KEY,
@@ -2596,7 +2597,8 @@ async function setupCommunityApi(app) {
                         boostsCount: Number(r.boosts_count || 0),
                         boostTier: Number(r.boost_tier || 0),
                         onboarding: r.onboarding ? (typeof r.onboarding === 'string' ? JSON.parse(r.onboarding) : r.onboarding) : { enabled: false },
-                        safetySettings: r.safety_settings ? (typeof r.safety_settings === 'string' ? JSON.parse(r.safety_settings) : r.safety_settings) : undefined
+                        safetySettings: r.safety_settings ? (typeof r.safety_settings === 'string' ? JSON.parse(r.safety_settings) : r.safety_settings) : undefined,
+                        serverTag: r.server_tag ? (typeof r.server_tag === 'string' ? JSON.parse(r.server_tag) : r.server_tag) : undefined
                     }));
                 }
             } catch (e) {}
@@ -3021,7 +3023,7 @@ async function setupCommunityApi(app) {
         const ds = await getDb();
         const { id } = req.params;
         const platformId = await resolvePlatformId(req, ds);
-        const { name, description, color, icon, iconUrl, tags, emojis, boostsCount, boostTier, onboarding, safetySettings } = req.body || {};
+        const { name, description, color, icon, iconUrl, tags, emojis, boostsCount, boostTier, onboarding, safetySettings, serverTag } = req.body || {};
 
         if (ds && dbReady) {
             try {
@@ -3038,8 +3040,9 @@ async function setupCommunityApi(app) {
                         boost_tier = COALESCE($9, boost_tier),
                         onboarding = CASE WHEN $10::text IS NOT NULL THEN $10 ELSE onboarding END,
                         safety_settings = CASE WHEN $11::text IS NOT NULL THEN $11 ELSE safety_settings END,
+                        server_tag = CASE WHEN $12::text IS NOT NULL THEN $12 ELSE server_tag END,
                         updated_at = NOW()
-                     WHERE id = $12 AND (platform_id = $13 OR platform_id IS NULL)`,
+                     WHERE id = $13 AND (platform_id = $14 OR platform_id IS NULL)`,
                     [
                         name || null,
                         description !== undefined ? description : null,
@@ -3052,6 +3055,7 @@ async function setupCommunityApi(app) {
                         typeof boostTier === 'number' ? boostTier : null,
                         onboarding !== undefined ? (typeof onboarding === 'string' ? onboarding : JSON.stringify(onboarding)) : null,
                         safetySettings !== undefined ? (typeof safetySettings === 'string' ? safetySettings : JSON.stringify(safetySettings)) : null,
+                        serverTag !== undefined ? (typeof serverTag === 'string' ? serverTag : JSON.stringify(serverTag)) : null,
                         id,
                         platformId
                     ]
@@ -3071,10 +3075,11 @@ async function setupCommunityApi(app) {
             if (typeof boostTier === 'number') memoryHubs[idx].boostTier = boostTier;
             if (onboarding !== undefined) memoryHubs[idx].onboarding = onboarding;
             if (safetySettings !== undefined) memoryHubs[idx].safetySettings = safetySettings;
+            if (serverTag !== undefined) memoryHubs[idx].serverTag = serverTag;
         }
 
-        await recordAuditLog(ds, id, 'HUB_UPDATED', req.principal?.name || 'Admin', name || id, { name, tags, emojis, onboarding, safetySettings });
-        const updated = (idx >= 0 ? memoryHubs[idx] : { id, name, description, color, tags, emojis, boostsCount, boostTier, onboarding, safetySettings });
+        await recordAuditLog(ds, id, 'HUB_UPDATED', req.principal?.name || 'Admin', name || id, { name, tags, emojis, onboarding, safetySettings, serverTag });
+        const updated = (idx >= 0 ? memoryHubs[idx] : { id, name, description, color, tags, emojis, boostsCount, boostTier, onboarding, safetySettings, serverTag });
         if (app.io) app.io.emit('COMMUNITY_HUB_UPDATED', updated);
         return updated;
     };
@@ -3214,6 +3219,55 @@ async function setupCommunityApi(app) {
             app.io.emit('COMMUNITY_SAFETY_UPDATED', { hubId: targetHubId, safetySettings: safetyPayload });
         }
         return reply.send(safetyPayload);
+    };
+
+    const getHubTagHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query('SELECT server_tag FROM anticeil_community_hubs WHERE id = $1 LIMIT 1', [targetHubId]);
+                if (rows && rows.length > 0 && rows[0].server_tag) {
+                    const parsed = typeof rows[0].server_tag === 'string' ? JSON.parse(rows[0].server_tag) : rows[0].server_tag;
+                    return reply.send(parsed);
+                }
+            } catch (e) {}
+        }
+        return reply.send({ name: 'WUMP', badge: 'sword', color: '#14b8a6' });
+    };
+
+    const updateHubTagHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id, hubId, colonyId } = req.params;
+        const targetHubId = hubId || id || colonyId;
+        const tagPayload = req.body || {};
+
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    `UPDATE anticeil_community_hubs 
+                     SET server_tag = $1, updated_at = NOW() 
+                     WHERE id = $2`,
+                    [JSON.stringify(tagPayload), targetHubId]
+                );
+            } catch (e) {}
+        }
+
+        const idx = memoryHubs.findIndex(h => h.id === targetHubId);
+        if (idx >= 0) {
+            memoryHubs[idx].serverTag = tagPayload;
+        }
+
+        await recordAuditLog(ds, targetHubId, 'SERVER_TAG_UPDATED', req.principal?.name || 'Admin', targetHubId, tagPayload);
+        if (app.io) {
+            app.io.emit('COMMUNITY_TAG_UPDATED', { hubId: targetHubId, serverTag: tagPayload });
+            app.io.emit('COMMUNITY_HUB_UPDATED', { id: targetHubId, serverTag: tagPayload });
+        }
+        return reply.send({ success: true, serverTag: tagPayload });
     };
 
     const deleteHubHandler = async (req, reply) => {
@@ -5018,6 +5072,10 @@ async function setupCommunityApi(app) {
         app.put(`${prefix}/colonies/:hubId/safety`, updateHubSafetyHandler);
         app.get(`${prefix}/hubs/:hubId/safety`, getHubSafetyHandler);
         app.put(`${prefix}/hubs/:hubId/safety`, updateHubSafetyHandler);
+        app.get(`${prefix}/colonies/:hubId/tag`, getHubTagHandler);
+        app.put(`${prefix}/colonies/:hubId/tag`, updateHubTagHandler);
+        app.get(`${prefix}/hubs/:hubId/tag`, getHubTagHandler);
+        app.put(`${prefix}/hubs/:hubId/tag`, updateHubTagHandler);
         app.get(`${prefix}/colony-invitations`, getServerInvitationsHandler);
         app.post(`${prefix}/colonies/:hubId/invite-user`, inviteUserToHubHandler);
         app.post(`${prefix}/colony-invitations/:id/accept`, acceptServerInvitationHandler);
@@ -5480,6 +5538,10 @@ async function setupCommunityApi(app) {
     app.put('/v1/colonies/:hubId/safety', updateHubSafetyHandler);
     app.get('/v1/hubs/:hubId/safety', getHubSafetyHandler);
     app.put('/v1/hubs/:hubId/safety', updateHubSafetyHandler);
+    app.get('/v1/colonies/:hubId/tag', getHubTagHandler);
+    app.put('/v1/colonies/:hubId/tag', updateHubTagHandler);
+    app.get('/v1/hubs/:hubId/tag', getHubTagHandler);
+    app.put('/v1/hubs/:hubId/tag', updateHubTagHandler);
 
     // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
     const getSubscriptionHandler = async (req, reply) => {
