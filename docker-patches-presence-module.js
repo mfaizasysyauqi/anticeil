@@ -1617,8 +1617,23 @@ async function setupCommunityApi(app) {
             return reply.status(404).send({ message: 'Message not found' });
         }
 
-        if (app.io) {
+        if (updatedMsg) {
+            await recordAuditLog(
+                ds,
+                updatedMsg.channelId,
+                updatedMsg.isPinned ? 'MESSAGE_PINNED' : 'MESSAGE_UNPINNED',
+                userName,
+                updatedMsg.id,
+                { content: (updatedMsg.content || '').slice(0, 60) }
+            );
+        }
+
+        if (app.io && updatedMsg) {
             app.io.emit('COMMUNITY_MESSAGE_PINNED', updatedMsg);
+            if (!updatedMsg.isPinned) {
+                app.io.emit('COMMUNITY_MESSAGE_UNPINNED', updatedMsg);
+            }
+            app.io.emit('COMMUNITY_MESSAGE_UPDATED', updatedMsg);
         }
         return updatedMsg;
     };
@@ -4796,6 +4811,11 @@ async function setupCommunityApi(app) {
     app.get('/v1/hubs/:hubId/onboarding', getHubOnboardingHandler);
     app.put('/v1/hubs/:hubId/onboarding', updateHubOnboardingHandler);
     app.post('/v1/hubs/:hubId/onboarding/complete', completeHubOnboardingHandler);
+    app.get('/v1/channels/:channelId/pins', getPinsHandler);
+    app.post('/v1/channels/:channelId/pins', togglePinHandler);
+    app.post('/v1/channels/:channelId/pins/:messageId', togglePinHandler);
+    app.delete('/v1/channels/:channelId/pins/:messageId', togglePinHandler);
+    app.post('/v1/messages/:id/pin', togglePinHandler);
 
     // --- MIDTRANS BILLING & USER SUBSCRIPTION SYSTEM ---
     const getSubscriptionHandler = async (req, reply) => {
