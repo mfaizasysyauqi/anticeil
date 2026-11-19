@@ -6239,6 +6239,143 @@ async function setupCommunityApi(app) {
         return reply.send({ success: true, slot, itemId, profile: updatedProfile });
     };
 
+    // --- COLONY CATEGORIES HANDLERS ---
+    const getColonyCategoriesHandler = async (req, reply) => {
+        const query = req.query || {};
+        const colonyId = query.colonyId || 'global';
+        const raw = await kvGet(`colony_categories_${colonyId}`, []);
+        return reply.send(raw);
+    };
+    const createColonyCategoryHandler = async (req, reply) => {
+        const body = req.body || {};
+        const colonyId = body.colonyId || 'global';
+        const key = `colony_categories_${colonyId}`;
+        const current = await kvGet(key, []);
+        const updated = [body, ...current.filter(c => c.id !== body.id)];
+        await kvSet(key, updated);
+        return reply.send(body);
+    };
+    const updateColonyCategoryHandler = async (req, reply) => {
+        const { id } = req.params || {};
+        const body = req.body || {};
+        const colonyId = body.colonyId || 'global';
+        const key = `colony_categories_${colonyId}`;
+        const current = await kvGet(key, []);
+        const updated = current.map(c => c.id === id ? { ...c, ...body } : c);
+        await kvSet(key, updated);
+        return reply.send({ success: true, id });
+    };
+    const deleteColonyCategoryHandler = async (req, reply) => {
+        const { id } = req.params || {};
+        const query = req.query || {};
+        const colonyId = query.colonyId || 'global';
+        const key = `colony_categories_${colonyId}`;
+        const current = await kvGet(key, []);
+        await kvSet(key, current.filter(c => c.id !== id));
+        return reply.send({ success: true, id });
+    };
+
+    // --- COMMUNITY APPS HANDLERS ---
+    const getCommunityAppsHandler = async (req, reply) => {
+        const apps = await kvGet('community_apps', []);
+        return reply.send(apps);
+    };
+    const createCommunityAppHandler = async (req, reply) => {
+        const body = req.body || {};
+        const apps = await kvGet('community_apps', []);
+        const updated = [body, ...apps.filter(a => a.id !== body.id)];
+        await kvSet('community_apps', updated);
+        return reply.send(body);
+    };
+    const updateCommunityAppHandler = async (req, reply) => {
+        const { id } = req.params || {};
+        const body = req.body || {};
+        const apps = await kvGet('community_apps', []);
+        const updated = apps.map(a => a.id === id ? { ...a, ...body } : a);
+        await kvSet('community_apps', updated);
+        return reply.send({ success: true, id });
+    };
+    const deleteCommunityAppHandler = async (req, reply) => {
+        const { id } = req.params || {};
+        const apps = await kvGet('community_apps', []);
+        await kvSet('community_apps', apps.filter(a => a.id !== id));
+        return reply.send({ success: true, id });
+    };
+
+    // --- AI COMMAND CENTER SESSIONS HANDLERS ---
+    const getAiSessionsHandler = async (req, reply) => {
+        const userId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const sessions = await kvGet(`ai_sessions_${userId}`, []);
+        return reply.send(sessions);
+    };
+    const createAiSessionHandler = async (req, reply) => {
+        const userId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const body = req.body || {};
+        const key = `ai_sessions_${userId}`;
+        const sessions = await kvGet(key, []);
+        const updated = [body, ...sessions.filter(s => s.id !== body.id)];
+        await kvSet(key, updated);
+        return reply.send(body);
+    };
+    const updateAiSessionHandler = async (req, reply) => {
+        const userId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const { id } = req.params || {};
+        const body = req.body || {};
+        const key = `ai_sessions_${userId}`;
+        const sessions = await kvGet(key, []);
+        const updated = sessions.map(s => s.id === id ? { ...s, ...body } : s);
+        await kvSet(key, updated);
+        return reply.send({ success: true, id });
+    };
+    const updateAiSessionMessagesHandler = async (req, reply) => {
+        const userId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const { id } = req.params || {};
+        const body = req.body || {};
+        const key = `ai_sessions_${userId}`;
+        const sessions = await kvGet(key, []);
+        const updated = sessions.map(s => s.id === id ? { ...s, messages: body.messages || [] } : s);
+        await kvSet(key, updated);
+        return reply.send({ success: true, id });
+    };
+    const pinAiSessionHandler = async (req, reply) => {
+        const userId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const { id } = req.params || {};
+        const body = req.body || {};
+        const key = `ai_sessions_${userId}`;
+        const sessions = await kvGet(key, []);
+        const updated = sessions.map(s => s.id === id ? { ...s, isPinned: body.isPinned } : s);
+        await kvSet(key, updated);
+        return reply.send({ success: true, id });
+    };
+    const deleteAiSessionHandler = async (req, reply) => {
+        const userId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const { id } = req.params || {};
+        const key = `ai_sessions_${userId}`;
+        const sessions = await kvGet(key, []);
+        await kvSet(key, sessions.filter(s => s.id !== id));
+        return reply.send({ success: true, id });
+    };
+    const deleteAiSessionMessagesHandler = async (req, reply) => {
+        const userId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const { id } = req.params || {};
+        const key = `ai_sessions_${userId}`;
+        const sessions = await kvGet(key, []);
+        const updated = sessions.map(s => s.id === id ? { ...s, messages: [] } : s);
+        await kvSet(key, updated);
+        return reply.send({ success: true, id });
+    };
+
+    // --- GAMIFICATION QUESTS HANDLERS ---
+    const getQuestsHandler = async (req, reply) => {
+        const list = await kvGet('community_quests_list', []);
+        return reply.send(list);
+    };
+    const getClaimedQuestsHandler = async (req, reply) => {
+        const userId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const list = await kvGet(`community_quests_claimed_${userId}`, []);
+        return reply.send(list);
+    };
+
     // --- REGISTER ROUTE ALIASES (Supports /v1/community/*, /v1/messages/*, and /v1/colony/*) ---
     const routePrefixes = ['/v1/community', '/v1/messages', '/v1/colony', '/api/v1/community', '/api/v1/messages', '/api/v1/colony'];
     for (const prefix of routePrefixes) {
@@ -6492,6 +6629,51 @@ async function setupCommunityApi(app) {
         app.get(`${prefix}/shop/wishlist`, getShopWishlistHandler);
         app.post(`${prefix}/shop/wishlist/:itemId`, toggleShopWishlistHandler);
         app.post(`${prefix}/shop/equip`, equipShopItemHandler);
+
+        // Colony Categories
+        app.get(`${prefix}/colony/categories`, getColonyCategoriesHandler);
+        app.post(`${prefix}/colony/categories`, createColonyCategoryHandler);
+        app.put(`${prefix}/colony/categories/:id`, updateColonyCategoryHandler);
+        app.delete(`${prefix}/colony/categories/:id`, deleteColonyCategoryHandler);
+        app.get(`${prefix}/categories`, getColonyCategoriesHandler);
+        app.post(`${prefix}/categories`, createColonyCategoryHandler);
+        app.put(`${prefix}/categories/:id`, updateColonyCategoryHandler);
+        app.delete(`${prefix}/categories/:id`, deleteColonyCategoryHandler);
+
+        // Community Apps
+        app.get(`${prefix}/apps`, getCommunityAppsHandler);
+        app.post(`${prefix}/apps`, createCommunityAppHandler);
+        app.put(`${prefix}/apps/:id`, updateCommunityAppHandler);
+        app.delete(`${prefix}/apps/:id`, deleteCommunityAppHandler);
+
+        // Quests
+        app.get(`${prefix}/quests`, getQuestsHandler);
+        app.get(`${prefix}/quests/claimed`, getClaimedQuestsHandler);
+    }
+
+    // Direct Global Route Aliases for AI Command Center, Colony Categories, and Apps
+    const directPrefixes = ['', '/api'];
+    for (const dp of directPrefixes) {
+        app.get(`${dp}/v1/colony/categories`, getColonyCategoriesHandler);
+        app.post(`${dp}/v1/colony/categories`, createColonyCategoryHandler);
+        app.put(`${dp}/v1/colony/categories/:id`, updateColonyCategoryHandler);
+        app.delete(`${dp}/v1/colony/categories/:id`, deleteColonyCategoryHandler);
+
+        app.get(`${dp}/v1/community/apps`, getCommunityAppsHandler);
+        app.post(`${dp}/v1/community/apps`, createCommunityAppHandler);
+        app.put(`${dp}/v1/community/apps/:id`, updateCommunityAppHandler);
+        app.delete(`${dp}/v1/community/apps/:id`, deleteCommunityAppHandler);
+
+        app.get(`${dp}/v1/ai-command-center/sessions`, getAiSessionsHandler);
+        app.post(`${dp}/v1/ai-command-center/sessions`, createAiSessionHandler);
+        app.patch(`${dp}/v1/ai-command-center/sessions/:id`, updateAiSessionHandler);
+        app.put(`${dp}/v1/ai-command-center/sessions/:id/messages`, updateAiSessionMessagesHandler);
+        app.patch(`${dp}/v1/ai-command-center/sessions/:id/pin`, pinAiSessionHandler);
+        app.delete(`${dp}/v1/ai-command-center/sessions/:id`, deleteAiSessionHandler);
+        app.delete(`${dp}/v1/ai-command-center/sessions/:id/messages`, deleteAiSessionMessagesHandler);
+
+        app.get(`${dp}/v1/community/quests`, getQuestsHandler);
+        app.get(`${dp}/v1/community/quests/claimed`, getClaimedQuestsHandler);
     }
 
     // --- USER PROFILE (Discord-style Edit Profile Customization) ---
