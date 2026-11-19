@@ -1,9 +1,10 @@
 import { ActivepiecesError, ApId, ApMultipartFile, ErrorCode, isNil } from '@activepieces/core-utils'
-import { AP_MAXIMUM_PROFILE_PICTURE_SIZE, FileType, PrincipalType, PROFILE_PICTURE_ALLOWED_TYPES, SERVICE_KEY_SECURITY_OPENAPI, UpdateMeResponse, UpdateUsernameRequest, UserWithMetaInformation } from '@activepieces/shared'
+import { AP_MAXIMUM_PROFILE_PICTURE_SIZE, FileType, PrincipalType, PROFILE_PICTURE_ALLOWED_TYPES, SERVICE_KEY_SECURITY_OPENAPI, UpdateMeResponse, UpdateUsernameRequest, UserWithMetaInformation, UserStatus } from '@activepieces/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
-import { userIdentityService } from '../authentication/user-identity/user-identity-service'
+import { userIdentityService, userIdentityRepository } from '../authentication/user-identity/user-identity-service'
+import { passwordHasher } from '../authentication/lib/password-hasher'
 import { securityAccess } from '../core/security/authorization/fastify-security'
 import { fileService } from '../file/file.service'
 import { userService } from '../user/user-service'
@@ -131,6 +132,105 @@ export const usersController: FastifyPluginAsyncZod = async (app) => {
         }
     })
 
+    app.patch('/me/email', UpdateEmailRequestOptions, async (req) => {
+        const userId = req.principal.id
+        const user = await userService(req.log).getOrThrow({ id: userId })
+        const identityId = user.identityId
+
+        const identity = await userIdentityService(app.log).getOneOrFail({ id: identityId })
+        if (req.body.password && identity.password) {
+            const matches = await passwordHasher.compare(req.body.password, identity.password)
+            if (!matches) {
+                throw new ActivepiecesError({
+                    code: ErrorCode.INVALID_CREDENTIALS,
+                    params: null,
+                })
+            }
+        }
+
+        const cleanedEmail = req.body.email.toLowerCase().trim()
+        const existing = await userIdentityRepository().findOne({ where: { email: cleanedEmail } })
+        if (existing && existing.id !== identityId) {
+            throw new ActivepiecesError({
+                code: ErrorCode.EXISTING_USER,
+                params: {
+                    email: cleanedEmail,
+                    platformId: null,
+                },
+            })
+        }
+
+        await userIdentityRepository().update(identityId, { email: cleanedEmail })
+        const basic = await userIdentityService(app.log).getBasicInformation(identityId)
+        return {
+            email: basic.email,
+            firstName: basic.firstName,
+            lastName: basic.lastName,
+            trackEvents: basic.trackEvents,
+            newsLetter: basic.newsLetter,
+            imageUrl: basic.imageUrl,
+            username: basic.username,
+            usernameUpdatedAt: basic.usernameUpdatedAt,
+        }
+    })
+
+    app.post('/me/password', ChangePasswordRequestOptions, async (req) => {
+        const userId = req.principal.id
+        const user = await userService(req.log).getOrThrow({ id: userId })
+        const identityId = user.identityId
+
+        const identity = await userIdentityService(app.log).getOneOrFail({ id: identityId })
+        if (identity.password && req.body.oldPassword) {
+            const matches = await passwordHasher.compare(req.body.oldPassword, identity.password)
+            if (!matches) {
+                throw new ActivepiecesError({
+                    code: ErrorCode.INVALID_CREDENTIALS,
+                    params: null,
+                })
+            }
+        }
+
+        await userIdentityService(app.log).updatePassword({
+            id: identityId,
+            newPassword: req.body.newPassword,
+        })
+
+        return { success: true }
+    })
+
+    app.post('/me/disable', DisableAccountRequestOptions, async (req) => {
+        const userId = req.principal.id
+        const platformId = req.principal.platform.id
+        await userService(req.log).update({
+            id: userId,
+            status: UserStatus.INACTIVE,
+            platformId,
+        })
+        return { success: true }
+    })
+
+    app.delete('/me', DeleteAccountRequestOptions, async (req) => {
+        const userId = req.principal.id
+        const platformId = req.principal.platform.id
+        const user = await userService(req.log).getOrThrow({ id: userId })
+
+        if (req.body?.password) {
+            const identity = await userIdentityService(app.log).getOneOrFail({ id: user.identityId })
+            if (identity.password) {
+                const matches = await passwordHasher.compare(req.body.password, identity.password)
+                if (!matches) {
+                    throw new ActivepiecesError({
+                        code: ErrorCode.INVALID_CREDENTIALS,
+                        params: null,
+                    })
+                }
+            }
+        }
+
+        await userService(req.log).delete({ id: userId, platformId })
+        return { success: true }
+    })
+
 }
 
 const nameUpdateRateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -231,6 +331,67 @@ const UpdateUsernameRequestOptions = {
         body: UpdateUsernameRequest,
         response: {
             [StatusCodes.OK]: UpdateMeResponse,
+        },
+    },
+}
+
+const UpdateEmailRequestOptions = {
+    config: {
+        security: securityAccess.publicPlatform([PrincipalType.USER]),
+    },
+    schema: {
+        body: z.object({
+            email: z.string().email(),
+            password: z.string().optional(),
+        }),
+        response: {
+            [StatusCodes.OK]: UpdateMeResponse,
+        },
+    },
+}
+
+const ChangePasswordRequestOptions = {
+    config: {
+        security: securityAccess.publicPlatform([PrincipalType.USER]),
+    },
+    schema: {
+        body: z.object({
+            oldPassword: z.string().optional(),
+            newPassword: z.string().min(6),
+        }),
+        response: {
+            [StatusCodes.OK]: z.object({
+                success: z.boolean(),
+            }),
+        },
+    },
+}
+
+const DisableAccountRequestOptions = {
+    config: {
+        security: securityAccess.publicPlatform([PrincipalType.USER]),
+    },
+    schema: {
+        response: {
+            [StatusCodes.OK]: z.object({
+                success: z.boolean(),
+            }),
+        },
+    },
+}
+
+const DeleteAccountRequestOptions = {
+    config: {
+        security: securityAccess.publicPlatform([PrincipalType.USER]),
+    },
+    schema: {
+        body: z.object({
+            password: z.string().optional(),
+        }).optional(),
+        response: {
+            [StatusCodes.OK]: z.object({
+                success: z.boolean(),
+            }),
         },
     },
 }
