@@ -16,7 +16,7 @@ export default defineConfig({
     hookTimeout: 120000,
     pool: 'forks',
     setupFiles: [path.resolve(__dirname, 'vitest.setup.ts')],
-    include: [path.resolve(__dirname, 'test/**/*.test.ts')],
+    include: [path.resolve(__dirname, 'test/**/*.test.ts').replace(/\\/g, '/')],
   },
   resolve: {
     alias: {
