@@ -382,82 +382,116 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     return { success: true };
   });
 
-  // ── Colony Discovery & Public Community Endpoints ──
-  const DEFAULT_DISCOVER_COLONIES = [
-    {
-      id: 'hub_agl',
-      name: 'Anticeil Gaming Lounge',
-      description: 'Komunitas gaming santai, mabar Valorant, Genshin, Apex, dan Neverness to Everness.',
-      initials: 'AGL',
-      iconType: 'initials',
-      color: 'bg-indigo-600',
-      verified: true,
-      boostTier: 2,
-      tags: ['gaming', 'mabar', 'esports'],
-      category: 'gaming',
-      onlineCount: 42,
-      membersCount: 148,
-      inviteCode: 'hub_agl',
-    },
-    {
-      id: 'hub_tech',
-      name: 'Developer & Tech Guild',
-      description: 'Pusat diskusi Fullstack, React, TypeScript, Rust, AI coding agent, dan Cloudflare Workers.',
-      initials: 'D&T',
-      iconType: 'initials',
-      color: 'bg-blue-600',
-      verified: true,
-      boostTier: 1,
-      tags: ['tech', 'coding', 'webdev'],
-      category: 'tech',
-      onlineCount: 68,
-      membersCount: 230,
-      inviteCode: 'hub_tech',
-    },
-    {
-      id: 'hub_lofi',
-      name: 'Lo-Fi & Music Jam',
-      description: 'Ruang santai mendengarkan musik, voice jam, soundboard custom, dan diskusi audio synth.',
-      initials: 'LF&',
-      iconType: 'initials',
-      color: 'bg-purple-600',
-      verified: false,
-      tags: ['music', 'lofi', 'chill'],
-      category: 'music',
-      onlineCount: 19,
-      membersCount: 89,
-      inviteCode: 'hub_lofi',
-    },
-    {
-      id: 'hub_edu',
-      name: 'Anticeil Academic & Research Hub',
-      description: 'Forum pertukaran ide riset sains, paper diskusi, matematika, algoritma, dan bimbingan belajar.',
-      initials: 'EDU',
-      iconType: 'initials',
-      color: 'bg-amber-600',
-      verified: true,
-      tags: ['education', 'science', 'research'],
-      category: 'education',
-      onlineCount: 31,
-      membersCount: 112,
-      inviteCode: 'hub_edu',
-    },
-    {
-      id: 'hub_hangout',
-      name: 'Nusantara Hangout Cafe',
-      description: 'Komunitas santai ngobrol seru, sharing hobi, kuliner, fotografi, dan hangout antar teman.',
-      initials: 'NHC',
-      iconType: 'initials',
-      color: 'bg-emerald-600',
-      verified: false,
-      tags: ['community', 'hangout', 'lifestyle'],
-      category: 'community',
-      onlineCount: 54,
-      membersCount: 310,
-      inviteCode: 'hub_hangout',
-    },
-  ];
+  // ── Colony Management & Discovery Endpoints ──
+  app.get('/colony/colonies', {
+    config: { security: securityAccess.public() },
+  }, async () => {
+    return communityService.get<any[]>('community_colonies', []);
+  });
 
+  app.post('/colony/colonies', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const list = await communityService.get<any[]>('community_colonies', []);
+    const body = (req.body as any) || {};
+    const isPublic = body.isPublic !== undefined ? Boolean(body.isPublic) : (body.visibility === 'public');
+    const newColony = {
+      id: body.id || `hub_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name: body.name || 'Colony Baru',
+      description: body.description || '',
+      color: body.color || 'bg-indigo-600',
+      iconUrl: body.iconUrl || undefined,
+      initials: body.initials || (body.name ? body.name.slice(0, 3).toUpperCase() : 'CLN'),
+      inviteCode: body.inviteCode || Math.random().toString(36).slice(2, 8).toUpperCase(),
+      membersCount: body.membersCount || 1,
+      onlineCount: body.onlineCount || 1,
+      role: body.role || 'owner',
+      tags: body.tags || ['komunitas'],
+      category: body.category || 'community',
+      isPublic,
+      visibility: isPublic ? 'public' : 'private',
+      accessSettings: body.accessSettings || {
+        joinMethod: isPublic ? 'discoverable' : 'invite_only',
+      },
+      ...body,
+    };
+    const updated = [...list.filter((c) => c.id !== newColony.id), newColony];
+    await communityService.set('community_colonies', updated);
+    return newColony;
+  });
+
+  app.put('/colony/colonies/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = req.params as { id: string };
+    const list = await communityService.get<any[]>('community_colonies', []);
+    const body = (req.body as any) || {};
+    const updated = list.map((c) => {
+      if (c.id === id) {
+        const isPublic = body.isPublic !== undefined
+          ? Boolean(body.isPublic)
+          : (body.visibility !== undefined ? body.visibility === 'public' : c.isPublic);
+        return {
+          ...c,
+          ...body,
+          isPublic,
+          visibility: isPublic ? 'public' : 'private',
+        };
+      }
+      return c;
+    });
+    await communityService.set('community_colonies', updated);
+    const saved = updated.find((c) => c.id === id);
+    return saved || { id, ...body };
+  });
+
+  app.delete('/colony/colonies/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = req.params as { id: string };
+    const list = await communityService.get<any[]>('community_colonies', []);
+    const updated = list.filter((c) => c.id !== id);
+    await communityService.set('community_colonies', updated);
+    return { success: true };
+  });
+
+  app.put('/colony/colonies/:id/access', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = req.params as { id: string };
+    const list = await communityService.get<any[]>('community_colonies', []);
+    const accessSettings = (req.body as any) || {};
+    const isPublic = accessSettings.joinMethod === 'discoverable';
+    const updated = list.map((c) => (c.id === id ? {
+      ...c,
+      accessSettings,
+      isPublic,
+      visibility: isPublic ? 'public' : 'private',
+    } : c));
+    await communityService.set('community_colonies', updated);
+    return { success: true, accessSettings };
+  });
+
+  app.post('/colony/colonies/:id/boost', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = req.params as { id: string };
+    const list = await communityService.get<any[]>('community_colonies', []);
+    let updatedColony: any = null;
+    const updated = list.map((c) => {
+      if (c.id === id) {
+        const boostsCount = (c.boostsCount || 0) + 1;
+        const boostTier = boostsCount >= 10 ? 3 : boostsCount >= 5 ? 2 : boostsCount >= 2 ? 1 : 0;
+        updatedColony = { ...c, boostsCount, boostTier };
+        return updatedColony;
+      }
+      return c;
+    });
+    await communityService.set('community_colonies', updated);
+    return updatedColony || { success: true, boostsCount: 1, boostTier: 0 };
+  });
+
+  // Discovery Endpoint: returns ONLY public/discoverable colonies from real database
   app.get('/colony/colonies/discover', {
     config: { security: securityAccess.public() },
   }, async (req) => {
@@ -465,35 +499,50 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     const q = (query.q || '').toLowerCase().trim();
     const cat = (query.category || '').toLowerCase().trim();
 
-    const stored = await communityService.get<any[]>('community_discover_colonies', DEFAULT_DISCOVER_COLONIES);
-    let result = stored;
+    // Fetch real colonies stored in the database
+    const stored = await communityService.get<any[]>('community_colonies', []);
+
+    // Filter strictly for PUBLIC colonies only:
+    // - Exclude home/DM hub
+    // - Exclude private colonies (isPublic === false, visibility === 'private', or joinMethod === 'invite_only')
+    // - Include only explicit public/discoverable colonies
+    let publicOnly = stored.filter((c) => {
+      if (c.id === 'anticeil' || c.id === 'direct-messages') return false;
+      const isExplicitPrivate = c.isPublic === false || c.visibility === 'private' || c.accessSettings?.joinMethod === 'invite_only';
+      if (isExplicitPrivate) return false;
+      const isExplicitPublic = c.isPublic === true || c.visibility === 'public' || c.accessSettings?.joinMethod === 'discoverable';
+      return isExplicitPublic;
+    });
+
     if (cat && cat !== 'all') {
-      result = result.filter((c) => {
+      publicOnly = publicOnly.filter((c) => {
         const matchesCategory = c.category && c.category.toLowerCase() === cat;
-        const matchesTag = c.tags && c.tags.some((t: string) => t.toLowerCase().includes(cat));
+        const matchesTag = c.tags && Array.isArray(c.tags) && c.tags.some((t: string) => t.toLowerCase().includes(cat));
         return matchesCategory || matchesTag;
       });
     }
+
     if (q) {
-      result = result.filter((c) => {
+      publicOnly = publicOnly.filter((c) => {
         const matchName = c.name && c.name.toLowerCase().includes(q);
         const matchDesc = c.description && c.description.toLowerCase().includes(q);
-        const matchTag = c.tags && c.tags.some((t: string) => t.toLowerCase().includes(q));
+        const matchTag = c.tags && Array.isArray(c.tags) && c.tags.some((t: string) => t.toLowerCase().includes(q));
         return matchName || matchDesc || matchTag;
       });
     }
-    return result;
+
+    return publicOnly;
   });
 
   app.post('/colony/colonies/join', {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const { colonyId, inviteCode } = (req.body as any) || {};
-    const stored = await communityService.get<any[]>('community_discover_colonies', DEFAULT_DISCOVER_COLONIES);
+    const stored = await communityService.get<any[]>('community_colonies', []);
     const target = stored.find((c) => c.id === colonyId || (inviteCode && (c.inviteCode === inviteCode || c.id === inviteCode)));
     if (target) {
-      target.membersCount = (target.membersCount || 10) + 1;
-      await communityService.set('community_discover_colonies', stored);
+      target.membersCount = (target.membersCount || 1) + 1;
+      await communityService.set('community_colonies', stored);
       return { success: true, colony: target };
     }
     return { success: true, colony: { id: colonyId || inviteCode, name: 'Colony Komunitas', role: 'member' } };
