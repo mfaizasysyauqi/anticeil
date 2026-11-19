@@ -381,4 +381,121 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     await communityService.set('community_apps', list.filter((a) => a.id !== id));
     return { success: true };
   });
+
+  // ── Colony Discovery & Public Community Endpoints ──
+  const DEFAULT_DISCOVER_COLONIES = [
+    {
+      id: 'hub_agl',
+      name: 'Anticeil Gaming Lounge',
+      description: 'Komunitas gaming santai, mabar Valorant, Genshin, Apex, dan Neverness to Everness.',
+      initials: 'AGL',
+      iconType: 'initials',
+      color: 'bg-indigo-600',
+      verified: true,
+      boostTier: 2,
+      tags: ['gaming', 'mabar', 'esports'],
+      category: 'gaming',
+      onlineCount: 42,
+      membersCount: 148,
+      inviteCode: 'hub_agl',
+    },
+    {
+      id: 'hub_tech',
+      name: 'Developer & Tech Guild',
+      description: 'Pusat diskusi Fullstack, React, TypeScript, Rust, AI coding agent, dan Cloudflare Workers.',
+      initials: 'D&T',
+      iconType: 'initials',
+      color: 'bg-blue-600',
+      verified: true,
+      boostTier: 1,
+      tags: ['tech', 'coding', 'webdev'],
+      category: 'tech',
+      onlineCount: 68,
+      membersCount: 230,
+      inviteCode: 'hub_tech',
+    },
+    {
+      id: 'hub_lofi',
+      name: 'Lo-Fi & Music Jam',
+      description: 'Ruang santai mendengarkan musik, voice jam, soundboard custom, dan diskusi audio synth.',
+      initials: 'LF&',
+      iconType: 'initials',
+      color: 'bg-purple-600',
+      verified: false,
+      tags: ['music', 'lofi', 'chill'],
+      category: 'music',
+      onlineCount: 19,
+      membersCount: 89,
+      inviteCode: 'hub_lofi',
+    },
+    {
+      id: 'hub_edu',
+      name: 'Anticeil Academic & Research Hub',
+      description: 'Forum pertukaran ide riset sains, paper diskusi, matematika, algoritma, dan bimbingan belajar.',
+      initials: 'EDU',
+      iconType: 'initials',
+      color: 'bg-amber-600',
+      verified: true,
+      tags: ['education', 'science', 'research'],
+      category: 'education',
+      onlineCount: 31,
+      membersCount: 112,
+      inviteCode: 'hub_edu',
+    },
+    {
+      id: 'hub_hangout',
+      name: 'Nusantara Hangout Cafe',
+      description: 'Komunitas santai ngobrol seru, sharing hobi, kuliner, fotografi, dan hangout antar teman.',
+      initials: 'NHC',
+      iconType: 'initials',
+      color: 'bg-emerald-600',
+      verified: false,
+      tags: ['community', 'hangout', 'lifestyle'],
+      category: 'community',
+      onlineCount: 54,
+      membersCount: 310,
+      inviteCode: 'hub_hangout',
+    },
+  ];
+
+  app.get('/colony/colonies/discover', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const query = (req.query as any) || {};
+    const q = (query.q || '').toLowerCase().trim();
+    const cat = (query.category || '').toLowerCase().trim();
+
+    const stored = await communityService.get<any[]>('community_discover_colonies', DEFAULT_DISCOVER_COLONIES);
+    let result = stored;
+    if (cat && cat !== 'all') {
+      result = result.filter((c) => {
+        const matchesCategory = c.category && c.category.toLowerCase() === cat;
+        const matchesTag = c.tags && c.tags.some((t: string) => t.toLowerCase().includes(cat));
+        return matchesCategory || matchesTag;
+      });
+    }
+    if (q) {
+      result = result.filter((c) => {
+        const matchName = c.name && c.name.toLowerCase().includes(q);
+        const matchDesc = c.description && c.description.toLowerCase().includes(q);
+        const matchTag = c.tags && c.tags.some((t: string) => t.toLowerCase().includes(q));
+        return matchName || matchDesc || matchTag;
+      });
+    }
+    return result;
+  });
+
+  app.post('/colony/colonies/join', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId, inviteCode } = (req.body as any) || {};
+    const stored = await communityService.get<any[]>('community_discover_colonies', DEFAULT_DISCOVER_COLONIES);
+    const target = stored.find((c) => c.id === colonyId || (inviteCode && (c.inviteCode === inviteCode || c.id === inviteCode)));
+    if (target) {
+      target.membersCount = (target.membersCount || 10) + 1;
+      await communityService.set('community_discover_colonies', stored);
+      return { success: true, colony: target };
+    }
+    return { success: true, colony: { id: colonyId || inviteCode, name: 'Colony Komunitas', role: 'member' } };
+  });
 };
