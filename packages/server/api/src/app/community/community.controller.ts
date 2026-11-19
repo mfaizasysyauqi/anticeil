@@ -191,16 +191,9 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
   app.get('/billing/payment-methods', {
     config: { security: securityAccess.public() },
   }, async () => {
-    return communityService.get('billing_payment_methods', [
-      {
-        id: 'pm-qris',
-        name: 'QRIS / GoPay (Midtrans)',
-        type: 'e-wallet',
-        details: 'Instant QRIS & GoPay Auto-Debit',
-        isDefault: true,
-        createdAt: new Date().toISOString(),
-      },
-    ]);
+    const list = await communityService.get<any[]>('billing_payment_methods', []);
+    const clean = Array.isArray(list) ? list.filter((p) => p && p.id !== 'pm-qris') : [];
+    return clean;
   });
 
   app.post('/billing/payment-methods', {
@@ -208,7 +201,8 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
   }, async (req) => {
     const list = await communityService.get<any[]>('billing_payment_methods', []);
     const newPm = { ...(req.body as any), id: `pm_${Date.now()}` };
-    const updated = [newPm, ...list];
+    const clean = Array.isArray(list) ? list.filter((p) => p && p.id !== 'pm-qris') : [];
+    const updated = [newPm, ...clean];
     await communityService.set('billing_payment_methods', updated);
     return newPm;
   });
@@ -225,17 +219,9 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
   app.get('/billing/transactions', {
     config: { security: securityAccess.public() },
   }, async () => {
-    return communityService.get('billing_transactions', [
-      {
-        id: 'trx_init_01',
-        description: 'Nectar Pass Monthly Subscription',
-        amount: 149000,
-        currency: 'IDR',
-        status: 'settlement',
-        date: new Date().toISOString(),
-        paymentMethod: 'GoPay / QRIS',
-      },
-    ]);
+    const list = await communityService.get<any[]>('billing_transactions', []);
+    const clean = Array.isArray(list) ? list.filter((t) => t && t.id !== 'trx_init_01') : [];
+    return clean;
   });
 
   app.get('/billing/subscriptions', {
