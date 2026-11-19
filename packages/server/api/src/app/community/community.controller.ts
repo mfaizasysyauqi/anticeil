@@ -1200,4 +1200,267 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     await communityService.set(profileKey, updatedProfile);
     return { success: true, slot, itemId, profile: updatedProfile };
   });
+
+  // ── 7. Gamification Quests System (F2P Dew Economy) ──
+  const INITIAL_QUESTS = [
+    {
+      id: 'quest_watch_together',
+      title: 'YouTube Watch Party Explorer',
+      subtitle: 'Tonton video YouTube bersama kawan di Voice Channel selama 10 menit.',
+      category: 'activity',
+      promoter: 'Anticeil Activities',
+      coverUrl: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800&auto=format&fit=crop&q=80',
+      badge: 'Unggulan',
+      rewardDew: 300,
+      rewardIcon: '💧',
+      target: 10,
+      unit: 'menit',
+      actionLabel: 'Mulai Menonton',
+      appId: 'youtube-watch',
+      endsAt: '2026-12-31T23:59:59Z',
+    },
+    {
+      id: 'quest_chess_master',
+      title: 'Anticeil Chess PvP / AI Challenge',
+      subtitle: 'Mainkan minimal 1 pertandingan catur multiplayer atau tantang Bot AI.',
+      category: 'game',
+      promoter: 'Anticeil Games',
+      coverUrl: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?w=800&auto=format&fit=crop&q=80',
+      badge: 'Game Baru',
+      rewardDew: 250,
+      rewardIcon: '💧',
+      target: 1,
+      unit: 'ronde',
+      actionLabel: 'Main Catur',
+      appId: 'chess',
+      endsAt: '2026-12-31T23:59:59Z',
+    },
+    {
+      id: 'quest_active_chat',
+      title: 'Active Community Messenger',
+      subtitle: 'Kirimkan minimal 5 pesan di saluran teks Colony atau pesan langsung.',
+      category: 'social',
+      promoter: 'Anticeil Community',
+      coverUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+      badge: 'Harian',
+      rewardDew: 200,
+      rewardIcon: '💧',
+      target: 5,
+      unit: 'pesan',
+      actionLabel: 'Mulai Chat',
+      appId: 'chat',
+      endsAt: '2026-12-31T23:59:59Z',
+    },
+    {
+      id: 'quest_wordle_party',
+      title: 'Wordle Daily Streak',
+      subtitle: 'Tebak kata harian bersama kawan di aktivitas Wordle Daily Party.',
+      category: 'game',
+      promoter: 'Anticeil Games',
+      coverUrl: 'https://images.unsplash.com/photo-1546776310-eef45dd6d63c?w=800&auto=format&fit=crop&q=80',
+      badge: 'Teka-Teki',
+      rewardDew: 150,
+      rewardIcon: '💧',
+      target: 1,
+      unit: 'kata',
+      actionLabel: 'Tebak Kata',
+      appId: 'wordle',
+      endsAt: '2026-12-31T23:59:59Z',
+    },
+    {
+      id: 'quest_trivia_clash',
+      title: 'Cyber Trivia Battle Clash',
+      subtitle: 'Jawab kuis sains dan teknologi di aktivitas Cyber Trivia Battle.',
+      category: 'game',
+      promoter: 'Anticeil Games',
+      coverUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=800&auto=format&fit=crop&q=80',
+      badge: 'Populer',
+      rewardDew: 200,
+      rewardIcon: '💧',
+      target: 3,
+      unit: 'soal',
+      actionLabel: 'Main Trivia',
+      appId: 'trivia',
+      endsAt: '2026-12-31T23:59:59Z',
+    },
+    {
+      id: 'quest_profile_styler',
+      title: 'Profil Estetik Eksklusif',
+      subtitle: 'Pasang bingkai avatar animasi atau efek profil di pengaturan akun Anda.',
+      category: 'profile',
+      promoter: 'Anticeil Studio',
+      coverUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop&q=80',
+      badge: 'Estetik',
+      rewardDew: 100,
+      rewardIcon: '💧',
+      target: 1,
+      unit: 'profil',
+      actionLabel: 'Buka Profil',
+      appId: 'profile',
+      endsAt: '2026-12-31T23:59:59Z',
+    },
+  ];
+
+  app.get('/community/quests', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const userQuestsState = await communityService.get<Record<string, any>>(`community_quests_user_${userId}`, {});
+
+    const quests = INITIAL_QUESTS.map((q) => {
+      const state = userQuestsState[q.id] || {};
+      const status = state.status || 'available';
+      const progress = state.progress || 0;
+      return {
+        ...q,
+        status, // 'available' | 'in_progress' | 'completed' | 'claimed'
+        progress,
+        acceptedAt: state.acceptedAt || null,
+        claimedAt: state.claimedAt || null,
+      };
+    });
+
+    return quests;
+  });
+
+  app.post('/community/quests/accept', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { questId } = (req.body as any) || {};
+
+    const target = INITIAL_QUESTS.find((q) => q.id === questId);
+    if (!target) {
+      return { success: false, message: 'Quest tidak ditemukan.' };
+    }
+
+    const stateKey = `community_quests_user_${userId}`;
+    const userQuestsState = await communityService.get<Record<string, any>>(stateKey, {});
+    const existing = userQuestsState[questId] || {};
+
+    if (existing.status === 'claimed') {
+      return { success: false, message: 'Quest ini sudah Anda klaim sebelumnya.' };
+    }
+
+    userQuestsState[questId] = {
+      ...existing,
+      status: existing.status === 'completed' ? 'completed' : 'in_progress',
+      progress: existing.progress || 0,
+      acceptedAt: existing.acceptedAt || new Date().toISOString(),
+    };
+
+    await communityService.set(stateKey, userQuestsState);
+    return {
+      success: true,
+      message: `Quest "${target.title}" berhasil diterima! Selesaikan untuk mendapatkan ${target.rewardDew} Dew. 🎯`,
+      quest: { ...target, ...userQuestsState[questId] },
+    };
+  });
+
+  app.post('/community/quests/progress', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { questId, amount = 1 } = (req.body as any) || {};
+
+    const target = INITIAL_QUESTS.find((q) => q.id === questId);
+    if (!target) {
+      return { success: false, message: 'Quest tidak ditemukan.' };
+    }
+
+    const stateKey = `community_quests_user_${userId}`;
+    const userQuestsState = await communityService.get<Record<string, any>>(stateKey, {});
+    const existing = userQuestsState[questId] || { status: 'in_progress', progress: 0 };
+
+    if (existing.status === 'claimed') {
+      return { success: false, message: 'Quest ini sudah diklaim.' };
+    }
+
+    const newProgress = Math.min(target.target, (existing.progress || 0) + Number(amount));
+    const newStatus = newProgress >= target.target ? 'completed' : 'in_progress';
+
+    userQuestsState[questId] = {
+      ...existing,
+      status: newStatus,
+      progress: newProgress,
+      completedAt: newStatus === 'completed' ? (existing.completedAt || new Date().toISOString()) : null,
+    };
+
+    await communityService.set(stateKey, userQuestsState);
+    return {
+      success: true,
+      message: newStatus === 'completed' ? `Selamat! Quest "${target.title}" telah selesai! Klaim Dew sekarang. 🎉` : `Progress quest "${target.title}" diperbarui.`,
+      quest: { ...target, ...userQuestsState[questId] },
+    };
+  });
+
+  app.post('/community/quests/claim', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { questId } = (req.body as any) || {};
+
+    const target = INITIAL_QUESTS.find((q) => q.id === questId);
+    if (!target) {
+      return { success: false, message: 'Quest tidak ditemukan.' };
+    }
+
+    const stateKey = `community_quests_user_${userId}`;
+    const userQuestsState = await communityService.get<Record<string, any>>(stateKey, {});
+    const existing = userQuestsState[questId] || {};
+
+    if (existing.status === 'claimed') {
+      return { success: false, message: 'Hadiah quest ini sudah pernah diklaim.' };
+    }
+
+    // Set claimed
+    userQuestsState[questId] = {
+      ...existing,
+      status: 'claimed',
+      progress: target.target,
+      claimedAt: new Date().toISOString(),
+    };
+    await communityService.set(stateKey, userQuestsState);
+
+    // Increase User Dew Balance
+    const balanceKey = `community_shop_balance_${userId}`;
+    const rawBal = await communityService.get<any>(balanceKey, { dew: 1500, currencyCode: 'IDR' });
+    const currentDew = typeof rawBal.dew === 'number' ? rawBal.dew : (typeof rawBal.orbs === 'number' ? rawBal.orbs : 1500);
+    const newDew = currentDew + target.rewardDew;
+    const newBalance = {
+      dew: newDew,
+      orbs: newDew,
+      currencyCode: rawBal.currencyCode || 'IDR',
+    };
+    await communityService.set(balanceKey, newBalance);
+
+    // Save into claimed history
+    const claimedKey = `community_quests_claimed_${userId}`;
+    const claimedHistory = await communityService.get<any[]>(claimedKey, []);
+    const claimedRecord = {
+      ...target,
+      claimedAt: new Date().toISOString(),
+    };
+    await communityService.set(claimedKey, [claimedRecord, ...claimedHistory.filter((c) => c.id !== questId)]);
+
+    return {
+      success: true,
+      message: `Selamat! Anda berhasil mengklaim +${target.rewardDew} Dew dari quest "${target.title}"! 💧🎉`,
+      rewardDew: target.rewardDew,
+      newBalance,
+      quest: { ...target, ...userQuestsState[questId] },
+    };
+  });
+
+  app.get('/community/quests/claimed', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    return await communityService.get<any[]>(`community_quests_claimed_${userId}`, []);
+  });
 };
