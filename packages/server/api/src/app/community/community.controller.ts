@@ -890,17 +890,64 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     return filtered;
   });
 
+  app.post('/community/shop/items', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const body = (req.body as any) || {};
+    const newItem = {
+      id: body.id || `shop_custom_${Date.now()}`,
+      name: body.name || 'Custom Product',
+      collection: body.collection || 'Community Created',
+      category: body.category || 'avatar_decoration',
+      description: body.description || 'Eksklusif dibuat oleh komunitas.',
+      priceIdr: Number(body.priceIdr) || 78000,
+      priceOrbs: Number(body.priceOrbs) || 600,
+      discountPercent: body.discountPercent ? Number(body.discountPercent) : undefined,
+      bannerUrl: body.bannerUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+      previewIcon: body.previewIcon || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200&auto=format&fit=crop&q=80',
+      badge: body.badge || 'Baru',
+      featured: Boolean(body.featured),
+      createdAt: new Date().toISOString(),
+    };
+
+    const storedItems = await communityService.get<any[]>('community_shop_items', INITIAL_SHOP_ITEMS);
+    const updated = [newItem, ...storedItems];
+    await communityService.set('community_shop_items', updated);
+
+    return {
+      success: true,
+      message: 'Item berhasil ditambahkan ke katalog Shop!',
+      item: newItem,
+      items: updated,
+    };
+  });
+
+  app.delete('/community/shop/items/:itemId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { itemId } = (req.params as any) || {};
+    const storedItems = await communityService.get<any[]>('community_shop_items', INITIAL_SHOP_ITEMS);
+    const updated = storedItems.filter((i) => i.id !== itemId);
+    await communityService.set('community_shop_items', updated);
+
+    return {
+      success: true,
+      message: 'Item berhasil dihapus dari katalog Shop!',
+      deletedId: itemId,
+    };
+  });
+
   app.get('/community/shop/featured', {
     config: { security: securityAccess.public() },
   }, async () => {
     const storedItems = await communityService.get<any[]>('community_shop_items', INITIAL_SHOP_ITEMS);
     const featuredItems = storedItems.filter((it) => it.featured);
-    const collections = [
+    const defaultCollections = [
       {
         id: 'zenless_zone_zero',
         name: 'Zenless Zone Zero',
-        tagline: 'WELCOME TO NEW ERIDU',
-        subtitle: 'Official collaboration items and agent bundles',
+        tagline: 'Featured Game Collab',
+        subtitle: 'Welcome to New Eridu! Dapatkan bundel agen resmi Section 6, dekorasi avatar Bangboo Eous, dan efek profil Hoshimi Miyabi.',
         bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80',
         actionLabel: 'Shop the Collection',
         items: storedItems.filter((i) => i.collection === 'Zenless Zone Zero'),
@@ -908,8 +955,8 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       {
         id: 'deadpool_wolverine',
         name: 'Marvel DEADPOOL & WOLVERINE',
-        tagline: 'MAXIMUM EFFORT COLLAB',
-        subtitle: 'Bring chaos and adamantium to your Anticeil card',
+        tagline: 'Marvel Exclusive',
+        subtitle: 'Dapatkan set katana kembar Wade Wilson dan cakar adamantium Wolverine.',
         bannerUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=1200&auto=format&fit=crop&q=80',
         actionLabel: 'Take me there',
         items: storedItems.filter((i) => i.collection === 'Deadpool & Wolverine'),
@@ -917,19 +964,31 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       {
         id: 'dead_by_daylight',
         name: 'DEAD BY DAYLIGHT',
-        tagline: 'DEATH IS NOT AN ESCAPE',
-        subtitle: 'Terrifying entity fog and slasher profile artifacts',
+        tagline: 'Horror Slasher',
+        subtitle: 'Topeng The Trapper dan aura kabut The Entity untuk mempertegas identitas profil Anda.',
         bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&auto=format&fit=crop&q=80',
         actionLabel: 'Take me there',
-        items: storedItems.filter((i) => i.collection === 'Dead By Daylight'),
+        items: storedItems.filter((i) => i.collection === 'Dead by Daylight'),
       },
     ];
 
+    const collections = await communityService.get<any[]>('community_shop_collections', defaultCollections);
+
     return {
-      heroCollection: collections[0],
+      heroCollection: collections[0] || defaultCollections[0],
       collections,
       featuredItems,
     };
+  });
+
+  app.post('/community/shop/featured', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { collections } = (req.body as any) || {};
+    if (Array.isArray(collections)) {
+      await communityService.set('community_shop_collections', collections);
+    }
+    return { success: true, message: 'Featured collections berhasil diperbarui!' };
   });
 
   app.get('/community/shop/balance', {
