@@ -1447,4 +1447,660 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     const userId = user.id || 'me';
     return await communityService.get<any[]>(`community_quests_claimed_${userId}`, []);
   });
+
+  // ── 1. Friends & Friend Requests Endpoints ──
+  app.get('/community/friends', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    return communityService.get<any[]>(`community_friends_${userId}`, []);
+  });
+
+  app.get('/community/friends/requests', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    return communityService.get<any[]>(`community_friend_requests_${userId}`, []);
+  });
+
+  app.post('/community/friends/request', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const body = (req.body as any) || {};
+    const targetUserId = body.targetUserId || body.targetUsername;
+
+    const requestItem = {
+      id: `freq_${Date.now()}`,
+      senderId: userId,
+      senderName: body.senderName || user.name || user.firstName || 'User',
+      senderUsername: body.senderUsername || user.username || user.email?.split('@')[0],
+      senderAvatar: body.senderAvatar || user.imageUrl || null,
+      targetUserId,
+      targetUsername: body.targetUsername,
+      direction: 'incoming',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+
+    // Save into recipient's requests
+    const recipientKey = `community_friend_requests_${targetUserId}`;
+    const recipientReqs = await communityService.get<any[]>(recipientKey, []);
+    await communityService.set(recipientKey, [requestItem, ...recipientReqs.filter((r) => r.id !== requestItem.id)]);
+
+    // Save outgoing into sender's requests
+    const senderKey = `community_friend_requests_${userId}`;
+    const senderReqs = await communityService.get<any[]>(senderKey, []);
+    await communityService.set(senderKey, [{ ...requestItem, direction: 'outgoing' }, ...senderReqs]);
+
+    return { success: true, message: 'Permintaan pertemanan berhasil dikirim!' };
+  });
+
+  app.post('/community/friends/request/:id/accept', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { id } = (req.params as any) || {};
+
+    const reqsKey = `community_friend_requests_${userId}`;
+    const requests = await communityService.get<any[]>(reqsKey, []);
+    const targetReq = requests.find((r) => r.id === id);
+
+    if (targetReq) {
+      // Remove from requests
+      await communityService.set(reqsKey, requests.filter((r) => r.id !== id));
+
+      // Add to friends
+      const friendsKey = `community_friends_${userId}`;
+      const friends = await communityService.get<any[]>(friendsKey, []);
+      const newFriend = {
+        id: targetReq.senderId || targetReq.targetUserId || `friend_${Date.now()}`,
+        name: targetReq.senderName || targetReq.targetUsername || 'Teman Anticeil',
+        username: targetReq.senderUsername || targetReq.targetUsername,
+        avatar: targetReq.senderAvatar || null,
+        status: 'online',
+        createdAt: new Date().toISOString(),
+      };
+      await communityService.set(friendsKey, [newFriend, ...friends.filter((f) => f.id !== newFriend.id)]);
+      return { success: true, friendId: newFriend.id };
+    }
+
+    return { success: true };
+  });
+
+  app.post('/community/friends/request/:id/ignore', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { id } = (req.params as any) || {};
+    const reqsKey = `community_friend_requests_${userId}`;
+    const requests = await communityService.get<any[]>(reqsKey, []);
+    await communityService.set(reqsKey, requests.filter((r) => r.id !== id));
+    return { success: true };
+  });
+
+  app.delete('/community/friends/:friendId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { friendId } = (req.params as any) || {};
+    const friendsKey = `community_friends_${userId}`;
+    const friends = await communityService.get<any[]>(friendsKey, []);
+    await communityService.set(friendsKey, friends.filter((f) => f.id !== friendId));
+    return { success: true };
+  });
+
+  app.get('/community/members', {
+    config: { security: securityAccess.public() },
+  }, async () => {
+    return communityService.get<any[]>('community_members_list', []);
+  });
+
+  // ── 2. Channels & Categories Endpoints ──
+  app.get('/colony/channels', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId = 'anticeil' } = (req.query as any) || {};
+    const key = `colony_channels_${colonyId}`;
+    const channels = await communityService.get<any[]>(key, []);
+    if (channels.length === 0) {
+      const defaultChannels = [
+        {
+          id: `ch_general_${colonyId}`,
+          colonyId,
+          name: 'general',
+          description: 'Saluran obrolan umum kawan satu colony',
+          type: 'text',
+          category: 'CHANNELS',
+        },
+        {
+          id: `ch_pengumuman_${colonyId}`,
+          colonyId,
+          name: 'pengumuman',
+          description: 'Informasi dan pengumuman resmi',
+          type: 'text',
+          category: 'CHANNELS',
+        },
+        {
+          id: `ch_voice_general_${colonyId}`,
+          colonyId,
+          name: 'Voice Lounge',
+          description: 'Ruang ngobrol suara santai',
+          type: 'voice',
+          category: 'CHANNELS',
+        },
+        {
+          id: `ch_gaming_${colonyId}`,
+          colonyId,
+          name: 'Gaming & Activities',
+          description: 'Mabar game & nobar YouTube Watch Together',
+          type: 'voice',
+          category: 'CHANNELS',
+        },
+      ];
+      await communityService.set(key, defaultChannels);
+      return defaultChannels;
+    }
+    return channels;
+  });
+
+  app.post('/colony/channels', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const body = (req.body as any) || {};
+    const colonyId = body.colonyId || body.hubId || 'anticeil';
+    const key = `colony_channels_${colonyId}`;
+    const channels = await communityService.get<any[]>(key, []);
+
+    const newChannel = {
+      id: body.id || `ch_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name: body.name || 'new-channel',
+      description: body.description || '',
+      category: body.category || 'CHANNELS',
+      colonyId,
+      type: body.type || 'text',
+      isPrivate: Boolean(body.isPrivate),
+      categoryId: body.categoryId || null,
+      categoryName: body.categoryName || null,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated = [...channels.filter((c) => c.id !== newChannel.id), newChannel];
+    await communityService.set(key, updated);
+    return newChannel;
+  });
+
+  app.put('/colony/channels/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const colonyId = body.colonyId || 'anticeil';
+    const key = `colony_channels_${colonyId}`;
+    const channels = await communityService.get<any[]>(key, []);
+    const index = channels.findIndex((c) => c.id === id);
+
+    if (index !== -1) {
+      const updatedChannel = { ...channels[index], ...body };
+      channels[index] = updatedChannel;
+      await communityService.set(key, channels);
+      return updatedChannel;
+    }
+
+    const fallback = { id, ...body, colonyId };
+    await communityService.set(key, [...channels, fallback]);
+    return fallback;
+  });
+
+  app.delete('/colony/channels/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = (req.params as any) || {};
+    const { colonyId = 'anticeil' } = (req.query as any) || {};
+    const key = `colony_channels_${colonyId}`;
+    const channels = await communityService.get<any[]>(key, []);
+    await communityService.set(key, channels.filter((c) => c.id !== id));
+    return { success: true, id };
+  });
+
+  app.get('/colony/channels/:channelId/permissions', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId } = (req.params as any) || {};
+    return communityService.get<any[]>(`colony_ch_perms_${channelId}`, []);
+  });
+
+  app.put('/colony/channels/:channelId/permissions/:targetId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId, targetId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_ch_perms_${channelId}`;
+    const perms = await communityService.get<any[]>(key, []);
+    const overwrite = { id: targetId, ...body };
+    const updated = [...perms.filter((p) => p.id !== targetId), overwrite];
+    await communityService.set(key, updated);
+    return overwrite;
+  });
+
+  app.delete('/colony/channels/:channelId/permissions/:targetId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId, targetId } = (req.params as any) || {};
+    const key = `colony_ch_perms_${channelId}`;
+    const perms = await communityService.get<any[]>(key, []);
+    await communityService.set(key, perms.filter((p) => p.id !== targetId));
+    return { success: true };
+  });
+
+  // ── 3. Colony Categories Endpoints ──
+  app.get('/colony/categories', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId = 'anticeil' } = (req.query as any) || {};
+    return communityService.get<any[]>(`colony_categories_${colonyId}`, [
+      { id: `cat_text_${colonyId}`, colonyId, name: 'TEXT CHANNELS', isDefault: true },
+      { id: `cat_voice_${colonyId}`, colonyId, name: 'VOICE CHANNELS', isDefault: true },
+    ]);
+  });
+
+  app.post('/colony/categories', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const body = (req.body as any) || {};
+    const colonyId = body.colonyId || 'anticeil';
+    const key = `colony_categories_${colonyId}`;
+    const current = await communityService.get<any[]>(key, []);
+    const newCat = {
+      id: body.id || `cat_${Date.now()}`,
+      colonyId,
+      name: body.name || 'NEW CATEGORY',
+      isDefault: false,
+    };
+    const updated = [...current, newCat];
+    await communityService.set(key, updated);
+    return newCat;
+  });
+
+  app.delete('/colony/categories/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = (req.params as any) || {};
+    const { colonyId = 'anticeil' } = (req.query as any) || {};
+    const key = `colony_categories_${colonyId}`;
+    const current = await communityService.get<any[]>(key, []);
+    await communityService.set(key, current.filter((c) => c.id !== id));
+    return { success: true, id };
+  });
+
+  // ── 4. Chat Messages Endpoints ──
+  app.get('/colony/channels/:channelId/messages', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId } = (req.params as any) || {};
+    return communityService.get<any[]>(`colony_messages_${channelId}`, []);
+  });
+
+  app.post('/colony/channels/:channelId/messages', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_messages_${channelId}`;
+    const messages = await communityService.get<any[]>(key, []);
+
+    const newMessage = {
+      id: body.id || `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      channelId,
+      senderId: body.senderId || 'me',
+      senderName: body.senderName || 'User',
+      senderEmail: body.senderEmail || '',
+      senderAvatar: body.senderAvatar || null,
+      senderRole: body.senderRole || 'member',
+      content: body.content || '',
+      attachments: body.attachments || [],
+      reactions: body.reactions || {},
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated = [...messages.filter((m) => m.id !== newMessage.id), newMessage];
+    await communityService.set(key, updated);
+    return newMessage;
+  });
+
+  app.delete('/colony/messages/:messageId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { messageId } = (req.params as any) || {};
+    return { success: true, id: messageId };
+  });
+
+  app.post('/colony/messages/:messageId/reactions', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { messageId } = (req.params as any) || {};
+    const { emoji, userId = 'me' } = (req.body as any) || {};
+    const key = `colony_msg_reactions_${messageId}`;
+    const reactions = await communityService.get<Record<string, string[]>>(key, {});
+
+    const users = reactions[emoji] || [];
+    if (users.includes(userId)) {
+      reactions[emoji] = users.filter((u) => u !== userId);
+      if (reactions[emoji].length === 0) {
+        delete reactions[emoji];
+      }
+    } else {
+      reactions[emoji] = [...users, userId];
+    }
+
+    await communityService.set(key, reactions);
+    return { id: messageId, reactions };
+  });
+
+  // ── 5. Threads Endpoints ──
+  app.get('/colony/channels/:channelId/threads', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId } = (req.params as any) || {};
+    return communityService.get<any[]>(`colony_threads_${channelId}`, []);
+  });
+
+  app.post('/colony/channels/:channelId/threads', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_threads_${channelId}`;
+    const threads = await communityService.get<any[]>(key, []);
+
+    const newThread = {
+      id: `thread_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      channelId,
+      name: body.name?.trim() || 'New Thread',
+      creatorId: body.creatorId || 'me',
+      creatorName: body.creatorName || 'You',
+      creatorAvatar: body.creatorAvatar ?? null,
+      messageCount: body.initialMessage ? 1 : 0,
+      lastMessageAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated = [newThread, ...threads];
+    await communityService.set(key, updated);
+
+    if (body.initialMessage) {
+      const msgKey = `colony_thread_msgs_${newThread.id}`;
+      const firstMsg = {
+        id: `tmsg_${Date.now()}`,
+        channelId: newThread.id,
+        senderId: newThread.creatorId,
+        senderName: newThread.creatorName,
+        senderAvatar: newThread.creatorAvatar,
+        content: body.initialMessage,
+        createdAt: new Date().toISOString(),
+      };
+      await communityService.set(msgKey, [firstMsg]);
+    }
+
+    return newThread;
+  });
+
+  app.get('/colony/channels/:channelId/threads/:threadId/messages', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { threadId } = (req.params as any) || {};
+    return communityService.get<any[]>(`colony_thread_msgs_${threadId}`, []);
+  });
+
+  app.post('/colony/channels/:channelId/threads/:threadId/messages', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { threadId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_thread_msgs_${threadId}`;
+    const msgs = await communityService.get<any[]>(key, []);
+    const newMsg = {
+      id: `tmsg_${Date.now()}`,
+      channelId: threadId,
+      senderId: body.senderId || 'me',
+      senderName: body.senderName || 'You',
+      senderAvatar: body.senderAvatar || null,
+      content: body.content || '',
+      createdAt: new Date().toISOString(),
+    };
+    await communityService.set(key, [...msgs, newMsg]);
+    return newMsg;
+  });
+
+  // ── 6. In-App Notifications Endpoints ──
+  app.get('/community/notifications', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    return communityService.get<any[]>(`community_notifications_${userId}`, []);
+  });
+
+  app.post('/community/notifications', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const body = (req.body as any) || {};
+    const key = `community_notifications_${userId}`;
+    const notifs = await communityService.get<any[]>(key, []);
+
+    const newNotif = {
+      id: body.id || `notif_${Date.now()}`,
+      title: body.title || 'Notifikasi Baru',
+      message: body.message || '',
+      type: body.type || 'info',
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      ...body,
+    };
+
+    await communityService.set(key, [newNotif, ...notifs]);
+    return { success: true, id: newNotif.id };
+  });
+
+  app.put('/community/notifications/:id/read', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { id } = (req.params as any) || {};
+    const key = `community_notifications_${userId}`;
+    const notifs = await communityService.get<any[]>(key, []);
+    const updated = notifs.map((n) => (n.id === id ? { ...n, isRead: true } : n));
+    await communityService.set(key, updated);
+    return { success: true, id };
+  });
+
+  app.put('/community/notifications/read-all', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const key = `community_notifications_${userId}`;
+    const notifs = await communityService.get<any[]>(key, []);
+    const updated = notifs.map((n) => ({ ...n, isRead: true }));
+    await communityService.set(key, updated);
+    return { success: true };
+  });
+
+  // ── 7. Colony Webhooks Endpoints ──
+  app.get('/colonies/:colonyId/webhooks', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    return communityService.get<any[]>(`colony_webhooks_${colonyId}`, []);
+  });
+
+  app.post('/colonies/:colonyId/webhooks', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_webhooks_${colonyId}`;
+    const webhooks = await communityService.get<any[]>(key, []);
+
+    const token = Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12);
+    const newWebhook = {
+      id: `wh_${Date.now()}`,
+      colonyId,
+      channelId: body.channelId || '',
+      channelName: body.channelName || '',
+      name: body.name || 'Anticeil Bot',
+      avatarUrl: body.avatarUrl || null,
+      token,
+      url: `/api/v1/colonies/webhooks/${token}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    await communityService.set(key, [newWebhook, ...webhooks]);
+    return newWebhook;
+  });
+
+  app.delete('/colonies/:colonyId/webhooks/:webhookId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId, webhookId } = (req.params as any) || {};
+    const key = `colony_webhooks_${colonyId}`;
+    const webhooks = await communityService.get<any[]>(key, []);
+    await communityService.set(key, webhooks.filter((w) => w.id !== webhookId));
+    return { success: true };
+  });
+
+  app.post('/colonies/webhooks/:token', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    return { success: true, message: 'Webhook event received successfully' };
+  });
+
+  // ── 8. User Security Sessions, 2FA & Settings Endpoints ──
+  app.get('/users/me/sessions', {
+    config: { security: securityAccess.public() },
+  }, async () => {
+    return communityService.get<any[]>('user_sessions_me', [
+      {
+        id: 'sess_current',
+        deviceName: 'Windows PC (Current)',
+        deviceType: 'desktop',
+        platform: 'windows',
+        browser: 'Chrome / Desktop Client',
+        os: 'Windows 11',
+        ipAddress: '127.0.0.1',
+        location: 'Indonesia',
+        lastActive: 'Aktif Sekarang',
+        isCurrent: true,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+  });
+
+  app.delete('/users/me/sessions/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = (req.params as any) || {};
+    const current = await communityService.get<any[]>('user_sessions_me', []);
+    await communityService.set('user_sessions_me', current.filter((s) => s.id !== id));
+    return { success: true };
+  });
+
+  app.post('/users/me/sessions/revoke-others', {
+    config: { security: securityAccess.public() },
+  }, async () => {
+    const current = await communityService.get<any[]>('user_sessions_me', []);
+    await communityService.set('user_sessions_me', current.filter((s) => s.isCurrent));
+    return { success: true };
+  });
+
+  app.get('/users/me/2fa/status', {
+    config: { security: securityAccess.public() },
+  }, async () => {
+    return communityService.get('user_2fa_status_me', {
+      isEnabled: false,
+      enabledAt: null,
+      hasBackupCodes: false,
+      backupCodesRemaining: 0,
+    });
+  });
+
+  app.post('/users/me/2fa/enable', {
+    config: { security: securityAccess.public() },
+  }, async () => {
+    const state = {
+      isEnabled: true,
+      enabledAt: new Date().toISOString(),
+      hasBackupCodes: true,
+      backupCodesRemaining: 10,
+    };
+    await communityService.set('user_2fa_status_me', state);
+    return { success: true, ...state };
+  });
+
+  app.post('/users/me/2fa/disable', {
+    config: { security: securityAccess.public() },
+  }, async () => {
+    const state = {
+      isEnabled: false,
+      enabledAt: null,
+      hasBackupCodes: false,
+      backupCodesRemaining: 0,
+    };
+    await communityService.set('user_2fa_status_me', state);
+    return { success: true, ...state };
+  });
+
+  app.post('/users/me/2fa/backup-codes/regenerate', {
+    config: { security: securityAccess.public() },
+  }, async () => {
+    return {
+      success: true,
+      backupCodes: Array.from({ length: 10 }, () => Math.random().toString(36).slice(2, 6).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase()),
+    };
+  });
+
+  app.get('/users/me/settings', {
+    config: { security: securityAccess.public() },
+  }, async () => {
+    return communityService.get('user_settings_preferences_me', {
+      theme: 'dark',
+      soundEnabled: true,
+      desktopNotifications: true,
+      language: 'id',
+      compactMode: false,
+    });
+  });
+
+  app.put('/users/me/settings', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const current = await communityService.get('user_settings_preferences_me', {});
+    const updated = { ...current, ...(req.body as any) };
+    await communityService.set('user_settings_preferences_me', updated);
+    return updated;
+  });
+
+  // ── 9. Realtime Voice Call Signaling Socket Relay ──
+  if ((app as any).io) {
+    (app as any).io.on('connection', (socket: any) => {
+      socket.on('COMMUNITY_CALL_SIGNAL', (payload: any) => {
+        socket.broadcast.emit('COMMUNITY_CALL_SIGNAL', payload);
+      });
+      socket.on('COMMUNITY_CALL_LEAVE', (payload: any) => {
+        socket.broadcast.emit('COMMUNITY_CALL_USER_LEFT', payload);
+      });
+      socket.on('COMMUNITY_CALL_ACTIVITY_EVENT', (payload: any) => {
+        socket.broadcast.emit('COMMUNITY_CALL_ACTIVITY_EVENT', payload);
+      });
+    });
+  }
 };
