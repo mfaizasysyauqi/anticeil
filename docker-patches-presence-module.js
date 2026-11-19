@@ -2769,7 +2769,7 @@ async function setupCommunityApi(app) {
                 {
                     id: 'colony_gamers_id',
                     name: 'Anticeil Gaming Lounge',
-                    description: 'Komunitas gaming santai, mabar Valorant, Genshin, Apex, dan Neverness to Everness.',
+                    description: 'Komunitas santai, main bareng minigame, diskusi strategi, dan kumpul kawan satu server.',
                     initials: 'GL',
                     iconType: 'gamepad',
                     color: 'bg-emerald-600',
@@ -6429,66 +6429,91 @@ async function setupCommunityApi(app) {
                 const rows = await ds.query('SELECT * FROM anticeil_user_profiles WHERE user_id = $1 LIMIT 1', [targetUserId]);
                 if (rows && rows.length > 0) {
                     const r = rows[0];
-                    const widgets = typeof r.widgets === 'string' ? JSON.parse(r.widgets) : (r.widgets || {});
+                    let widgets = typeof r.widgets === 'string' ? JSON.parse(r.widgets) : (r.widgets || {});
+                    if (widgets && typeof widgets === 'object') {
+                        // Purge any legacy dummy game data
+                        if (widgets.favoriteGame && (widgets.favoriteGame.title === 'Neverness to Everness' || widgets.favoriteGame.title === 'Valorant')) {
+                            delete widgets.favoriteGame;
+                        }
+                        if (Array.isArray(widgets.gamesILike)) {
+                            widgets.gamesILike = widgets.gamesILike.filter(g => g !== 'Minecraft' && g !== 'Valorant' && g !== 'Neverness to Everness');
+                        }
+                        if (widgets.activity && typeof widgets.activity.title === 'string' && widgets.activity.title.toLowerCase().includes('neverness')) {
+                            delete widgets.activity;
+                        }
+                        if (Array.isArray(widgets.wishlist)) {
+                            widgets.wishlist = widgets.wishlist.filter(w => !String(w.title || '').toLowerCase().includes('neverness'));
+                        }
+                    }
                     return reply.send({
-                        bio: r.bio || 'Your life in one sentence',
-                        pronouns: r.pronouns || '',
+                        bio: r.bio !== null && r.bio !== undefined ? r.bio : '',
+                        pronouns: r.pronouns !== null && r.pronouns !== undefined ? r.pronouns : '',
                         bannerColor: r.banner_color || '#5c4d44',
                         bannerUrl: r.banner_url || null,
                         avatarUrl: r.avatar_url || userAvatar,
-                        statusThought: r.status_thought || 'Shower thought?',
+                        statusThought: r.status_thought !== null && r.status_thought !== undefined ? r.status_thought : '',
                         widgets: widgets,
                         nameplate: widgets.nameplate || 'none',
                         profileFrame: widgets.profileFrame || 'none',
                         profileEffect: widgets.profileEffect || 'none',
                         theme: widgets.profileTheme || widgets.theme || 'teal',
+                        displayNameStyle: widgets.displayNameStyle || 'default',
                         createdAt: r.created_at || null
                     });
                 }
                 if (userAvatar) {
                     return reply.send({
-                        bio: 'Your life in one sentence',
+                        bio: '',
                         pronouns: '',
                         bannerColor: '#5c4d44',
                         bannerUrl: null,
                         avatarUrl: userAvatar,
-                        statusThought: 'Shower thought?',
-                        widgets: { favoriteGame: { title: 'Neverness to Everness', accountName: 'DartX', region: 'SEA' }, gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true },
+                        statusThought: '',
+                        widgets: { showActivity: true, showConnections: true },
                         nameplate: 'none',
                         profileFrame: 'none',
                         profileEffect: 'none',
-                        theme: 'teal'
+                        theme: 'teal',
+                        displayNameStyle: 'default'
                     });
                 }
             } catch (e) {}
         }
         return reply.send({
-            bio: 'Your life in one sentence',
+            bio: '',
             pronouns: '',
             bannerColor: '#5c4d44',
             bannerUrl: null,
             avatarUrl: null,
-            statusThought: 'Shower thought?',
-            widgets: { favoriteGame: { title: 'Neverness to Everness', accountName: 'DartX', region: 'SEA' }, gamesILike: ['Minecraft', 'Valorant'], showActivity: true, showConnections: true },
+            statusThought: '',
+            widgets: { showActivity: true, showConnections: true },
             nameplate: 'none',
             profileFrame: 'none',
             profileEffect: 'none',
-            theme: 'teal'
+            theme: 'teal',
+            displayNameStyle: 'default'
         });
     };
 
     const updateUserProfileHandler = async (req, reply) => {
         const ds = await getDb();
         const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
-        const { bio, pronouns, bannerColor, bannerUrl, avatarUrl, statusThought, widgets, nameplate, profileFrame, profileEffect, theme } = req.body || {};
+        const { bio, pronouns, bannerColor, bannerUrl, avatarUrl, statusThought, widgets, nameplate, profileFrame, profileEffect, theme, displayNameStyle } = req.body || {};
         
         const bannerProvided = bannerUrl !== undefined;
         const avatarProvided = avatarUrl !== undefined;
+        const bioProvided = bio !== undefined;
+        const pronounsProvided = pronouns !== undefined;
+        const bannerColorProvided = bannerColor !== undefined;
+        const statusThoughtProvided = statusThought !== undefined;
+        const widgetsProvided = widgets !== undefined;
+
         const mergedWidgets = typeof widgets === 'object' && widgets !== null ? { ...widgets } : {};
         if (nameplate) mergedWidgets.nameplate = nameplate;
         if (profileFrame) mergedWidgets.profileFrame = profileFrame;
         if (profileEffect) mergedWidgets.profileEffect = profileEffect;
         if (theme) mergedWidgets.profileTheme = theme;
+        if (displayNameStyle) mergedWidgets.displayNameStyle = displayNameStyle;
 
         if (ds) {
             try {
@@ -6496,25 +6521,30 @@ async function setupCommunityApi(app) {
                     INSERT INTO anticeil_user_profiles (user_id, bio, pronouns, banner_color, banner_url, avatar_url, status_thought, widgets, updated_at)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
                     ON CONFLICT (user_id) DO UPDATE SET
-                        bio = COALESCE($2, anticeil_user_profiles.bio),
-                        pronouns = COALESCE($3, anticeil_user_profiles.pronouns),
-                        banner_color = COALESCE($4, anticeil_user_profiles.banner_color),
+                        bio = CASE WHEN $11 = true THEN $2 ELSE anticeil_user_profiles.bio END,
+                        pronouns = CASE WHEN $12 = true THEN $3 ELSE anticeil_user_profiles.pronouns END,
+                        banner_color = CASE WHEN $13 = true THEN $4 ELSE anticeil_user_profiles.banner_color END,
                         banner_url = CASE WHEN $9 = true THEN $5 ELSE anticeil_user_profiles.banner_url END,
                         avatar_url = CASE WHEN $10 = true THEN $6 ELSE anticeil_user_profiles.avatar_url END,
-                        status_thought = COALESCE($7, anticeil_user_profiles.status_thought),
-                        widgets = CASE WHEN $8::jsonb IS NOT NULL THEN $8::jsonb ELSE anticeil_user_profiles.widgets END,
+                        status_thought = CASE WHEN $14 = true THEN $7 ELSE anticeil_user_profiles.status_thought END,
+                        widgets = CASE WHEN $15 = true AND $8::jsonb IS NOT NULL THEN $8::jsonb ELSE anticeil_user_profiles.widgets END,
                         updated_at = NOW()
                 `, [
                     currentUserId,
-                    bio || null,
-                    pronouns || null,
-                    bannerColor || null,
+                    bio !== undefined ? bio : '',
+                    pronouns !== undefined ? pronouns : '',
+                    bannerColor || '#5c4d44',
                     bannerUrl || null,
                     avatarUrl || null,
-                    statusThought || null,
+                    statusThought !== undefined ? statusThought : '',
                     JSON.stringify(mergedWidgets),
                     bannerProvided,
-                    avatarProvided
+                    avatarProvided,
+                    bioProvided,
+                    pronounsProvided,
+                    bannerColorProvided,
+                    statusThoughtProvided,
+                    widgetsProvided
                 ]);
 
                 if (avatarUrl && currentUserId !== 'me') {

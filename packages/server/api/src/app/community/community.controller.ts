@@ -9,13 +9,11 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async () => {
     return communityService.get('user_profile_me', {
-      bio: 'Your life in one sentence',
+      bio: '',
       pronouns: '',
       bannerColor: '#5c4d44',
-      statusThought: 'Shower thought?',
+      statusThought: '',
       widgets: {
-        favoriteGame: 'Neverness to Everness',
-        gamesILike: ['Minecraft', 'Valorant'],
         showActivity: true,
         showConnections: true,
       },
@@ -357,17 +355,17 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
   }, async () => {
     return communityService.get('community_apps', [
       {
-        id: 'app-nve',
-        name: 'Neverness to Everness',
+        id: 'app-anticeil-tools',
+        name: 'Anticeil DevTools Integration',
         authorizedDate: '11/1/2026',
-        icon: '🌸',
-        permissionsCount: 4,
+        icon: '⚡',
+        permissionsCount: 3,
         permissionsList: [
           'Akses info profil publik',
-          'Lihat aktivitas bermain game',
-          'Kirim status pencapaian game',
+          'Sinkronisasi status aktivitas kolaboratif',
+          'Kirim notifikasi workspace',
         ],
-        aboutInfo: 'Game RPG open-world anime futuristik resmi terintegrasi dengan Anticeil.',
+        aboutInfo: 'Integrasi resmi peralatan produktivitas dan kolaborasi Anticeil.',
         policiesUrl: 'https://anticeil.com/privacy',
       },
     ]);
