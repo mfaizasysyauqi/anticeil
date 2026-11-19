@@ -963,6 +963,34 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     };
   });
 
+  app.put('/community/shop/items/:itemId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { itemId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const rawStored = await communityService.get<any[]>('community_shop_items', INITIAL_SHOP_ITEMS);
+    const storedItems = sanitizeShopItems(rawStored);
+    const index = storedItems.findIndex((i) => i.id === itemId);
+    if (index === -1) {
+      return { success: false, message: 'Item tidak ditemukan di Shop.' };
+    }
+    const updatedItem = {
+      ...storedItems[index],
+      ...body,
+      id: itemId,
+      priceIdr: body.priceIdr !== undefined ? Number(body.priceIdr) : storedItems[index].priceIdr,
+      priceDew: body.priceDew !== undefined ? Number(body.priceDew) : (body.priceOrbs !== undefined ? Number(body.priceOrbs) : storedItems[index].priceDew),
+      priceOrbs: body.priceDew !== undefined ? Number(body.priceDew) : (body.priceOrbs !== undefined ? Number(body.priceOrbs) : storedItems[index].priceOrbs),
+    };
+    storedItems[index] = updatedItem;
+    await communityService.set('community_shop_items', storedItems);
+    return {
+      success: true,
+      message: 'Item berhasil diperbarui!',
+      item: updatedItem,
+    };
+  });
+
   app.get('/community/shop/featured', {
     config: { security: securityAccess.public() },
   }, async () => {
@@ -1290,9 +1318,10 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
   }, async (req) => {
     const user = (req as any).user || {};
     const userId = user.id || 'me';
+    const questList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
     const userQuestsState = await communityService.get<Record<string, any>>(`community_quests_user_${userId}`, {});
 
-    const quests = INITIAL_QUESTS.map((q) => {
+    const quests = questList.map((q) => {
       const state = userQuestsState[q.id] || {};
       const status = state.status || 'available';
       const progress = state.progress || 0;
@@ -1308,6 +1337,86 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     return quests;
   });
 
+  app.post('/community/quests', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const body = (req.body as any) || {};
+    const newQuest = {
+      id: body.id || `quest_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      title: body.title || 'Misi Komunitas Baru',
+      subtitle: body.subtitle || 'Selesaikan misi untuk mendapatkan Dew gratis.',
+      category: body.category || 'activity',
+      promoter: body.promoter || 'Anticeil Community',
+      coverUrl: body.coverUrl || 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800&auto=format&fit=crop&q=80',
+      badge: body.badge || 'Misi Baru',
+      rewardDew: Number(body.rewardDew) || 200,
+      rewardIcon: '💧',
+      target: Number(body.target) || 1,
+      unit: body.unit || 'kali',
+      actionLabel: body.actionLabel || 'Luncurkan',
+      appId: body.appId || 'chat',
+      endsAt: body.endsAt || '2026-12-31T23:59:59Z',
+      status: 'available',
+      progress: 0,
+      createdAt: new Date().toISOString(),
+    };
+
+    const currentList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
+    const updated = [newQuest, ...currentList.filter((q) => q.id !== newQuest.id)];
+    await communityService.set('community_quests_list', updated);
+
+    return {
+      success: true,
+      message: `Quest "${newQuest.title}" berhasil ditambahkan! 🎯`,
+      quest: newQuest,
+      quests: updated,
+    };
+  });
+
+  app.put('/community/quests/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const currentList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
+    const index = currentList.findIndex((q) => q.id === id);
+
+    if (index === -1) {
+      return { success: false, message: 'Quest tidak ditemukan.' };
+    }
+
+    const updatedQuest = {
+      ...currentList[index],
+      ...body,
+      id,
+      rewardDew: body.rewardDew !== undefined ? Number(body.rewardDew) : currentList[index].rewardDew,
+      target: body.target !== undefined ? Number(body.target) : currentList[index].target,
+    };
+    currentList[index] = updatedQuest;
+    await communityService.set('community_quests_list', currentList);
+
+    return {
+      success: true,
+      message: `Quest "${updatedQuest.title}" berhasil diperbarui! ✨`,
+      quest: updatedQuest,
+    };
+  });
+
+  app.delete('/community/quests/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = (req.params as any) || {};
+    const currentList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
+    const updated = currentList.filter((q) => q.id !== id);
+    await communityService.set('community_quests_list', updated);
+
+    return {
+      success: true,
+      message: 'Quest berhasil dihapus dari daftar!',
+      deletedId: id,
+    };
+  });
+
   app.post('/community/quests/accept', {
     config: { security: securityAccess.public() },
   }, async (req) => {
@@ -1315,7 +1424,8 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     const userId = user.id || 'me';
     const { questId } = (req.body as any) || {};
 
-    const target = INITIAL_QUESTS.find((q) => q.id === questId);
+    const questList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
+    const target = questList.find((q) => q.id === questId);
     if (!target) {
       return { success: false, message: 'Quest tidak ditemukan.' };
     }
@@ -1350,7 +1460,8 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     const userId = user.id || 'me';
     const { questId, amount = 1 } = (req.body as any) || {};
 
-    const target = INITIAL_QUESTS.find((q) => q.id === questId);
+    const questList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
+    const target = questList.find((q) => q.id === questId);
     if (!target) {
       return { success: false, message: 'Quest tidak ditemukan.' };
     }
@@ -1388,7 +1499,8 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     const userId = user.id || 'me';
     const { questId } = (req.body as any) || {};
 
-    const target = INITIAL_QUESTS.find((q) => q.id === questId);
+    const questList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
+    const target = questList.find((q) => q.id === questId);
     if (!target) {
       return { success: false, message: 'Quest tidak ditemukan.' };
     }
