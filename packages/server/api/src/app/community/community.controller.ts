@@ -82,6 +82,16 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     return newEvent;
   });
 
+  app.put('/community/calendar/events/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = req.params as { id: string };
+    const list = await communityService.get<any[]>('community_calendar_events', []);
+    const updated = list.map((item) => (item.id === id ? { ...item, ...(req.body as any) } : item));
+    await communityService.set('community_calendar_events', updated);
+    return updated.find((item) => item.id === id) || { success: true, id };
+  });
+
   app.delete('/community/calendar/events/:id', {
     config: { security: securityAccess.public() },
   }, async (req) => {
@@ -124,6 +134,29 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async () => {
     return communityService.get('community_message_requests', []);
+  });
+
+  app.post('/community/message-requests', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const list = await communityService.get<any[]>('community_message_requests', []);
+    const newReq = {
+      ...(req.body as any),
+      id: (req.body as any)?.id || `req_${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [newReq, ...list.filter((r) => r.id !== newReq.id)];
+    await communityService.set('community_message_requests', updated);
+    return { success: true, id: newReq.id, request: newReq };
+  });
+
+  app.delete('/community/message-requests/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = req.params as { id: string };
+    const list = await communityService.get<any[]>('community_message_requests', []);
+    await communityService.set('community_message_requests', list.filter((r) => r.id !== id));
+    return { success: true, id };
   });
 
   app.post('/community/message-requests/:id/accept', {
@@ -240,6 +273,29 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async () => {
     return communityService.get('billing_gifts', []);
+  });
+
+  app.post('/billing/gifts', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const gift = {
+      ...(req.body as any),
+      id: (req.body as any)?.id || `gift_${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    const list = await communityService.get<any[]>('billing_gifts', []);
+    const updated = [gift, ...list.filter((g) => g.id !== gift.id)];
+    await communityService.set('billing_gifts', updated);
+    return { success: true, gift };
+  });
+
+  app.delete('/billing/gifts/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = req.params as { id: string };
+    const list = await communityService.get<any[]>('billing_gifts', []);
+    await communityService.set('billing_gifts', list.filter((g) => g.id !== id));
+    return { success: true, id };
   });
 
   app.post('/billing/gifts/redeem', {
@@ -369,6 +425,30 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
         policiesUrl: 'https://anticeil.com/privacy',
       },
     ]);
+  });
+
+  app.post('/community/apps', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const appItem = {
+      ...(req.body as any),
+      id: (req.body as any)?.id || `app_${Date.now()}`,
+      authorizedDate: new Date().toLocaleDateString(),
+    };
+    const list = await communityService.get<any[]>('community_apps', []);
+    const updated = [appItem, ...list.filter((a) => a.id !== appItem.id)];
+    await communityService.set('community_apps', updated);
+    return { success: true, app: appItem };
+  });
+
+  app.put('/community/apps/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = req.params as { id: string };
+    const list = await communityService.get<any[]>('community_apps', []);
+    const updated = list.map((a) => (a.id === id ? { ...a, ...(req.body as any) } : a));
+    await communityService.set('community_apps', updated);
+    return { success: true };
   });
 
   app.delete('/community/apps/:id', {
@@ -1781,6 +1861,59 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     return { success: true, id };
   });
 
+  // ── Colony Categories Endpoints (Fullstack CRUD) ──
+  app.get('/colony/categories', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.query as any) || {};
+    const defaultCategories = colonyId ? [
+      { id: `cat_text_${colonyId}`, colonyId, name: 'TEXT CHANNELS', isDefault: true },
+      { id: `cat_voice_${colonyId}`, colonyId, name: 'VOICE CHANNELS', isDefault: true },
+    ] : [];
+    const list = await communityService.get<any[]>('community_colony_categories', []);
+    if (colonyId) {
+      const colonyCustom = list.filter((c) => c.colonyId === colonyId);
+      const defaults = defaultCategories.filter((d) => !colonyCustom.some((c) => c.id === d.id));
+      return [...defaults, ...colonyCustom];
+    }
+    return list;
+  });
+
+  app.post('/colony/categories', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const body = (req.body as any) || {};
+    const newCat = {
+      id: body.id || `cat_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      colonyId: body.colonyId,
+      name: (body.name || '').trim().toUpperCase(),
+    };
+    const list = await communityService.get<any[]>('community_colony_categories', []);
+    const updated = [...list.filter((c) => c.id !== newCat.id), newCat];
+    await communityService.set('community_colony_categories', updated);
+    return newCat;
+  });
+
+  app.put('/colony/categories/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const list = await communityService.get<any[]>('community_colony_categories', []);
+    const updated = list.map((c) => (c.id === id ? { ...c, ...body, name: (body.name || c.name).trim().toUpperCase() } : c));
+    await communityService.set('community_colony_categories', updated);
+    return updated.find((c) => c.id === id) || { success: true, id };
+  });
+
+  app.delete('/colony/categories/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = (req.params as any) || {};
+    const list = await communityService.get<any[]>('community_colony_categories', []);
+    await communityService.set('community_colony_categories', list.filter((c) => c.id !== id));
+    return { success: true, id };
+  });
+
   app.get('/colony/channels/:channelId/permissions', {
     config: { security: securityAccess.public() },
   }, async (req) => {
@@ -1990,6 +2123,62 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     return newMsg;
   });
 
+  app.put('/colony/channels/:channelId/threads/:threadId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId, threadId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_threads_${channelId}`;
+    const threads = await communityService.get<any[]>(key, []);
+    const updated = threads.map((t) => (t.id === threadId ? { ...t, ...body } : t));
+    await communityService.set(key, updated);
+    return updated.find((t) => t.id === threadId) || { success: true, id: threadId };
+  });
+
+  app.delete('/colony/channels/:channelId/threads/:threadId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId, threadId } = (req.params as any) || {};
+    const key = `colony_threads_${channelId}`;
+    const threads = await communityService.get<any[]>(key, []);
+    await communityService.set(key, threads.filter((t) => t.id !== threadId));
+    return { success: true, id: threadId };
+  });
+
+  app.delete('/colony/threads/:threadId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { threadId } = (req.params as any) || {};
+    return { success: true, id: threadId };
+  });
+
+  app.get('/colony/threads/:threadId/messages', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { threadId } = (req.params as any) || {};
+    return communityService.get<any[]>(`colony_thread_msgs_${threadId}`, []);
+  });
+
+  app.post('/colony/threads/:threadId/messages', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { threadId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_thread_msgs_${threadId}`;
+    const msgs = await communityService.get<any[]>(key, []);
+    const newMsg = {
+      id: `tmsg_${Date.now()}`,
+      channelId: threadId,
+      senderId: body.senderId || 'me',
+      senderName: body.senderName || 'You',
+      senderAvatar: body.senderAvatar || null,
+      content: body.content || '',
+      createdAt: new Date().toISOString(),
+    };
+    await communityService.set(key, [...msgs, newMsg]);
+    return newMsg;
+  });
+
   // ── 6. In-App Notifications Endpoints ──
   app.get('/community/notifications', {
     config: { security: securityAccess.public() },
@@ -2047,6 +2236,28 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     return { success: true };
   });
 
+  app.delete('/community/notifications/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { id } = (req.params as any) || {};
+    const key = `community_notifications_${userId}`;
+    const notifs = await communityService.get<any[]>(key, []);
+    await communityService.set(key, notifs.filter((n) => n.id !== id));
+    return { success: true, id };
+  });
+
+  app.delete('/community/notifications', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const key = `community_notifications_${userId}`;
+    await communityService.set(key, []);
+    return { success: true };
+  });
+
   // ── 7. Colony Webhooks Endpoints ──
   app.get('/colonies/:colonyId/webhooks', {
     config: { security: securityAccess.public() },
@@ -2088,6 +2299,18 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     const webhooks = await communityService.get<any[]>(key, []);
     await communityService.set(key, webhooks.filter((w) => w.id !== webhookId));
     return { success: true };
+  });
+
+  app.put('/colonies/:colonyId/webhooks/:webhookId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId, webhookId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_webhooks_${colonyId}`;
+    const webhooks = await communityService.get<any[]>(key, []);
+    const updated = webhooks.map((w) => (w.id === webhookId ? { ...w, ...body } : w));
+    await communityService.set(key, updated);
+    return updated.find((w) => w.id === webhookId) || { success: true, webhookId };
   });
 
   app.post('/colonies/webhooks/:token', {
