@@ -681,4 +681,381 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     }
     return { success: true, colony: { id: colonyId || inviteCode, name: 'Colony Komunitas', role: 'member', membersCount: 1, onlineCount: 1 } };
   });
+
+  // ── Discord-Style Shop (Fullstack Database) ──────────────────────────
+  const INITIAL_SHOP_ITEMS = [
+    // Zenless Zone Zero Collection
+    {
+      id: 'shop_zzz_miyabi_bundle',
+      name: '3pc Hoshimi Miyabi Bundle',
+      collection: 'Zenless Zone Zero',
+      category: 'bundle',
+      description: 'Exclusive bundle including Miyabi Avatar Decoration, Frost Blade Profile Effect, and Section 6 Nameplate.',
+      priceIdr: 160000,
+      priceOrbs: 1200,
+      discountPercent: 32,
+      bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+      previewIcon: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=200&auto=format&fit=crop&q=80',
+      badge: 'Hot Bundle',
+      itemTypes: ['avatar_decoration', 'profile_effect', 'nameplate'],
+      featured: true,
+    },
+    {
+      id: 'shop_zzz_ellen_bundle',
+      name: '3pc Ellen Joe Bundle',
+      collection: 'Zenless Zone Zero',
+      category: 'bundle',
+      description: 'Maid shark special pack featuring Ellen Joe Jaw Avatar Frame, Deep Blue Fin Effect, and Victoria Housekeeping Nameplate.',
+      priceIdr: 160000,
+      priceOrbs: 1200,
+      discountPercent: 32,
+      bannerUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=800&auto=format&fit=crop&q=80',
+      previewIcon: 'https://images.unsplash.com/photo-1563089145-599997674d42?w=200&auto=format&fit=crop&q=80',
+      badge: 'Popular',
+      itemTypes: ['avatar_decoration', 'profile_effect', 'nameplate'],
+      featured: true,
+    },
+    {
+      id: 'shop_zzz_burnice',
+      name: 'Burnice White',
+      collection: 'Zenless Zone Zero',
+      category: 'avatar_decoration',
+      description: 'Sons of Calydon flame cocktail goggles & nitro blast avatar decoration.',
+      priceIdr: 78000,
+      priceOrbs: 600,
+      previewIcon: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200&auto=format&fit=crop&q=80',
+      badge: 'New',
+      featured: true,
+    },
+    {
+      id: 'shop_zzz_eous',
+      name: 'Eous Bangboo Hat',
+      collection: 'Zenless Zone Zero',
+      category: 'avatar_decoration',
+      description: 'Authentic 01 Bangboo ear helmet gear for your profile avatar.',
+      priceIdr: 78000,
+      priceOrbs: 600,
+      previewIcon: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80',
+      badge: 'Featured',
+      featured: true,
+    },
+    // Marvel Deadpool & Wolverine
+    {
+      id: 'shop_marvel_dp_wolv_bundle',
+      name: 'Marvel Deadpool & Wolverine 4pc Bundle',
+      collection: 'Deadpool & Wolverine',
+      category: 'bundle',
+      description: 'Maximum effort bundle: Katana effect, Adamantium claw slash effect, Best Friends necklace frame, and TVA badge.',
+      priceIdr: 210000,
+      priceOrbs: 1600,
+      discountPercent: 25,
+      bannerUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=800&auto=format&fit=crop&q=80',
+      previewIcon: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=200&auto=format&fit=crop&q=80',
+      badge: 'Marvel Exclusive',
+      featured: true,
+    },
+    {
+      id: 'shop_marvel_katana',
+      name: 'Deadpool Katana Stance',
+      collection: 'Deadpool & Wolverine',
+      category: 'profile_effect',
+      description: 'Dual red katanas slicing through the profile banner with comic action sound bursts.',
+      priceIdr: 110000,
+      priceOrbs: 850,
+      previewIcon: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=200&auto=format&fit=crop&q=80',
+      featured: false,
+    },
+    {
+      id: 'shop_marvel_claws',
+      name: 'Wolverine Claws Slash',
+      collection: 'Deadpool & Wolverine',
+      category: 'profile_effect',
+      description: 'Fierce golden adamantium claw sparks tearing across the user card.',
+      priceIdr: 110000,
+      priceOrbs: 850,
+      previewIcon: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=200&auto=format&fit=crop&q=80',
+      featured: false,
+    },
+    // Dead by Daylight Collection
+    {
+      id: 'shop_dbd_bundle',
+      name: 'Dead by Daylight Entity Bundle',
+      collection: 'Dead by Daylight',
+      category: 'bundle',
+      description: 'Survive or kill in style: Trapper Bear Trap frame, Entity Claws profile effect, and Bloodweb nameplate.',
+      priceIdr: 185000,
+      priceOrbs: 1400,
+      discountPercent: 30,
+      bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80',
+      previewIcon: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=200&auto=format&fit=crop&q=80',
+      badge: 'Horror',
+      featured: true,
+    },
+    {
+      id: 'shop_dbd_trapper',
+      name: 'Trapper Skull Mask',
+      collection: 'Dead by Daylight',
+      category: 'avatar_decoration',
+      description: 'Terrifying bloodied steel mask that wraps around your avatar frame.',
+      priceIdr: 78000,
+      priceOrbs: 600,
+      previewIcon: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=200&auto=format&fit=crop&q=80',
+      featured: false,
+    },
+    // Core Anticeil Originals
+    {
+      id: 'shop_cyber_void_skull',
+      name: 'Cyber Void Skull',
+      collection: 'Cyberpunk 2026',
+      category: 'avatar_decoration',
+      description: 'Holographic cybernetic skull with pulsing glitch neon visors.',
+      priceIdr: 78000,
+      priceOrbs: 600,
+      previewIcon: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200&auto=format&fit=crop&q=80',
+      badge: 'Best Seller',
+      featured: true,
+    },
+    {
+      id: 'shop_sakura_blossom_ring',
+      name: 'Sakura Blossom Ring',
+      collection: 'Spring Bloom',
+      category: 'avatar_decoration',
+      description: 'Gentle falling cherry blossom petals revolving smoothly around avatar.',
+      priceIdr: 78000,
+      priceOrbs: 600,
+      previewIcon: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=200&auto=format&fit=crop&q=80',
+      featured: false,
+    },
+    {
+      id: 'shop_aurora_neon_glow',
+      name: 'Aurora Neon Glow',
+      collection: 'Cosmic Wonders',
+      category: 'profile_effect',
+      description: 'Shimmering polar emerald and violet auroral lights cascading behind profile card.',
+      priceIdr: 98000,
+      priceOrbs: 750,
+      previewIcon: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=200&auto=format&fit=crop&q=80',
+      badge: 'Popular',
+      featured: true,
+    },
+    {
+      id: 'shop_fireflies_aura',
+      name: 'Fireflies Aura',
+      collection: 'Cosmic Wonders',
+      category: 'profile_effect',
+      description: 'Golden glowing firefly particles rising organically around your profile bio.',
+      priceIdr: 98000,
+      priceOrbs: 750,
+      previewIcon: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=200&auto=format&fit=crop&q=80',
+      featured: false,
+    },
+    {
+      id: 'shop_pixel_hive_crown',
+      name: 'Pixel Hive Crown',
+      collection: 'Retro Arcade',
+      category: 'nameplate',
+      description: '8-bit golden cyber royal crown displayed next to username.',
+      priceIdr: 58000,
+      priceOrbs: 450,
+      previewIcon: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=200&auto=format&fit=crop&q=80',
+      featured: false,
+    },
+  ];
+
+  app.get('/community/shop/items', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const query = (req.query as any) || {};
+    const cat = (query.category || '').toLowerCase().trim();
+    const col = (query.collection || '').toLowerCase().trim();
+    const q = (query.q || '').toLowerCase().trim();
+
+    const storedItems = await communityService.get<any[]>('community_shop_items', INITIAL_SHOP_ITEMS);
+    let filtered = [...storedItems];
+
+    if (cat && cat !== 'all') {
+      filtered = filtered.filter((it) => it.category?.toLowerCase() === cat);
+    }
+    if (col && col !== 'all') {
+      filtered = filtered.filter((it) => it.collection?.toLowerCase() === col);
+    }
+    if (q) {
+      filtered = filtered.filter(
+        (it) =>
+          it.name?.toLowerCase().includes(q) ||
+          it.description?.toLowerCase().includes(q) ||
+          it.collection?.toLowerCase().includes(q)
+      );
+    }
+    return filtered;
+  });
+
+  app.get('/community/shop/featured', {
+    config: { security: securityAccess.public() },
+  }, async () => {
+    const storedItems = await communityService.get<any[]>('community_shop_items', INITIAL_SHOP_ITEMS);
+    const featuredItems = storedItems.filter((it) => it.featured);
+    const collections = [
+      {
+        id: 'zenless_zone_zero',
+        name: 'Zenless Zone Zero',
+        tagline: 'WELCOME TO NEW ERIDU',
+        subtitle: 'Official collaboration items and agent bundles',
+        bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80',
+        actionLabel: 'Shop the Collection',
+        items: storedItems.filter((i) => i.collection === 'Zenless Zone Zero'),
+      },
+      {
+        id: 'deadpool_wolverine',
+        name: 'Marvel DEADPOOL & WOLVERINE',
+        tagline: 'MAXIMUM EFFORT COLLAB',
+        subtitle: 'Bring chaos and adamantium to your Anticeil card',
+        bannerUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=1200&auto=format&fit=crop&q=80',
+        actionLabel: 'Take me there',
+        items: storedItems.filter((i) => i.collection === 'Deadpool & Wolverine'),
+      },
+      {
+        id: 'dead_by_daylight',
+        name: 'DEAD BY DAYLIGHT',
+        tagline: 'DEATH IS NOT AN ESCAPE',
+        subtitle: 'Terrifying entity fog and slasher profile artifacts',
+        bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&auto=format&fit=crop&q=80',
+        actionLabel: 'Take me there',
+        items: storedItems.filter((i) => i.collection === 'Dead By Daylight'),
+      },
+    ];
+
+    return {
+      heroCollection: collections[0],
+      collections,
+      featuredItems,
+    };
+  });
+
+  app.get('/community/shop/balance', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const balance = await communityService.get<any>(`community_shop_balance_${userId}`, {
+      orbs: 1500,
+      nectar: 250,
+      currencyCode: 'IDR',
+    });
+    return balance;
+  });
+
+  app.post('/community/shop/purchase', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { itemId, currency = 'orbs' } = (req.body as any) || {};
+
+    const storedItems = await communityService.get<any[]>('community_shop_items', INITIAL_SHOP_ITEMS);
+    const targetItem = storedItems.find((i) => i.id === itemId);
+    if (!targetItem) {
+      return { success: false, message: 'Item tidak ditemukan di Shop.' };
+    }
+
+    const inventory = await communityService.get<any[]>(`community_shop_inventory_${userId}`, []);
+    if (inventory.some((i) => i.id === itemId)) {
+      return { success: true, message: 'Item sudah dimiliki di inventaris Anda.', item: targetItem, alreadyOwned: true };
+    }
+
+    // Check balance
+    const balanceKey = `community_shop_balance_${userId}`;
+    const currentBalance = await communityService.get<any>(balanceKey, { orbs: 1500, nectar: 250, currencyCode: 'IDR' });
+    const cost = targetItem.priceOrbs || 600;
+
+    if (currency === 'orbs' && currentBalance.orbs < cost) {
+      return { success: false, message: 'Orbs Anda tidak mencukupi untuk item ini.' };
+    }
+
+    if (currency === 'orbs') {
+      currentBalance.orbs -= cost;
+      await communityService.set(balanceKey, currentBalance);
+    }
+
+    const purchasedRecord = {
+      ...targetItem,
+      purchasedAt: new Date().toISOString(),
+      transactionId: `tx_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    };
+    const updatedInventory = [...inventory, purchasedRecord];
+    await communityService.set(`community_shop_inventory_${userId}`, updatedInventory);
+
+    return {
+      success: true,
+      message: `Berhasil membeli ${targetItem.name}! 🎉`,
+      item: purchasedRecord,
+      newBalance: currentBalance,
+    };
+  });
+
+  app.get('/community/shop/inventory', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    return await communityService.get<any[]>(`community_shop_inventory_${userId}`, []);
+  });
+
+  app.get('/community/shop/wishlist', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    return await communityService.get<any[]>(`community_shop_wishlist_${userId}`, []);
+  });
+
+  app.post('/community/shop/wishlist/:itemId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { itemId } = req.params as { itemId: string };
+
+    const wishlistKey = `community_shop_wishlist_${userId}`;
+    const currentWishlist = await communityService.get<any[]>(wishlistKey, []);
+
+    let updatedWishlist: any[];
+    let isWishlisted: boolean;
+
+    if (currentWishlist.some((i) => i.id === itemId)) {
+      updatedWishlist = currentWishlist.filter((i) => i.id !== itemId);
+      isWishlisted = false;
+    } else {
+      const storedItems = await communityService.get<any[]>('community_shop_items', INITIAL_SHOP_ITEMS);
+      const target = storedItems.find((i) => i.id === itemId);
+      if (target) {
+        updatedWishlist = [...currentWishlist, target];
+        isWishlisted = true;
+      } else {
+        updatedWishlist = currentWishlist;
+        isWishlisted = false;
+      }
+    }
+
+    await communityService.set(wishlistKey, updatedWishlist);
+    return { success: true, isWishlisted, wishlist: updatedWishlist };
+  });
+
+  app.post('/community/shop/equip', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { itemId, slot } = (req.body as any) || {};
+
+    const profileKey = `community_user_profile_${userId}`;
+    const currentProfile = await communityService.get<any>(profileKey, {});
+    const updatedProfile = {
+      ...currentProfile,
+      [slot]: itemId,
+      updatedAt: new Date().toISOString(),
+    };
+    await communityService.set(profileKey, updatedProfile);
+    return { success: true, slot, itemId, profile: updatedProfile };
+  });
 };
