@@ -270,22 +270,46 @@ export default {
       });
     }
 
+    // Handle OAuth redirect for cross-origin targets (e.g. chat.anticeil.com)
+    if (url.pathname === '/redirect') {
+      const code = url.searchParams.get('code');
+      const stateStr = url.searchParams.get('state') || '';
+      let fromUrl = '';
+      try {
+        const stateObj = JSON.parse(stateStr);
+        fromUrl = stateObj.from || '';
+      } catch {}
+
+      if (fromUrl && (fromUrl.startsWith('http://') || fromUrl.startsWith('https://'))) {
+        const target = new URL(fromUrl);
+        if (code) target.searchParams.set('code', code);
+        if (stateStr) target.searchParams.set('state', stateStr);
+        return Response.redirect(target.toString(), 302);
+      }
+
+      // If logging into anticeil.com (/flows), pass through to origin server
+      return fetch(request);
+    }
+
     // Handle WebSocket upgrades (e.g. Socket.IO / chat / real-time)
     if (request.headers.get('Upgrade') === 'websocket') {
-      const pair = new WebSocketPair();
-      const [client, server] = Object.values(pair);
-      server.accept();
-      server.addEventListener('message', (event) => {
-        const data = String(event.data);
-        if (data === '2probe') {
-          server.send('3probe');
-        } else if (data === '2') {
-          server.send('3');
-        }
-      });
-      server.send('0{"sid":"anticeil_ws","upgrades":[],"pingInterval":25000,"pingTimeout":20000}');
-      server.send('40');
-      return new Response(null, { status: 101, webSocket: client });
+      const WebSocketPairClass = (globalThis as any).WebSocketPair;
+      if (WebSocketPairClass) {
+        const pair = new WebSocketPairClass();
+        const [client, server]: [any, any] = Object.values(pair) as any;
+        server.accept();
+        server.addEventListener('message', (event: any) => {
+          const data = String(event.data);
+          if (data === '2probe') {
+            server.send('3probe');
+          } else if (data === '2') {
+            server.send('3');
+          }
+        });
+        server.send('0{"sid":"anticeil_ws","upgrades":[],"pingInterval":25000,"pingTimeout":20000}');
+        server.send('40');
+        return new Response(null, { status: 101, webSocket: client } as any);
+      }
     }
 
     if (url.pathname.includes('/socket.io/')) {
@@ -489,7 +513,22 @@ export default {
               firstName,
               lastName,
               verified: true,
+              imageUrl: profile.picture || null,
             };
+          } else if (profile.picture && identity.imageUrl !== profile.picture) {
+            await querySupabase(
+              `user_identity?id=eq.${identity.id}`,
+              {
+                method: 'PATCH',
+                body: JSON.stringify({
+                  imageUrl: profile.picture,
+                  firstName,
+                  lastName,
+                }),
+              },
+              env,
+            );
+            identity.imageUrl = profile.picture;
           }
 
           // 2. Get Platform
@@ -596,7 +635,7 @@ export default {
               email: identity.email,
               firstName: identity.firstName,
               lastName: identity.lastName,
-              imageUrl: identity.imageUrl,
+              imageUrl: identity.imageUrl || profile.picture || null,
               username: identity.username || identity.email?.split('@')[0] || 'faizasysyauqi',
               iat: nowSeconds,
               exp: nowSeconds + oneWeekInSeconds,
@@ -611,7 +650,8 @@ export default {
             email: identity.email,
             firstName: identity.firstName,
             lastName: identity.lastName,
-            imageUrl: identity.imageUrl,
+            imageUrl: identity.imageUrl || profile.picture || null,
+            avatar: identity.imageUrl || profile.picture || null,
             username: identity.username || identity.email?.split('@')[0] || 'faizasysyauqi',
             token,
             projectId: project.id,

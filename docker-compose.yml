@@ -16,6 +16,14 @@ services:
       - ./cache:/usr/src/app/cache
     networks:
       - activepieces
+  chat:
+    image: ghcr.io/mfaizasysyauqi/anticeil-chat:latest
+    container_name: anticeil-chat
+    restart: unless-stopped
+    ports:
+      - '3005:3005'
+    networks:
+      - activepieces
   worker:
     image: anticeil:latest
     restart: unless-stopped

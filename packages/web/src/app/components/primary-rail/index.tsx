@@ -18,7 +18,6 @@ import {
   Compass,
   Lock,
   LogOut,
-  MessagesSquare,
   PanelLeftClose,
   Search,
   ShieldCheck,
@@ -35,7 +34,6 @@ import {
 import { motion, useReducedMotion } from 'motion/react';
 import { ComponentType, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { CommunityHub, loadStoredHubs } from '@/lib/community-hubs';
 
 import { UserAvatar } from '@/components/custom/user-avatar';
 import { useEmbedding } from '@/components/providers/embed-provider';
@@ -87,45 +85,6 @@ import { MCP_CLIENT_BRANDING } from '../../routes/mcp-server/mcp-client-display'
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { SidebarUsageLimits } from '@/features/billing/components/sidebar-usage-limits';
 
-function renderHubIcon(hub: CommunityHub) {
-  if (hub.iconUrl) {
-    return (
-      <img
-        src={hub.iconUrl}
-        alt={hub.name}
-        className="w-full h-full object-cover rounded-[14px]"
-        onError={(e) => {
-          (e.currentTarget as HTMLImageElement).style.display = 'none';
-        }}
-      />
-    );
-  }
-  switch (hub.iconType) {
-    case 'logo':
-      return (
-        <img
-          src="/logo.png"
-          alt="Anticeil"
-          className="size-5 object-contain pointer-events-none drop-shadow-xs"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = '/favicon.ico';
-          }}
-        />
-      );
-    case 'spark':
-      return <Sparkles className="w-4 h-4 text-amber-400" />;
-    case 'bot':
-      return <Bot className="w-4 h-4 text-emerald-400" />;
-    case 'templates':
-      return <Layers className="w-4 h-4 text-purple-400" />;
-    case 'code':
-      return <Terminal className="w-4 h-4 text-blue-400" />;
-    case 'dm':
-      return <MessagesSquare className="w-4 h-4 text-rose-400" />;
-    default:
-      return <span className="font-bold text-xs">{hub.initials}</span>;
-  }
-}
 
 function getIsPlusOrAbove(platform: any): boolean {
   const planName = (platform?.plan?.plan || 'free').toLowerCase();
@@ -152,46 +111,6 @@ export function PrimaryRail() {
   const isMenuOpenRef = useRef(false);
   const isMouseInsideRef = useRef(false);
 
-  // Unified Mini Rail: Detect whether we are in Chat mode or Automation mode
-  const isChatMode = pathname.startsWith('/community') || pathname.startsWith('/messages');
-
-  // Hubs state for Chat mode
-  const [hubs, setHubs] = useState<CommunityHub[]>(() => loadStoredHubs());
-  const [activeHubId, setActiveHubId] = useState<string>(() => {
-    return new URLSearchParams(window.location.search).get('hub') || 'anticeil';
-  });
-
-  useEffect(() => {
-    const handleHubChange = (e: any) => {
-      if (e.detail) setActiveHubId(e.detail);
-    };
-    const handleHubsChanged = () => {
-      setHubs(loadStoredHubs());
-    };
-    window.addEventListener('anticeil_active_hub_changed', handleHubChange as EventListener);
-    window.addEventListener('anticeil_hubs_changed', handleHubsChanged);
-    return () => {
-      window.removeEventListener('anticeil_active_hub_changed', handleHubChange as EventListener);
-      window.removeEventListener('anticeil_hubs_changed', handleHubsChanged);
-    };
-  }, []);
-
-  useEffect(() => {
-    const hubParam = new URLSearchParams(search).get('hub');
-    if (hubParam && hubParam !== activeHubId) {
-      setActiveHubId(hubParam);
-    }
-  }, [search]);
-
-  const handleSelectHub = (hubId: string) => {
-    setActiveHubId(hubId);
-    navigate(`/messages?hub=${hubId}`);
-    window.dispatchEvent(new CustomEvent('anticeil_switch_hub', { detail: hubId }));
-  };
-
-  const handleOpenCreateHub = () => {
-    window.dispatchEvent(new CustomEvent('anticeil_open_create_hub'));
-  };
 
   const handleMouseEnter = useCallback(() => {
     isMouseInsideRef.current = true;
@@ -230,8 +149,8 @@ export function PrimaryRail() {
     toggle();
   };
 
-  // Zapier-style: when collapsed, show the overlay on hover OR while dropdown menu is open (only in Automation mode)
-  const showOverlay = !isChatMode && collapsed && (hovered || isMenuOpen);
+  // Zapier-style: when collapsed, show the overlay on hover OR while dropdown menu is open
+  const showOverlay = collapsed && (hovered || isMenuOpen);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -242,189 +161,27 @@ export function PrimaryRail() {
       >
       {/* Always render the collapsed rail to hold space */}
       <aside
-        onClick={!isChatMode && collapsed ? openSidebar : undefined}
-        title={!isChatMode && collapsed ? t('Open sidebar') : undefined}
+        onClick={collapsed ? openSidebar : undefined}
+        title={collapsed ? t('Open sidebar') : undefined}
         className={cn(
           'hidden lg:flex h-svh shrink-0 flex-col overflow-hidden whitespace-nowrap bg-sidebar pb-3 transition-[width] duration-200 ease-out motion-reduce:transition-none',
-          isChatMode ? 'w-14 items-center select-none pt-0 relative' : collapsed ? 'w-14 cursor-ew-resize items-center pt-2' : 'w-62 pt-2',
+          collapsed ? 'w-14 cursor-ew-resize items-center pt-2' : 'w-62 pt-2',
         )}
       >
-        {isChatMode ? (
-          /* ── CHAT MODE: REPLACED WITH DISCORD SERVER & DMS RAIL ── */
-          <>
-            {/* 1. Top: Anticeil Logo / Direct Messages (Home Hub) - Exactly h-14 (56px) for symmetric 8px padding aligning with 8px margin + 48px app bar */}
-            {hubs[0] && (
-              <div className="relative group w-full h-14 flex items-center justify-center shrink-0">
-                <span
-                  className={cn(
-                    'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
-                    activeHubId === 'anticeil'
-                      ? 'h-6'
-                      : 'h-0 group-hover:h-3.5 opacity-80',
-                  )}
-                />
-                <Tooltip delayDuration={150}>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleSelectHub('anticeil')}
-                      className={cn(
-                        'relative size-10 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0 rounded-[14px]',
-                        activeHubId === 'anticeil'
-                          ? 'bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
-                          : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80',
-                      )}
-                    >
-                      {renderHubIcon(hubs[0])}
-                      {hubs[0].unreadCount && hubs[0].unreadCount > 0 ? (
-                        <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center border-2 border-sidebar">
-                          {hubs[0].unreadCount}
-                        </span>
-                      ) : null}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
-                    {hubs[0].name}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
+        <RailHeader collapsed={collapsed} onToggle={toggleCollapsed} />
+
+        <div
+          className={cn(
+            'mt-2 flex min-h-0 flex-1 flex-col',
+            collapsed ? 'items-center px-2' : 'px-2',
+          )}
+        >
+          <div
+            className={cn(
+              'flex shrink-0 flex-col gap-1',
+              collapsed && 'items-center',
             )}
-
-            {/* 2. Mode Switcher: Automation Icon (dibawah logo Anticeil) */}
-            <div className="flex flex-col items-center shrink-0 px-2">
-              <Tooltip delayDuration={150}>
-                <TooltipTrigger asChild>
-                  <Link
-                    to="/"
-                    className="group relative size-10 rounded-[14px] bg-sidebar-accent text-muted-foreground hover:bg-primary/15 hover:text-primary flex items-center justify-center transition-all duration-200 cursor-pointer shadow-xs"
-                  >
-                    <Workflow className="size-5 transition-transform group-hover:scale-110" />
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
-                  {t('Mode Otomasi (Flows & Integrasi)')}
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
-            {/* Separator bar */}
-            <div className="w-6 h-[2px] bg-sidebar-border rounded-full my-1.5 shrink-0" />
-
-            {/* 3. Scrollable Hubs / Servers List */}
-            <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col items-center gap-2 py-1 pb-16">
-
-              {/* Other Servers */}
-              {hubs.slice(1).map((hub) => {
-                const isActive = activeHubId === hub.id;
-                return (
-                  <div key={hub.id} className="relative group w-full flex items-center justify-center">
-                    <span
-                      className={cn(
-                        'absolute left-0 w-[3px] bg-foreground rounded-r-full transition-all duration-200',
-                        isActive ? 'h-6' : 'h-0 group-hover:h-3.5 opacity-80',
-                      )}
-                    />
-                    <Tooltip delayDuration={150}>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => handleSelectHub(hub.id)}
-                          className={cn(
-                            'relative size-10 flex items-center justify-center font-bold text-xs transition-all duration-200 cursor-pointer shrink-0 rounded-[14px]',
-                            isActive
-                              ? 'bg-primary/20 text-primary border border-primary/40 shadow-xs shadow-primary/10'
-                              : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80',
-                          )}
-                        >
-                          {renderHubIcon(hub)}
-                          {hub.unreadCount && hub.unreadCount > 0 ? (
-                            <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center border-2 border-sidebar">
-                              {hub.unreadCount}
-                            </span>
-                          ) : null}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
-                        {hub.name}
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                );
-              })}
-
-              {/* Add Server (+) Button */}
-              <Tooltip delayDuration={150}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={handleOpenCreateHub}
-                    className="group relative size-10 rounded-[14px] bg-sidebar-accent text-emerald-500 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
-                  >
-                    <Plus className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
-                  {t('Buat Server Baru')}
-                </TooltipContent>
-              </Tooltip>
-
-              {/* Discover / Templates Compass */}
-              <Tooltip delayDuration={150}>
-                <TooltipTrigger asChild>
-                  <Link
-                    to="/templates"
-                    className="group relative size-10 rounded-[14px] bg-sidebar-accent text-muted-foreground hover:bg-primary hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0"
-                  >
-                    <Compass className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={10} className="font-semibold text-xs">
-                  {t('Jelajahi Template Otomasi')}
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
-            {/* 3. Bottom: spacer to push list to top */}
-            <div className="shrink-0 h-2" />
-          </>
-        ) : (
-          /* ── AUTOMATION MODE: STANDARD PRIMARY RAIL ── */
-          <>
-            <RailHeader collapsed={collapsed} onToggle={toggleCollapsed} />
-
-            <div
-              className={cn(
-                'mt-2 flex min-h-0 flex-1 flex-col',
-                collapsed ? 'items-center px-2' : 'px-2',
-              )}
-            >
-              <div
-                className={cn(
-                  'flex shrink-0 flex-col gap-1',
-                  collapsed && 'items-center',
-                )}
-              >
-                <RailNavButton
-                  collapsed={collapsed}
-                  to="/messages"
-                  icon={MessagesSquare}
-                  label={t('Chat')}
-                  isActive={({ pathname }) =>
-                    pathname.startsWith('/community') || pathname.startsWith('/messages')
-                  }
-                />
-              </div>
-
-              <div
-                className={cn(
-                  'my-1.5 h-px shrink-0 bg-sidebar-border',
-                  collapsed ? 'w-6' : 'mx-1',
-                )}
-              />
-
-              <div
-                className={cn(
-                  'flex shrink-0 flex-col gap-1',
-                  collapsed && 'items-center',
-                )}
-              >
+          >
                 {(platform?.plan?.chatEnabled ?? true) && (
                   <RailNavButton
                     collapsed={collapsed}
@@ -514,8 +271,6 @@ export function PrimaryRail() {
               )}
               <RailAccountRow collapsed={collapsed} onMenuOpenChange={handleMenuOpenChange} />
             </div>
-          </>
-        )}
       </aside>
 
       {/* Hover overlay — expanded sidebar floating on top when collapsed */}
@@ -526,20 +281,6 @@ export function PrimaryRail() {
           <RailHeader collapsed={false} onToggle={toggleCollapsed} />
 
           <div className="mt-2 flex min-h-0 flex-1 flex-col px-2">
-            <div className="flex shrink-0 flex-col gap-1">
-              <RailNavButton
-                collapsed={false}
-                to="/messages"
-                icon={MessagesSquare}
-                label={t('Chat')}
-                isActive={({ pathname }) =>
-                  pathname.startsWith('/community') || pathname.startsWith('/messages')
-                }
-                onClick={() => setHovered(false)}
-              />
-            </div>
-
-            <div className="my-1.5 mx-1 h-px shrink-0 bg-sidebar-border" />
 
             <div className="flex shrink-0 flex-col gap-1">
               {(platform?.plan?.chatEnabled ?? true) && (
@@ -662,21 +403,6 @@ export function MobilePrimaryRailSheet({
           <RailHeader collapsed={false} onToggle={() => onOpenChange(false)} />
 
           <div className="mt-2 flex min-h-0 flex-1 flex-col px-2">
-            <div className="flex shrink-0 flex-col gap-1">
-              <RailNavButton
-                collapsed={false}
-                to="/messages"
-                icon={MessagesSquare}
-                label={t('Chat')}
-                isActive={({ pathname }) =>
-                  pathname.startsWith('/community') || pathname.startsWith('/messages')
-                }
-                onClick={handleNavigate}
-              />
-            </div>
-
-            <div className="my-1.5 mx-1 h-px shrink-0 bg-sidebar-border" />
-
             <div className="flex shrink-0 flex-col gap-1">
               {(platform?.plan?.chatEnabled ?? true) && (
                 <RailNavButton

@@ -31,6 +31,9 @@ COPY docker-patches-community-templates-service.js /usr/src/app/packages/server/
 # Layer custom Anticeil frontend build onto official stable Activepieces image
 COPY dist/packages/web/ /usr/src/app/dist/packages/web/
 
+# Tolerant AI model catalog parsing to prevent crash on new providers
+RUN sed -i 's/partialRecord(zod_1.z.enum(core_utils_1.AIProviderName)/record(zod_1.z.string()/g' /usr/src/app/packages/server/utils/dist/src/model-catalog.js 2>/dev/null || true
+
 # Layer custom Anticeil prompts onto official image
 COPY packages/server/api/src/assets/prompts/ /usr/src/app/packages/server/api/src/assets/prompts/
 

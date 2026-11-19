@@ -11,3 +11,9 @@ export const LAYOUT_BODY_CONTAINER = {
   CONTENT_CONTAINER:
     'relative flex flex-col h-full flex-1 min-h-0 bg-background overflow-clip rounded-none border-0 lg:rounded-xl lg:border lg:border-sidebar-border shadow-xs',
 } as const;
+
+/**
+ * Global horizontal padding for channel views (Text Channel, Voice Channel, Forum Channel, and Sidebar Header)
+ * Used across app bar, body/feed, and bottom bar/input dock to ensure perfect horizontal symmetry and consistency.
+ */
+export const CHANNEL_HORIZONTAL_PADDING = 'px-4';

@@ -29,6 +29,8 @@ jobs:
         run: bun install
 
       - name: Build web frontend
+        env:
+          VITE_YOUTUBE_API_KEY: ${{ secrets.VITE_YOUTUBE_API_KEY }}
         run: bun x turbo run build --filter=web
 
       - name: Set up Docker Buildx
@@ -65,10 +67,8 @@ jobs:
             set -e
             cd ~/anticeil
 
-            # Pull latest code if git repo exists
-            if [ -d .git ]; then
-              git pull origin ${{ github.ref_name }}
-            fi
+            # Ensure latest docker-compose.yml is in place
+            echo "c2VydmljZXM6CiAgYXBwOgogICAgaW1hZ2U6IGFudGljZWlsOmxhdGVzdAogICAgY29udGFpbmVyX25hbWU6IGFjdGl2ZXBpZWNlcy1hcHAKICAgIHJlc3RhcnQ6IHVubGVzcy1zdG9wcGVkCiAgICBwb3J0czoKICAgICAgLSAnODA4MDo4MCcKICAgIGRlcGVuZHNfb246CiAgICAgIC0gcG9zdGdyZXMKICAgICAgLSByZWRpcwogICAgZW52X2ZpbGU6IC5lbnYKICAgIGVudmlyb25tZW50OgogICAgICAtIEFQX0NPTlRBSU5FUl9UWVBFPUFQUAogICAgICAtIEFQX0lOVEVSTkFMX1VSTD1odHRwOi8vYXBwCiAgICB2b2x1bWVzOgogICAgICAtIC4vY2FjaGU6L3Vzci9zcmMvYXBwL2NhY2hlCiAgICBuZXR3b3JrczoKICAgICAgLSBhY3RpdmVwaWVjZXMKICBjaGF0OgogICAgaW1hZ2U6IGdoY3IuaW8vbWZhaXphc3lzeWF1cWkvYW50aWNlaWwtY2hhdDpsYXRlc3QKICAgIGNvbnRhaW5lcl9uYW1lOiBhbnRpY2VpbC1jaGF0CiAgICByZXN0YXJ0OiB1bmxlc3Mtc3RvcHBlZAogICAgcG9ydHM6CiAgICAgIC0gJzMwMDU6MzAwNScKICAgIG5ldHdvcmtzOgogICAgICAtIGFjdGl2ZXBpZWNlcwogIHdvcmtlcjoKICAgIGltYWdlOiBhbnRpY2VpbDpsYXRlc3QKICAgIHJlc3RhcnQ6IHVubGVzcy1zdG9wcGVkCiAgICBkZXBlbmRzX29uOgogICAgICAtIGFwcAogICAgZW52X2ZpbGU6IC5lbnYKICAgIGVudmlyb25tZW50OgogICAgICAtIEFQX0NPTlRBSU5FUl9UWVBFPVdPUktFUgogICAgICAtIEFQX0lOVEVSTkFMX1VSTD1odHRwOi8vYXBwCiAgICBkZXBsb3k6CiAgICAgIHJlcGxpY2FzOiA1CiAgICB2b2x1bWVzOgogICAgICAtIC4vY2FjaGU6L3Vzci9zcmMvYXBwL2NhY2hlCiAgICBuZXR3b3JrczoKICAgICAgLSBhY3RpdmVwaWVjZXMKICBwb3N0Z3JlczoKICAgIGltYWdlOiAncGd2ZWN0b3IvcGd2ZWN0b3I6MC44LjAtcGcxNCcKICAgIGNvbnRhaW5lcl9uYW1lOiBwb3N0Z3JlcwogICAgcmVzdGFydDogdW5sZXNzLXN0b3BwZWQKICAgIGVudl9maWxlOiAuZW52CiAgICBlbnZpcm9ubWVudDoKICAgICAgLSAnUE9TVEdSRVNfREI9JHtBUF9QT1NUR1JFU19EQVRBQkFTRX0nCiAgICAgIC0gJ1BPU1RHUkVTX1BBU1NXT1JEPSR7QVBfUE9TVEdSRVNfUEFTU1dPUkR9JwogICAgICAtICdQT1NUR1JFU19VU0VSPSR7QVBfUE9TVEdSRVNfVVNFUk5BTUV9JwogICAgdm9sdW1lczoKICAgICAgLSBwb3N0Z3Jlc19kYXRhOi92YXIvbGliL3Bvc3RncmVzcWwvZGF0YQogICAgbmV0d29ya3M6CiAgICAgIC0gYWN0aXZlcGllY2VzCiAgcmVkaXM6CiAgICBpbWFnZTogJ3JlZGlzOjcuMC43JwogICAgY29udGFpbmVyX25hbWU6IHJlZGlzCiAgICByZXN0YXJ0OiB1bmxlc3Mtc3RvcHBlZAogICAgdm9sdW1lczoKICAgICAgLSAncmVkaXNfZGF0YTovZGF0YScKICAgIG5ldHdvcmtzOgogICAgICAtIGFjdGl2ZXBpZWNlcwp2b2x1bWVzOgogIHBvc3RncmVzX2RhdGE6CiAgcmVkaXNfZGF0YToKbmV0d29ya3M6CiAgYWN0aXZlcGllY2VzOgo=" | base64 -d > docker-compose.yml
 
             # Login to GHCR and pull new image (with prune/retry fallback if daemon lease error occurs)
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -83,6 +83,9 @@ jobs:
 
             # Tag as local anticeil:latest
             docker tag ghcr.io/${{ github.repository_owner }}/anticeil:latest anticeil:latest
+
+            # Pull standalone chat image if available
+            docker pull ghcr.io/${{ github.repository_owner }}/anticeil-chat:latest || true
 
             # Update AP_FRONTEND_URL to production domain in .env
             sed -i 's|^AP_FRONTEND_URL=.*|AP_FRONTEND_URL=https://anticeil.com|' .env
@@ -102,15 +105,15 @@ jobs:
             grep -q '^AP_GOOGLE_CLIENT_ID=' .env && sed -i "s|^AP_GOOGLE_CLIENT_ID=.*|AP_GOOGLE_CLIENT_ID=$G_CID|" .env || echo "AP_GOOGLE_CLIENT_ID=$G_CID" >> .env
             grep -q '^AP_GOOGLE_CLIENT_SECRET=' .env && sed -i "s|^AP_GOOGLE_CLIENT_SECRET=.*|AP_GOOGLE_CLIENT_SECRET=$G_SEC|" .env || echo "AP_GOOGLE_CLIENT_SECRET=$G_SEC" >> .env
 
-            # Stop app and workers before cache wipe
-            docker compose stop app worker || true
+            # Stop app, workers, and chat before cache wipe
+            docker compose stop app worker chat || true
 
             # Completely purge cache on host so any stale piece extraction or lockfile is cleaned
             sudo rm -rf ./cache
             mkdir -p ./cache
 
             # Recreate containers with new image
-            docker compose up -d --force-recreate app worker
+            docker compose up -d --force-recreate app worker chat
 
             # Wait and inspect container status
             sleep 8
@@ -129,15 +132,36 @@ jobs:
             run_sql "UPDATE platform_plan SET \"auditLogEnabled\"=true,\"apiKeysEnabled\"=true,\"customAppearanceEnabled\"=true,\"showPoweredBy\"=false WHERE plan IN ('plus','team','enterprise')"
             run_sql "UPDATE platform_plan SET \"globalConnectionsEnabled\"=true,\"ssoEnabled\"=true,\"customRolesEnabled\"=true,\"projectRolesEnabled\"=true,\"environmentsEnabled\"=true,\"embeddingEnabled\"=true,\"secretManagersEnabled\"=true,\"managePiecesEnabled\"=true,\"manageTemplatesEnabled\"=true,\"billedTeamProjectsLimit\"=NULL WHERE plan IN ('team','enterprise')"
             run_sql "UPDATE platform_plan SET \"scimEnabled\"=true,\"eventStreamingEnabled\"=true,\"workerGroupsEnabled\"=true,\"customDomainsEnabled\"=true WHERE plan='enterprise'"
-            run_sql "UPDATE platform_plan SET \"billedTeamProjectsLimit\"=1 WHERE plan='plus' AND (\"billedTeamProjectsLimit\" IS NULL OR \"billedTeamProjectsLimit\"<1)"
             run_sql "UPDATE project SET type='PERSONAL' WHERE id IN (SELECT p1.id FROM project p1 WHERE p1.created=(SELECT MIN(p2.created) FROM project p2 WHERE p2.\"platformId\"=p1.\"platformId\") AND NOT EXISTS (SELECT 1 FROM project p3 WHERE p3.\"platformId\"=p1.\"platformId\" AND p3.type='PERSONAL'))"
             run_sql "SELECT id, \"platformId\", plan, \"billedTeamProjectsLimit\", \"ssoEnabled\", \"managePiecesEnabled\" FROM platform_plan"
+
+            # Ensure community channels have type and is_private columns and seed missing voice/forum channels
+            run_sql "ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS type VARCHAR(32) DEFAULT 'text';"
+            run_sql "ALTER TABLE anticeil_community_channels ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE;"
+            run_sql "INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, type, is_private) SELECT 'ch-' || substr(md5(random()::text), 1, 8) || '-voice', 'General Voice', 'Saluran suara & video', 'CHANNELS', h.id, false, 'voice', false FROM anticeil_community_hubs h WHERE h.id != 'anticeil' AND NOT EXISTS (SELECT 1 FROM anticeil_community_channels c WHERE c.hub_id = h.id AND c.type = 'voice');"
+            run_sql "INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, type, is_private) SELECT 'ch-' || substr(md5(random()::text), 1, 8) || '-forum', 'forum-diskusi', 'Ruang diskusi terorganisir', 'CHANNELS', h.id, false, 'forum', false FROM anticeil_community_hubs h WHERE h.id != 'anticeil' AND NOT EXISTS (SELECT 1 FROM anticeil_community_channels c WHERE c.hub_id = h.id AND c.type = 'forum');"
+            run_sql "DELETE FROM anticeil_community_channels a USING anticeil_community_channels b WHERE a.hub_id = b.hub_id AND (a.type = b.type OR (a.type IS NULL AND b.type IS NULL)) AND LOWER(TRIM(a.name)) = LOWER(TRIM(b.name)) AND a.created_at > b.created_at;"
 
             # Flush Redis cache so platform plan & billing cache are reloaded
             docker exec $(docker ps -q -f name=redis) redis-cli flushall 2>/dev/null || true
 
-            # Restart cloudflared tunnel if present to refresh routes
-            sudo systemctl restart cloudflared 2>/dev/null || docker compose restart cloudflared 2>/dev/null || true
+            # Wait for NestJS/Fastify to fully bind ports
+            sleep 20
+            echo "=== Activepieces App Logs (Full Boot) ==="
+            docker logs activepieces-app --tail 100 || true
+            echo "=== Local Port Checks ==="
+            curl -Iv http://127.0.0.1:8080/ || true
+            curl -Iv http://127.0.0.1:3005/ || true
+
+            # Check and show Cloudflare Tunnel status and configuration
+            echo "=== Cloudflared Tunnel Config & Status ==="
+            cat ~/.cloudflared/config.yml 2>/dev/null || cat /etc/cloudflared/config.yml 2>/dev/null || true
+            sudo systemctl status cloudflared --no-pager || true
+            sudo systemctl restart cloudflared || docker compose restart cloudflared 2>/dev/null || true
+            sleep 3
+            sudo systemctl status cloudflared --no-pager || true
+
+            docker restart anticeil_chat_dev 2>/dev/null || true
 
             # Cleanup old images
             docker image prune -f

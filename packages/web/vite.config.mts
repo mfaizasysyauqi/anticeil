@@ -16,6 +16,12 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     root: __dirname,
+    envDir: path.resolve(__dirname, '../../'),
+    define: {
+      'import.meta.env.VITE_YOUTUBE_API_KEY': JSON.stringify(
+        process.env.VITE_YOUTUBE_API_KEY || 'AIzaSyBg-0HDXNw2occXp6_89D4dXxBW0gISbQ4',
+      ),
+    },
     cacheDir: '../../node_modules/.vite/packages/web',
     server: {
       // allowedHosts: ['wozcsvaint.loclx.io'],

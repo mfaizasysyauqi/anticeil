@@ -25,6 +25,10 @@ import { AddMetadataFieldToFlowTemplates1744780800000 } from './migration/postgr
 import { AddCommunityTables1868000000000 } from './migration/postgres/1868000000000-AddCommunityTables'
 import { AddCommunityHubAndInviteTables1869000000000 } from './migration/postgres/1869000000000-AddCommunityHubAndInviteTables'
 import { AddUsernameToUserIdentity1869000000001 } from './migration/postgres/1869000000001-AddUsernameToUserIdentity'
+import { AddCommunityPinsNotificationsThreads1869000000002 } from './migration/postgres/1869000000002-AddCommunityPinsNotificationsThreads'
+import { AddCommunityServerEmojiAndSticker1869000000003 } from './migration/postgres/1869000000003-AddCommunityServerEmojiAndSticker'
+import { AddChannelTypeAndIsPrivate1869000000004 } from './migration/postgres/1869000000004-AddChannelTypeAndIsPrivate'
+import { DropCommunityTables1869000000005 } from './migration/postgres/1869000000005-DropCommunityTables'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
 import { BackgroundMigration } from './background-migration'
@@ -936,6 +940,10 @@ export const getMigrations = (): (new () => Migration)[] => {
         AddCommunityTables1868000000000,
         AddCommunityHubAndInviteTables1869000000000,
         AddUsernameToUserIdentity1869000000001,
+        AddCommunityPinsNotificationsThreads1869000000002,
+        AddCommunityServerEmojiAndSticker1869000000003,
+        AddChannelTypeAndIsPrivate1869000000004,
+        DropCommunityTables1869000000005,
     ]
     return migrations
 }

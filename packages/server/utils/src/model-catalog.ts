@@ -48,7 +48,7 @@ function startFetch(): Promise<PublishedCatalog> {
         .catch((error) => {
             lastFailureAt = Date.now()
             logger.warn({ error, catalog: { url: catalogUrl() } }, 'Failed to load the AI model catalog; models will be returned without metadata')
-            throw error
+            return { providers: {} } as any
         })
         .finally(() => {
             inFlight = undefined
@@ -90,8 +90,8 @@ const CATALOG_SOURCE_PROVIDER: Partial<Record<AIProviderName, AIProviderName>> =
 }
 
 const PublishedCatalog = z.object({
-    providers: z.partialRecord(z.enum(AIProviderName), z.record(z.string(), AIProviderModelMetadata)),
-})
+    providers: z.record(z.string(), z.record(z.string(), AIProviderModelMetadata).optional()).optional(),
+}).passthrough()
 
 type PublishedCatalog = z.infer<typeof PublishedCatalog>
 

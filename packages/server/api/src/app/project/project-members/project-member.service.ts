@@ -317,6 +317,7 @@ function toProjectMemberWithUser(
             id: user.id,
             firstName: identity.firstName,
             lastName: identity.lastName,
+            username: identity.username ?? identity.email?.split('@')[0] ?? '',
             created: user.created,
             updated: user.updated,
         },

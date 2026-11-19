@@ -32,14 +32,6 @@ const ChatWithAIPage = lazyWithRetry(
   'chat-with-ai',
 );
 
-const MessagesPage = lazyWithRetry(
-  () =>
-    import('@/app/routes/messages').then((m) => ({
-      default: m.default || m.CommunityPage,
-    })),
-  'messages',
-);
-
 function chatElement() {
   return (
     <AllowOnlyLoggedInUserOnlyGuard>
@@ -54,30 +46,9 @@ function chatElement() {
   );
 }
 
-function communityElement() {
-  return (
-    <AllowOnlyLoggedInUserOnlyGuard>
-      <ProjectDashboardLayout>
-        <PageTitle title="Chat">
-          <Suspense fallback={<RouteLoadingBar />}>
-            <MessagesPage />
-          </Suspense>
-        </PageTitle>
-      </ProjectDashboardLayout>
-    </AllowOnlyLoggedInUserOnlyGuard>
-  );
-}
-
 const chatRoutes = [
   { path: '/chat', element: chatElement() },
   { path: '/chat/:conversationId', element: chatElement() },
-];
-
-const communityRoutes = [
-  { path: '/community', element: communityElement() },
-  { path: '/community/:channelId', element: communityElement() },
-  { path: '/messages', element: communityElement() },
-  { path: '/messages/:channelId', element: communityElement() },
 ];
 
 const AgentsPage = lazyWithRetry(
@@ -137,7 +108,6 @@ const routes = [
   ...authRoutes,
   ...platformRoutes,
   ...chatRoutes,
-  ...communityRoutes,
   ...agentRoutes,
   {
     path: '/projects/:projectId',

@@ -206,6 +206,7 @@ async function listUsers(platformId: PlatformId): Promise<UserWithMetaInformatio
             email: user.identity?.email ?? '',
             firstName: user.identity?.firstName ?? '',
             lastName: user.identity?.lastName ?? '',
+            username: user.identity?.username ?? user.identity?.email?.split('@')[0] ?? '',
             status: user.status,
             lastActiveDate: user.lastActiveDate,
             platformRole: user.platformRole,
