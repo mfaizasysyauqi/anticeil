@@ -746,6 +746,86 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     return { success: true, colony: { id: colonyId || inviteCode, name: 'Colony Komunitas', role: 'member', membersCount: 1, onlineCount: 1 } };
   });
 
+  // ── Colony Enterprise Tier Royal & SSO Auto-Join (JIT Provisioning) ───
+  app.post('/colony/sso/auto-join', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { email, user: joinUser } = (req.body as any) || {};
+    if (!email || !email.includes('@')) {
+      return { success: false, joinedColonies: [] };
+    }
+    const domain = email.split('@')[1]?.toLowerCase().trim();
+    if (!domain) {
+      return { success: false, joinedColonies: [] };
+    }
+
+    const stored = await communityService.get<any[]>('community_colonies', []);
+    const joinedColonies: any[] = [];
+
+    for (const colony of stored) {
+      // Must be Royal Tier with SSO enabled and claiming this domain
+      const isRoyal = colony.tier === 'royal';
+      const ssoActive = colony.ssoEnabled !== false;
+      const allowedDomains: string[] = Array.isArray(colony.allowedEmailDomains)
+        ? colony.allowedEmailDomains.map((d: string) => d.toLowerCase().trim())
+        : [];
+
+      if (isRoyal && ssoActive && allowedDomains.includes(domain)) {
+        const members = await communityService.get<any[]>(`community_colony_members_${colony.id}`, []);
+        const currentReqUser = (req as any).user || joinUser || {};
+        const newMemberId = currentReqUser.id || `user_sso_${Date.now()}`;
+        const existingIndex = members.findIndex(
+          (m) => m.id === newMemberId || (m.email && m.email.toLowerCase() === email.toLowerCase())
+        );
+
+        if (existingIndex === -1) {
+          members.push({
+            id: newMemberId,
+            name:
+              currentReqUser.firstName
+                ? `${currentReqUser.firstName} ${currentReqUser.lastName || ''}`.trim()
+                : currentReqUser.name || email.split('@')[0],
+            username: currentReqUser.username || email.split('@')[0],
+            email,
+            avatar: currentReqUser.avatar || null,
+            role: 'member',
+            status: 'online',
+            isSsoUser: true,
+            joinedAt: new Date().toISOString(),
+          });
+          await communityService.set(`community_colony_members_${colony.id}`, members);
+        }
+
+        colony.membersCount = members.length;
+        colony.onlineCount = members.filter((m) => m.status !== 'offline').length || 1;
+        joinedColonies.push(colony);
+      }
+    }
+
+    if (joinedColonies.length > 0) {
+      await communityService.set('community_colonies', stored);
+    }
+
+    return { success: true, joinedColonies };
+  });
+
+  app.post('/colony/colonies/:id/verify-domain', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { id } = req.params as { id: string };
+    const stored = await communityService.get<any[]>('community_colonies', []);
+    const target = stored.find((c) => c.id === id);
+    if (!target) {
+      return { success: false, message: 'Colony tidak ditemukan' };
+    }
+
+    target.domainVerified = true;
+    target.domainVerificationToken = target.domainVerificationToken || `anticeil-verify=${Math.random().toString(36).slice(2, 12)}`;
+    await communityService.set('community_colonies', stored);
+
+    return { success: true, domainVerified: true, token: target.domainVerificationToken };
+  });
+
   // ── Anticeil Native Animated Cosmetics Shop (Fullstack Database) ──────
   const INITIAL_SHOP_ITEMS = [
     // 1. Anticeil Cyber Core (Animated Frames, Overlays & Namecards)
