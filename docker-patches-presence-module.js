@@ -754,6 +754,12 @@ async function setupCommunityApi(app) {
                     CREATE OR REPLACE VIEW anticeil_colony_emojis AS SELECT * FROM anticeil_community_server_emojis;
                     CREATE OR REPLACE VIEW anticeil_colony_stickers AS SELECT * FROM anticeil_community_server_stickers;
                     CREATE OR REPLACE VIEW anticeil_colony_sounds AS SELECT * FROM anticeil_community_server_sounds;
+
+                    CREATE TABLE IF NOT EXISTS anticeil_key_value (
+                        key VARCHAR(256) PRIMARY KEY,
+                        value JSONB NOT NULL,
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
                 `);
             } catch (alterErr) {}
 
@@ -5724,8 +5730,437 @@ async function setupCommunityApi(app) {
     app.all('/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
     app.all('/api/v1/webhooks/:webhookId/:token', publicWebhookIngestHandler);
 
+    // ── SHOP HANDLERS (Anticeil Native Fullstack Cosmetics & Themes) ──
+    const INITIAL_SHOP_ITEMS = [
+        {
+            id: 'shop_anticeil_cyber_bundle',
+            name: 'Anticeil Cybernetic Core Bundle (3pc)',
+            collection: 'Anticeil Cyber Core',
+            category: 'bundle',
+            description: 'Paket bundel lengkap: Dekorasi Avatar Cyber Void, Efek Profil Hologram Matrix, dan Nameplate Hex Shield.',
+            priceIdr: 140000,
+            priceOrbs: 1000,
+            discountPercent: 30,
+            bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+            previewIcon: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200&auto=format&fit=crop&q=80',
+            badge: 'Bundel Populer',
+            itemTypes: ['avatar_decoration', 'profile_effect', 'nameplate'],
+            featured: true,
+        },
+        {
+            id: 'shop_anticeil_cyber_void',
+            name: 'Cyber Void Frame',
+            collection: 'Anticeil Cyber Core',
+            category: 'avatar_decoration',
+            description: 'Bingkai avatar futuristik dengan aksen neon cybernetic dan partikel hologram berkilau.',
+            priceIdr: 65000,
+            priceOrbs: 500,
+            previewIcon: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200&auto=format&fit=crop&q=80',
+            badge: 'Baru',
+            featured: true,
+        },
+        {
+            id: 'shop_anticeil_hex_badge',
+            name: 'Hex Matrix Nameplate',
+            collection: 'Anticeil Cyber Core',
+            category: 'nameplate',
+            description: 'Pelat nama sarang lebah futuristik dengan aksen biru sian khas Anticeil.',
+            priceIdr: 45000,
+            priceOrbs: 350,
+            previewIcon: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=200&auto=format&fit=crop&q=80',
+            badge: 'Official',
+            featured: false,
+        },
+        {
+            id: 'shop_anticeil_cosmic_bundle',
+            name: 'Starlight Cosmic Odyssey Bundle (3pc)',
+            collection: 'Starlight Cosmic',
+            category: 'bundle',
+            description: 'Aura galaksi kosmik, cincin avatar nebula bersinar, dan lencana konstelasi eksklusif Anticeil.',
+            priceIdr: 150000,
+            priceOrbs: 1100,
+            discountPercent: 25,
+            bannerUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=800&auto=format&fit=crop&q=80',
+            previewIcon: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=200&auto=format&fit=crop&q=80',
+            badge: 'Unggulan',
+            itemTypes: ['avatar_decoration', 'profile_effect', 'nameplate'],
+            featured: true,
+        },
+        {
+            id: 'shop_anticeil_aurora_glow',
+            name: 'Aurora Borealis Spectrum',
+            collection: 'Aurora Spectrum',
+            category: 'profile_effect',
+            description: 'Pendaran cahaya polar aurora hijau zamrud dan violet elegan pada latar kartu profil.',
+            priceIdr: 85000,
+            priceOrbs: 650,
+            previewIcon: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=200&auto=format&fit=crop&q=80',
+            badge: 'Populer',
+            featured: true,
+        },
+        {
+            id: 'shop_anticeil_starlight_crown',
+            name: 'Starlight Celestial Crown',
+            collection: 'Starlight Cosmic',
+            category: 'nameplate',
+            description: 'Lencana mahkota bintang berkilau halus di samping nama pengguna Anda.',
+            priceIdr: 45000,
+            priceOrbs: 350,
+            previewIcon: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=200&auto=format&fit=crop&q=80',
+            badge: 'Hot',
+            featured: true,
+        },
+        {
+            id: 'shop_anticeil_obsidian_frame',
+            name: 'Obsidian Geometric Border',
+            collection: 'Obsidian Minimalist',
+            category: 'avatar_decoration',
+            description: 'Garis tepi geometris monokrom tajam dan minimalis untuk tampilan avatar elegan.',
+            priceIdr: 55000,
+            priceOrbs: 420,
+            previewIcon: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=200&auto=format&fit=crop&q=80',
+            badge: 'Minimalis',
+            featured: true,
+        },
+        {
+            id: 'shop_anticeil_sakura_ring',
+            name: 'Zen Sakura Petals',
+            collection: 'Nature & Zen',
+            category: 'avatar_decoration',
+            description: 'Kelopak bunga sakura lembut berputar melingkar di sekeliling avatar profil.',
+            priceIdr: 65000,
+            priceOrbs: 500,
+            previewIcon: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=200&auto=format&fit=crop&q=80',
+            badge: 'Favorit',
+            featured: false,
+        },
+        {
+            id: 'shop_anticeil_fireflies_aura',
+            name: 'Golden Fireflies Field',
+            collection: 'Nature & Zen',
+            category: 'profile_effect',
+            description: 'Partikel kunang-kunang keemasan melayang lembut di kartu profil Anda.',
+            priceIdr: 85000,
+            priceOrbs: 650,
+            previewIcon: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=200&auto=format&fit=crop&q=80',
+            badge: 'Estetik',
+            featured: false,
+        },
+    ];
+
+    const defaultShopCollections = [
+        {
+            id: 'anticeil_cyber_core',
+            name: 'Anticeil Cyber Core',
+            tagline: 'Koleksi Resmi Anticeil',
+            subtitle: 'Tingkatkan tampilan profil Anda dengan nuansa masa depan, dekorasi hologram neon, dan pelat nama berpresisi tinggi.',
+            bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80',
+            actionLabel: 'Lihat Koleksi Cyber',
+        },
+        {
+            id: 'starlight_cosmic',
+            name: 'Starlight Cosmic',
+            tagline: 'Galactic Wonder',
+            subtitle: 'Pancarkan aura kosmik tak terbatas dengan cincin nebula dan efek aurora konstelasi bintang.',
+            bannerUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1200&auto=format&fit=crop&q=80',
+            actionLabel: 'Jelajahi Kosmik',
+        },
+        {
+            id: 'obsidian_minimalist',
+            name: 'Obsidian Minimalist',
+            tagline: 'Sleek & Clean',
+            subtitle: 'Desain monokrom premium bagi pengguna yang menyukai estetika rapi, bersih, dan berwibawa.',
+            bannerUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&auto=format&fit=crop&q=80',
+            actionLabel: 'Buka Minimalist',
+        },
+    ];
+
+    function sanitizeShopItems(items) {
+        if (!Array.isArray(items)) return INITIAL_SHOP_ITEMS;
+        const filtered = items.filter(i =>
+            i &&
+            i.collection !== 'Zenless Zone Zero' &&
+            i.collection !== 'Deadpool & Wolverine' &&
+            i.collection !== 'Dead by Daylight' &&
+            !String(i.name || '').includes('Miyabi') &&
+            !String(i.name || '').includes('Ellen Joe') &&
+            !String(i.name || '').includes('Burnice') &&
+            !String(i.name || '').includes('Deadpool') &&
+            !String(i.name || '').includes('Wolverine') &&
+            !String(i.name || '').includes('Trapper')
+        );
+        return filtered.length > 0 ? filtered : INITIAL_SHOP_ITEMS;
+    }
+
+    const memoryKv = new Map();
+    async function kvGet(key, defaultValue) {
+        await ensureTables();
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                const rows = await ds.query('SELECT value FROM anticeil_key_value WHERE key = $1 LIMIT 1', [key]);
+                if (rows && rows.length > 0 && rows[0].value) {
+                    return typeof rows[0].value === 'string' ? JSON.parse(rows[0].value) : rows[0].value;
+                }
+            } catch (e) {}
+        }
+        return memoryKv.has(key) ? memoryKv.get(key) : defaultValue;
+    }
+
+    async function kvSet(key, value) {
+        await ensureTables();
+        memoryKv.set(key, value);
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query(
+                    'INSERT INTO anticeil_key_value (key, value, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()',
+                    [key, JSON.stringify(value)]
+                );
+            } catch (e) {}
+        }
+        return value;
+    }
+
+    const getShopItemsHandler = async (req, reply) => {
+        const query = req.query || {};
+        const cat = (query.category || '').toLowerCase().trim();
+        const col = (query.collection || '').toLowerCase().trim();
+        const q = (query.q || '').toLowerCase().trim();
+
+        const rawStored = await kvGet('community_shop_items', INITIAL_SHOP_ITEMS);
+        const storedItems = sanitizeShopItems(rawStored);
+        if (storedItems.length !== (rawStored && rawStored.length)) {
+            await kvSet('community_shop_items', storedItems);
+        }
+
+        let filtered = [...storedItems];
+        if (cat && cat !== 'all') {
+            filtered = filtered.filter(it => it.category && it.category.toLowerCase() === cat);
+        }
+        if (col && col !== 'all') {
+            filtered = filtered.filter(it => it.collection && it.collection.toLowerCase() === col);
+        }
+        if (q) {
+            filtered = filtered.filter(it =>
+                (it.name && it.name.toLowerCase().includes(q)) ||
+                (it.description && it.description.toLowerCase().includes(q)) ||
+                (it.collection && it.collection.toLowerCase().includes(q))
+            );
+        }
+        return reply.send(filtered);
+    };
+
+    const createShopItemHandler = async (req, reply) => {
+        const body = req.body || {};
+        const newItem = {
+            id: body.id || `shop_custom_${Date.now()}`,
+            name: body.name || 'Custom Product',
+            collection: body.collection || 'Anticeil Custom',
+            category: body.category || 'avatar_decoration',
+            description: body.description || 'Eksklusif dibuat oleh komunitas.',
+            priceIdr: Number(body.priceIdr) || 78000,
+            priceOrbs: Number(body.priceOrbs) || 600,
+            discountPercent: body.discountPercent ? Number(body.discountPercent) : undefined,
+            bannerUrl: body.bannerUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+            previewIcon: body.previewIcon || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200&auto=format&fit=crop&q=80',
+            badge: body.badge || 'Baru',
+            featured: Boolean(body.featured),
+            createdAt: new Date().toISOString()
+        };
+
+        const rawStored = await kvGet('community_shop_items', INITIAL_SHOP_ITEMS);
+        const storedItems = sanitizeShopItems(rawStored);
+        const updated = [newItem, ...storedItems];
+        await kvSet('community_shop_items', updated);
+
+        return reply.send({
+            success: true,
+            message: 'Item berhasil ditambahkan ke katalog Shop!',
+            item: newItem,
+            items: updated
+        });
+    };
+
+    const deleteShopItemHandler = async (req, reply) => {
+        const { itemId } = req.params || {};
+        const rawStored = await kvGet('community_shop_items', INITIAL_SHOP_ITEMS);
+        const storedItems = sanitizeShopItems(rawStored);
+        const updated = storedItems.filter(i => i.id !== itemId);
+        await kvSet('community_shop_items', updated);
+
+        return reply.send({
+            success: true,
+            message: 'Item berhasil dihapus dari katalog Shop!',
+            deletedId: itemId
+        });
+    };
+
+    const getShopFeaturedHandler = async (req, reply) => {
+        const rawStored = await kvGet('community_shop_items', INITIAL_SHOP_ITEMS);
+        const storedItems = sanitizeShopItems(rawStored);
+        const featuredItems = storedItems.filter(it => it.featured);
+
+        const sanitizeCollections = (cols) => {
+            if (!Array.isArray(cols)) return defaultShopCollections;
+            const valid = cols.filter(c =>
+                c &&
+                c.id !== 'zenless_zone_zero' &&
+                c.id !== 'deadpool_wolverine' &&
+                c.id !== 'dead_by_daylight' &&
+                !String(c.name || '').includes('Zenless') &&
+                !String(c.name || '').includes('Marvel') &&
+                !String(c.name || '').includes('Deadpool') &&
+                !String(c.name || '').includes('Daylight')
+            );
+            return valid.length > 0 ? valid : defaultShopCollections;
+        };
+
+        const rawCollections = await kvGet('community_shop_collections', defaultShopCollections);
+        const collections = sanitizeCollections(rawCollections);
+
+        return reply.send({
+            heroCollection: collections[0] || defaultShopCollections[0],
+            collections,
+            featuredItems
+        });
+    };
+
+    const updateShopFeaturedHandler = async (req, reply) => {
+        const { collections } = req.body || {};
+        if (Array.isArray(collections)) {
+            await kvSet('community_shop_collections', collections);
+        }
+        return reply.send({ success: true, message: 'Featured collections berhasil diperbarui!' });
+    };
+
+    const getShopBalanceHandler = async (req, reply) => {
+        const userId = getReqUserId(req);
+        const balance = await kvGet(`community_shop_balance_${userId}`, {
+            orbs: 1500,
+            nectar: 250,
+            currencyCode: 'IDR'
+        });
+        return reply.send(balance);
+    };
+
+    const topupShopBalanceHandler = async (req, reply) => {
+        const userId = getReqUserId(req);
+        const { amount = 500 } = req.body || {};
+        const balanceKey = `community_shop_balance_${userId}`;
+        const currentBalance = await kvGet(balanceKey, { orbs: 1500, nectar: 250, currencyCode: 'IDR' });
+        currentBalance.orbs = (currentBalance.orbs || 0) + Number(amount);
+        await kvSet(balanceKey, currentBalance);
+        return reply.send({
+            success: true,
+            message: `Berhasil menambahkan +${amount} Orbs ke saldo Anda! ✨`,
+            balance: currentBalance
+        });
+    };
+
+    const purchaseShopItemHandler = async (req, reply) => {
+        const userId = getReqUserId(req);
+        const { itemId, currency = 'orbs' } = req.body || {};
+
+        const storedItems = await kvGet('community_shop_items', INITIAL_SHOP_ITEMS);
+        const targetItem = storedItems.find(i => i.id === itemId);
+        if (!targetItem) {
+            return reply.send({ success: false, message: 'Item tidak ditemukan di Shop.' });
+        }
+
+        const invKey = `community_shop_inventory_${userId}`;
+        const inventory = await kvGet(invKey, []);
+        if (inventory.some(i => i.id === itemId)) {
+            return reply.send({ success: true, message: 'Item sudah dimiliki di inventaris Anda.', item: targetItem, alreadyOwned: true });
+        }
+
+        const balanceKey = `community_shop_balance_${userId}`;
+        const currentBalance = await kvGet(balanceKey, { orbs: 1500, nectar: 250, currencyCode: 'IDR' });
+        const cost = targetItem.priceOrbs || 600;
+
+        if (currency === 'orbs' && currentBalance.orbs < cost) {
+            return reply.send({ success: false, message: 'Orbs Anda tidak mencukupi untuk item ini.' });
+        }
+
+        if (currency === 'orbs') {
+            currentBalance.orbs -= cost;
+            await kvSet(balanceKey, currentBalance);
+        }
+
+        const purchasedRecord = {
+            ...targetItem,
+            purchasedAt: new Date().toISOString(),
+            transactionId: `tx_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+        };
+        const updatedInventory = [...inventory, purchasedRecord];
+        await kvSet(invKey, updatedInventory);
+
+        return reply.send({
+            success: true,
+            message: `Berhasil membeli ${targetItem.name}! 🎉`,
+            item: purchasedRecord,
+            newBalance: currentBalance
+        });
+    };
+
+    const getShopInventoryHandler = async (req, reply) => {
+        const userId = getReqUserId(req);
+        const inventory = await kvGet(`community_shop_inventory_${userId}`, []);
+        return reply.send(inventory);
+    };
+
+    const getShopWishlistHandler = async (req, reply) => {
+        const userId = getReqUserId(req);
+        const wishlist = await kvGet(`community_shop_wishlist_${userId}`, []);
+        return reply.send(wishlist);
+    };
+
+    const toggleShopWishlistHandler = async (req, reply) => {
+        const userId = getReqUserId(req);
+        const { itemId } = req.params || {};
+
+        const wishlistKey = `community_shop_wishlist_${userId}`;
+        const currentWishlist = await kvGet(wishlistKey, []);
+
+        let updatedWishlist;
+        let isWishlisted;
+
+        if (currentWishlist.some(i => i.id === itemId)) {
+            updatedWishlist = currentWishlist.filter(i => i.id !== itemId);
+            isWishlisted = false;
+        } else {
+            const storedItems = await kvGet('community_shop_items', INITIAL_SHOP_ITEMS);
+            const target = storedItems.find(i => i.id === itemId);
+            if (target) {
+                updatedWishlist = [...currentWishlist, target];
+                isWishlisted = true;
+            } else {
+                updatedWishlist = currentWishlist;
+                isWishlisted = false;
+            }
+        }
+
+        await kvSet(wishlistKey, updatedWishlist);
+        return reply.send({ success: true, isWishlisted, wishlist: updatedWishlist });
+    };
+
+    const equipShopItemHandler = async (req, reply) => {
+        const userId = getReqUserId(req);
+        const { itemId, slot } = req.body || {};
+
+        const profileKey = `community_user_profile_${userId}`;
+        const currentProfile = await kvGet(profileKey, {});
+        const updatedProfile = {
+            ...currentProfile,
+            [slot]: itemId,
+            updatedAt: new Date().toISOString()
+        };
+        await kvSet(profileKey, updatedProfile);
+        return reply.send({ success: true, slot, itemId, profile: updatedProfile });
+    };
+
     // --- REGISTER ROUTE ALIASES (Supports /v1/community/*, /v1/messages/*, and /v1/colony/*) ---
-    const routePrefixes = ['/v1/community', '/v1/messages', '/v1/colony'];
+    const routePrefixes = ['/v1/community', '/v1/messages', '/v1/colony', '/api/v1/community', '/api/v1/messages', '/api/v1/colony'];
     for (const prefix of routePrefixes) {
         // Zero-Quota YouTube Search & Trending
         app.get(`${prefix}/youtube/search`, getYouTubeSearchHandler);
@@ -5963,6 +6398,20 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/webhook`, botWebhookHandler);
         app.post(`${prefix}/bot/message`, botWebhookHandler);
         app.post(`${prefix}/bot`, botWebhookHandler);
+
+        // Shop Endpoints (Fullstack Database & Cosmetics)
+        app.get(`${prefix}/shop/items`, getShopItemsHandler);
+        app.post(`${prefix}/shop/items`, createShopItemHandler);
+        app.delete(`${prefix}/shop/items/:itemId`, deleteShopItemHandler);
+        app.get(`${prefix}/shop/featured`, getShopFeaturedHandler);
+        app.post(`${prefix}/shop/featured`, updateShopFeaturedHandler);
+        app.get(`${prefix}/shop/balance`, getShopBalanceHandler);
+        app.post(`${prefix}/shop/topup`, topupShopBalanceHandler);
+        app.post(`${prefix}/shop/purchase`, purchaseShopItemHandler);
+        app.get(`${prefix}/shop/inventory`, getShopInventoryHandler);
+        app.get(`${prefix}/shop/wishlist`, getShopWishlistHandler);
+        app.post(`${prefix}/shop/wishlist/:itemId`, toggleShopWishlistHandler);
+        app.post(`${prefix}/shop/equip`, equipShopItemHandler);
     }
 
     // --- USER PROFILE (Discord-style Edit Profile Customization) ---
