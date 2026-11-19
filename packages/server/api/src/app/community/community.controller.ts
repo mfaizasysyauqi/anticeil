@@ -993,6 +993,25 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     };
   });
 
+  app.post('/community/shop/topup', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { amount = 500 } = (req.body as any) || {};
+
+    const balanceKey = `community_shop_balance_${userId}`;
+    const currentBalance = await communityService.get<any>(balanceKey, { orbs: 1500, nectar: 250, currencyCode: 'IDR' });
+    currentBalance.orbs = (currentBalance.orbs || 0) + Number(amount);
+    await communityService.set(balanceKey, currentBalance);
+
+    return {
+      success: true,
+      message: `Berhasil menambahkan +${amount} Orbs ke saldo Anda! ✨`,
+      balance: currentBalance,
+    };
+  });
+
   app.get('/community/shop/inventory', {
     config: { security: securityAccess.public() },
   }, async (req) => {
