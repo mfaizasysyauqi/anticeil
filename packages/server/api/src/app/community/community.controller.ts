@@ -446,6 +446,95 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     return { success: true };
   });
 
+  // ── AI Command Center Sessions Endpoints ──
+  app.get('/ai-command-center/sessions', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    return communityService.get<any[]>(`ai_sessions_${userId}`, []);
+  });
+
+  app.post('/ai-command-center/sessions', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const body = (req.body as any) || {};
+    const key = `ai_sessions_${userId}`;
+    const sessions = await communityService.get<any[]>(key, []);
+    const updated = [body, ...sessions.filter((s) => s.id !== body.id)];
+    await communityService.set(key, updated);
+    return body;
+  });
+
+  app.patch('/ai-command-center/sessions/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { id } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `ai_sessions_${userId}`;
+    const sessions = await communityService.get<any[]>(key, []);
+    const updated = sessions.map((s) => (s.id === id ? { ...s, ...body } : s));
+    await communityService.set(key, updated);
+    return { success: true, id };
+  });
+
+  app.put('/ai-command-center/sessions/:id/messages', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { id } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `ai_sessions_${userId}`;
+    const sessions = await communityService.get<any[]>(key, []);
+    const updated = sessions.map((s) => (s.id === id ? { ...s, messages: body.messages || [] } : s));
+    await communityService.set(key, updated);
+    return { success: true, id };
+  });
+
+  app.patch('/ai-command-center/sessions/:id/pin', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { id } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `ai_sessions_${userId}`;
+    const sessions = await communityService.get<any[]>(key, []);
+    const updated = sessions.map((s) => (s.id === id ? { ...s, isPinned: body.isPinned } : s));
+    await communityService.set(key, updated);
+    return { success: true, id };
+  });
+
+  app.delete('/ai-command-center/sessions/:id', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { id } = (req.params as any) || {};
+    const key = `ai_sessions_${userId}`;
+    const sessions = await communityService.get<any[]>(key, []);
+    await communityService.set(key, sessions.filter((s) => s.id !== id));
+    return { success: true, id };
+  });
+
+  app.delete('/ai-command-center/sessions/:id/messages', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const user = (req as any).user || {};
+    const userId = user.id || 'me';
+    const { id } = (req.params as any) || {};
+    const key = `ai_sessions_${userId}`;
+    const sessions = await communityService.get<any[]>(key, []);
+    const updated = sessions.map((s) => (s.id === id ? { ...s, messages: [] } : s));
+    await communityService.set(key, updated);
+    return { success: true, id };
+  });
+
   // ── Colony Management & Discovery Endpoints ──
   app.get('/colony/colonies', {
     config: { security: securityAccess.public() },
