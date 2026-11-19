@@ -224,6 +224,54 @@ function registerPresenceDisconnectHandler({ socket, userId, projectId, app }) {
 // ANTICEIL COMMUNITY API & REALTIME ENGINE
 // ==========================================
 async function setupCommunityApi(app) {
+    // Guard against duplicate route registrations in Fastify
+    const registeredMethods = new Set();
+    const origGet = app.get ? app.get.bind(app) : null;
+    const origPost = app.post ? app.post.bind(app) : null;
+    const origPut = app.put ? app.put.bind(app) : null;
+    const origPatch = app.patch ? app.patch.bind(app) : null;
+    const origDelete = app.delete ? app.delete.bind(app) : null;
+
+    if (origGet) {
+        app.get = (url, ...args) => {
+            const key = `GET:${url}`;
+            if (registeredMethods.has(key)) return app;
+            registeredMethods.add(key);
+            return origGet(url, ...args);
+        };
+    }
+    if (origPost) {
+        app.post = (url, ...args) => {
+            const key = `POST:${url}`;
+            if (registeredMethods.has(key)) return app;
+            registeredMethods.add(key);
+            return origPost(url, ...args);
+        };
+    }
+    if (origPut) {
+        app.put = (url, ...args) => {
+            const key = `PUT:${url}`;
+            if (registeredMethods.has(key)) return app;
+            registeredMethods.add(key);
+            return origPut(url, ...args);
+        };
+    }
+    if (origPatch) {
+        app.patch = (url, ...args) => {
+            const key = `PATCH:${url}`;
+            if (registeredMethods.has(key)) return app;
+            registeredMethods.add(key);
+            return origPatch(url, ...args);
+        };
+    }
+    if (origDelete) {
+        app.delete = (url, ...args) => {
+            const key = `DELETE:${url}`;
+            if (registeredMethods.has(key)) return app;
+            registeredMethods.add(key);
+            return origDelete(url, ...args);
+        };
+    }
     let dbReady = false;
     const memoryChannels = [];
     const memoryMessages = {};
