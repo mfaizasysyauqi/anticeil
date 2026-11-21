@@ -100,6 +100,12 @@ function computePricing({
     return { amount: 'Rp 0' };
   }
   if (isNil(apiPlan)) {
+    if (entry.key === 'enterprise') {
+      return {
+        amount: formatIdr(9990000),
+        suffix: t('/mo'),
+      };
+    }
     return null;
   }
   const idrPrice = toIdrPrice(apiPlan.price, entry.key, apiPlan.interval);

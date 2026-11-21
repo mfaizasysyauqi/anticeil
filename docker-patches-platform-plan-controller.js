@@ -192,6 +192,30 @@ const platformPlanController = async (app) => {
                         includedCredits: 50000,
                         creditsResetInterval: 'month',
                     },
+                    {
+                        id: 'enterprise-monthly',
+                        name: 'Enterprise',
+                        description: 'For organizations that require enterprise-grade security and compliance',
+                        price: 9990000,
+                        interval: 'month',
+                        priceDisplay: 'Rp 9.99M',
+                        baseVariantId: null,
+                        includedSeats: 100,
+                        includedCredits: 1000000,
+                        creditsResetInterval: 'month',
+                    },
+                    {
+                        id: 'enterprise-annual',
+                        name: 'Enterprise (annual)',
+                        description: 'For organizations that require enterprise-grade security and compliance',
+                        price: 99900000,
+                        interval: 'year',
+                        priceDisplay: 'Rp 99.9M',
+                        baseVariantId: null,
+                        includedSeats: 100,
+                        includedCredits: 1000000,
+                        creditsResetInterval: 'month',
+                    },
                 ];
             }
             return reply.status(200).send(plans);
@@ -622,7 +646,11 @@ const platformPlanController = async (app) => {
         try {
             const { plan, cycle } = request.body || {};
             const planKey = (plan || '').toLowerCase();
-            const PLAN_PRICES = { plus: { month: 299000, year: 2990000 }, team: { month: 2990000, year: 29900000 } };
+            const PLAN_PRICES = {
+                plus: { month: 299000, year: 2990000 },
+                team: { month: 2990000, year: 29900000 },
+                enterprise: { month: 9990000, year: 99900000 },
+            };
             const grossAmount = PLAN_PRICES[planKey]?.[cycle] ?? 0;
             if (!grossAmount) {
                 return reply.status(400).send({ error: 'Invalid plan or price not found' });

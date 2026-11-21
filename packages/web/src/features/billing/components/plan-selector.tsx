@@ -3,7 +3,7 @@ import { PurchasablePlan } from '@activepieces/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import i18next, { t } from 'i18next';
 import { Check, Info, Minus } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -358,7 +358,16 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
   const downgradeWarning = planSelectorUtils.dropToFreeWarning(
     subscription?.additionalSeats,
   );
-  const allPlans = (plans && plans.length > 0) ? plans : DEFAULT_PURCHASABLE_PLANS;
+  const allPlans = useMemo(() => {
+    const list = plans && plans.length > 0 ? [...plans] : [...DEFAULT_PURCHASABLE_PLANS];
+    const hasEnterprise = list.some((p) => (p.name || p.id).toLowerCase().includes('enterprise'));
+    if (!hasEnterprise) {
+      list.push(
+        ...DEFAULT_PURCHASABLE_PLANS.filter((p) => (p.name || p.id).toLowerCase().includes('enterprise')),
+      );
+    }
+    return list;
+  }, [plans]);
   const currentPlan = allPlans.find((plan) => plan.id === currentPlanId);
   const hasAnnualOption = allPlans.some(
     (plan) => plan.interval === planSelectorUtils.ANNUAL_INTERVAL,
@@ -972,7 +981,7 @@ function PlanCta({
           variant="default"
           className="w-full font-semibold shadow-xs bg-foreground text-background hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-white/90"
           disabled={isPending || isSwitching}
-          loading={apiPlan?.id === checkoutPlanId}
+          loading={Boolean(checkoutPlanId && (apiPlan?.id ?? 'enterprise') === checkoutPlanId)}
           onClick={() => onCheckout(apiPlan?.id ?? 'enterprise', action)}
         >
           {t('Purchase Now')}
@@ -1046,7 +1055,7 @@ function PlanCta({
           : 'border border-border/80 text-foreground bg-secondary/90 hover:bg-secondary hover:border-foreground/30',
       )}
       disabled={isPending || isSwitching}
-      loading={apiPlan.id === checkoutPlanId}
+      loading={Boolean(checkoutPlanId && apiPlan.id === checkoutPlanId)}
       onClick={() => onCheckout(apiPlan.id, action)}
     >
       {t('Purchase Now')}
