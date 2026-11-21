@@ -7,6 +7,21 @@ import { App } from './app/app';
 import { acquisitionUtils } from './lib/acquisition-utils';
 import { errorReporting } from './lib/error-reporting';
 import { reloadOnceForStaleChunk } from './lib/lazy-with-retry';
+import { authenticationSession } from './lib/authentication-session';
+
+// ── SSO Token Handoff (?token=...) ──────────────────────────────────────────
+try {
+  const searchParams = new URLSearchParams(window.location.search);
+  const ssoToken = searchParams.get('token');
+  if (ssoToken && !authenticationSession.isJwtExpired(ssoToken)) {
+    authenticationSession.saveToken(ssoToken);
+    searchParams.delete('token');
+    const newSearch = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    window.history.replaceState(null, document.title, window.location.pathname + newSearch + window.location.hash);
+  }
+} catch (e) {
+  console.error('Failed to handle SSO token handoff:', e);
+}
 
 acquisitionUtils.stashAcquisitionParams();
 
