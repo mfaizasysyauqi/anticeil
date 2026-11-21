@@ -2461,8 +2461,16 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const user = (req as any).user || {};
-    const userId = user.id || 'me';
-    return communityService.get<any[]>(`community_notifications_${userId}`, []);
+    const query = (req.query as any) || {};
+    const userId = query.userId || user.id || 'me';
+    let notifs = await communityService.get<any[]>(`community_notifications_${userId}`, []);
+    if ((!notifs || notifs.length === 0) && userId !== 'me') {
+      const fallbackMe = await communityService.get<any[]>('community_notifications_me', []);
+      if (fallbackMe && fallbackMe.length > 0) {
+        notifs = fallbackMe;
+      }
+    }
+    return notifs;
   });
 
   app.post('/community/notifications', {
@@ -2471,33 +2479,61 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     const user = (req as any).user || {};
     const userId = user.id || 'me';
     const body = (req.body as any) || {};
-    const key = `community_notifications_${userId}`;
-    const notifs = await communityService.get<any[]>(key, []);
 
-    const newNotif = {
-      id: body.id || `notif_${Date.now()}`,
-      title: body.title || 'Notifikasi Baru',
-      message: body.message || '',
-      type: body.type || 'info',
-      isRead: false,
-      createdAt: new Date().toISOString(),
-      ...body,
-    };
+    const targetUserIds: string[] = Array.isArray(body.targetUserIds) && body.targetUserIds.length > 0
+      ? body.targetUserIds
+      : [body.targetUserId || userId];
 
-    await communityService.set(key, [newNotif, ...notifs]);
-    return { success: true, id: newNotif.id };
+    const results: string[] = [];
+    for (const tid of targetUserIds) {
+      const key = `community_notifications_${tid}`;
+      const notifs = await communityService.get<any[]>(key, []);
+
+      const newNotif = {
+        id: body.id || `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        title: body.title || 'Notifikasi Baru',
+        message: body.message || body.summary || '',
+        summary: body.summary || body.message || '',
+        type: body.type || 'info',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        ...body,
+      };
+
+      await communityService.set(key, [newNotif, ...notifs].slice(0, 100));
+      results.push(newNotif.id);
+
+      // If sender or current session is 'me', also ensure 'community_notifications_me' has it for testing
+      if (tid === userId || tid === 'me') {
+        const meKey = 'community_notifications_me';
+        if (key !== meKey) {
+          const meNotifs = await communityService.get<any[]>(meKey, []);
+          await communityService.set(meKey, [newNotif, ...meNotifs].slice(0, 100));
+        }
+      }
+    }
+
+    return { success: true, ids: results, id: results[0] };
   });
 
   app.put('/community/notifications/:id/read', {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const query = (req.query as any) || {};
+    const userId = query.userId || user.id || 'me';
     const { id } = (req.params as any) || {};
     const key = `community_notifications_${userId}`;
     const notifs = await communityService.get<any[]>(key, []);
     const updated = notifs.map((n) => (n.id === id ? { ...n, isRead: true } : n));
     await communityService.set(key, updated);
+
+    if (userId !== 'me') {
+      const meNotifs = await communityService.get<any[]>('community_notifications_me', []);
+      if (meNotifs.some((n) => n.id === id)) {
+        await communityService.set('community_notifications_me', meNotifs.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+      }
+    }
     return { success: true, id };
   });
 
@@ -2505,11 +2541,17 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const query = (req.query as any) || {};
+    const userId = query.userId || user.id || 'me';
     const key = `community_notifications_${userId}`;
     const notifs = await communityService.get<any[]>(key, []);
     const updated = notifs.map((n) => ({ ...n, isRead: true }));
     await communityService.set(key, updated);
+
+    if (userId !== 'me') {
+      const meNotifs = await communityService.get<any[]>('community_notifications_me', []);
+      await communityService.set('community_notifications_me', meNotifs.map((n) => ({ ...n, isRead: true })));
+    }
     return { success: true };
   });
 
@@ -2517,11 +2559,17 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const query = (req.query as any) || {};
+    const userId = query.userId || user.id || 'me';
     const { id } = (req.params as any) || {};
     const key = `community_notifications_${userId}`;
     const notifs = await communityService.get<any[]>(key, []);
     await communityService.set(key, notifs.filter((n) => n.id !== id));
+
+    if (userId !== 'me') {
+      const meNotifs = await communityService.get<any[]>('community_notifications_me', []);
+      await communityService.set('community_notifications_me', meNotifs.filter((n) => n.id !== id));
+    }
     return { success: true, id };
   });
 
@@ -2529,9 +2577,11 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const query = (req.query as any) || {};
+    const userId = query.userId || user.id || 'me';
     const key = `community_notifications_${userId}`;
     await communityService.set(key, []);
+    await communityService.set('community_notifications_me', []);
     return { success: true };
   });
 
