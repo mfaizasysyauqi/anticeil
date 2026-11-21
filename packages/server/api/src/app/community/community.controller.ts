@@ -3108,6 +3108,9 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       socket.on('COMMUNITY_CALL_ACTIVITY_EVENT', (payload: any) => {
         socket.broadcast.emit('COMMUNITY_CALL_ACTIVITY_EVENT', payload);
       });
+      socket.on('COMMUNITY_STAGE_EVENT', (payload: any) => {
+        socket.broadcast.emit('COMMUNITY_STAGE_EVENT', payload);
+      });
     });
   }
 };
