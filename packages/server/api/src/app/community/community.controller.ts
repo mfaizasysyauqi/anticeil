@@ -2248,6 +2248,7 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       senderRole: body.senderRole || 'member',
       content: body.content || '',
       attachments: body.attachments || [],
+      poll: body.poll || null,
       reactions: body.reactions || {},
       createdAt: new Date().toISOString(),
     };
@@ -2284,6 +2285,44 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
 
     await communityService.set(key, reactions);
     return { id: messageId, reactions };
+  });
+
+  app.post('/colony/messages/:messageId/poll-vote', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { messageId } = (req.params as any) || {};
+    const { answerIds = [], userId = 'me', channelId } = (req.body as any) || {};
+    if (channelId) {
+      const key = `colony_messages_${channelId}`;
+      const messages = await communityService.get<any[]>(key, []);
+      const strAnswerIds = answerIds.map(String);
+      const updated = messages.map((m) => {
+        if (m.id === messageId) {
+          const poll = m.poll || m.attachments?.find((a: any) => a.type === 'poll')?.pollData;
+          if (poll) {
+            const answers = (poll.answers || []).map((ans: any) => {
+              const isSelected = strAnswerIds.includes(String(ans.id));
+              const existingVotes = (ans.votes || []).filter((u: string) => u !== userId);
+              return {
+                ...ans,
+                votes: isSelected ? [...existingVotes, userId] : existingVotes,
+              };
+            });
+            const updatedPoll = { ...poll, answers };
+            return {
+              ...m,
+              poll: updatedPoll,
+              attachments: m.attachments?.map((a: any) =>
+                a.type === 'poll' ? { ...a, pollData: updatedPoll } : a
+              ),
+            };
+          }
+        }
+        return m;
+      });
+      await communityService.set(key, updated);
+    }
+    return { success: true };
   });
 
   // ── 5. Threads Endpoints ──
