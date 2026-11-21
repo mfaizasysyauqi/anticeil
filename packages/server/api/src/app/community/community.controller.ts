@@ -2,6 +2,7 @@ import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { StatusCodes } from 'http-status-codes';
 import { z } from 'zod';
 import { securityAccess } from '../core/security/authorization/fastify-security';
+import { authenticateOrThrow } from '../core/security/v2/authn/authenticate';
 import { s3Helper } from '../file/s3-helper';
 import { system } from '../helper/system/system';
 import { AppSystemProp } from '../helper/system/system-props';
@@ -621,7 +622,20 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
   // ── Colony Management & Discovery Endpoints ──
   app.get('/colony/colonies', {
     config: { security: securityAccess.public() },
-  }, async () => {
+  }, async (req) => {
+    const query = (req.query as any) || {};
+    const { userId, all } = query;
+    const authHeader = req.headers['authorization'];
+    let currentUserId = userId;
+    if (!currentUserId && authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const principal = await authenticateOrThrow(req.log, authHeader);
+        if (principal && principal.id) {
+          currentUserId = principal.id;
+        }
+      } catch {}
+    }
+
     const list = await communityService.get<any[]>('community_colonies', []);
     const populated = await Promise.all(
       list.map(async (c) => {
@@ -630,14 +644,26 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
         const onlineCount = members.length > 0
           ? members.filter((m) => m.status !== 'offline').length || 1
           : (typeof c.onlineCount === 'number' && c.onlineCount > 0 ? c.onlineCount : 1);
+        const isMember = currentUserId
+          ? (c.ownerId === currentUserId || members.some((m) => m.id === currentUserId || m.userId === currentUserId))
+          : false;
         return {
           ...c,
           membersCount,
           onlineCount,
+          isMember,
         };
       })
     );
-    return populated;
+
+    // If currentUserId is provided and not requesting all=true, return ONLY colonies the user actually joined or created, plus default 'anticeil'
+    if (currentUserId && all !== 'true' && all !== true) {
+      return populated
+        .filter((c) => c.id === 'anticeil' || c.isMember || c.ownerId === currentUserId)
+        .map(({ isMember, ...rest }) => rest);
+    }
+
+    return populated.map(({ isMember, ...rest }) => rest);
   });
 
   app.post('/colony/colonies', {
@@ -645,13 +671,14 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
   }, async (req) => {
     const list = await communityService.get<any[]>('community_colonies', []);
     const body = (req.body as any) || {};
-    const user = (req as any).user || {};
+    const user = (req as any).user || body.user || {};
+    const effectiveUserId = body.ownerId || body.userId || user.id || `user_${Date.now()}`;
     const isPublic = body.isPublic !== undefined ? Boolean(body.isPublic) : (body.visibility === 'public');
     const colonyId = body.id || `hub_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const creatorMember = {
-      id: user.id || body.ownerId || `user_${Date.now()}`,
-      name: user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (body.ownerName || 'Admin'),
-      username: user.email?.split('@')[0] || body.ownerUsername || 'admin',
+      id: effectiveUserId,
+      name: user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (body.ownerName || user.name || 'Admin'),
+      username: user.email?.split('@')[0] || body.ownerUsername || user.username || 'admin',
       avatar: user.avatar || body.ownerAvatar || null,
       role: 'owner',
       status: 'online',
@@ -670,6 +697,7 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       membersCount: 1,
       onlineCount: 1,
       role: body.role || 'owner',
+      ownerId: effectiveUserId,
       tags: body.tags || ['komunitas'],
       category: body.category || 'community',
       isPublic,
@@ -891,13 +919,22 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
   app.post('/colony/colonies/join', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const { colonyId, inviteCode, user: joinUser } = (req.body as any) || {};
+    const { colonyId, inviteCode, user: joinUser, userId: bodyUserId } = (req.body as any) || {};
+    const authHeader = req.headers['authorization'];
+    let tokenUserId: string | null = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const principal = await authenticateOrThrow(req.log, authHeader);
+        if (principal && principal.id) tokenUserId = principal.id;
+      } catch {}
+    }
+
     const stored = await communityService.get<any[]>('community_colonies', []);
     const target = stored.find((c) => c.id === colonyId || (inviteCode && (c.inviteCode === inviteCode || c.id === inviteCode)));
     if (target) {
       const members = await communityService.get<any[]>(`community_colony_members_${target.id}`, []);
       const currentReqUser = (req as any).user || joinUser || {};
-      const newMemberId = currentReqUser.id || `user_${Date.now()}`;
+      const newMemberId = bodyUserId || currentReqUser.id || tokenUserId || `user_${Date.now()}`;
       if (!members.some((m) => m.id === newMemberId)) {
         members.push({
           id: newMemberId,
