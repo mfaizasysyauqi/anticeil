@@ -54,7 +54,7 @@ export const s3Helper = (log: FastifyBaseLogger) => ({
         }
         return size
     },
-    async uploadFile(s3Key: string, data: Buffer): Promise<string> {
+    async uploadFile(s3Key: string, data: Buffer, contentType?: string): Promise<string> {
         if (!Buffer.isBuffer(data)) {
             throw new Error(`Expected Buffer for S3 upload, received ${typeof data}`)
         }
@@ -67,6 +67,7 @@ export const s3Helper = (log: FastifyBaseLogger) => ({
                 Key: s3Key,
                 Body: data,
                 ContentLength: data.length,
+                ...(contentType ? { ContentType: contentType } : {}),
             })
             log.info({
                 s3Key,

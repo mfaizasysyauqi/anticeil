@@ -1,9 +1,92 @@
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { StatusCodes } from 'http-status-codes';
 import { z } from 'zod';
 import { securityAccess } from '../core/security/authorization/fastify-security';
+import { s3Helper } from '../file/s3-helper';
+import { system } from '../helper/system/system';
+import { AppSystemProp } from '../helper/system/system-props';
 import { communityService } from './community.service';
 
 export const communityController: FastifyPluginAsyncZod = async (app) => {
+  // ── Cloudflare R2 Media Upload & CDN Streaming ──
+  app.post('/community/upload', {
+    config: { security: securityAccess.public() },
+    schema: {
+      body: z.object({
+        filename: z.string(),
+        mimeType: z.string().optional(),
+        base64: z.string(),
+      }),
+    },
+  }, async (req, reply) => {
+    try {
+      const { filename, mimeType, base64 } = req.body as {
+        filename: string;
+        mimeType?: string;
+        base64: string;
+      };
+
+      const pureBase64 = base64.includes(',') ? base64.split(',')[1] : base64;
+      const buffer = Buffer.from(pureBase64, 'base64');
+      const cleanName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const s3Key = `community/media/${Date.now()}_${Math.random().toString(36).substring(2, 8)}_${cleanName}`;
+
+      // Upload directly to Cloudflare R2 via S3 API
+      await s3Helper(app.log).uploadFile(s3Key, buffer, mimeType);
+
+      const customCdn = system.get<string>('AP_S3_PUBLIC_URL' as any);
+      const publicBase = system.get<string>(AppSystemProp.FRONTEND_URL) || '';
+      const url = customCdn
+        ? `${customCdn.replace(/\/$/, '')}/${s3Key}`
+        : `${publicBase.replace(/\/$/, '')}/api/v1/community/media/${encodeURIComponent(s3Key)}`;
+
+      return {
+        url,
+        s3Key,
+        filename,
+        size: buffer.length,
+      };
+    } catch (err: any) {
+      app.log.error(err, 'Failed to upload media to Cloudflare R2');
+      return reply.status(StatusCodes.INTERNAL_SERVER_ERROR).send({
+        error: 'Upload failed',
+        message: err.message,
+      });
+    }
+  });
+
+  app.get('/community/media/:s3Key', {
+    config: { security: securityAccess.public() },
+  }, async (req, reply) => {
+    try {
+      const { s3Key } = req.params as { s3Key: string };
+      const decodedKey = decodeURIComponent(s3Key);
+      const fileBuffer = await s3Helper(app.log).getFile(decodedKey);
+
+      const ext = decodedKey.split('.').pop()?.toLowerCase();
+      const mimeMap: Record<string, string> = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        webp: 'image/webp',
+        gif: 'image/gif',
+        svg: 'image/svg+xml',
+        mp4: 'video/mp4',
+        webm: 'video/webm',
+        mp3: 'audio/mpeg',
+        wav: 'audio/wav',
+        pdf: 'application/pdf',
+      };
+      const contentType = (ext && mimeMap[ext]) || 'application/octet-stream';
+
+      return reply
+        .header('Content-Type', contentType)
+        .header('Cache-Control', 'public, max-age=31536000, immutable')
+        .send(fileBuffer);
+    } catch {
+      return reply.status(StatusCodes.NOT_FOUND).send({ error: 'File not found in R2' });
+    }
+  });
   // ── Profile Endpoints ──
   app.get('/users/me/profile', {
     config: { security: securityAccess.public() },
