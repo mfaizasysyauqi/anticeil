@@ -70,6 +70,30 @@ const MIDTRANS_PLANS: PurchasablePlan[] = [
         includedCredits: 50000,
         creditsResetInterval: 'month',
     },
+    {
+        id: 'enterprise_monthly',
+        name: 'Enterprise',
+        description: 'For organizations that require enterprise-grade security and compliance',
+        price: 9990000,
+        interval: 'month',
+        priceDisplay: 'Rp 9.990.000',
+        baseVariantId: null,
+        includedSeats: 100,
+        includedCredits: 1000000,
+        creditsResetInterval: 'month',
+    },
+    {
+        id: 'enterprise_annual',
+        name: 'Enterprise (annual)',
+        description: 'For organizations that require enterprise-grade security and compliance (Annual Discount)',
+        price: 99900000,
+        interval: 'year',
+        priceDisplay: 'Rp 99.900.000',
+        baseVariantId: null,
+        includedSeats: 100,
+        includedCredits: 1000000,
+        creditsResetInterval: 'month',
+    },
 ]
 
 function getCreditsUsageKey(platformId: string, monthStr: string): string {

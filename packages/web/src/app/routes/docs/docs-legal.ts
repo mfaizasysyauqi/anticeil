@@ -53,6 +53,7 @@ Anticeil provides subscription tiers priced officially in **Indonesian Rupiah (I
 | **Free** | Rp 0 | Rp 0 | 1,000 automation credits, 1 team member, standard workflows |
 | **Plus** | Rp 299,000 | Rp 2,990,000 / yr | 10,000 automation credits, 5 team members, AI Agents & customization |
 | **Team** | Rp 2,990,000 | Rp 29,900,000 / yr | 50,000 automation credits, 25 team members, SSO, Audit Logs & Priority |
+| **Enterprise** | Rp 9,990,000 | Rp 99,900,000 / yr | 1,000,000 automation credits, 100 seats, SCIM, Dedicated Support & Custom RBAC |
 
 *Prices above do not include Value Added Tax (VAT) if required by taxation authorities.*
 

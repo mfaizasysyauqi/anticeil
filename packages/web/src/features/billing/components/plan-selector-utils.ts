@@ -43,6 +43,9 @@ function toIdrPrice(
   if (planKey === 'team') {
     return interval === ANNUAL_INTERVAL ? 29900000 : 2990000;
   }
+  if (planKey === 'enterprise') {
+    return interval === ANNUAL_INTERVAL ? 99900000 : 9990000;
+  }
   return price * 15000;
 }
 
@@ -93,9 +96,6 @@ function computePricing({
   apiPlan?: PurchasablePlan;
   monthlySibling?: PurchasablePlan;
 }): PlanPricing | null {
-  if (entry.key === 'enterprise') {
-    return null;
-  }
   if (entry.key === 'free') {
     return { amount: 'Rp 0' };
   }

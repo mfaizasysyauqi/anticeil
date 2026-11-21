@@ -162,6 +162,30 @@ const DEFAULT_PURCHASABLE_PLANS: PurchasablePlan[] = [
     includedCredits: 50000,
     creditsResetInterval: 'month',
   },
+  {
+    id: 'enterprise-monthly',
+    name: 'Enterprise',
+    description: 'For organizations that require enterprise-grade security and compliance',
+    price: 9990000,
+    interval: 'month',
+    priceDisplay: 'Rp 9.99jt',
+    baseVariantId: null,
+    includedSeats: 100,
+    includedCredits: 1000000,
+    creditsResetInterval: 'month',
+  },
+  {
+    id: 'enterprise-annual',
+    name: 'Enterprise (annual)',
+    description: 'For organizations that require enterprise-grade security and compliance',
+    price: 99900000,
+    interval: 'year',
+    priceDisplay: 'Rp 99.9jt',
+    baseVariantId: null,
+    includedSeats: 100,
+    includedCredits: 1000000,
+    creditsResetInterval: 'month',
+  },
 ];
 
 export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
@@ -362,14 +386,6 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
       return;
     }
 
-    if (targetPlanKey === 'enterprise') {
-      const whatsappUrl =
-        'https://wa.me/62882000221551?text=' +
-        encodeURIComponent('Halo Anticeil, saya tertarik untuk beralih ke paket Enterprise.');
-      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
     setIsMidtransLoading(true);
     try {
       const { snapToken, clientKey, orderId } = await platformBillingApi.getMidtransToken({
@@ -519,16 +535,13 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
       {/* Mobile & Tablet View (< 1024px): Responsive Cards */}
       <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
         {catalogEntries.map((entry, colIdx) => {
-          const apiPlan =
-            entry.key === 'enterprise'
-              ? undefined
-              : planSelectorUtils.findPurchasablePlan({
-                  plans: allPlans,
-                  key: entry.key,
-                  cycle: entry.key === 'free' ? 'month' : billingCycle,
-                });
+          const apiPlan = planSelectorUtils.findPurchasablePlan({
+            plans: allPlans,
+            key: entry.key,
+            cycle: entry.key === 'free' ? 'month' : billingCycle,
+          });
           const monthlySibling =
-            entry.key === 'enterprise' || entry.key === 'free'
+            entry.key === 'free'
               ? undefined
               : planSelectorUtils.findPurchasablePlan({
                   plans: allPlans,
@@ -637,11 +650,11 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
                         </span>
                       )}
                     </>
-                  ) : entry.key === 'enterprise' ? (
+                  ) : (
                     <span className="text-lg font-bold text-muted-foreground">
                       {t('Custom pricing')}
                     </span>
-                  ) : null}
+                  )}
                 </div>
 
                 {/* CTA Button */}
@@ -709,16 +722,13 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
             <tr>
               <th className="w-[28%] p-0" />
               {catalogEntries.map((entry) => {
-                const apiPlan =
-                  entry.key === 'enterprise'
-                    ? undefined
-                    : planSelectorUtils.findPurchasablePlan({
-                        plans: allPlans,
-                        key: entry.key,
-                        cycle: entry.key === 'free' ? 'month' : billingCycle,
-                      });
+                const apiPlan = planSelectorUtils.findPurchasablePlan({
+                  plans: allPlans,
+                  key: entry.key,
+                  cycle: entry.key === 'free' ? 'month' : billingCycle,
+                });
                 const monthlySibling =
-                  entry.key === 'enterprise' || entry.key === 'free'
+                  entry.key === 'free'
                     ? undefined
                     : planSelectorUtils.findPurchasablePlan({
                         plans: allPlans,
@@ -806,11 +816,11 @@ export function PlanSelector({ enabled, onSelected }: PlanSelectorProps) {
                               </span>
                             )}
                           </>
-                        ) : entry.key === 'enterprise' ? (
+                        ) : (
                           <span className="text-sm text-muted-foreground font-medium">
                             {t('Custom pricing')}
                           </span>
-                        ) : null}
+                        )}
                       </div>
 
                       {/* CTA */}
@@ -955,19 +965,27 @@ function PlanCta({
         </Button>
       );
     }
-    const whatsappUrl =
-      'https://wa.me/62882000221551?text=' +
-      encodeURIComponent('Halo Anticeil, saya tertarik untuk beralih ke paket Enterprise.');
+    const action = planSelectorUtils.actionFor({ currentPlanId });
     return (
-      <Button
-        asChild
-        variant="default"
-        className="w-full bg-foreground text-background hover:bg-foreground/90 font-medium shadow-xs"
-      >
-        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-          {t('Switch to Enterprise (Unlock All)')}
+      <div className="flex flex-col gap-1.5 w-full">
+        <Button
+          variant="default"
+          className="w-full font-semibold shadow-xs bg-foreground text-background hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-white/90"
+          disabled={isPending || isSwitching}
+          loading={apiPlan?.id === checkoutPlanId}
+          onClick={() => onCheckout(apiPlan?.id ?? 'enterprise', action)}
+        >
+          {t('Purchase Now')}
+        </Button>
+        <a
+          href="https://wa.me/62882000221551?text=Halo%20Anticeil%2C%20saya%20tertarik%20konsultasi%20custom%20SLA%20Enterprise."
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] text-center text-muted-foreground hover:text-foreground hover:underline transition-colors pt-0.5"
+        >
+          {t('Custom SLA / Faktur Pajak? Hubungi Sales')}
         </a>
-      </Button>
+      </div>
     );
   }
 

@@ -126,6 +126,7 @@ function isPaymentSuccess(status: MidtransTransactionStatus): boolean {
 const PLAN_PRICES: Record<string, Record<string, number>> = {
     plus: { month: 299000, year: 2990000 },
     team: { month: 2990000, year: 29900000 },
+    enterprise: { month: 9990000, year: 99900000 },
 }
 
 function getPlanPrice(planKey: string, cycle: 'month' | 'year'): number {
