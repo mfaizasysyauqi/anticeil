@@ -2662,6 +2662,440 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     return updated;
   });
 
+  // ── 8. Colony Invites & Pause Invites Management ──
+  app.get('/colony/colonies/:colonyId/invites', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    return communityService.get<any[]>(`colony_invites_${colonyId}`, []);
+  });
+
+  app.post('/colony/colonies/:colonyId/invites', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_invites_${colonyId}`;
+    const invites = await communityService.get<any[]>(key, []);
+    const newInvite = {
+      id: body.id || `inv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      colonyId,
+      code: body.code || Math.random().toString(36).slice(2, 8).toUpperCase(),
+      inviterName: body.inviterName || 'Admin',
+      uses: body.uses || 0,
+      maxUses: body.maxUses || 0,
+      expiresAt: body.expiresAt || null,
+      createdAt: body.createdAt || new Date().toISOString(),
+    };
+    const updated = [newInvite, ...invites.filter((i) => i.id !== newInvite.id)];
+    await communityService.set(key, updated);
+    return newInvite;
+  });
+
+  app.delete('/colony/colonies/:colonyId/invites/:inviteId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId, inviteId } = (req.params as any) || {};
+    const key = `colony_invites_${colonyId}`;
+    const invites = await communityService.get<any[]>(key, []);
+    const updated = invites.filter((i) => i.id !== inviteId && i.code !== inviteId);
+    await communityService.set(key, updated);
+    return { success: true, id: inviteId };
+  });
+
+  app.get('/colony/colonies/:colonyId/pause-invites', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    return communityService.get(`colony_security_pause_${colonyId}`, {
+      isPaused: false,
+      pauseDuration: '2 hours',
+      pauseDMs: false,
+    });
+  });
+
+  app.post('/colony/colonies/:colonyId/pause-invites', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const data = {
+      isPaused: Boolean(body.isPaused),
+      pauseDuration: body.pauseDuration || '2 hours',
+      pauseDMs: Boolean(body.pauseDMs),
+      updatedAt: new Date().toISOString(),
+    };
+    await communityService.set(`colony_security_pause_${colonyId}`, data);
+    return data;
+  });
+
+  // ── Colony Custom Roles ──
+  app.get('/colony/colonies/:colonyId/roles', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    const key = `colony_roles_${colonyId}`;
+    const roles = await communityService.get<any[]>(key, []);
+    if (roles.length === 0) {
+      const defaultRoles = [
+        {
+          id: `role_admin_${colonyId}`,
+          colonyId,
+          name: 'Admin',
+          color: '#5865F2',
+          permissions: ['ADMINISTRATOR', 'MANAGE_CHANNELS', 'MANAGE_ROLES', 'KICK_MEMBERS', 'BAN_MEMBERS'],
+          position: 1,
+        },
+        {
+          id: `role_moderator_${colonyId}`,
+          colonyId,
+          name: 'Moderator',
+          color: '#22c55e',
+          permissions: ['MANAGE_MESSAGES', 'MUTE_MEMBERS', 'DEAFEN_MEMBERS'],
+          position: 2,
+        },
+      ];
+      await communityService.set(key, defaultRoles);
+      return defaultRoles;
+    }
+    return roles;
+  });
+
+  app.post('/colony/colonies/:colonyId/roles', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_roles_${colonyId}`;
+    const roles = await communityService.get<any[]>(key, []);
+    const newRole = {
+      id: body.id || `role_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      colonyId,
+      name: body.name || 'New Role',
+      color: body.color || '#6366f1',
+      permissions: body.permissions || ['SEND_MESSAGES'],
+      position: body.position || roles.length + 1,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...roles.filter((r) => r.id !== newRole.id), newRole];
+    await communityService.set(key, updated);
+    return newRole;
+  });
+
+  app.put('/colony/colonies/:colonyId/roles/:roleId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId, roleId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_roles_${colonyId}`;
+    const roles = await communityService.get<any[]>(key, []);
+    const updated = roles.map((r) => (r.id === roleId ? { ...r, ...body } : r));
+    await communityService.set(key, updated);
+    return updated.find((r) => r.id === roleId) || { id: roleId, ...body };
+  });
+
+  app.delete('/colony/colonies/:colonyId/roles/:roleId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId, roleId } = (req.params as any) || {};
+    const key = `colony_roles_${colonyId}`;
+    const roles = await communityService.get<any[]>(key, []);
+    await communityService.set(key, roles.filter((r) => r.id !== roleId));
+    return { success: true, id: roleId };
+  });
+
+  // ── Colony Bans ──
+  app.get('/colony/colonies/:colonyId/bans', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    return communityService.get<any[]>(`colony_bans_${colonyId}`, []);
+  });
+
+  app.post('/colony/colonies/:colonyId/bans', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_bans_${colonyId}`;
+    const bans = await communityService.get<any[]>(key, []);
+    const newBan = {
+      id: body.id || `ban_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      colonyId,
+      userId: body.userId,
+      userName: body.userName,
+      userEmail: body.userEmail,
+      reason: body.reason || 'Melanggar aturan komunitas',
+      bannedByName: body.bannedByName || 'Admin',
+      createdAt: body.createdAt || new Date().toISOString(),
+    };
+    const updated = [newBan, ...bans.filter((b) => b.userId !== newBan.userId)];
+    await communityService.set(key, updated);
+    return newBan;
+  });
+
+  app.delete('/colony/colonies/:colonyId/bans/:userId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId, userId } = (req.params as any) || {};
+    const key = `colony_bans_${colonyId}`;
+    const bans = await communityService.get<any[]>(key, []);
+    await communityService.set(key, bans.filter((b) => b.userId !== userId && b.id !== userId));
+    return { success: true, userId };
+  });
+
+  // ── Colony Audit Log ──
+  app.get('/colony/colonies/:colonyId/audit-log', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    return communityService.get<any[]>(`colony_audit_${colonyId}`, []);
+  });
+
+  app.post('/colony/colonies/:colonyId/audit-log', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `colony_audit_${colonyId}`;
+    const logs = await communityService.get<any[]>(key, []);
+    const newEntry = {
+      id: body.id || `audit_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      colonyId,
+      action: body.action || 'SERVER_UPDATE',
+      actorName: body.actorName || 'Admin',
+      targetName: body.targetName || '',
+      details: body.details || null,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [newEntry, ...logs].slice(0, 100);
+    await communityService.set(key, updated);
+    return newEntry;
+  });
+
+  // ── Colony Stats / Engagement ──
+  app.get('/colony/colonies/:colonyId/stats', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    return communityService.get(`colony_stats_${colonyId}`, {
+      colonyId,
+      totalMembers: 42,
+      activeToday: 18,
+      totalMessages: 1250,
+      totalVoiceMinutes: 340,
+    });
+  });
+
+  // ── Stage Channels State ──
+  app.get('/colony/channels/:channelId/stage', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId } = (req.params as any) || {};
+    return communityService.get(`colony_stage_${channelId}`, {
+      channelId,
+      status: 'waiting',
+      topic: '',
+      speakers: [],
+      audience: [],
+      updatedAt: new Date().toISOString(),
+    });
+  });
+
+  app.post('/colony/channels/:channelId/stage/start', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const current = await communityService.get(`colony_stage_${channelId}`, {
+      channelId,
+      status: 'waiting',
+      topic: '',
+      speakers: [],
+      audience: [],
+    });
+    const updated = {
+      ...current,
+      status: 'live',
+      topic: body.topic || current.topic || 'Stage Discussion',
+      speakers: body.speakers || current.speakers || [],
+      audience: body.audience || current.audience || [],
+      startedAt: new Date().toISOString(),
+    };
+    await communityService.set(`colony_stage_${channelId}`, updated);
+    return updated;
+  });
+
+  app.post('/colony/channels/:channelId/stage/end', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId } = (req.params as any) || {};
+    const current = await communityService.get(`colony_stage_${channelId}`, {
+      channelId,
+      status: 'waiting',
+      topic: '',
+      speakers: [],
+      audience: [],
+    });
+    const updated = {
+      ...current,
+      status: 'waiting',
+      endedAt: new Date().toISOString(),
+    };
+    await communityService.set(`colony_stage_${channelId}`, updated);
+    return updated;
+  });
+
+  app.put('/colony/channels/:channelId/stage/topic', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const current = await communityService.get(`colony_stage_${channelId}`, {
+      channelId,
+      status: 'waiting',
+      topic: '',
+      speakers: [],
+      audience: [],
+    });
+    const updated = {
+      ...current,
+      topic: body.topic || '',
+    };
+    await communityService.set(`colony_stage_${channelId}`, updated);
+    return updated;
+  });
+
+  app.post('/colony/channels/:channelId/stage/hand-raise', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const current = await communityService.get(`colony_stage_${channelId}`, {
+      channelId,
+      status: 'waiting',
+      topic: '',
+      speakers: [],
+      audience: [],
+    });
+    const userId = body.userId;
+    const isRaised = Boolean(body.isHandRaised);
+    const updatedAudience = (current.audience || []).map((a: any) =>
+      a.id === userId ? { ...a, isHandRaised: isRaised } : a,
+    );
+    const updated = { ...current, audience: updatedAudience };
+    await communityService.set(`colony_stage_${channelId}`, updated);
+    return updated;
+  });
+
+  // ── Announcement Channels Follow & Crosspost ──
+  app.get('/colony/channels/:channelId/followers', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId } = (req.params as any) || {};
+    return communityService.get<any[]>(`channel_followers_${channelId}`, []);
+  });
+
+  app.post('/colony/channels/:channelId/follow', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    const key = `channel_followers_${channelId}`;
+    const followers = await communityService.get<any[]>(key, []);
+    const newFollow = {
+      id: `foll_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      sourceChannelId: channelId,
+      targetColonyId: body.targetColonyId,
+      targetColonyName: body.targetColonyName || 'Target Colony',
+      targetChannelId: body.targetChannelId,
+      targetChannelName: body.targetChannelName || 'general',
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...followers, newFollow];
+    await communityService.set(key, updated);
+    return newFollow;
+  });
+
+  app.delete('/colony/channels/:channelId/followers/:followId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId, followId } = (req.params as any) || {};
+    const key = `channel_followers_${channelId}`;
+    const followers = await communityService.get<any[]>(key, []);
+    await communityService.set(key, followers.filter((f) => f.id !== followId));
+    return { success: true, id: followId };
+  });
+
+  app.post('/colony/channels/:channelId/crosspost/:messageId', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { channelId, messageId } = (req.params as any) || {};
+    const followers = await communityService.get<any[]>(`channel_followers_${channelId}`, []);
+    const msgsKey = `colony_msgs_${channelId}`;
+    const messages = await communityService.get<any[]>(msgsKey, []);
+    const targetMsg = messages.find((m) => m.id === messageId);
+    
+    if (targetMsg && followers.length > 0) {
+      for (const f of followers) {
+        if (f.targetChannelId) {
+          const targetKey = `colony_msgs_${f.targetChannelId}`;
+          const destMsgs = await communityService.get<any[]>(targetKey, []);
+          const crosspostMsg = {
+            ...targetMsg,
+            id: `msg_cross_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            channelId: f.targetChannelId,
+            content: `📢 **[Dipublikasikan dari #${channelId}]**\n${targetMsg.content}`,
+            createdAt: new Date().toISOString(),
+          };
+          await communityService.set(targetKey, [...destMsgs, crosspostMsg]);
+        }
+      }
+    }
+    return { success: true, messageId, publishedTo: followers.length };
+  });
+
+  // ── Family Center ──
+  app.get('/users/me/family-center', {
+    config: { security: securityAccess.public() },
+  }, async () => {
+    return communityService.get('user_family_center_me', {
+      connectedTeens: [],
+      enableFamilyTab: true,
+      receiveSummaryEmails: true,
+    });
+  });
+
+  app.put('/users/me/family-center', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const body = (req.body as any) || {};
+    await communityService.set('user_family_center_me', body);
+    return body;
+  });
+
+  // ── Colony Onboarding ──
+  app.get('/colony/colonies/:colonyId/onboarding', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    return communityService.get(`colony_onboarding_${colonyId}`, {
+      colonyId,
+      enabled: true,
+      welcomeMessage: 'Selamat datang di komunitas kami!',
+      defaultChannels: ['general', 'pengumuman'],
+    });
+  });
+
+  app.post('/colony/colonies/:colonyId/onboarding', {
+    config: { security: securityAccess.public() },
+  }, async (req) => {
+    const { colonyId } = (req.params as any) || {};
+    const body = (req.body as any) || {};
+    await communityService.set(`colony_onboarding_${colonyId}`, { ...body, colonyId, updatedAt: new Date().toISOString() });
+    return { success: true, colonyId };
+  });
+
   // ── 9. Realtime Voice Call Signaling Socket Relay ──
   if ((app as any).io) {
     (app as any).io.on('connection', (socket: any) => {
