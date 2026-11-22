@@ -2499,27 +2499,28 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
   }, async (req) => {
     const user = (req as any).user || {};
     const query = (req.query as any) || {};
-    const userId = query.userId || user.id || 'me';
-    let notifs = await communityService.get<any[]>(`community_notifications_${userId}`, []);
-    if ((!notifs || notifs.length === 0) && userId !== 'me') {
-      const fallbackMe = await communityService.get<any[]>('community_notifications_me', []);
-      if (fallbackMe && fallbackMe.length > 0) {
-        notifs = fallbackMe;
-      }
+    const userId = query.userId || user.id;
+    if (!userId || userId === 'me') {
+      return [];
     }
-    return notifs;
+    const notifs = await communityService.get<any[]>(`community_notifications_${userId}`, []);
+    return Array.isArray(notifs) ? notifs : [];
   });
 
   app.post('/community/notifications', {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const user = (req as any).user || {};
-    const userId = user.id || 'me';
     const body = (req.body as any) || {};
 
-    const targetUserIds: string[] = Array.isArray(body.targetUserIds) && body.targetUserIds.length > 0
+    const rawTargets: string[] = Array.isArray(body.targetUserIds) && body.targetUserIds.length > 0
       ? body.targetUserIds
-      : [body.targetUserId || userId];
+      : body.targetUserId ? [body.targetUserId] : [];
+
+    const targetUserIds = rawTargets.filter((tid) => Boolean(tid) && tid !== 'undefined' && tid !== 'null');
+    if (targetUserIds.length === 0) {
+      return { success: false, message: 'No target recipients specified' };
+    }
 
     const results: string[] = [];
     for (const tid of targetUserIds) {
@@ -2539,15 +2540,6 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
 
       await communityService.set(key, [newNotif, ...notifs].slice(0, 100));
       results.push(newNotif.id);
-
-      // If sender or current session is 'me', also ensure 'community_notifications_me' has it for testing
-      if (tid === userId || tid === 'me') {
-        const meKey = 'community_notifications_me';
-        if (key !== meKey) {
-          const meNotifs = await communityService.get<any[]>(meKey, []);
-          await communityService.set(meKey, [newNotif, ...meNotifs].slice(0, 100));
-        }
-      }
     }
 
     return { success: true, ids: results, id: results[0] };
@@ -2564,13 +2556,6 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     const notifs = await communityService.get<any[]>(key, []);
     const updated = notifs.map((n) => (n.id === id ? { ...n, isRead: true } : n));
     await communityService.set(key, updated);
-
-    if (userId !== 'me') {
-      const meNotifs = await communityService.get<any[]>('community_notifications_me', []);
-      if (meNotifs.some((n) => n.id === id)) {
-        await communityService.set('community_notifications_me', meNotifs.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
-      }
-    }
     return { success: true, id };
   });
 
@@ -2584,11 +2569,6 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     const notifs = await communityService.get<any[]>(key, []);
     const updated = notifs.map((n) => ({ ...n, isRead: true }));
     await communityService.set(key, updated);
-
-    if (userId !== 'me') {
-      const meNotifs = await communityService.get<any[]>('community_notifications_me', []);
-      await communityService.set('community_notifications_me', meNotifs.map((n) => ({ ...n, isRead: true })));
-    }
     return { success: true };
   });
 
@@ -2602,11 +2582,6 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     const key = `community_notifications_${userId}`;
     const notifs = await communityService.get<any[]>(key, []);
     await communityService.set(key, notifs.filter((n) => n.id !== id));
-
-    if (userId !== 'me') {
-      const meNotifs = await communityService.get<any[]>('community_notifications_me', []);
-      await communityService.set('community_notifications_me', meNotifs.filter((n) => n.id !== id));
-    }
     return { success: true, id };
   });
 
