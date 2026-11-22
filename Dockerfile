@@ -28,6 +28,7 @@ COPY docker-patches-piece-sync-service.js /usr/src/app/packages/server/api/dist/
 COPY docker-patches-piece-bundle.js /usr/src/app/packages/server/api/dist/src/app/pieces/piece-bundle.js
 COPY docker-patches-engine-controller.js /usr/src/app/packages/server/api/dist/src/app/workers/engine-controller.js
 COPY docker-patches-community-templates-service.js /usr/src/app/packages/server/api/dist/src/app/template/community-templates.service.js
+COPY docker-patches-embed-security.js /usr/src/app/packages/server/api/dist/src/app/helper/embed-security.js
 # Layer custom Anticeil frontend build onto official stable Activepieces image
 COPY dist/packages/web/ /usr/src/app/dist/packages/web/
 
