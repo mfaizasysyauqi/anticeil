@@ -2363,6 +2363,7 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       content: body.content || '',
       attachments: body.attachments || [],
       poll: body.poll || null,
+      replyTo: body.replyTo || null,
       reactions: body.reactions || {},
       createdAt: new Date().toISOString(),
     };
@@ -2508,6 +2509,7 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       senderName: body.senderName || 'You',
       senderAvatar: body.senderAvatar || null,
       content: body.content || '',
+      replyTo: body.replyTo || null,
       createdAt: new Date().toISOString(),
     };
     await communityService.set(key, [...msgs, newMsg]);
@@ -2564,6 +2566,7 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       senderName: body.senderName || 'You',
       senderAvatar: body.senderAvatar || null,
       content: body.content || '',
+      replyTo: body.replyTo || null,
       createdAt: new Date().toISOString(),
     };
     await communityService.set(key, [...msgs, newMsg]);
