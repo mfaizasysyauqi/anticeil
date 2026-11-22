@@ -16,6 +16,7 @@ import { AppSystemProp } from '../../helper/system/system-props'
 import { googleAuthnProvider } from './google-authn-provider'
 import { githubAuthnProvider } from './github-authn-provider'
 import { microsoftAuthnProvider } from './microsoft-authn-provider'
+import { oktaAuthnProvider } from './okta-authn-provider'
 
 export const federatedAuthnService = (log: FastifyBaseLogger) => ({
     async login({
@@ -38,6 +39,18 @@ export const federatedAuthnService = (log: FastifyBaseLogger) => ({
             const loginUrl = await microsoftAuthnProvider(log).getLoginUrl({
                 clientId,
                 tenantId,
+                platformId,
+            })
+            return {
+                loginUrl,
+            }
+        }
+
+        if (providerName === ThirdPartyAuthnProviderEnum.OKTA) {
+            const { clientId, domain } = getOktaClientIdAndSecret()
+            const loginUrl = await oktaAuthnProvider(log).getLoginUrl({
+                clientId,
+                domain,
                 platformId,
             })
             return {
@@ -83,6 +96,16 @@ export const federatedAuthnService = (log: FastifyBaseLogger) => ({
                 platformId,
             })
             provider = UserIdentityProvider.MICROSOFT
+        } else if (providerName === ThirdPartyAuthnProviderEnum.OKTA) {
+            const { clientId, clientSecret, domain } = getOktaClientIdAndSecret()
+            profile = await oktaAuthnProvider(log).authenticate({
+                clientId,
+                clientSecret,
+                domain,
+                authorizationCode: code,
+                platformId,
+            })
+            provider = UserIdentityProvider.OKTA
         } else {
             const { clientId, clientSecret } = getGoogleClientIdAndSecret()
             profile = await googleAuthnProvider(log).authenticate({
@@ -194,6 +217,14 @@ function getMicrosoftClientIdAndSecret() {
         clientId: system.getOrThrow(AppSystemProp.MICROSOFT_CLIENT_ID),
         clientSecret: system.getOrThrow(AppSystemProp.MICROSOFT_CLIENT_SECRET),
         tenantId: system.get(AppSystemProp.MICROSOFT_TENANT_ID) ?? 'common',
+    }
+}
+
+function getOktaClientIdAndSecret() {
+    return {
+        clientId: system.getOrThrow(AppSystemProp.OKTA_CLIENT_ID),
+        clientSecret: system.getOrThrow(AppSystemProp.OKTA_CLIENT_SECRET),
+        domain: system.getOrThrow(AppSystemProp.OKTA_DOMAIN),
     }
 }
 

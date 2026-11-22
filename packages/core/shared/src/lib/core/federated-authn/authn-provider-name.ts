@@ -2,6 +2,7 @@ export enum ThirdPartyAuthnProviderEnum {
     GOOGLE = 'google',
     GITHUB = 'github',
     MICROSOFT = 'microsoft',
+    OKTA = 'okta',
     SAML = 'saml',
 }
 

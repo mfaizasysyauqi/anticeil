@@ -196,6 +196,9 @@ const systemPropValidators: {
     [AppSystemProp.MICROSOFT_CLIENT_ID]: stringValidator,
     [AppSystemProp.MICROSOFT_CLIENT_SECRET]: stringValidator,
     [AppSystemProp.MICROSOFT_TENANT_ID]: stringValidator,
+    [AppSystemProp.OKTA_CLIENT_ID]: stringValidator,
+    [AppSystemProp.OKTA_CLIENT_SECRET]: stringValidator,
+    [AppSystemProp.OKTA_DOMAIN]: stringValidator,
 
     // Cloudflare
     [AppSystemProp.CLOUDFLARE_API_TOKEN]: stringValidator,

@@ -7,6 +7,7 @@ export enum UserIdentityProvider {
     GOOGLE = 'GOOGLE',
     GITHUB = 'GITHUB',
     MICROSOFT = 'MICROSOFT',
+    OKTA = 'OKTA',
     SAML = 'SAML',
     JWT = 'JWT',
 }

@@ -50,6 +50,8 @@ const federatedAuthnController: FastifyPluginAsyncZod = async (app) => {
                 ? SignUpMethod.GITHUB
                 : req.body.providerName === ThirdPartyAuthnProviderEnum.MICROSOFT
                 ? SignUpMethod.MICROSOFT
+                : req.body.providerName === ThirdPartyAuthnProviderEnum.OKTA
+                ? SignUpMethod.OKTA
                 : SignUpMethod.GOOGLE
             rejectedPromiseHandler(telemetry(req.log).identifySignUp({
                 userId: response.id,
