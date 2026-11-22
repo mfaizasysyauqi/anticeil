@@ -434,9 +434,10 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       try {
         const principal = await authenticateOrThrow(req.log, authHeader);
         if (principal) {
+          const userPrincipal = principal as any;
           userId = principal.id;
-          userName = `${principal.firstName || ''} ${principal.lastName || ''}`.trim() || 'Anticeil Customer';
-          userEmail = principal.email || userEmail;
+          userName = `${userPrincipal.firstName || ''} ${userPrincipal.lastName || ''}`.trim() || 'Anticeil Customer';
+          userEmail = userPrincipal.email || userEmail;
         }
       } catch {}
     }
