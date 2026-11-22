@@ -95,9 +95,15 @@ const federatedAuthnService = (log) => ({
                 password: crypto.randomBytes(32).toString('hex'),
                 imageUrl,
             });
-        } else if (!identity.username || identity.username.trim().length < 3) {
-            if (typeof identityService.ensureUsername === 'function') {
-                identity = await identityService.ensureUsername(identity);
+        } else {
+            if (imageUrl && identity.imageUrl !== imageUrl) {
+                await identityService.update(identity.id, { imageUrl });
+                identity.imageUrl = imageUrl;
+            }
+            if (!identity.username || identity.username.trim().length < 3) {
+                if (typeof identityService.ensureUsername === 'function') {
+                    identity = await identityService.ensureUsername(identity);
+                }
             }
         }
 
