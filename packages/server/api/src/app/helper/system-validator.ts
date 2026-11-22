@@ -193,6 +193,9 @@ const systemPropValidators: {
     [AppSystemProp.GITHUB_CLIENT_SECRET]: stringValidator,
     [AppSystemProp.GOOGLE_CLIENT_ID]: stringValidator,
     [AppSystemProp.GOOGLE_CLIENT_SECRET]: stringValidator,
+    [AppSystemProp.MICROSOFT_CLIENT_ID]: stringValidator,
+    [AppSystemProp.MICROSOFT_CLIENT_SECRET]: stringValidator,
+    [AppSystemProp.MICROSOFT_TENANT_ID]: stringValidator,
 
     // Cloudflare
     [AppSystemProp.CLOUDFLARE_API_TOKEN]: stringValidator,

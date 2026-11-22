@@ -15,6 +15,7 @@ import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
 import { googleAuthnProvider } from './google-authn-provider'
 import { githubAuthnProvider } from './github-authn-provider'
+import { microsoftAuthnProvider } from './microsoft-authn-provider'
 
 export const federatedAuthnService = (log: FastifyBaseLogger) => ({
     async login({
@@ -25,6 +26,18 @@ export const federatedAuthnService = (log: FastifyBaseLogger) => ({
             const { clientId } = getGithubClientIdAndSecret()
             const loginUrl = await githubAuthnProvider(log).getLoginUrl({
                 clientId,
+                platformId,
+            })
+            return {
+                loginUrl,
+            }
+        }
+
+        if (providerName === ThirdPartyAuthnProviderEnum.MICROSOFT) {
+            const { clientId, tenantId } = getMicrosoftClientIdAndSecret()
+            const loginUrl = await microsoftAuthnProvider(log).getLoginUrl({
+                clientId,
+                tenantId,
                 platformId,
             })
             return {
@@ -60,6 +73,16 @@ export const federatedAuthnService = (log: FastifyBaseLogger) => ({
                 platformId,
             })
             provider = UserIdentityProvider.GITHUB
+        } else if (providerName === ThirdPartyAuthnProviderEnum.MICROSOFT) {
+            const { clientId, clientSecret, tenantId } = getMicrosoftClientIdAndSecret()
+            profile = await microsoftAuthnProvider(log).authenticate({
+                clientId,
+                clientSecret,
+                tenantId,
+                authorizationCode: code,
+                platformId,
+            })
+            provider = UserIdentityProvider.MICROSOFT
         } else {
             const { clientId, clientSecret } = getGoogleClientIdAndSecret()
             profile = await googleAuthnProvider(log).authenticate({
@@ -163,6 +186,14 @@ function getGithubClientIdAndSecret() {
     return {
         clientId: system.getOrThrow(AppSystemProp.GITHUB_CLIENT_ID),
         clientSecret: system.getOrThrow(AppSystemProp.GITHUB_CLIENT_SECRET),
+    }
+}
+
+function getMicrosoftClientIdAndSecret() {
+    return {
+        clientId: system.getOrThrow(AppSystemProp.MICROSOFT_CLIENT_ID),
+        clientSecret: system.getOrThrow(AppSystemProp.MICROSOFT_CLIENT_SECRET),
+        tenantId: system.get(AppSystemProp.MICROSOFT_TENANT_ID) ?? 'common',
     }
 }
 
