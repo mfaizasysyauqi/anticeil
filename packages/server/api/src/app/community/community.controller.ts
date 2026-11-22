@@ -624,14 +624,16 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const query = (req.query as any) || {};
-    const { userId, all } = query;
+    const { userId, email, all } = query;
     const authHeader = req.headers['authorization'];
     let currentUserId = userId;
+    let currentUserEmail = email ? String(email).toLowerCase().trim() : null;
     if (!currentUserId && authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const principal = await authenticateOrThrow(req.log, authHeader);
         if (principal && principal.id) {
           currentUserId = principal.id;
+          if (principal.email) currentUserEmail = String(principal.email).toLowerCase().trim();
         }
       } catch {}
     }
@@ -644,9 +646,10 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
         const onlineCount = members.length > 0
           ? members.filter((m) => m.status !== 'offline').length || 1
           : (typeof c.onlineCount === 'number' && c.onlineCount > 0 ? c.onlineCount : 1);
-        const isMember = currentUserId
-          ? (c.ownerId === currentUserId || members.some((m) => m.id === currentUserId || m.userId === currentUserId))
-          : false;
+        const isMember = Boolean(
+          (currentUserId && (c.ownerId === currentUserId || members.some((m) => m.id === currentUserId || m.userId === currentUserId))) ||
+          (currentUserEmail && members.some((m) => m.email && m.email.toLowerCase().trim() === currentUserEmail))
+        );
         return {
           ...c,
           membersCount,
@@ -656,14 +659,22 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       })
     );
 
-    // If currentUserId is provided and not requesting all=true, return ONLY colonies the user actually joined or created, plus default 'anticeil'
-    if (currentUserId && all !== 'true' && all !== true) {
+    // If requesting all=true (e.g. discovery / admin), return discoverable colonies
+    if (all === 'true' || all === true) {
+      return populated.map(({ isMember, ...rest }) => ({ ...rest, isMember }));
+    }
+
+    // Default (sidebar rail): Return STRICTLY only colonies the user belongs to + default 'anticeil'
+    if (currentUserId || currentUserEmail) {
       return populated
-        .filter((c) => c.id === 'anticeil' || c.isMember || c.ownerId === currentUserId)
+        .filter((c) => c.id === 'anticeil' || c.isMember || (currentUserId && c.ownerId === currentUserId))
         .map(({ isMember, ...rest }) => rest);
     }
 
-    return populated.map(({ isMember, ...rest }) => rest);
+    // If no user is identified at all, strictly isolate to default home colony ('anticeil')
+    return populated
+      .filter((c) => c.id === 'anticeil')
+      .map(({ isMember, ...rest }) => rest);
   });
 
   app.post('/colony/colonies', {
