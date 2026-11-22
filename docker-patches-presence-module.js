@@ -7128,23 +7128,24 @@ async function setupCommunityApi(app) {
     const createMidtransTokenHandler = async (req, reply) => {
         const ds = await getDb();
         const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
-        const { plan, isGift, giftType } = req.body || {};
+        const { plan, isGift, giftType, type, count } = req.body || {};
         const isGiftOrder = isGift === true || (typeof plan === 'string' && plan.startsWith('gift_'));
+        const isBoostOrder = type === 'colony_boost' || plan === 'colony_boost';
         let planId = 'nectar_boost';
         let grossAmount = 85000;
         let itemName = 'Anticeil Nectar VIP Monthly Subscription';
 
         if (isGiftOrder) {
-            const type = giftType || plan;
-            if (type === 'nectar_basic' || type === 'pollen' || type === 'pollen_1m' || type === 'gift_pollen') {
+            const giftKey = giftType || plan;
+            if (giftKey === 'nectar_basic' || giftKey === 'pollen' || giftKey === 'pollen_1m' || giftKey === 'gift_pollen') {
                 planId = 'nectar_basic';
                 grossAmount = 29000;
                 itemName = 'Hadiah Anticeil: Pollen Tier (1 Bulan)';
-            } else if (type === 'boost_1m' || type === 'gift_boost') {
+            } else if (giftKey === 'boost_1m' || giftKey === 'gift_boost') {
                 planId = 'boost_1m';
                 grossAmount = 65000;
                 itemName = 'Hadiah Anticeil: 2x Colony Boost (1 Bulan)';
-            } else if (type === 'nectar_1y' || type === 'gift_nectar_1y') {
+            } else if (giftKey === 'nectar_1y' || giftKey === 'gift_nectar_1y') {
                 planId = 'nectar_1y';
                 grossAmount = 850000;
                 itemName = 'Hadiah Anticeil: Nectar VIP (1 Tahun)';
@@ -7153,22 +7154,35 @@ async function setupCommunityApi(app) {
                 grossAmount = 85000;
                 itemName = 'Hadiah Anticeil: Nectar VIP (1 Bulan)';
             }
+        } else if (isBoostOrder) {
+            const boostCount = Number(count) || 1;
+            const unitPrice = boostCount >= 5 ? 30000 : boostCount >= 3 ? 33000 : 35000;
+            planId = 'colony_boost';
+            grossAmount = unitPrice * boostCount;
+            itemName = `Anticeil: ${boostCount}x Colony Boost Slot`;
         } else {
             const planKey = (plan || 'nectar_boost').toLowerCase();
+            const isRoyal = planKey === 'royal_enterprise' || planKey === 'royal';
             const isPollen = planKey === 'nectar_basic' || planKey === 'pollen';
-            planId = isPollen ? 'nectar_basic' : 'nectar_boost';
-            grossAmount = isPollen ? 29000 : 85000;
-            itemName = isPollen ? 'Anticeil Pollen Monthly Subscription' : 'Anticeil Nectar VIP Monthly Subscription';
+            planId = isRoyal ? 'royal_enterprise' : isPollen ? 'nectar_basic' : 'nectar_boost';
+            grossAmount = isRoyal ? 250000 : isPollen ? 29000 : 85000;
+            itemName = isRoyal
+                ? 'Anticeil Royal Enterprise Monthly Subscription'
+                : isPollen
+                ? 'Anticeil Pollen Monthly Subscription'
+                : 'Anticeil Nectar VIP Monthly Subscription';
         }
 
-        const serverKey = process.env.AP_MIDTRANS_SERVER_KEY ?? '';
-        const clientKey = process.env.AP_MIDTRANS_CLIENT_KEY ?? '';
+        const serverKey = process.env.AP_MIDTRANS_SERVER_KEY || '';
+        const clientKey = process.env.AP_MIDTRANS_CLIENT_KEY || 'Mid-client-yRBpRaqmL0lFDRLN';
         const isProduction = process.env.AP_MIDTRANS_IS_PRODUCTION === 'true';
         const auth = Buffer.from(`${serverKey}:`).toString('base64');
 
         const orderId = isGiftOrder
             ? `AC-GFT-${planId === 'nectar_basic' ? 'POL' : planId === 'boost_1m' ? 'BST' : planId === 'nectar_1y' ? 'YEA' : 'NEC'}-${Date.now()}`
-            : `AC-SUB-${planId === 'nectar_basic' ? 'POL' : 'NEC'}-${Date.now()}`;
+            : isBoostOrder
+            ? `AC-BST-${count || 1}-${Date.now()}`
+            : `AC-SUB-${planId === 'royal_enterprise' ? 'ROY' : planId === 'nectar_basic' ? 'POL' : 'NEC'}-${Date.now()}`;
         let userEmail = 'anticeil.user@gmail.com';
         let userName = 'Anticeil User';
 
@@ -7234,7 +7248,7 @@ async function setupCommunityApi(app) {
             return reply.status(400).send({ success: false, message: 'orderId diperlukan' });
         }
 
-        const serverKey = process.env.AP_MIDTRANS_SERVER_KEY ?? '';
+        const serverKey = process.env.AP_MIDTRANS_SERVER_KEY || '';
         const isProduction = process.env.AP_MIDTRANS_IS_PRODUCTION === 'true';
         const auth = Buffer.from(`${serverKey}:`).toString('base64');
 
@@ -7581,18 +7595,21 @@ async function setupCommunityApi(app) {
         return reply.status(500).send({ success: false, message: 'Database tidak tersedia' });
     };
 
-    // --- REGISTER BILLING ENDPOINTS ---
-    app.get('/v1/billing/subscriptions', getSubscriptionHandler);
-    app.post('/v1/billing/subscriptions', updateSubscriptionHandler);
-    app.post('/v1/billing/subscriptions/cancel', cancelSubscriptionHandler);
-    app.post('/v1/billing/midtrans-token', createMidtransTokenHandler);
-    app.post('/v1/billing/midtrans-verify', verifyMidtransPaymentHandler);
-    app.all('/v1/billing/midtrans-notification', handleMidtransWebhookHandler);
-    app.all('/v1/billing/midtrans-webhook', handleMidtransWebhookHandler);
-    app.get('/v1/billing/transactions', getTransactionsHandler);
-    app.get('/v1/billing/payment-methods', getPaymentMethodsHandler);
-    app.get('/v1/billing/gifts', getGiftsHandler);
-    app.post('/v1/billing/gifts/redeem', redeemGiftHandler);
+    // --- REGISTER BILLING ENDPOINTS (Supports both /v1/billing/* and /api/v1/billing/*) ---
+    const billingPrefixes = ['/v1/billing', '/api/v1/billing'];
+    for (const bPrefix of billingPrefixes) {
+        app.get(`${bPrefix}/subscriptions`, getSubscriptionHandler);
+        app.post(`${bPrefix}/subscriptions`, updateSubscriptionHandler);
+        app.post(`${bPrefix}/subscriptions/cancel`, cancelSubscriptionHandler);
+        app.post(`${bPrefix}/midtrans-token`, createMidtransTokenHandler);
+        app.post(`${bPrefix}/midtrans-verify`, verifyMidtransPaymentHandler);
+        app.all(`${bPrefix}/midtrans-notification`, handleMidtransWebhookHandler);
+        app.all(`${bPrefix}/midtrans-webhook`, handleMidtransWebhookHandler);
+        app.get(`${bPrefix}/transactions`, getTransactionsHandler);
+        app.get(`${bPrefix}/payment-methods`, getPaymentMethodsHandler);
+        app.get(`${bPrefix}/gifts`, getGiftsHandler);
+        app.post(`${bPrefix}/gifts/redeem`, redeemGiftHandler);
+    }
 
     // --- AUTOMATIC BACKGROUND SCHEDULER FOR SCHEDULED MESSAGES ---
     setInterval(async () => {
