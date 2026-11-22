@@ -1317,15 +1317,17 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const body = (req.body as any) || {};
+    const allowDew = body.allowDew !== undefined ? Boolean(body.allowDew) : true;
     const newItem = {
       id: body.id || `shop_custom_${Date.now()}`,
       name: body.name || 'Custom Product',
       collection: body.collection || 'Anticeil Custom',
       category: body.category || 'avatar_decoration',
       description: body.description || 'Eksklusif dibuat oleh komunitas.',
+      allowDew,
       priceIdr: Number(body.priceIdr) || 78000,
-      priceDew: Number(body.priceDew) || Number(body.priceOrbs) || 600,
-      priceOrbs: Number(body.priceDew) || Number(body.priceOrbs) || 600,
+      priceDew: allowDew ? (Number(body.priceDew) || Number(body.priceOrbs) || 600) : 0,
+      priceOrbs: allowDew ? (Number(body.priceDew) || Number(body.priceOrbs) || 600) : 0,
       discountPercent: body.discountPercent ? Number(body.discountPercent) : undefined,
       bannerUrl: body.bannerUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
       previewIcon: body.previewIcon || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200&auto=format&fit=crop&q=80',
@@ -1374,13 +1376,15 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     if (index === -1) {
       return { success: false, message: 'Item tidak ditemukan di Shop.' };
     }
+    const allowDew = body.allowDew !== undefined ? Boolean(body.allowDew) : (storedItems[index].allowDew !== undefined ? storedItems[index].allowDew : true);
     const updatedItem = {
       ...storedItems[index],
       ...body,
       id: itemId,
+      allowDew,
       priceIdr: body.priceIdr !== undefined ? Number(body.priceIdr) : storedItems[index].priceIdr,
-      priceDew: body.priceDew !== undefined ? Number(body.priceDew) : (body.priceOrbs !== undefined ? Number(body.priceOrbs) : storedItems[index].priceDew),
-      priceOrbs: body.priceDew !== undefined ? Number(body.priceDew) : (body.priceOrbs !== undefined ? Number(body.priceOrbs) : storedItems[index].priceOrbs),
+      priceDew: allowDew ? (body.priceDew !== undefined ? Number(body.priceDew) : (body.priceOrbs !== undefined ? Number(body.priceOrbs) : storedItems[index].priceDew)) : 0,
+      priceOrbs: allowDew ? (body.priceDew !== undefined ? Number(body.priceDew) : (body.priceOrbs !== undefined ? Number(body.priceOrbs) : storedItems[index].priceOrbs)) : 0,
     };
     storedItems[index] = updatedItem;
     await communityService.set('community_shop_items', storedItems);
@@ -1499,6 +1503,11 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     const inventory = await communityService.get<any[]>(`community_shop_inventory_${userId}`, []);
     if (inventory.some((i) => i.id === itemId)) {
       return { success: true, message: 'Item sudah dimiliki di inventaris Anda.', item: targetItem, alreadyOwned: true };
+    }
+
+    // Check if item allows Dew currency
+    if ((currency === 'dew' || currency === 'orbs') && (targetItem.allowDew === false || (targetItem.priceDew || targetItem.priceOrbs || 0) <= 0)) {
+      return { success: false, message: 'Item ini eksklusif dan hanya dapat dibeli menggunakan Uang Asli (IDR).' };
     }
 
     // Check balance
