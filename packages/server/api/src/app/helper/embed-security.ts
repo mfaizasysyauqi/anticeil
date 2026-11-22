@@ -11,13 +11,24 @@ const CACHE_MAX_ENTRIES = 1000
 const CACHE_TTL_MS = 3 * 60 * 1000
 const SELF_HOSTED_CACHE_KEY = '__self_hosted__'
 
+const DEFAULT_ALLOWED_ORIGINS = [
+    'https://*.anticeil.com',
+    'https://anticeil.com',
+    'https://chat.anticeil.com',
+    'https://dev-chat.anticeil.com',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:3005',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3005',
+]
+
 const cache: LRU<string[]> = lru(CACHE_MAX_ENTRIES, CACHE_TTL_MS)
 
 function buildFrameAncestorsHeader({ origins }: { origins: string[] }): string {
-    if (origins.length === 0) {
-        return 'frame-ancestors \'self\''
-    }
-    return `frame-ancestors 'self' ${origins.join(' ')}`
+    const allOrigins = mergeUnique(DEFAULT_ALLOWED_ORIGINS, origins)
+    return `frame-ancestors 'self' ${allOrigins.join(' ')}`
 }
 
 async function resolveAllowedOrigins({ hostname, log }: { hostname: string, log: FastifyBaseLogger }): Promise<string[]> {
@@ -63,8 +74,15 @@ function mergeUnique(a: string[], b: string[]): string[] {
 }
 
 function isValidOrigin(value: string): boolean {
+    if (!value || typeof value !== 'string') {
+        return false
+    }
+    const trimmed = value.trim()
+    if (/^https?:\/\/\*\.[a-zA-Z0-9.-]+(:\d+)?$/.test(trimmed)) {
+        return true
+    }
     try {
-        return new URL(value).origin === value
+        return new URL(trimmed).origin === trimmed
     }
     catch {
         return false
