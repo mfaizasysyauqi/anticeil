@@ -1515,7 +1515,6 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       message: `Berhasil menambahkan +${amount} Dew ke saldo Anda! 💧`,
       balance: newBalance,
     };
-    };
   });
 
   app.get('/community/shop/inventory', {
