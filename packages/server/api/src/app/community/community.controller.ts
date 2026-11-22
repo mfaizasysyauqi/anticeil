@@ -1926,20 +1926,39 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     return await communityService.get<any[]>(`community_quests_claimed_${userId}`, []);
   });
 
+  // Helper to extract effective authenticated or query user ID
+  const extractUserIdFromReq = async (req: any): Promise<string> => {
+    const query = (req.query as any) || {};
+    const body = (req.body as any) || {};
+    let userId = query.userId || body.userId;
+    if (!userId) {
+      const authHeader = req.headers['authorization'];
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+          const principal = await authenticateOrThrow(req.log, authHeader);
+          if (principal && principal.id) userId = principal.id;
+        } catch {}
+      }
+    }
+    if (!userId) {
+      const user = (req as any).user || {};
+      userId = user.id || 'me';
+    }
+    return String(userId);
+  };
+
   // ── 1. Friends & Friend Requests Endpoints ──
   app.get('/community/friends', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await extractUserIdFromReq(req);
     return communityService.get<any[]>(`community_friends_${userId}`, []);
   });
 
   app.get('/community/friends/requests', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await extractUserIdFromReq(req);
     return communityService.get<any[]>(`community_friend_requests_${userId}`, []);
   });
 
@@ -1947,7 +1966,7 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await extractUserIdFromReq(req);
     const body = (req.body as any) || {};
     const targetUserId = body.targetUserId || body.targetUsername;
 
@@ -1981,7 +2000,7 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await extractUserIdFromReq(req);
     const { id } = (req.params as any) || {};
 
     const reqsKey = `community_friend_requests_${userId}`;
@@ -1992,7 +2011,7 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       // Remove from requests
       await communityService.set(reqsKey, requests.filter((r) => r.id !== id));
 
-      // Add to friends
+      // Add to recipient's friends
       const friendsKey = `community_friends_${userId}`;
       const friends = await communityService.get<any[]>(friendsKey, []);
       const newFriend = {
@@ -2004,6 +2023,22 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
         createdAt: new Date().toISOString(),
       };
       await communityService.set(friendsKey, [newFriend, ...friends.filter((f) => f.id !== newFriend.id)]);
+
+      // Reciprocal: Add recipient to sender's friends list
+      if (targetReq.senderId && targetReq.senderId !== userId) {
+        const senderFriendsKey = `community_friends_${targetReq.senderId}`;
+        const senderFriends = await communityService.get<any[]>(senderFriendsKey, []);
+        const recipientFriend = {
+          id: userId,
+          name: (req.body as any)?.userName || user.name || user.firstName || 'Teman Anticeil',
+          username: (req.body as any)?.userUsername || user.username || user.email?.split('@')[0],
+          avatar: (req.body as any)?.userAvatar || user.imageUrl || null,
+          status: 'online',
+          createdAt: new Date().toISOString(),
+        };
+        await communityService.set(senderFriendsKey, [recipientFriend, ...senderFriends.filter((f) => f.id !== recipientFriend.id)]);
+      }
+
       return { success: true, friendId: newFriend.id };
     }
 
@@ -2013,8 +2048,7 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
   app.post('/community/friends/request/:id/ignore', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await extractUserIdFromReq(req);
     const { id } = (req.params as any) || {};
     const reqsKey = `community_friend_requests_${userId}`;
     const requests = await communityService.get<any[]>(reqsKey, []);
@@ -2025,8 +2059,7 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
   app.delete('/community/friends/:friendId', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await extractUserIdFromReq(req);
     const { friendId } = (req.params as any) || {};
     const friendsKey = `community_friends_${userId}`;
     const friends = await communityService.get<any[]>(friendsKey, []);
