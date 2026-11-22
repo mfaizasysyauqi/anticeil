@@ -633,7 +633,8 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
         const principal = await authenticateOrThrow(req.log, authHeader);
         if (principal && principal.id) {
           currentUserId = principal.id;
-          if (principal.email) currentUserEmail = String(principal.email).toLowerCase().trim();
+          const principalEmail = (principal as any).email;
+          if (principalEmail) currentUserEmail = String(principalEmail).toLowerCase().trim();
         }
       } catch {}
     }
