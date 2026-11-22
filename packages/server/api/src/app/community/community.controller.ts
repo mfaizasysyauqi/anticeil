@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { StatusCodes } from 'http-status-codes';
 import { z } from 'zod';
@@ -9,7 +11,7 @@ import { AppSystemProp } from '../helper/system/system-props';
 import { communityService } from './community.service';
 
 export const communityController: FastifyPluginAsyncZod = async (app) => {
-  // ── Cloudflare R2 Media Upload & CDN Streaming ──
+  // ── Cloudflare R2 Media Upload & CDN Streaming (With Oracle VM Local Fallback) ──
   app.post('/community/upload', {
     config: { security: securityAccess.public() },
     schema: {
@@ -32,14 +34,28 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
       const cleanName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
       const s3Key = `community/media/${Date.now()}_${Math.random().toString(36).substring(2, 8)}_${cleanName}`;
 
-      // Upload directly to Cloudflare R2 via S3 API
-      await s3Helper(app.log).uploadFile(s3Key, buffer, mimeType);
+      let url: string | null = null;
+      // 1. Try upload directly to Cloudflare R2 via S3 API
+      try {
+        await s3Helper(app.log).uploadFile(s3Key, buffer, mimeType);
+        const customCdn = system.get<string>('AP_S3_PUBLIC_URL' as any);
+        const publicBase = system.get<string>(AppSystemProp.FRONTEND_URL) || '';
+        url = customCdn
+          ? `${customCdn.replace(/\/$/, '')}/${s3Key}`
+          : `${publicBase.replace(/\/$/, '')}/api/v1/community/media/${encodeURIComponent(s3Key)}`;
+      } catch (s3Err) {
+        app.log.warn({ err: s3Err, s3Key }, 'Cloudflare R2 direct upload failed, saving to Oracle VM local storage');
+      }
 
-      const customCdn = system.get<string>('AP_S3_PUBLIC_URL' as any);
-      const publicBase = system.get<string>(AppSystemProp.FRONTEND_URL) || '';
-      const url = customCdn
-        ? `${customCdn.replace(/\/$/, '')}/${s3Key}`
-        : `${publicBase.replace(/\/$/, '')}/api/v1/community/media/${encodeURIComponent(s3Key)}`;
+      // 2. Fallback to Oracle VM local storage if R2 was unreachable or not yet configured
+      if (!url) {
+        const mediaDir = path.resolve(process.cwd(), 'cache', 'media');
+        if (!fs.existsSync(mediaDir)) fs.mkdirSync(mediaDir, { recursive: true });
+        const localFileName = s3Key.replace(/[\/\\]/g, '_');
+        fs.writeFileSync(path.join(mediaDir, localFileName), buffer);
+        const publicBase = system.get<string>(AppSystemProp.FRONTEND_URL) || '';
+        url = `${publicBase.replace(/\/$/, '')}/api/v1/community/media/${encodeURIComponent(s3Key)}`;
+      }
 
       return {
         url,
@@ -48,7 +64,7 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
         size: buffer.length,
       };
     } catch (err: any) {
-      app.log.error(err, 'Failed to upload media to Cloudflare R2');
+      app.log.error(err, 'Failed to process media upload');
       return reply.status(StatusCodes.INTERNAL_SERVER_ERROR).send({
         error: 'Upload failed',
         message: err.message,
@@ -62,7 +78,24 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
     try {
       const { s3Key } = req.params as { s3Key: string };
       const decodedKey = decodeURIComponent(s3Key);
-      const fileBuffer = await s3Helper(app.log).getFile(decodedKey);
+
+      let fileBuffer: Buffer | null = null;
+      // 1. Try Cloudflare R2
+      try {
+        fileBuffer = await s3Helper(app.log).getFile(decodedKey);
+      } catch {
+        // 2. Try Oracle VM local disk storage
+        const mediaDir = path.resolve(process.cwd(), 'cache', 'media');
+        const localFileName = decodedKey.replace(/[\/\\]/g, '_');
+        const localPath = path.join(mediaDir, localFileName);
+        if (fs.existsSync(localPath)) {
+          fileBuffer = fs.readFileSync(localPath);
+        }
+      }
+
+      if (!fileBuffer) {
+        return reply.status(StatusCodes.NOT_FOUND).send({ error: 'File not found in storage' });
+      }
 
       const ext = decodedKey.split('.').pop()?.toLowerCase();
       const mimeMap: Record<string, string> = {
@@ -85,7 +118,7 @@ export const communityController: FastifyPluginAsyncZod = async (app) => {
         .header('Cache-Control', 'public, max-age=31536000, immutable')
         .send(fileBuffer);
     } catch {
-      return reply.status(StatusCodes.NOT_FOUND).send({ error: 'File not found in R2' });
+      return reply.status(StatusCodes.NOT_FOUND).send({ error: 'File not found' });
     }
   });
   // ── Profile Endpoints ──

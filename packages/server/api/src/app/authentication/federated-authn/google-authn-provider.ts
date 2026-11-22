@@ -21,7 +21,7 @@ export const googleAuthnProvider = (log: FastifyBaseLogger) => ({
             'redirect_uri',
             await federatedAuthnService(log).getThirdPartyRedirectUrl(),
         )
-        loginUrl.searchParams.set('scope', 'email profile')
+        loginUrl.searchParams.set('scope', 'openid email profile')
         loginUrl.searchParams.set('response_type', 'code')
 
         return loginUrl.href
@@ -31,24 +31,24 @@ export const googleAuthnProvider = (log: FastifyBaseLogger) => ({
         params: AuthenticateParams,
     ): Promise<FebderatedAuthnIdToken> {
         const { clientId, clientSecret, authorizationCode, platformId } = params
-        const idToken = await exchangeCodeForIdToken(
+        const { idToken, accessToken } = await exchangeCodeForTokens(
             log,
             platformId,
             clientId,
             clientSecret,
             authorizationCode,
         )
-        return verifyIdToken(clientId, idToken)
+        return verifyIdToken(clientId, idToken, accessToken)
     },
 })
 
-const exchangeCodeForIdToken = async (
+const exchangeCodeForTokens = async (
     log: FastifyBaseLogger,
     platformId: string | undefined,
     clientId: string,
     clientSecret: string,
     code: string,
-): Promise<string> => {
+): Promise<{ idToken: string; accessToken?: string }> => {
     const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: {
@@ -63,19 +63,23 @@ const exchangeCodeForIdToken = async (
         }),
     })
 
-    const responseBody = await response.json() as { id_token?: string }
+    const responseBody = await response.json() as { id_token?: string; access_token?: string }
     if (isNil(responseBody.id_token)) {
         throw new ActivepiecesError({
             code: ErrorCode.INVALID_CREDENTIALS,
             params: null,
         }, 'Google OAuth token exchange failed: no id_token returned')
     }
-    return responseBody.id_token
+    return {
+        idToken: responseBody.id_token,
+        accessToken: responseBody.access_token,
+    }
 }
 
 const verifyIdToken = async (
     clientId: string,
     idToken: string,
+    accessToken?: string,
 ): Promise<FebderatedAuthnIdToken> => {
     const { header } = jwtUtils.decode({ jwt: idToken })
     const signingKey = await keyLoader.getSigningKey(header.kid)
@@ -90,11 +94,29 @@ const verifyIdToken = async (
     })
 
     assertNotEqual(payload.email_verified, false, 'payload.email_verified', 'Email is not verified')
+
+    let imageUrl = payload.picture
+    if (!imageUrl && accessToken) {
+        try {
+            const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            })
+            if (userinfoRes.ok) {
+                const userinfo = await userinfoRes.json() as { picture?: string }
+                if (userinfo.picture) {
+                    imageUrl = userinfo.picture
+                }
+            }
+        } catch {
+            // Ignore userinfo fetch errors
+        }
+    }
+
     return {
         email: payload.email,
         firstName: payload.given_name,
         lastName: payload.family_name,
-        imageUrl: payload.picture,
+        imageUrl,
     }
 }
 

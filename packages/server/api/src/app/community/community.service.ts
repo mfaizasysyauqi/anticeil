@@ -3,7 +3,7 @@ import path from 'node:path';
 import { storeEntryService } from '../store-entry/store-entry.service';
 
 const inMemoryStore = new Map<string, any>();
-const COMMUNITY_PROJECT_ID = 'community_global_vault';
+const COMMUNITY_PROJECT_ID = 'comm_vault_oracle_01';
 const BACKUP_FILE = path.resolve(process.cwd(), 'cache', 'community-store-backup.json');
 
 // Initialize memory from disk snapshot if available on startup

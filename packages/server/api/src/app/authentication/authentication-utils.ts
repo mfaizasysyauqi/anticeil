@@ -77,6 +77,7 @@ export const authenticationUtils = (log: FastifyBaseLogger) => ({
             verified: identity.verified,
             token,
             projectId: project?.id ?? null,
+            ...({ imageUrl: identity.imageUrl ?? null } as any),
         }
     },
 
