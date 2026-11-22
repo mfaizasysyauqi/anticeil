@@ -135,6 +135,7 @@ export const setupServer = async (): Promise<FastifyInstance> => {
     app.addHook('onSend', async (request, reply) => {
         void reply.header('X-Content-Type-Options', 'nosniff')
         void reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+        void reply.removeHeader('X-Frame-Options')
         if (!reply.hasHeader('Content-Security-Policy')) {
             const frameAncestors = await embedSecurity(request.log).getFrameAncestorsHeader({
                 hostname: networkUtils.getRequestHost(request),

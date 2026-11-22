@@ -4,7 +4,12 @@ exports.embedSecurity = void 0;
 const core_utils_1 = require("@activepieces/core-utils");
 const shared_1 = require("@activepieces/shared");
 const tiny_lru_1 = require("tiny-lru");
-const embed_subdomain_service_1 = require("../embed-subdomain/embed-subdomain.service");
+let embed_subdomain_service_1 = null;
+try {
+    embed_subdomain_service_1 = require("../embed-subdomain/embed-subdomain.service");
+} catch (_) {
+    embed_subdomain_service_1 = null;
+}
 const platform_service_1 = require("../platform/platform.service");
 const system_1 = require("./system/system");
 const system_props_1 = require("./system/system-props");
@@ -40,31 +45,34 @@ async function resolveAllowedOrigins({ hostname, log }) {
     if (!(0, core_utils_1.isNil)(hit)) {
         return hit;
     }
-    const envOrigins = system_1.system.getList(system_props_1.AppSystemProp.ALLOWED_EMBED_ORIGINS).filter(isValidOrigin);
+    const envOrigins = (system_1.system.getList(system_props_1.AppSystemProp.ALLOWED_EMBED_ORIGINS) || []).filter(isValidOrigin);
     try {
-        if (edition === shared_1.ApEdition.CLOUD) {
+        if (edition === shared_1.ApEdition.CLOUD && embed_subdomain_service_1 && typeof embed_subdomain_service_1.embedSubdomainService === 'function') {
             const record = await (0, embed_subdomain_service_1.embedSubdomainService)(log).getByHostname({ hostname });
             if ((0, core_utils_1.isNil)(record)) {
                 cache.set(cacheKey, envOrigins);
                 return envOrigins;
             }
             const platform = await (0, platform_service_1.platformService)(log).getOneOrThrow(record.platformId);
-            const origins = mergeUnique(platform.allowedEmbedOrigins ?? [], envOrigins);
+            const origins = mergeUnique(DEFAULT_ALLOWED_ORIGINS, mergeUnique(platform.allowedEmbedOrigins ?? [], envOrigins));
             cache.set(cacheKey, origins);
             return origins;
         }
-        const platform = await (0, platform_service_1.platformService)(log).getOldestPlatform();
-        if ((0, core_utils_1.isNil)(platform)) {
-            cache.set(cacheKey, envOrigins);
-            return envOrigins;
-        }
-        const origins = mergeUnique(platform.allowedEmbedOrigins ?? [], envOrigins);
-        cache.set(cacheKey, origins);
-        return origins;
+        try {
+            const platform = await (0, platform_service_1.platformService)(log).getOldestPlatform();
+            if (!(0, core_utils_1.isNil)(platform)) {
+                const origins = mergeUnique(DEFAULT_ALLOWED_ORIGINS, mergeUnique(platform.allowedEmbedOrigins ?? [], envOrigins));
+                cache.set(cacheKey, origins);
+                return origins;
+            }
+        } catch (_) {}
+        const fallbackOrigins = mergeUnique(DEFAULT_ALLOWED_ORIGINS, envOrigins);
+        cache.set(cacheKey, fallbackOrigins);
+        return fallbackOrigins;
     }
     catch (e) {
-        log.warn({ error: e, hostname }, 'Failed to resolve embed allowed origins');
-        return envOrigins;
+        log?.warn?.({ error: e, hostname }, 'Failed to resolve embed allowed origins');
+        return mergeUnique(DEFAULT_ALLOWED_ORIGINS, envOrigins);
     }
 }
 
