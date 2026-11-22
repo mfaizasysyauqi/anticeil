@@ -643,6 +643,9 @@ export const communityActivityController: FastifyPluginAsyncZod = async (app) =>
     config: { security: securityAccess.public() },
   }, async (req) => {
     const userId = await extractUserIdFromReq(req);
+    if (!userId || userId === 'me' || userId === 'undefined' || userId === 'null') {
+      return [];
+    }
     return communityService.get<any[]>(`community_friends_${userId}`, []);
   });
 
@@ -650,6 +653,9 @@ export const communityActivityController: FastifyPluginAsyncZod = async (app) =>
     config: { security: securityAccess.public() },
   }, async (req) => {
     const userId = await extractUserIdFromReq(req);
+    if (!userId || userId === 'me' || userId === 'undefined' || userId === 'null') {
+      return [];
+    }
     return communityService.get<any[]>(`community_friend_requests_${userId}`, []);
   });
 
