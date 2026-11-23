@@ -5691,8 +5691,6 @@ async function setupCommunityApi(app) {
         }
         return reply.send({ success: true, id });
     };
-        return reply.send({ success: true, id });
-    };
 
     const deleteCallLogHandler = async (req, reply) => {
         await ensureTables();
@@ -8310,4 +8308,6 @@ async function setupCommunityApi(app) {
     app.addHook('onRequest', interceptPieceBundle);
     app.addHook('preHandler', interceptPieceBundle);
 }
+
+
 
