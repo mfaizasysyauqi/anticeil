@@ -599,18 +599,26 @@ export const communityActivityController: FastifyPluginAsyncZod = async (app) =>
 
   app.put('/community/activities/catalog/:id', {
     config: { security: securityAccess.public() },
-  }, async (req) => {
+  }, async (req, reply) => {
+    const body = (req.body as any) || {};
+    const email = (body.userEmail || req.headers['x-user-email'] || (req as any).user?.email || '').toString().toLowerCase().trim();
+    if (email !== 'anticeil.official@gmail.com') {
+      return reply.status(StatusCodes.FORBIDDEN).send({
+        error: 'Akses ditolak: Hanya akun resmi anticeil.official@gmail.com yang diizinkan mengedit metadata katalog aplikasi.',
+      });
+    }
+
     const { id } = req.params as { id: string };
     const list = await communityService.get<any[]>('community_activities_catalog', []);
-    const body = req.body as any;
+    const { userEmail: _, ...cleanBody } = body;
     const index = list.findIndex((a) => a.id === id);
     if (index === -1) {
-      const newApp = { ...body, id };
+      const newApp = { ...cleanBody, id };
       const updated = [newApp, ...list];
       await communityService.set('community_activities_catalog', updated);
       return newApp;
     }
-    const updatedApp = { ...list[index], ...body, id };
+    const updatedApp = { ...list[index], ...cleanBody, id };
     list[index] = updatedApp;
     await communityService.set('community_activities_catalog', list);
     return updatedApp;
