@@ -1454,6 +1454,7 @@ async function setupCommunityApi(app) {
                 const platformId = await resolvePlatformId(req, ds);
                 await ds.query('DELETE FROM anticeil_community_messages WHERE channel_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_assignments WHERE channel_id = $1', [id]);
+                await ds.query('DELETE FROM anticeil_calendar_events WHERE channel_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_community_channels WHERE id = $1 AND (platform_id = $2 OR platform_id IS NULL)', [id, platformId]);
             } catch (e) {}
         }
@@ -4010,6 +4011,7 @@ async function setupCommunityApi(app) {
                 }
                 await ds.query('DELETE FROM anticeil_colony_apps WHERE hub_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_assignments WHERE hub_id = $1', [id]);
+                await ds.query('DELETE FROM anticeil_calendar_events WHERE hub_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_community_messages WHERE channel_id IN (SELECT id FROM anticeil_community_channels WHERE hub_id = $1)', [id]);
                 await ds.query('DELETE FROM anticeil_community_channels WHERE hub_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_community_members WHERE hub_id = $1', [id]);
@@ -5374,6 +5376,15 @@ async function setupCommunityApi(app) {
         const ds = await getDb();
         if (ds && dbReady) {
             try {
+                // Auto purge orphaned calendar events where channel or colony was deleted
+                try {
+                    await ds.query(`
+                        DELETE FROM anticeil_calendar_events
+                        WHERE (channel_id IS NOT NULL AND channel_id != '' AND channel_id NOT IN (SELECT id FROM anticeil_community_channels))
+                           OR (hub_id IS NOT NULL AND hub_id != '' AND hub_id != 'anticeil' AND hub_id NOT IN (SELECT id FROM anticeil_community_hubs))
+                    `);
+                } catch (purgeErr) {}
+
                 const rows = await ds.query('SELECT * FROM anticeil_calendar_events ORDER BY start_time ASC');
                 return reply.send(rows.map(r => ({
                     id: r.id,
@@ -5425,6 +5436,32 @@ async function setupCommunityApi(app) {
             } catch (e) {}
         }
         return reply.send(event);
+    };
+
+    const updateCalendarEventHandler = async (req, reply) => {
+        await ensureTables();
+        const { id } = req.params;
+        const { title, description, type, startTime, endTime, status, channelId, channelName, hubId, hubName } = req.body || {};
+        const ds = await getDb();
+        if (ds && dbReady) {
+            try {
+                await ds.query(`
+                    UPDATE anticeil_calendar_events
+                    SET title = COALESCE($1, title),
+                        description = COALESCE($2, description),
+                        type = COALESCE($3, type),
+                        start_time = COALESCE($4, start_time),
+                        end_time = COALESCE($5, end_time),
+                        status = COALESCE($6, status),
+                        channel_id = COALESCE($7, channel_id),
+                        channel_name = COALESCE($8, channel_name),
+                        hub_id = COALESCE($9, hub_id),
+                        hub_name = COALESCE($10, hub_name)
+                    WHERE id = $11
+                `, [title || null, description || null, type || null, startTime || null, endTime || null, status || null, channelId || null, channelName || null, hubId || null, hubName || null, id]);
+            } catch (e) {}
+        }
+        return reply.send({ success: true, id });
     };
 
     const deleteCalendarEventHandler = async (req, reply) => {
@@ -5550,14 +5587,14 @@ async function setupCommunityApi(app) {
     const updateAssignmentHandler = async (req, reply) => {
         await ensureTables();
         const { id } = req.params;
-        const { columnId, title, description, priority, isCompleted, completedAt: reqCompletedAt } = req.body || {};
+        const { columnId, title, description, priority, dueDate, isCompleted, completedAt: reqCompletedAt } = req.body || {};
         const ds = await getDb();
         const completedAt = reqCompletedAt !== undefined ? reqCompletedAt : (isCompleted || columnId === 'done' ? new Date().toISOString() : null);
         if (ds && dbReady) {
             try {
                 await ds.query(
-                    'UPDATE anticeil_assignments SET column_id = COALESCE($1, column_id), title = COALESCE($2, title), description = COALESCE($3, description), priority = COALESCE($4, priority), completed_at = $5, updated_at = NOW() WHERE id = $6',
-                    [columnId || null, title || null, description || null, priority || null, completedAt, id]
+                    'UPDATE anticeil_assignments SET column_id = COALESCE($1, column_id), title = COALESCE($2, title), description = COALESCE($3, description), priority = COALESCE($4, priority), due_date = COALESCE($5, due_date), completed_at = $6, updated_at = NOW() WHERE id = $7',
+                    [columnId || null, title || null, description || null, priority || null, dueDate || null, completedAt, id]
                 );
             } catch (e) {}
         }
@@ -6800,6 +6837,7 @@ async function setupCommunityApi(app) {
         // Calendar Events
         app.get(`${prefix}/calendar/events`, getCalendarEventsHandler);
         app.post(`${prefix}/calendar/events`, createCalendarEventHandler);
+        app.put(`${prefix}/calendar/events/:id`, updateCalendarEventHandler);
         app.delete(`${prefix}/calendar/events/:id`, deleteCalendarEventHandler);
 
         // Assignments (Kanban tasks)
