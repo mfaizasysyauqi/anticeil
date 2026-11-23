@@ -663,6 +663,11 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
       isPrivate: Boolean(body.isPrivate),
       categoryId: body.categoryId || null,
       categoryName: body.categoryName || null,
+      isDirectMessage: Boolean(body.isDirectMessage),
+      isGroupDm: Boolean(body.isGroupDm),
+      dmUserIds: Array.isArray(body.dmUserIds) ? body.dmUserIds : undefined,
+      ownerId: body.ownerId || undefined,
+      avatar: body.avatar || undefined,
       createdAt: new Date().toISOString(),
     };
 
