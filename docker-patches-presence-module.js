@@ -1451,6 +1451,7 @@ async function setupCommunityApi(app) {
             try {
                 const platformId = await resolvePlatformId(req, ds);
                 await ds.query('DELETE FROM anticeil_community_messages WHERE channel_id = $1', [id]);
+                await ds.query('DELETE FROM anticeil_assignments WHERE channel_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_community_channels WHERE id = $1 AND (platform_id = $2 OR platform_id IS NULL)', [id, platformId]);
             } catch (e) {}
         }
@@ -4006,6 +4007,7 @@ async function setupCommunityApi(app) {
                     }
                 }
                 await ds.query('DELETE FROM anticeil_colony_apps WHERE hub_id = $1', [id]);
+                await ds.query('DELETE FROM anticeil_assignments WHERE hub_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_community_messages WHERE channel_id IN (SELECT id FROM anticeil_community_channels WHERE hub_id = $1)', [id]);
                 await ds.query('DELETE FROM anticeil_community_channels WHERE hub_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_community_members WHERE hub_id = $1', [id]);
@@ -5443,6 +5445,15 @@ async function setupCommunityApi(app) {
         const ds = await getDb();
         if (ds && dbReady) {
             try {
+                // Auto purge orphaned assignments where channel or colony was deleted
+                try {
+                    await ds.query(`
+                        DELETE FROM anticeil_assignments
+                        WHERE (channel_id IS NOT NULL AND channel_id != '' AND channel_id NOT IN (SELECT id FROM anticeil_community_channels))
+                           OR (hub_id IS NOT NULL AND hub_id != '' AND hub_id != 'anticeil' AND hub_id NOT IN (SELECT id FROM anticeil_community_hubs))
+                    `);
+                } catch (purgeErr) {}
+
                 let query = 'SELECT * FROM anticeil_assignments';
                 let params = [];
                 if (channelId) {

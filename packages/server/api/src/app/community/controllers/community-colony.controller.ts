@@ -259,6 +259,17 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
     await communityService.delete(`community_colony_members_${id}`);
     await communityService.delete(`community_colony_channels_${id}`);
 
+    // Cascade delete any assignments tied to this colony
+    try {
+      const allAssignments = await communityService.get<any[]>('community_assignments', []);
+      if (allAssignments && allAssignments.length > 0) {
+        await communityService.set(
+          'community_assignments',
+          allAssignments.filter((a) => a.hubId !== id && a.colonyId !== id)
+        );
+      }
+    } catch {}
+
     // Realtime broadcast deletion to all connected clients
     if ((app as any).io) {
       (app as any).io.emit('COMMUNITY_COLONY_DELETED', { colonyId: id });
@@ -787,6 +798,17 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
     const key = `colony_channels_${colonyId}`;
     const channels = await communityService.get<any[]>(key, []);
     await communityService.set(key, channels.filter((c) => c.id !== id));
+
+    // Cascade delete any assignments tied to this channel
+    try {
+      const allAssignments = await communityService.get<any[]>('community_assignments', []);
+      if (allAssignments && allAssignments.length > 0) {
+        await communityService.set(
+          'community_assignments',
+          allAssignments.filter((a) => a.channelId !== id)
+        );
+      }
+    } catch {}
     return { success: true, id };
   });
 
