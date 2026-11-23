@@ -6150,15 +6150,32 @@ async function setupCommunityApi(app) {
 
     const getShopBalanceHandler = async (req, reply) => {
         const userId = getReqUserId(req);
-        const stored = await kvGet(`community_shop_balance_${userId}`, {
-            dew: 1500,
-            currencyCode: 'IDR'
-        });
-        const currentDew = typeof stored.dew === 'number' ? stored.dew : (typeof stored.orbs === 'number' ? stored.orbs : 1500);
+        const balanceKey = `community_shop_balance_${userId}`;
+        const stored = await kvGet(balanceKey, null);
+        let currentDew = 0;
+        if (stored && typeof stored.dew === 'number') {
+            const claimed = await kvGet(`community_quests_claimed_${userId}`, []);
+            if (stored.dew === 1500 && (!claimed || claimed.length === 0)) {
+                currentDew = 0;
+                await kvSet(balanceKey, { dew: 0, orbs: 0, currencyCode: stored.currencyCode || 'IDR' });
+            } else {
+                currentDew = stored.dew;
+            }
+        } else if (stored && typeof stored.orbs === 'number') {
+            const claimed = await kvGet(`community_quests_claimed_${userId}`, []);
+            if (stored.orbs === 1500 && (!claimed || claimed.length === 0)) {
+                currentDew = 0;
+                await kvSet(balanceKey, { dew: 0, orbs: 0, currencyCode: stored.currencyCode || 'IDR' });
+            } else {
+                currentDew = stored.orbs;
+            }
+        } else {
+            currentDew = 0;
+        }
         return reply.send({
             dew: currentDew,
             orbs: currentDew,
-            currencyCode: stored.currencyCode || 'IDR'
+            currencyCode: stored?.currencyCode || 'IDR'
         });
     };
 
@@ -6166,8 +6183,13 @@ async function setupCommunityApi(app) {
         const userId = getReqUserId(req);
         const { amount = 500 } = req.body || {};
         const balanceKey = `community_shop_balance_${userId}`;
-        const stored = await kvGet(balanceKey, { dew: 1500, currencyCode: 'IDR' });
-        const currentDew = (typeof stored.dew === 'number' ? stored.dew : (typeof stored.orbs === 'number' ? stored.orbs : 1500)) + Number(amount);
+        const stored = await kvGet(balanceKey, { dew: 0, currencyCode: 'IDR' });
+        let prevDew = typeof stored.dew === 'number' ? stored.dew : (typeof stored.orbs === 'number' ? stored.orbs : 0);
+        if (prevDew === 1500) {
+            const claimed = await kvGet(`community_quests_claimed_${userId}`, []);
+            if (!claimed || claimed.length === 0) prevDew = 0;
+        }
+        const currentDew = prevDew + Number(amount);
         const newBalance = {
             dew: currentDew,
             orbs: currentDew,
@@ -6198,8 +6220,12 @@ async function setupCommunityApi(app) {
         }
 
         const balanceKey = `community_shop_balance_${userId}`;
-        const stored = await kvGet(balanceKey, { dew: 1500, currencyCode: 'IDR' });
-        const currentDew = typeof stored.dew === 'number' ? stored.dew : (typeof stored.orbs === 'number' ? stored.orbs : 1500);
+        const stored = await kvGet(balanceKey, { dew: 0, currencyCode: 'IDR' });
+        let currentDew = typeof stored.dew === 'number' ? stored.dew : (typeof stored.orbs === 'number' ? stored.orbs : 0);
+        if (currentDew === 1500) {
+            const claimed = await kvGet(`community_quests_claimed_${userId}`, []);
+            if (!claimed || claimed.length === 0) currentDew = 0;
+        }
         const cost = targetItem.priceDew || targetItem.priceOrbs || 600;
 
         if ((currency === 'dew' || currency === 'orbs') && currentDew < cost) {
@@ -6413,13 +6439,333 @@ async function setupCommunityApi(app) {
         return reply.send({ success: true, id });
     };
 
-    // --- GAMIFICATION QUESTS HANDLERS ---
+    // --- GAMIFICATION QUESTS SYSTEM (F2P Dew Economy) ---
+    const INITIAL_QUESTS = [
+        {
+            id: 'quest_watch_together',
+            title: 'YouTube Watch Party Explorer',
+            subtitle: 'Tonton video YouTube bersama kawan di Voice Channel selama 10 menit.',
+            category: 'activity',
+            promoter: 'Anticeil Activities',
+            coverUrl: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800&auto=format&fit=crop&q=80',
+            badge: 'Unggulan',
+            rewardDew: 300,
+            rewardIcon: '💧',
+            target: 10,
+            unit: 'menit',
+            actionLabel: 'Mulai Menonton',
+            appId: 'youtube-watch',
+            endsAt: '2026-12-31T23:59:59Z',
+        },
+        {
+            id: 'quest_chess_master',
+            title: 'Anticeil Chess PvP / AI Challenge',
+            subtitle: 'Mainkan minimal 1 pertandingan catur multiplayer atau tantang Bot AI.',
+            category: 'game',
+            promoter: 'Anticeil Games',
+            coverUrl: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?w=800&auto=format&fit=crop&q=80',
+            badge: 'Game Baru',
+            rewardDew: 250,
+            rewardIcon: '💧',
+            target: 1,
+            unit: 'ronde',
+            actionLabel: 'Main Catur',
+            appId: 'chess',
+            endsAt: '2026-12-31T23:59:59Z',
+        },
+        {
+            id: 'quest_active_chat',
+            title: 'Active Community Messenger',
+            subtitle: 'Kirimkan minimal 5 pesan di saluran teks Colony atau pesan langsung.',
+            category: 'social',
+            promoter: 'Anticeil Community',
+            coverUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+            badge: 'Harian',
+            rewardDew: 200,
+            rewardIcon: '💧',
+            target: 5,
+            unit: 'pesan',
+            actionLabel: 'Mulai Chat',
+            appId: 'chat',
+            endsAt: '2026-12-31T23:59:59Z',
+        },
+        {
+            id: 'quest_jamspace_board',
+            title: 'Jamspace Whiteboard Collab',
+            subtitle: 'Buka kanvas Jamspace Whiteboard dan buat sketsa ide bersama teman saluran.',
+            category: 'activity',
+            promoter: 'Anticeil Studio',
+            coverUrl: 'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=800&auto=format&fit=crop&q=80',
+            badge: 'Kreatif',
+            rewardDew: 200,
+            rewardIcon: '💧',
+            target: 1,
+            unit: 'sesi',
+            actionLabel: 'Buka Kanvas',
+            appId: 'whiteboard',
+            endsAt: '2026-12-31T23:59:59Z',
+        },
+        {
+            id: 'quest_profile_styler',
+            title: 'Profil Estetik Eksklusif',
+            subtitle: 'Pasang bingkai avatar animasi atau efek profil di pengaturan akun Anda.',
+            category: 'profile',
+            promoter: 'Anticeil Studio',
+            coverUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop&q=80',
+            badge: 'Estetik',
+            rewardDew: 100,
+            rewardIcon: '💧',
+            target: 1,
+            unit: 'profil',
+            actionLabel: 'Buka Profil',
+            appId: 'profile',
+            endsAt: '2026-12-31T23:59:59Z',
+        },
+    ];
+
     const getQuestsHandler = async (req, reply) => {
-        const list = await kvGet('community_quests_list', []);
-        return reply.send(list);
+        const userId = getReqUserId(req);
+        const deletedIds = await kvGet('community_quests_deleted_ids', []);
+        const rawList = await kvGet('community_quests_list', INITIAL_QUESTS);
+        const questList = rawList.filter((q) => !deletedIds.includes(q.id));
+        if (questList.length !== rawList.length) {
+            await kvSet('community_quests_list', questList);
+        }
+        const userQuestsState = await kvGet(`community_quests_user_${userId}`, {});
+
+        const quests = questList.map((q) => {
+            const state = userQuestsState[q.id] || {};
+            const status = state.status || 'available';
+            const progress = state.progress || 0;
+            return {
+                ...q,
+                status,
+                progress,
+                acceptedAt: state.acceptedAt || null,
+                claimedAt: state.claimedAt || null,
+            };
+        });
+        return reply.send(quests);
     };
+
+    const createQuestHandler = async (req, reply) => {
+        const body = req.body || {};
+        const newQuest = {
+            id: body.id || `quest_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            title: body.title || 'Misi Komunitas Baru',
+            subtitle: body.subtitle || 'Selesaikan misi untuk mendapatkan Dew gratis.',
+            category: body.category || 'activity',
+            promoter: body.promoter || 'Anticeil Community',
+            coverUrl: body.coverUrl || 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800&auto=format&fit=crop&q=80',
+            badge: body.badge || 'Misi Baru',
+            rewardDew: Number(body.rewardDew) || 200,
+            rewardIcon: '💧',
+            target: Number(body.target) || 1,
+            unit: body.unit || 'kali',
+            actionLabel: body.actionLabel || 'Luncurkan',
+            appId: body.appId || 'chat',
+            endsAt: body.endsAt || '2026-12-31T23:59:59Z',
+            status: 'available',
+            progress: 0,
+            createdAt: new Date().toISOString(),
+        };
+
+        const deletedIds = await kvGet('community_quests_deleted_ids', []);
+        if (deletedIds.includes(newQuest.id)) {
+            await kvSet('community_quests_deleted_ids', deletedIds.filter((d) => d !== newQuest.id));
+        }
+
+        const currentList = await kvGet('community_quests_list', INITIAL_QUESTS);
+        const updated = [newQuest, ...currentList.filter((q) => q.id !== newQuest.id && !deletedIds.includes(q.id))];
+        await kvSet('community_quests_list', updated);
+
+        return reply.send({
+            success: true,
+            message: `Quest "${newQuest.title}" berhasil ditambahkan! 🎯`,
+            quest: newQuest,
+            quests: updated,
+        });
+    };
+
+    const updateQuestHandler = async (req, reply) => {
+        const { id } = req.params || {};
+        const body = req.body || {};
+        const currentList = await kvGet('community_quests_list', INITIAL_QUESTS);
+        const index = currentList.findIndex((q) => q.id === id);
+
+        if (index === -1) {
+            return reply.send({ success: false, message: 'Quest tidak ditemukan.' });
+        }
+
+        const updatedQuest = {
+            ...currentList[index],
+            ...body,
+            id,
+            rewardDew: body.rewardDew !== undefined ? Number(body.rewardDew) : currentList[index].rewardDew,
+            target: body.target !== undefined ? Number(body.target) : currentList[index].target,
+        };
+        currentList[index] = updatedQuest;
+        await kvSet('community_quests_list', currentList);
+
+        return reply.send({
+            success: true,
+            message: `Quest "${updatedQuest.title}" berhasil diperbarui! ✨`,
+            quest: updatedQuest,
+        });
+    };
+
+    const deleteQuestHandler = async (req, reply) => {
+        const { id } = req.params || {};
+        const deletedIds = await kvGet('community_quests_deleted_ids', []);
+        if (!deletedIds.includes(id)) {
+            deletedIds.push(id);
+            await kvSet('community_quests_deleted_ids', deletedIds);
+        }
+
+        const currentList = await kvGet('community_quests_list', INITIAL_QUESTS);
+        const updated = currentList.filter((q) => q.id !== id && !deletedIds.includes(q.id));
+        await kvSet('community_quests_list', updated);
+
+        return reply.send({
+            success: true,
+            message: 'Quest berhasil dihapus dari daftar!',
+            deletedId: id,
+            quests: updated,
+        });
+    };
+
+    const acceptQuestHandler = async (req, reply) => {
+        const userId = getReqUserId(req);
+        const { questId } = req.body || {};
+
+        const questList = await kvGet('community_quests_list', INITIAL_QUESTS);
+        const target = questList.find((q) => q.id === questId);
+        if (!target) {
+            return reply.send({ success: false, message: 'Quest tidak ditemukan.' });
+        }
+
+        const stateKey = `community_quests_user_${userId}`;
+        const userQuestsState = await kvGet(stateKey, {});
+        const existing = userQuestsState[questId] || {};
+
+        if (existing.status === 'claimed') {
+            return reply.send({ success: false, message: 'Quest ini sudah Anda klaim sebelumnya.' });
+        }
+
+        userQuestsState[questId] = {
+            ...existing,
+            status: existing.status === 'completed' ? 'completed' : 'in_progress',
+            progress: existing.progress || 0,
+            acceptedAt: existing.acceptedAt || new Date().toISOString(),
+        };
+
+        await kvSet(stateKey, userQuestsState);
+        return reply.send({
+            success: true,
+            message: `Quest "${target.title}" berhasil diterima! Selesaikan untuk mendapatkan ${target.rewardDew} Dew. 🎯`,
+            quest: { ...target, ...userQuestsState[questId] },
+        });
+    };
+
+    const progressQuestHandler = async (req, reply) => {
+        const userId = getReqUserId(req);
+        const { questId, amount = 1 } = req.body || {};
+
+        const questList = await kvGet('community_quests_list', INITIAL_QUESTS);
+        const target = questList.find((q) => q.id === questId);
+        if (!target) {
+            return reply.send({ success: false, message: 'Quest tidak ditemukan.' });
+        }
+
+        const stateKey = `community_quests_user_${userId}`;
+        const userQuestsState = await kvGet(stateKey, {});
+        const existing = userQuestsState[questId] || { status: 'in_progress', progress: 0 };
+
+        if (existing.status === 'claimed') {
+            return reply.send({ success: false, message: 'Quest ini sudah diklaim.' });
+        }
+
+        const newProgress = Math.min(target.target, (existing.progress || 0) + Number(amount));
+        const newStatus = newProgress >= target.target ? 'completed' : 'in_progress';
+
+        userQuestsState[questId] = {
+            ...existing,
+            status: newStatus,
+            progress: newProgress,
+            completedAt: newStatus === 'completed' ? (existing.completedAt || new Date().toISOString()) : null,
+        };
+
+        await kvSet(stateKey, userQuestsState);
+        return reply.send({
+            success: true,
+            message: newStatus === 'completed' ? `Selamat! Quest "${target.title}" telah selesai! Klaim Dew sekarang. 🎉` : `Progress quest "${target.title}" diperbarui.`,
+            quest: { ...target, ...userQuestsState[questId] },
+        });
+    };
+
+    const claimQuestHandler = async (req, reply) => {
+        const userId = getReqUserId(req);
+        const { questId } = req.body || {};
+
+        const questList = await kvGet('community_quests_list', INITIAL_QUESTS);
+        const target = questList.find((q) => q.id === questId);
+        if (!target) {
+            return reply.send({ success: false, message: 'Quest tidak ditemukan.' });
+        }
+
+        const stateKey = `community_quests_user_${userId}`;
+        const userQuestsState = await kvGet(stateKey, {});
+        const existing = userQuestsState[questId] || {};
+
+        if (existing.status === 'claimed') {
+            return reply.send({ success: false, message: 'Hadiah quest ini sudah pernah diklaim.' });
+        }
+
+        // Set claimed
+        userQuestsState[questId] = {
+            ...existing,
+            status: 'claimed',
+            progress: target.target,
+            claimedAt: new Date().toISOString(),
+        };
+        await kvSet(stateKey, userQuestsState);
+
+        // Increase User Dew Balance
+        const balanceKey = `community_shop_balance_${userId}`;
+        const rawBal = await kvGet(balanceKey, { dew: 0, currencyCode: 'IDR' });
+        let currentDew = typeof rawBal.dew === 'number' ? rawBal.dew : (typeof rawBal.orbs === 'number' ? rawBal.orbs : 0);
+        if (currentDew === 1500) {
+            const claimed = await kvGet(`community_quests_claimed_${userId}`, []);
+            if (!claimed || claimed.length === 0) currentDew = 0;
+        }
+        const newDew = currentDew + target.rewardDew;
+        const newBalance = {
+            dew: newDew,
+            orbs: newDew,
+            currencyCode: rawBal.currencyCode || 'IDR',
+        };
+        await kvSet(balanceKey, newBalance);
+
+        // Save into claimed history
+        const claimedKey = `community_quests_claimed_${userId}`;
+        const claimedHistory = await kvGet(claimedKey, []);
+        const claimedRecord = {
+            ...target,
+            claimedAt: new Date().toISOString(),
+        };
+        await kvSet(claimedKey, [claimedRecord, ...claimedHistory.filter((c) => c.id !== questId)]);
+
+        return reply.send({
+            success: true,
+            message: `Selamat! Anda berhasil mengklaim +${target.rewardDew} Dew dari quest "${target.title}"! 💧🎉`,
+            rewardDew: target.rewardDew,
+            newBalance,
+            quest: { ...target, ...userQuestsState[questId] },
+        });
+    };
+
     const getClaimedQuestsHandler = async (req, reply) => {
-        const userId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const userId = getReqUserId(req);
         const list = await kvGet(`community_quests_claimed_${userId}`, []);
         return reply.send(list);
     };
@@ -6696,6 +7042,12 @@ async function setupCommunityApi(app) {
 
         // Quests
         app.get(`${prefix}/quests`, getQuestsHandler);
+        app.post(`${prefix}/quests`, createQuestHandler);
+        app.put(`${prefix}/quests/:id`, updateQuestHandler);
+        app.delete(`${prefix}/quests/:id`, deleteQuestHandler);
+        app.post(`${prefix}/quests/accept`, acceptQuestHandler);
+        app.post(`${prefix}/quests/progress`, progressQuestHandler);
+        app.post(`${prefix}/quests/claim`, claimQuestHandler);
         app.get(`${prefix}/quests/claimed`, getClaimedQuestsHandler);
     }
 
@@ -6721,6 +7073,12 @@ async function setupCommunityApi(app) {
         app.delete(`${dp}/v1/ai-command-center/sessions/:id/messages`, deleteAiSessionMessagesHandler);
 
         app.get(`${dp}/v1/community/quests`, getQuestsHandler);
+        app.post(`${dp}/v1/community/quests`, createQuestHandler);
+        app.put(`${dp}/v1/community/quests/:id`, updateQuestHandler);
+        app.delete(`${dp}/v1/community/quests/:id`, deleteQuestHandler);
+        app.post(`${dp}/v1/community/quests/accept`, acceptQuestHandler);
+        app.post(`${dp}/v1/community/quests/progress`, progressQuestHandler);
+        app.post(`${dp}/v1/community/quests/claim`, claimQuestHandler);
         app.get(`${dp}/v1/community/quests/claimed`, getClaimedQuestsHandler);
     }
 
