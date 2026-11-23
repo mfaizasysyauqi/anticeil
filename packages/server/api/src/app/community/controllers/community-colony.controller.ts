@@ -11,11 +11,13 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
     const query = (req.query as any) || {};
     const { userId, email, all } = query;
     const authHeader = req.headers['authorization'];
-    let currentUserId = userId;
-    let currentUserEmail = email ? String(email).toLowerCase().trim() : null;
+    let currentUserId: string | null = (userId && userId !== 'undefined' && userId !== 'null') ? String(userId) : null;
+    let currentUserEmail: string | null = (email && email !== 'undefined' && email !== 'null') ? String(email).toLowerCase().trim() : null;
+    let principal: any = null;
+
     if (!currentUserId && authHeader && authHeader.startsWith('Bearer ')) {
       try {
-        const principal = await authenticateOrThrow(req.log, authHeader);
+        principal = await authenticateOrThrow(req.log, authHeader);
         if (principal && principal.id) {
           currentUserId = principal.id;
           const principalEmail = (principal as any).email;
@@ -28,7 +30,28 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
       ? currentUserEmail.split('@')[1].toLowerCase().trim()
       : null;
 
-    const list = await communityService.get<any[]>('community_colonies', []);
+    let list = await communityService.get<any[]>('community_colonies', []);
+
+    // Ensure official default colony 'anticeil' always exists
+    if (!list.some((c) => c.id === 'anticeil')) {
+      const defaultAnticeil = {
+        id: 'anticeil',
+        name: 'Anticeil Official',
+        description: 'Server resmi komunitas pengembang dan kreator Anticeil.',
+        color: 'bg-primary',
+        iconType: 'logo',
+        initials: 'ANT',
+        membersCount: 1,
+        onlineCount: 1,
+        isPublic: true,
+        visibility: 'public',
+        tags: ['anticeil', 'official'],
+        category: 'community',
+      };
+      list = [defaultAnticeil, ...list];
+      await communityService.set('community_colonies', list);
+    }
+
     const populated = await Promise.all(
       list.map(async (c) => {
         const members = await communityService.get<any[]>(`community_colony_members_${c.id}`, []);
@@ -37,18 +60,24 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
           ? members.filter((m) => m.status !== 'offline').length || 1
           : (typeof c.onlineCount === 'number' && c.onlineCount > 0 ? c.onlineCount : 1);
 
+        // Strict SSO domain matching check (Only for enterprise/royal tier colonies with explicit domains configured)
         const allowedDomains: string[] = Array.isArray(c.allowedEmailDomains)
           ? c.allowedEmailDomains.map((d: string) => String(d).toLowerCase().trim().replace(/^@/, ''))
           : [];
-        const domainMatches = Boolean(userDomain && allowedDomains.includes(userDomain) && c.ssoEnabled !== false);
+        const domainMatches = Boolean(
+          userDomain &&
+          allowedDomains.length > 0 &&
+          allowedDomains.includes(userDomain) &&
+          c.ssoEnabled === true
+        );
 
-        // JIT Auto-Provision member if domain matched and user not yet enrolled
+        // JIT Auto-Provision member only if strict domain matched
         if (domainMatches && currentUserEmail) {
           const isAlreadyEnrolled = members.some(
             (m) => (m.email && m.email.toLowerCase().trim() === currentUserEmail) || (currentUserId && m.id === currentUserId)
           );
           if (!isAlreadyEnrolled) {
-            const principalUser = (principal as any) || {};
+            const principalUser = principal || {};
             members.push({
               id: currentUserId || `user_sso_${Date.now()}`,
               name: principalUser.firstName
@@ -66,16 +95,20 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
           }
         }
 
-        const isMember = Boolean(
-          (currentUserId && (c.ownerId === currentUserId || members.some((m) => m.id === currentUserId || m.userId === currentUserId))) ||
-          (currentUserEmail && members.some((m) => m.email && m.email.toLowerCase().trim() === currentUserEmail)) ||
-          domainMatches
+        const isOwner = Boolean(currentUserId && c.ownerId && String(c.ownerId) === String(currentUserId));
+        const isEnrolled = Boolean(
+          (currentUserId && members.some((m) => (m.id && String(m.id) === String(currentUserId)) || (m.userId && String(m.userId) === String(currentUserId)))) ||
+          (currentUserEmail && members.some((m) => m.email && m.email.toLowerCase().trim() === currentUserEmail))
         );
+
+        const isMember = isOwner || isEnrolled || domainMatches;
+
         return {
           ...c,
           membersCount: members.length > 0 ? members.length : membersCount,
           onlineCount: members.length > 0 ? members.filter((m) => m.status !== 'offline').length || 1 : onlineCount,
           isMember,
+          role: isOwner ? 'owner' : (isMember ? 'member' : c.role || 'member'),
         };
       })
     );
@@ -88,7 +121,7 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
     // Default (sidebar rail): Return STRICTLY only colonies the user belongs to + default 'anticeil'
     if (currentUserId || currentUserEmail) {
       return populated
-        .filter((c) => c.id === 'anticeil' || c.isMember || (currentUserId && c.ownerId === currentUserId))
+        .filter((c) => c.id === 'anticeil' || c.isMember)
         .map(({ isMember, ...rest }) => rest);
     }
 
@@ -104,11 +137,23 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
     const list = await communityService.get<any[]>('community_colonies', []);
     const body = (req.body as any) || {};
     const user = (req as any).user || body.user || {};
-    const effectiveUserId = body.ownerId || body.userId || user.id || `user_${Date.now()}`;
+
+    let creatorUserId = body.ownerId || body.userId || user.id;
+    const authHeader = req.headers['authorization'];
+    if ((!creatorUserId || creatorUserId === 'undefined' || creatorUserId === 'null') && authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const principal = await authenticateOrThrow(req.log, authHeader);
+        if (principal?.id) creatorUserId = principal.id;
+      } catch {}
+    }
+    if (!creatorUserId || creatorUserId === 'undefined' || creatorUserId === 'null') {
+      creatorUserId = `user_${Date.now()}`;
+    }
+
     const isPublic = body.isPublic !== undefined ? Boolean(body.isPublic) : (body.visibility === 'public');
     const colonyId = body.id || `hub_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const creatorMember = {
-      id: effectiveUserId,
+      id: creatorUserId,
       name: user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (body.ownerName || user.name || 'Admin'),
       username: user.email?.split('@')[0] || body.ownerUsername || user.username || 'admin',
       avatar: user.avatar || body.ownerAvatar || null,
@@ -119,6 +164,7 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
     await communityService.set(`community_colony_members_${colonyId}`, [creatorMember]);
 
     const newColony = {
+      ...body,
       id: colonyId,
       name: body.name || 'Colony Baru',
       description: body.description || '',
@@ -128,8 +174,8 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
       inviteCode: body.inviteCode || Math.random().toString(36).slice(2, 8).toUpperCase(),
       membersCount: 1,
       onlineCount: 1,
-      role: body.role || 'owner',
-      ownerId: effectiveUserId,
+      role: 'owner',
+      ownerId: creatorUserId,
       tags: body.tags || ['komunitas'],
       category: body.category || 'community',
       isPublic,
@@ -137,10 +183,15 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
       accessSettings: body.accessSettings || {
         joinMethod: isPublic ? 'discoverable' : 'invite_only',
       },
-      ...body,
     };
     const updated = [...list.filter((c) => c.id !== newColony.id), newColony];
     await communityService.set('community_colonies', updated);
+
+    // Realtime broadcast for public colony discovery
+    if ((app as any).io && isPublic) {
+      (app as any).io.emit('COMMUNITY_COLONY_DISCOVER_UPDATED', { colony: newColony });
+    }
+
     return newColony;
   });
 
@@ -177,7 +228,14 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
     const updated = list.filter((c) => c.id !== id);
     await communityService.set('community_colonies', updated);
     await communityService.delete(`community_colony_members_${id}`);
-    return { success: true };
+    await communityService.delete(`community_colony_channels_${id}`);
+
+    // Realtime broadcast deletion to all connected clients
+    if ((app as any).io) {
+      (app as any).io.emit('COMMUNITY_COLONY_DELETED', { colonyId: id });
+    }
+
+    return { success: true, colonyId: id };
   });
 
   app.put('/colony/colonies/:id/access', {
@@ -301,16 +359,88 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
     const cat = (query.category || '').toLowerCase().trim();
 
     // Fetch real colonies stored in the database
-    const stored = await communityService.get<any[]>('community_colonies', []);
+    let stored = await communityService.get<any[]>('community_colonies', []);
 
     // Filter strictly for PUBLIC colonies only:
     let publicOnly = stored.filter((c) => {
       if (c.id === 'anticeil' || c.id === 'direct-messages') return false;
-      const isExplicitPrivate = c.isPublic === false || c.visibility === 'private' || c.accessSettings?.joinMethod === 'invite_only';
+      const isExplicitPrivate = c.isPublic === false || c.visibility === 'private';
       if (isExplicitPrivate) return false;
       const isExplicitPublic = c.isPublic === true || c.visibility === 'public' || c.accessSettings?.joinMethod === 'discoverable';
       return isExplicitPublic;
     });
+
+    // If no public colonies exist yet in database, seed high quality initial public communities
+    if (publicOnly.length === 0) {
+      const seedColonies = [
+        {
+          id: 'hub_gaming_community',
+          name: 'Anticeil Gaming Lounge',
+          description: 'Tempat kumpul gamer esport, casual, streaming, dan party voice channel.',
+          color: 'bg-emerald-600',
+          initials: 'AGL',
+          inviteCode: 'GAMING01',
+          membersCount: 128,
+          onlineCount: 42,
+          isPublic: true,
+          visibility: 'public',
+          category: 'gaming',
+          tags: ['gaming', 'esports', 'streamer'],
+          accessSettings: { joinMethod: 'discoverable' },
+          verified: true,
+        },
+        {
+          id: 'hub_tech_innovators',
+          name: 'Tech & AI Pioneers',
+          description: 'Komunitas developer, AI engineers, dan tech enthusiasts saling berbagi ide & proyek.',
+          color: 'bg-sky-600',
+          initials: 'TEC',
+          inviteCode: 'TECH01',
+          membersCount: 95,
+          onlineCount: 31,
+          isPublic: true,
+          visibility: 'public',
+          category: 'tech',
+          tags: ['tech', 'ai', 'coding', 'webdev'],
+          accessSettings: { joinMethod: 'discoverable' },
+          verified: true,
+        },
+        {
+          id: 'hub_music_creators',
+          name: 'Music & Lofi Beats',
+          description: 'Ruang kolaborasi produser musik, beatmaker, sesi jamming santai, dan lofi hangout.',
+          color: 'bg-purple-600',
+          initials: 'MUS',
+          inviteCode: 'MUSIC01',
+          membersCount: 74,
+          onlineCount: 19,
+          isPublic: true,
+          visibility: 'public',
+          category: 'music',
+          tags: ['music', 'lofi', 'beats', 'audio'],
+          accessSettings: { joinMethod: 'discoverable' },
+        },
+        {
+          id: 'hub_hangout_social',
+          name: 'Anticeil Hangout Cafe',
+          description: 'Ruang ngobrol santai lintas topik, berbagi cerita, memes, dan berteman baru.',
+          color: 'bg-amber-600',
+          initials: 'HNG',
+          inviteCode: 'HANGOUT',
+          membersCount: 110,
+          onlineCount: 38,
+          isPublic: true,
+          visibility: 'public',
+          category: 'community',
+          tags: ['komunitas', 'hangout', 'santai'],
+          accessSettings: { joinMethod: 'discoverable' },
+        },
+      ];
+
+      stored = [...stored, ...seedColonies];
+      await communityService.set('community_colonies', stored);
+      publicOnly = seedColonies;
+    }
 
     if (cat && cat !== 'all') {
       publicOnly = publicOnly.filter((c) => {
