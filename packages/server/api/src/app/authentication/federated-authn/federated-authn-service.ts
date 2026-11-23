@@ -4,6 +4,7 @@ import {
     ThirdPartyAuthnProviderEnum,
     UserIdentityProvider,
 } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode } from '@activepieces/core-utils'
 import { FastifyBaseLogger } from 'fastify'
 import { AuthenticationResult, authenticationUtils } from '../authentication-utils'
 import { authenticationService } from '../authentication.service'
@@ -13,6 +14,7 @@ import { userInvitationsService } from '../../user-invitations/user-invitation.s
 import { domainHelper } from '../../helper/domain-helper'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
+import { communityService } from '../../community/community.service'
 import { googleAuthnProvider } from './google-authn-provider'
 import { githubAuthnProvider } from './github-authn-provider'
 import { microsoftAuthnProvider } from './microsoft-authn-provider'
@@ -159,6 +161,48 @@ export const federatedAuthnService = (log: FastifyBaseLogger) => ({
             log.warn({ email, err: e }, '[federatedAuthn] Failed to provision invitations')
         }
 
+        // 2b. Auto-provision Colony membership via Domain Capture (Enterprise SSO)
+        try {
+            const domain = email.includes('@') ? email.split('@')[1]?.toLowerCase().trim() : null
+            if (domain) {
+                const storedColonies = await communityService.get<any[]>('community_colonies', [])
+                let coloniesModified = false
+                for (const col of storedColonies) {
+                    const allowedDomains: string[] = Array.isArray(col.allowedEmailDomains)
+                        ? col.allowedEmailDomains.map((d: string) => String(d).toLowerCase().trim().replace(/^@/, ''))
+                        : []
+                    if (col.ssoEnabled !== false && allowedDomains.includes(domain)) {
+                        const members = await communityService.get<any[]>(`community_colony_members_${col.id}`, [])
+                        const isAlreadyMember = members.some(
+                            (m) => (m.email && m.email.toLowerCase() === email.toLowerCase()) || m.id === identity.id
+                        )
+                        if (!isAlreadyMember) {
+                            members.push({
+                                id: identity.id,
+                                name: `${firstName || ''} ${lastName || ''}`.trim() || identity.username || email.split('@')[0],
+                                username: identity.username || email.split('@')[0],
+                                email,
+                                avatar: imageUrl || identity.imageUrl || null,
+                                role: 'member',
+                                status: 'online',
+                                isSsoUser: true,
+                                joinedAt: new Date().toISOString(),
+                            })
+                            await communityService.set(`community_colony_members_${col.id}`, members)
+                            col.membersCount = members.length
+                            col.onlineCount = members.filter((m: any) => m.status !== 'offline').length || 1
+                            coloniesModified = true
+                        }
+                    }
+                }
+                if (coloniesModified) {
+                    await communityService.set('community_colonies', storedColonies)
+                }
+            }
+        } catch (e) {
+            log.warn({ email, err: e }, '[federatedAuthn] Failed to auto-provision domain capture colonies')
+        }
+
         // 3. Find platforms this identity belongs to
         const userPlatforms = await platformSvc.listPlatformsForIdentityWithAtleastProject({
             identityId: identity.id,
@@ -213,18 +257,50 @@ function getGithubClientIdAndSecret() {
 }
 
 function getMicrosoftClientIdAndSecret() {
+    const clientId = system.get(AppSystemProp.MICROSOFT_CLIENT_ID) || process.env.MICROSOFT_CLIENT_ID || process.env.AP_MICROSOFT_CLIENT_ID
+    const clientSecret = system.get(AppSystemProp.MICROSOFT_CLIENT_SECRET) || process.env.MICROSOFT_CLIENT_SECRET || process.env.AP_MICROSOFT_CLIENT_SECRET
+    const tenantId = system.get(AppSystemProp.MICROSOFT_TENANT_ID) || process.env.MICROSOFT_TENANT_ID || process.env.AP_MICROSOFT_TENANT_ID || 'common'
+
+    if (!clientId || !clientSecret) {
+        throw new ActivepiecesError(
+            {
+                code: ErrorCode.SYSTEM_PROP_INVALID,
+                params: {
+                    prop: 'MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET',
+                },
+            },
+            'Microsoft 365 OAuth credentials are not configured in environment variables (.env). Please provide AP_MICROSOFT_CLIENT_ID and AP_MICROSOFT_CLIENT_SECRET.',
+        )
+    }
+
     return {
-        clientId: system.getOrThrow(AppSystemProp.MICROSOFT_CLIENT_ID),
-        clientSecret: system.getOrThrow(AppSystemProp.MICROSOFT_CLIENT_SECRET),
-        tenantId: system.get(AppSystemProp.MICROSOFT_TENANT_ID) ?? 'common',
+        clientId,
+        clientSecret,
+        tenantId,
     }
 }
 
 function getOktaClientIdAndSecret() {
+    const clientId = system.get(AppSystemProp.OKTA_CLIENT_ID) || process.env.OKTA_CLIENT_ID || process.env.AP_OKTA_CLIENT_ID
+    const clientSecret = system.get(AppSystemProp.OKTA_CLIENT_SECRET) || process.env.OKTA_CLIENT_SECRET || process.env.AP_OKTA_CLIENT_SECRET
+    const domain = system.get(AppSystemProp.OKTA_DOMAIN) || process.env.OKTA_DOMAIN || process.env.AP_OKTA_DOMAIN
+
+    if (!clientId || !clientSecret || !domain) {
+        throw new ActivepiecesError(
+            {
+                code: ErrorCode.SYSTEM_PROP_INVALID,
+                params: {
+                    prop: 'OKTA_CLIENT_ID / OKTA_CLIENT_SECRET / OKTA_DOMAIN',
+                },
+            },
+            'Okta SSO credentials are not configured in environment variables (.env). Please provide AP_OKTA_CLIENT_ID, AP_OKTA_CLIENT_SECRET, and AP_OKTA_DOMAIN.',
+        )
+    }
+
     return {
-        clientId: system.getOrThrow(AppSystemProp.OKTA_CLIENT_ID),
-        clientSecret: system.getOrThrow(AppSystemProp.OKTA_CLIENT_SECRET),
-        domain: system.getOrThrow(AppSystemProp.OKTA_DOMAIN),
+        clientId,
+        clientSecret,
+        domain,
     }
 }
 

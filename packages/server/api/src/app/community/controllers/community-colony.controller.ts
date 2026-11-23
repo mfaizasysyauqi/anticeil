@@ -24,6 +24,10 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
       } catch {}
     }
 
+    const userDomain = currentUserEmail && currentUserEmail.includes('@')
+      ? currentUserEmail.split('@')[1].toLowerCase().trim()
+      : null;
+
     const list = await communityService.get<any[]>('community_colonies', []);
     const populated = await Promise.all(
       list.map(async (c) => {
@@ -32,14 +36,45 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
         const onlineCount = members.length > 0
           ? members.filter((m) => m.status !== 'offline').length || 1
           : (typeof c.onlineCount === 'number' && c.onlineCount > 0 ? c.onlineCount : 1);
+
+        const allowedDomains: string[] = Array.isArray(c.allowedEmailDomains)
+          ? c.allowedEmailDomains.map((d: string) => String(d).toLowerCase().trim().replace(/^@/, ''))
+          : [];
+        const domainMatches = Boolean(userDomain && allowedDomains.includes(userDomain) && c.ssoEnabled !== false);
+
+        // JIT Auto-Provision member if domain matched and user not yet enrolled
+        if (domainMatches && currentUserEmail) {
+          const isAlreadyEnrolled = members.some(
+            (m) => (m.email && m.email.toLowerCase().trim() === currentUserEmail) || (currentUserId && m.id === currentUserId)
+          );
+          if (!isAlreadyEnrolled) {
+            const principalUser = (principal as any) || {};
+            members.push({
+              id: currentUserId || `user_sso_${Date.now()}`,
+              name: principalUser.firstName
+                ? `${principalUser.firstName} ${principalUser.lastName || ''}`.trim()
+                : principalUser.name || currentUserEmail.split('@')[0],
+              username: principalUser.username || currentUserEmail.split('@')[0],
+              email: currentUserEmail,
+              avatar: principalUser.imageUrl || principalUser.avatar || null,
+              role: 'member',
+              status: 'online',
+              isSsoUser: true,
+              joinedAt: new Date().toISOString(),
+            });
+            await communityService.set(`community_colony_members_${c.id}`, members);
+          }
+        }
+
         const isMember = Boolean(
           (currentUserId && (c.ownerId === currentUserId || members.some((m) => m.id === currentUserId || m.userId === currentUserId))) ||
-          (currentUserEmail && members.some((m) => m.email && m.email.toLowerCase().trim() === currentUserEmail))
+          (currentUserEmail && members.some((m) => m.email && m.email.toLowerCase().trim() === currentUserEmail)) ||
+          domainMatches
         );
         return {
           ...c,
-          membersCount,
-          onlineCount,
+          membersCount: members.length > 0 ? members.length : membersCount,
+          onlineCount: members.length > 0 ? members.filter((m) => m.status !== 'offline').length || 1 : onlineCount,
           isMember,
         };
       })
@@ -369,14 +404,14 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
     const joinedColonies: any[] = [];
 
     for (const colony of stored) {
-      // Must be Royal Tier with SSO enabled and claiming this domain
       const isRoyal = colony.tier === 'royal';
       const ssoActive = colony.ssoEnabled !== false;
       const allowedDomains: string[] = Array.isArray(colony.allowedEmailDomains)
-        ? colony.allowedEmailDomains.map((d: string) => d.toLowerCase().trim())
+        ? colony.allowedEmailDomains.map((d: string) => String(d).toLowerCase().trim().replace(/^@/, ''))
         : [];
 
-      if (isRoyal && ssoActive && allowedDomains.includes(domain)) {
+      // Auto-join if colony allows this domain (SSO enabled or Royal Tier)
+      if (ssoActive && allowedDomains.includes(domain)) {
         const members = await communityService.get<any[]>(`community_colony_members_${colony.id}`, []);
         const currentReqUser = (req as any).user || joinUser || {};
         const newMemberId = currentReqUser.id || `user_sso_${Date.now()}`;
