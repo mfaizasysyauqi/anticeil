@@ -253,7 +253,7 @@ export const userService = (log: FastifyBaseLogger) => ({
             created: user.created,
             updated: user.updated,
             lastActiveDate: user.lastActiveDate,
-            imageUrl: identity.imageUrl,
+            imageUrl: (identity.imageUrl && !identity.imageUrl.includes('logo.png') && !identity.imageUrl.includes('logo.svg')) ? identity.imageUrl : null,
         }
     },
 
@@ -295,7 +295,7 @@ export function mapToUserWithMetaInformation(user: (User & { identity?: UserIden
         created: user.created,
         updated: user.updated,
         lastActiveDate: user.lastActiveDate,
-        imageUrl: identity.imageUrl,
+        imageUrl: (identity.imageUrl && !identity.imageUrl.includes('logo.png') && !identity.imageUrl.includes('logo.svg')) ? identity.imageUrl : null,
     }
 }
 

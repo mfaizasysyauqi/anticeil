@@ -619,6 +619,10 @@ async function setupCommunityApi(app) {
                         timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
+                    ALTER TABLE anticeil_call_logs ADD COLUMN IF NOT EXISTS colony_id VARCHAR(128);
+                    ALTER TABLE anticeil_call_logs ADD COLUMN IF NOT EXISTS hub_name VARCHAR(256);
+                    ALTER TABLE anticeil_call_logs ADD COLUMN IF NOT EXISTS hub_icon TEXT;
+                    ALTER TABLE anticeil_call_logs ADD COLUMN IF NOT EXISTS is_dm BOOLEAN DEFAULT TRUE;
 
                     CREATE TABLE IF NOT EXISTS anticeil_community_channel_reads (
                         user_id VARCHAR(128) NOT NULL,
@@ -4718,22 +4722,27 @@ async function setupCommunityApi(app) {
         if (!ds || !userId) return null;
         try {
             const rows = await ds.query(`
-                SELECT u.id, ui."firstName", ui."lastName", ui.email, ui."imageUrl"
+                SELECT u.id, ui."firstName", ui."lastName", ui.email, ui."imageUrl", p.avatar_url
                 FROM "user" u
                 LEFT JOIN "user_identity" ui ON u."identityId" = ui.id
-                WHERE u.id = $1
+                LEFT JOIN "anticeil_user_profiles" p ON (p.user_id = u.id OR p.user_id = ui.id)
+                WHERE u.id = $1 OR ui.id = $1 OR LOWER(ui.email) = LOWER($1)
                 LIMIT 1
             `, [userId]);
             if (rows && rows[0]) {
                 const u = rows[0];
                 const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email?.split('@')[0] || 'Pengguna Anticeil';
                 const username = u.email ? u.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : null;
+                let avatar = u.avatar_url || u.imageUrl || null;
+                if (avatar && (avatar.includes('logo.png') || avatar.includes('logo.svg') || avatar.includes('brand-assets'))) {
+                    avatar = null;
+                }
                 return {
                     id: u.id,
                     name,
                     username,
                     email: u.email || '',
-                    avatar: u.imageUrl || null
+                    avatar: avatar
                 };
             }
         } catch (e) {}
@@ -5624,16 +5633,31 @@ async function setupCommunityApi(app) {
                     'SELECT * FROM anticeil_call_logs WHERE user_id = $1 OR user_id = $2 OR user_id = $3 ORDER BY timestamp DESC LIMIT 50',
                     [userId, 'all', 'default-user']
                 );
-                return reply.send(rows.map(r => ({
-                    id: r.id,
-                    peerId: r.peer_id,
-                    peerName: r.peer_name,
-                    peerAvatar: r.peer_avatar,
-                    type: r.type,
-                    isVideo: r.is_video,
-                    duration: r.duration,
-                    timestamp: r.timestamp
-                })));
+                const items = [];
+                for (const r of rows) {
+                    let avatar = r.peer_avatar;
+                    if ((!avatar || avatar.includes('logo.')) && r.peer_id) {
+                        const u = await getDbUserProfile(ds, r.peer_id);
+                        if (u && u.avatar && !u.avatar.includes('logo.')) {
+                            avatar = u.avatar;
+                        }
+                    }
+                    items.push({
+                        id: r.id,
+                        peerId: r.peer_id,
+                        peerName: r.peer_name,
+                        peerAvatar: avatar,
+                        type: r.type,
+                        isVideo: r.is_video,
+                        duration: r.duration,
+                        timestamp: r.timestamp,
+                        colonyId: r.colony_id || null,
+                        hubName: r.hub_name || null,
+                        hubIcon: r.hub_icon || null,
+                        isDm: r.is_dm !== false,
+                    });
+                }
+                return reply.send(items);
             } catch (e) {}
         }
         return reply.send([]);
@@ -5642,18 +5666,31 @@ async function setupCommunityApi(app) {
     const createCallLogHandler = async (req, reply) => {
         await ensureTables();
         const userId = req.body?.userId || getReqUserId(req);
-        const { peerId, peerName, peerAvatar = null, type = 'outgoing', isVideo = false, duration = null } = req.body || {};
+        const {
+            peerId,
+            peerName,
+            peerAvatar = null,
+            type = 'outgoing',
+            isVideo = false,
+            duration = null,
+            colonyId = null,
+            hubName = null,
+            hubIcon = null,
+            isDm = true,
+        } = req.body || {};
         const id = `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         const ds = await getDb();
         const now = new Date().toISOString();
         if (ds && dbReady) {
             try {
                 await ds.query(
-                    'INSERT INTO anticeil_call_logs (id, user_id, peer_id, peer_name, peer_avatar, type, is_video, duration, timestamp, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-                    [id, userId, peerId, peerName, peerAvatar, type, isVideo, duration, now, now]
+                    'INSERT INTO anticeil_call_logs (id, user_id, peer_id, peer_name, peer_avatar, type, is_video, duration, timestamp, created_at, colony_id, hub_name, hub_icon, is_dm) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)',
+                    [id, userId, peerId, peerName, peerAvatar, type, isVideo, duration, now, now, colonyId, hubName, hubIcon, isDm]
                 );
             } catch (e) {}
         }
+        return reply.send({ success: true, id });
+    };
         return reply.send({ success: true, id });
     };
 
@@ -6951,14 +6988,15 @@ async function setupCommunityApi(app) {
     // --- USER PROFILE (Discord-style Edit Profile Customization) ---
     const getUserProfileHandler = async (req, reply) => {
         const ds = await getDb();
-        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
-        const targetUserId = req.params?.userId || currentUserId;
-        if (ds) {
+        const authUserId = getReqUserId(req);
+        const requestedId = req.params?.userId;
+        const targetUserId = (requestedId && requestedId !== 'me') ? requestedId : authUserId;
+        if (ds && targetUserId) {
             try {
                 let userAvatar = null;
-                if (targetUserId !== 'me') {
-                    const uProfile = await getDbUserProfile(ds, targetUserId);
-                    if (uProfile && uProfile.avatar) userAvatar = uProfile.avatar;
+                const uProfile = await getDbUserProfile(ds, targetUserId);
+                if (uProfile && uProfile.avatar && !uProfile.avatar.includes('logo.')) {
+                    userAvatar = uProfile.avatar;
                 }
                 const rows = await ds.query('SELECT * FROM anticeil_user_profiles WHERE user_id = $1 LIMIT 1', [targetUserId]);
                 if (rows && rows.length > 0) {
@@ -6979,12 +7017,14 @@ async function setupCommunityApi(app) {
                             widgets.wishlist = widgets.wishlist.filter(w => !String(w.title || '').toLowerCase().includes('neverness'));
                         }
                     }
+                    const rawProfileAvatar = r.avatar_url;
+                    const finalAvatar = (rawProfileAvatar && !rawProfileAvatar.includes('logo.')) ? rawProfileAvatar : userAvatar;
                     return reply.send({
                         bio: r.bio !== null && r.bio !== undefined ? r.bio : '',
                         pronouns: r.pronouns !== null && r.pronouns !== undefined ? r.pronouns : '',
                         bannerColor: r.banner_color || '#5c4d44',
                         bannerUrl: r.banner_url || null,
-                        avatarUrl: r.avatar_url || userAvatar,
+                        avatarUrl: finalAvatar,
                         statusThought: r.status_thought !== null && r.status_thought !== undefined ? r.status_thought : '',
                         widgets: widgets,
                         nameplate: widgets.nameplate || 'none',
@@ -7031,7 +7071,7 @@ async function setupCommunityApi(app) {
 
     const updateUserProfileHandler = async (req, reply) => {
         const ds = await getDb();
-        const currentUserId = req.principal?.id || (req.user && req.user.id) || 'me';
+        const currentUserId = getReqUserId(req) || req.principal?.id || (req.user && req.user.id) || 'me';
         const { bio, pronouns, bannerColor, bannerUrl, avatarUrl, statusThought, widgets, nameplate, profileFrame, profileEffect, theme, displayNameStyle } = req.body || {};
         
         const bannerProvided = bannerUrl !== undefined;
