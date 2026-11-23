@@ -165,20 +165,20 @@ export const communityBillingController: FastifyPluginAsyncZod = async (app) => 
 
     if (isGift || giftType || tier) {
       const gType = giftType || tier || 'pollen';
-      if (gType === 'royal') {
+      if (gType === 'royal' || gType === 'royal_enterprise') {
         grossAmount = 499000;
         finalItemName = 'Anticeil Royal Enterprise Gift';
       } else if (gType === 'nectar_1y') {
         grossAmount = 850000;
         finalItemName = 'Anticeil Nectar 1 Tahun Gift';
       } else if (gType === 'nectar' || gType === 'nectar_boost' || gType === 'nitro') {
-        grossAmount = 142714;
+        grossAmount = 85000;
         finalItemName = 'Anticeil Nectar 1 Bulan Gift';
       } else if (gType === 'boost_1m') {
         grossAmount = 65000;
         finalItemName = 'Anticeil Colony Boost 1 Bulan Gift';
       } else {
-        grossAmount = 42714;
+        grossAmount = 29000;
         finalItemName = 'Anticeil Pollen Gift';
       }
     } else if (isBoost) {

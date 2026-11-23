@@ -7360,8 +7360,12 @@ async function setupCommunityApi(app) {
         let itemName = 'Anticeil Nectar VIP Monthly Subscription';
 
         if (isGiftOrder) {
-            const giftKey = giftType || plan;
-            if (giftKey === 'nectar_basic' || giftKey === 'pollen' || giftKey === 'pollen_1m' || giftKey === 'gift_pollen') {
+            const giftKey = (giftType || plan || '').toLowerCase();
+            if (giftKey === 'royal' || giftKey === 'royal_enterprise' || giftKey === 'gift_royal') {
+                planId = 'royal_enterprise';
+                grossAmount = 499000;
+                itemName = 'Hadiah Anticeil: Royal Enterprise (1 Bulan)';
+            } else if (giftKey === 'nectar_basic' || giftKey === 'pollen' || giftKey === 'pollen_1m' || giftKey === 'gift_pollen') {
                 planId = 'nectar_basic';
                 grossAmount = 29000;
                 itemName = 'Hadiah Anticeil: Pollen Tier (1 Bulan)';
@@ -7389,7 +7393,7 @@ async function setupCommunityApi(app) {
             const isRoyal = planKey === 'royal_enterprise' || planKey === 'royal';
             const isPollen = planKey === 'nectar_basic' || planKey === 'pollen';
             planId = isRoyal ? 'royal_enterprise' : isPollen ? 'nectar_basic' : 'nectar_boost';
-            grossAmount = isRoyal ? 250000 : isPollen ? 29000 : 85000;
+            grossAmount = isRoyal ? 499000 : isPollen ? 29000 : 85000;
             itemName = isRoyal
                 ? 'Anticeil Royal Enterprise Monthly Subscription'
                 : isPollen
@@ -7403,7 +7407,7 @@ async function setupCommunityApi(app) {
         const auth = Buffer.from(`${serverKey}:`).toString('base64');
 
         const orderId = isGiftOrder
-            ? `AC-GFT-${planId === 'nectar_basic' ? 'POL' : planId === 'boost_1m' ? 'BST' : planId === 'nectar_1y' ? 'YEA' : 'NEC'}-${Date.now()}`
+            ? `AC-GFT-${planId === 'royal_enterprise' ? 'ROY' : planId === 'nectar_basic' ? 'POL' : planId === 'boost_1m' ? 'BST' : planId === 'nectar_1y' ? 'YEA' : 'NEC'}-${Date.now()}`
             : isBoostOrder
             ? `AC-BST-${count || 1}-${Date.now()}`
             : `AC-SUB-${planId === 'royal_enterprise' ? 'ROY' : planId === 'nectar_basic' ? 'POL' : 'NEC'}-${Date.now()}`;
@@ -7495,7 +7499,7 @@ async function setupCommunityApi(app) {
 
             if (isSuccess) {
                 const isGift = orderId.includes('-GFT-');
-                let planId = orderId.includes('-POL-') ? 'nectar_basic' : orderId.includes('-BST-') ? 'boost_1m' : orderId.includes('-YEA-') ? 'nectar_1y' : 'nectar_boost';
+                let planId = orderId.includes('-ROY-') ? 'royal_enterprise' : orderId.includes('-POL-') ? 'nectar_basic' : orderId.includes('-BST-') ? 'boost_1m' : orderId.includes('-YEA-') ? 'nectar_1y' : 'nectar_boost';
                 let targetUserId = currentUserId;
 
                 if (ds) {
