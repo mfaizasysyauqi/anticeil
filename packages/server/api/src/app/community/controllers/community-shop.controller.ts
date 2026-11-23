@@ -1,8 +1,20 @@
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { securityAccess } from '../../core/security/authorization/fastify-security';
+import { authenticateOrThrow } from '../../core/security/v2/authn/authenticate';
 import { communityService } from '../community.service';
 
 export const communityShopController: FastifyPluginAsyncZod = async (app) => {
+  const resolveUserId = async (req: any): Promise<string> => {
+    let userId = (req as any).user?.id || (req.query as any)?.userId || (req.body as any)?.userId || 'me';
+    const authHeader = (req.headers as any)?.authorization;
+    if (authHeader) {
+      try {
+        const principal = await authenticateOrThrow(req.log, authHeader);
+        if (principal && principal.id) userId = principal.id;
+      } catch {}
+    }
+    return userId;
+  };
   // ── Anticeil Native Animated Cosmetics Shop (Fullstack Database) ──────
   const INITIAL_SHOP_ITEMS = [
     // 1. Anticeil Cyber Core (Animated Frames, Overlays & Namecards)
@@ -396,13 +408,12 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
   app.get('/community/shop/balance', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await resolveUserId(req);
     const rawBal = await communityService.get<any>(`community_shop_balance_${userId}`, {
-      dew: 1500,
+      dew: 0,
       currencyCode: 'IDR',
     });
-    const currentDew = typeof rawBal.dew === 'number' ? rawBal.dew : (typeof rawBal.orbs === 'number' ? rawBal.orbs : 1500);
+    const currentDew = typeof rawBal.dew === 'number' ? rawBal.dew : (typeof rawBal.orbs === 'number' ? rawBal.orbs : 0);
     return {
       dew: currentDew,
       orbs: currentDew,
@@ -413,8 +424,7 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
   app.post('/community/shop/purchase', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await resolveUserId(req);
     const { itemId, currency = 'dew' } = (req.body as any) || {};
 
     const storedItems = await communityService.get<any[]>('community_shop_items', INITIAL_SHOP_ITEMS);
@@ -435,8 +445,8 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
 
     // Check balance
     const balanceKey = `community_shop_balance_${userId}`;
-    const rawBal = await communityService.get<any>(balanceKey, { dew: 1500, currencyCode: 'IDR' });
-    const currentDew = typeof rawBal.dew === 'number' ? rawBal.dew : (typeof rawBal.orbs === 'number' ? rawBal.orbs : 1500);
+    const rawBal = await communityService.get<any>(balanceKey, { dew: 0, currencyCode: 'IDR' });
+    const currentDew = typeof rawBal.dew === 'number' ? rawBal.dew : (typeof rawBal.orbs === 'number' ? rawBal.orbs : 0);
     const cost = targetItem.priceDew || targetItem.priceOrbs || 600;
 
     if ((currency === 'dew' || currency === 'orbs') && currentDew < cost) {
@@ -473,13 +483,12 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
   app.post('/community/shop/topup', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await resolveUserId(req);
     const { amount = 500 } = (req.body as any) || {};
 
     const balanceKey = `community_shop_balance_${userId}`;
-    const rawBal = await communityService.get<any>(balanceKey, { dew: 1500, currencyCode: 'IDR' });
-    const currentDew = (typeof rawBal.dew === 'number' ? rawBal.dew : (typeof rawBal.orbs === 'number' ? rawBal.orbs : 1500)) + Number(amount);
+    const rawBal = await communityService.get<any>(balanceKey, { dew: 0, currencyCode: 'IDR' });
+    const currentDew = (typeof rawBal.dew === 'number' ? rawBal.dew : (typeof rawBal.orbs === 'number' ? rawBal.orbs : 0)) + Number(amount);
     const newBalance = {
       dew: currentDew,
       orbs: currentDew,
@@ -497,24 +506,21 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
   app.get('/community/shop/inventory', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await resolveUserId(req);
     return await communityService.get<any[]>(`community_shop_inventory_${userId}`, []);
   });
 
   app.get('/community/shop/wishlist', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await resolveUserId(req);
     return await communityService.get<any[]>(`community_shop_wishlist_${userId}`, []);
   });
 
   app.post('/community/shop/wishlist/:itemId', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await resolveUserId(req);
     const { itemId } = req.params as { itemId: string };
 
     const wishlistKey = `community_shop_wishlist_${userId}`;
@@ -545,8 +551,7 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
   app.post('/community/shop/equip', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await resolveUserId(req);
     const { itemId, slot } = (req.body as any) || {};
 
     const profileKey = `community_user_profile_${userId}`;
@@ -647,8 +652,7 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
   app.get('/community/quests', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await resolveUserId(req);
     const questList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
     const userQuestsState = await communityService.get<Record<string, any>>(`community_quests_user_${userId}`, {});
 
@@ -751,8 +755,7 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
   app.post('/community/quests/accept', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await resolveUserId(req);
     const { questId } = (req.body as any) || {};
 
     const questList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
@@ -787,8 +790,7 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
   app.post('/community/quests/progress', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await resolveUserId(req);
     const { questId, amount = 1 } = (req.body as any) || {};
 
     const questList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
@@ -826,8 +828,7 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
   app.post('/community/quests/claim', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await resolveUserId(req);
     const { questId } = (req.body as any) || {};
 
     const questList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
@@ -855,8 +856,8 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
 
     // Increase User Dew Balance
     const balanceKey = `community_shop_balance_${userId}`;
-    const rawBal = await communityService.get<any>(balanceKey, { dew: 1500, currencyCode: 'IDR' });
-    const currentDew = typeof rawBal.dew === 'number' ? rawBal.dew : (typeof rawBal.orbs === 'number' ? rawBal.orbs : 1500);
+    const rawBal = await communityService.get<any>(balanceKey, { dew: 0, currencyCode: 'IDR' });
+    const currentDew = typeof rawBal.dew === 'number' ? rawBal.dew : (typeof rawBal.orbs === 'number' ? rawBal.orbs : 0);
     const newDew = currentDew + target.rewardDew;
     const newBalance = {
       dew: newDew,
@@ -886,8 +887,7 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
   app.get('/community/quests/claimed', {
     config: { security: securityAccess.public() },
   }, async (req) => {
-    const user = (req as any).user || {};
-    const userId = user.id || 'me';
+    const userId = await resolveUserId(req);
     return await communityService.get<any[]>(`community_quests_claimed_${userId}`, []);
   });
 };
