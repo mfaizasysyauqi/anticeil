@@ -459,6 +459,9 @@ async function setupCommunityApi(app) {
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS safety_settings TEXT DEFAULT '{}';
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS server_tag TEXT DEFAULT '{}';
                     ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS access_settings TEXT DEFAULT '{}';
+                    ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS owner_id VARCHAR(128);
+                    ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true;
+                    ALTER TABLE anticeil_community_hubs ADD COLUMN IF NOT EXISTS visibility VARCHAR(32) DEFAULT 'public';
 
                     CREATE TABLE IF NOT EXISTS anticeil_community_applications (
                         id VARCHAR(128) PRIMARY KEY,
@@ -2717,11 +2720,35 @@ async function setupCommunityApi(app) {
         await ensureTables();
         const ds = await getDb();
         const platformId = await resolvePlatformId(req, ds);
+        const userId = req.query?.userId || getReqUserId(req);
+        const isAll = req.query?.all === 'true' || req.query?.all === true;
+
         if (ds && dbReady) {
             try {
-                const rows = await ds.query(
-                    'SELECT * FROM anticeil_community_hubs ORDER BY created_at ASC'
-                );
+                let query = '';
+                let params = [];
+                if (isAll) {
+                    query = 'SELECT h.* FROM anticeil_community_hubs h ORDER BY h.created_at ASC';
+                } else if (userId && userId !== 'default-user') {
+                    query = `
+                        SELECT DISTINCT h.*, 
+                            CASE 
+                                WHEN h.owner_id = $1 THEN 'owner'
+                                WHEN m.role IS NOT NULL THEN m.role
+                                ELSE 'member'
+                            END as user_role
+                        FROM anticeil_community_hubs h
+                        LEFT JOIN anticeil_community_members m ON m.hub_id = h.id AND m.user_id = $1
+                        WHERE h.id = 'anticeil'
+                           OR h.owner_id = $1
+                           OR m.user_id = $1
+                        ORDER BY h.created_at ASC
+                    `;
+                    params = [userId];
+                } else {
+                    query = "SELECT h.* FROM anticeil_community_hubs h WHERE h.id = 'anticeil' ORDER BY h.created_at ASC";
+                }
+                const rows = await ds.query(query, params);
                 if (rows && rows.length > 0) {
                     return rows.map(r => ({
                         id: r.id,
@@ -2732,7 +2759,10 @@ async function setupCommunityApi(app) {
                         inviteCode: r.invite_code,
                         color: r.color || 'bg-indigo-600',
                         iconUrl: r.icon_url || null,
-                        role: 'owner',
+                        role: r.user_role || (r.owner_id && userId && r.owner_id === userId ? 'owner' : (r.id === 'anticeil' ? 'owner' : 'member')),
+                        ownerId: r.owner_id || null,
+                        isPublic: r.is_public !== false,
+                        visibility: r.visibility || 'public',
                         tags: r.tags ? (typeof r.tags === 'string' ? JSON.parse(r.tags) : r.tags) : ['komunitas'],
                         emojis: r.emojis ? (typeof r.emojis === 'string' ? JSON.parse(r.emojis) : r.emojis) : [],
                         boostsCount: Number(r.boosts_count || 0),
@@ -2744,9 +2774,17 @@ async function setupCommunityApi(app) {
                         installedApps: r.installed_apps ? (typeof r.installed_apps === 'string' ? JSON.parse(r.installed_apps) : r.installed_apps) : []
                     }));
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error('[getHubsHandler] Error querying hubs:', e);
+            }
         }
-        if (memoryHubs.length > 0) return memoryHubs;
+        if (memoryHubs.length > 0) {
+            if (isAll) return memoryHubs;
+            if (userId && userId !== 'default-user') {
+                return memoryHubs.filter(h => h.id === 'anticeil' || h.ownerId === userId || (h.members && h.members.includes(userId)));
+            }
+            return memoryHubs.filter(h => h.id === 'anticeil');
+        }
         return [{
             id: 'anticeil',
             name: 'Pesan Langsung',
@@ -3108,6 +3146,8 @@ async function setupCommunityApi(app) {
         const id = req.body?.id || `hub_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         const initials = (name || 'SV').slice(0, 2).toUpperCase();
         const inviteCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+        const userId = req.body?.ownerId || req.body?.userId || getReqUserId(req) || 'default-user';
+        const isPublic = req.body?.isPublic !== undefined ? Boolean(req.body.isPublic) : (req.body?.visibility === 'public');
         const hub = {
             id,
             name,
@@ -3118,6 +3158,9 @@ async function setupCommunityApi(app) {
             color,
             iconUrl,
             role: 'owner',
+            ownerId: userId,
+            isPublic,
+            visibility: isPublic ? 'public' : 'private',
             tags: tags.length ? tags : ['komunitas'],
             emojis: emojis.length ? emojis : [{ id: '1', name: 'rocket', char: '🚀' }],
             boostsCount: 0,
@@ -3139,21 +3182,26 @@ async function setupCommunityApi(app) {
         if (ds && dbReady) {
             try {
                 await ds.query(
-                    'INSERT INTO anticeil_community_hubs (id, name, description, icon_type, initials, icon_url, invite_code, color, tags, emojis, boosts_count, boost_tier, platform_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)',
-                    [hub.id, hub.name, hub.description, hub.iconType, hub.initials, hub.iconUrl, hub.inviteCode, hub.color, JSON.stringify(hub.tags), JSON.stringify(hub.emojis), 0, 0, platformId]
+                    'INSERT INTO anticeil_community_hubs (id, name, description, icon_type, initials, icon_url, invite_code, color, tags, emojis, boosts_count, boost_tier, platform_id, owner_id, is_public, visibility) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)',
+                    [hub.id, hub.name, hub.description, hub.iconType, hub.initials, hub.iconUrl, hub.inviteCode, hub.color, JSON.stringify(hub.tags), JSON.stringify(hub.emojis), 0, 0, platformId, userId, isPublic, hub.visibility]
                 );
                 await ds.query(
                     'INSERT INTO anticeil_community_channels (id, name, description, category, hub_id, is_direct_message, platform_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
                     [defaultChannel.id, defaultChannel.name, defaultChannel.description, defaultChannel.category, defaultChannel.hubId, false, platformId]
                 );
-            } catch (e) {}
+                await ds.query(
+                    'INSERT INTO anticeil_community_members (id, hub_id, user_id, role, role_label, platform_id) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
+                    [`${id}_${userId}`, id, userId, 'owner', 'Pemilik', platformId]
+                );
+            } catch (e) {
+                console.error('[createHubHandler] Error inserting hub & member:', e);
+            }
         }
         memoryHubs.push(hub);
         memoryChannels.push(defaultChannel);
         await recordAuditLog(ds, id, 'HUB_CREATED', req.principal?.name || 'Admin', name);
-        if (app.io) {
-            app.io.emit('COMMUNITY_HUB_CREATED', hub);
-            app.io.emit('COMMUNITY_CHANNEL_CREATED', defaultChannel);
+        if (app.io && isPublic) {
+            app.io.emit('COMMUNITY_COLONY_DISCOVER_UPDATED', { colony: hub });
         }
         return reply.status(201).send({
             ...hub,
@@ -3937,9 +3985,26 @@ async function setupCommunityApi(app) {
         const ds = await getDb();
         const { id } = req.params;
         const platformId = await resolvePlatformId(req, ds);
+        const userId = req.body?.userId || req.query?.userId || getReqUserId(req);
+
+        if (id === 'anticeil') {
+            return reply.status(403).send({ message: 'Colony resmi Anticeil tidak dapat dihapus.' });
+        }
 
         if (ds && dbReady) {
             try {
+                // RBAC: Only owner or admin can delete
+                const hubRows = await ds.query('SELECT owner_id FROM anticeil_community_hubs WHERE id = $1 LIMIT 1', [id]);
+                if (hubRows && hubRows.length > 0) {
+                    const ownerId = hubRows[0].owner_id;
+                    if (userId && ownerId && ownerId !== userId) {
+                        const memberRows = await ds.query('SELECT role FROM anticeil_community_members WHERE hub_id = $1 AND user_id = $2 LIMIT 1', [id, userId]);
+                        const memberRole = memberRows && memberRows[0] ? memberRows[0].role : 'member';
+                        if (memberRole !== 'owner' && memberRole !== 'admin') {
+                            return reply.status(403).send({ message: 'Hanya Pemilik Colony atau Admin yang berhak menghapus Colony ini.' });
+                        }
+                    }
+                }
                 await ds.query('DELETE FROM anticeil_colony_apps WHERE hub_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_community_messages WHERE channel_id IN (SELECT id FROM anticeil_community_channels WHERE hub_id = $1)', [id]);
                 await ds.query('DELETE FROM anticeil_community_channels WHERE hub_id = $1', [id]);
@@ -3949,12 +4014,48 @@ async function setupCommunityApi(app) {
                 await ds.query('DELETE FROM anticeil_community_bans WHERE hub_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_community_audit_log WHERE hub_id = $1', [id]);
                 await ds.query('DELETE FROM anticeil_community_hubs WHERE id = $1 AND (platform_id = $2 OR platform_id IS NULL)', [id, platformId]);
-            } catch (e) {}
+            } catch (e) {
+                console.error('[deleteHubHandler] Error deleting hub:', e);
+            }
         }
         const idx = memoryHubs.findIndex(h => h.id === id);
         if (idx >= 0) memoryHubs.splice(idx, 1);
         if (app.io) app.io.emit('COMMUNITY_HUB_DELETED', { id });
-        return { success: true, id };
+        return reply.send({ success: true, id });
+    };
+
+    const leaveHubHandler = async (req, reply) => {
+        await ensureTables();
+        const ds = await getDb();
+        const { id } = req.params;
+        const userId = req.body?.userId || req.query?.userId || getReqUserId(req);
+
+        if (!userId) {
+            return reply.status(400).send({ message: 'User ID tidak ditemukan.' });
+        }
+
+        if (id === 'anticeil') {
+            return reply.status(400).send({ message: 'Anda tidak dapat meninggalkan server resmi Anticeil.' });
+        }
+
+        if (ds && dbReady) {
+            try {
+                // If sole owner, prevent leave; must delete or transfer
+                const hubRows = await ds.query('SELECT owner_id FROM anticeil_community_hubs WHERE id = $1 LIMIT 1', [id]);
+                if (hubRows && hubRows[0] && hubRows[0].owner_id === userId) {
+                    return reply.status(400).send({ message: 'Pemilik tidak dapat meninggalkan Colony. Silakan hapus Colony atau alihkan kepemilikan terlebih dahulu.' });
+                }
+                await ds.query('DELETE FROM anticeil_community_members WHERE hub_id = $1 AND user_id = $2', [id, userId]);
+            } catch (e) {
+                console.error('[leaveHubHandler] Error leaving hub:', e);
+            }
+        }
+
+        if (app.io) {
+            app.io.emit('COMMUNITY_MEMBER_REMOVED', { hubId: id, userId });
+        }
+
+        return reply.send({ success: true, message: 'Berhasil keluar dari Colony.', hubId: id });
     };
 
     const boostHubHandler = async (req, reply) => {
@@ -6832,6 +6933,7 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/hubs`, createHubHandler);
         app.put(`${prefix}/hubs/:id`, updateHubHandler);
         app.delete(`${prefix}/hubs/:id`, deleteHubHandler);
+        app.post(`${prefix}/hubs/:id/leave`, leaveHubHandler);
         app.post(`${prefix}/hubs/:id/boost`, boostHubHandler);
 
         // Hub Members, Roles, Invites, Bans, Audit Log, Stats
@@ -6878,6 +6980,7 @@ async function setupCommunityApi(app) {
         app.post(`${prefix}/colonies`, createHubHandler);
         app.put(`${prefix}/colonies/:id`, updateHubHandler);
         app.delete(`${prefix}/colonies/:id`, deleteHubHandler);
+        app.post(`${prefix}/colonies/:id/leave`, leaveHubHandler);
         app.post(`${prefix}/colonies/:id/boost`, boostHubHandler);
         app.get(`${prefix}/colonies/:hubId/stickers`, getHubStickersHandler);
         app.post(`${prefix}/colonies/:hubId/stickers`, createHubStickerHandler);

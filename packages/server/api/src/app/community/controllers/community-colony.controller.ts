@@ -222,9 +222,38 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
 
   app.delete('/colony/colonies/:id', {
     config: { security: securityAccess.public() },
-  }, async (req) => {
+  }, async (req, reply) => {
     const { id } = req.params as { id: string };
+    if (id === 'anticeil') {
+      return reply.status(403).send({ message: 'Colony resmi Anticeil tidak dapat dihapus.' });
+    }
+
     const list = await communityService.get<any[]>('community_colonies', []);
+    const targetColony = list.find((c) => c.id === id);
+
+    if (targetColony) {
+      const user = (req as any).user || {};
+      let requesterId = user.id || (req.query as any)?.userId || (req.body as any)?.userId;
+      const authHeader = req.headers['authorization'];
+      if ((!requesterId || requesterId === 'undefined') && authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+          const principal = await authenticateOrThrow(req.log, authHeader);
+          if (principal?.id) requesterId = principal.id;
+        } catch {}
+      }
+
+      if (requesterId) {
+        const members = await communityService.get<any[]>(`community_colony_members_${id}`, []);
+        const member = members.find((m) => m.id === requesterId || m.userId === requesterId);
+        const isOwner = targetColony.ownerId === requesterId || member?.role === 'owner';
+        const isAdmin = member?.role === 'admin' || user.platformRole === 'ADMIN';
+
+        if (!isOwner && !isAdmin) {
+          return reply.status(403).send({ message: 'Hanya Pemilik Colony atau Admin yang berhak menghapus Colony ini.' });
+        }
+      }
+    }
+
     const updated = list.filter((c) => c.id !== id);
     await communityService.set('community_colonies', updated);
     await communityService.delete(`community_colony_members_${id}`);
@@ -236,6 +265,58 @@ export const communityColonyController: FastifyPluginAsyncZod = async (app) => {
     }
 
     return { success: true, colonyId: id };
+  });
+
+  app.post('/colony/colonies/:id/leave', {
+    config: { security: securityAccess.public() },
+  }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (id === 'anticeil') {
+      return reply.status(400).send({ message: 'Anda tidak dapat meninggalkan server resmi Anticeil.' });
+    }
+
+    const body = (req.body as any) || {};
+    const user = (req as any).user || body.user || {};
+    let requesterId = body.userId || user.id;
+    const authHeader = req.headers['authorization'];
+    if ((!requesterId || requesterId === 'undefined') && authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const principal = await authenticateOrThrow(req.log, authHeader);
+        if (principal?.id) requesterId = principal.id;
+      } catch {}
+    }
+
+    if (!requesterId) {
+      return reply.status(400).send({ message: 'User ID tidak ditemukan.' });
+    }
+
+    const list = await communityService.get<any[]>('community_colonies', []);
+    const targetColony = list.find((c) => c.id === id);
+
+    if (targetColony && targetColony.ownerId === requesterId) {
+      return reply.status(400).send({ message: 'Pemilik tidak dapat meninggalkan Colony. Silakan hapus Colony atau alihkan kepemilikan terlebih dahulu.' });
+    }
+
+    const members = await communityService.get<any[]>(`community_colony_members_${id}`, []);
+    const updatedMembers = members.filter((m) => m.id !== requesterId && m.userId !== requesterId);
+    await communityService.set(`community_colony_members_${id}`, updatedMembers);
+
+    const updatedList = list.map((c) => {
+      if (c.id === id) {
+        return {
+          ...c,
+          membersCount: Math.max(1, (c.membersCount || 1) - 1),
+        };
+      }
+      return c;
+    });
+    await communityService.set('community_colonies', updatedList);
+
+    if ((app as any).io) {
+      (app as any).io.emit('COMMUNITY_MEMBER_REMOVED', { hubId: id, userId: requesterId });
+    }
+
+    return { success: true, colonyId: id, message: 'Berhasil keluar dari Colony.' };
   });
 
   app.put('/colony/colonies/:id/access', {
