@@ -653,7 +653,12 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const userId = await resolveUserId(req);
-    const questList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
+    const deletedIds = await communityService.get<string[]>('community_quests_deleted_ids', []);
+    const rawList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
+    const questList = rawList.filter((q) => !deletedIds.includes(q.id));
+    if (questList.length !== rawList.length) {
+      await communityService.set('community_quests_list', questList);
+    }
     const userQuestsState = await communityService.get<Record<string, any>>(`community_quests_user_${userId}`, {});
 
     const quests = questList.map((q) => {
@@ -696,8 +701,13 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
       createdAt: new Date().toISOString(),
     };
 
+    const deletedIds = await communityService.get<string[]>('community_quests_deleted_ids', []);
+    if (deletedIds.includes(newQuest.id)) {
+      await communityService.set('community_quests_deleted_ids', deletedIds.filter((d) => d !== newQuest.id));
+    }
+
     const currentList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
-    const updated = [newQuest, ...currentList.filter((q) => q.id !== newQuest.id)];
+    const updated = [newQuest, ...currentList.filter((q) => q.id !== newQuest.id && !deletedIds.includes(q.id))];
     await communityService.set('community_quests_list', updated);
 
     return {
@@ -741,14 +751,21 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const { id } = (req.params as any) || {};
+    const deletedIds = await communityService.get<string[]>('community_quests_deleted_ids', []);
+    if (!deletedIds.includes(id)) {
+      deletedIds.push(id);
+      await communityService.set('community_quests_deleted_ids', deletedIds);
+    }
+
     const currentList = await communityService.get<any[]>('community_quests_list', INITIAL_QUESTS);
-    const updated = currentList.filter((q) => q.id !== id);
+    const updated = currentList.filter((q) => q.id !== id && !deletedIds.includes(q.id));
     await communityService.set('community_quests_list', updated);
 
     return {
       success: true,
       message: 'Quest berhasil dihapus dari daftar!',
       deletedId: id,
+      quests: updated,
     };
   });
 
