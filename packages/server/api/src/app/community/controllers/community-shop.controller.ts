@@ -514,13 +514,19 @@ export const communityShopController: FastifyPluginAsyncZod = async (app) => {
     config: { security: securityAccess.public() },
   }, async (req) => {
     const userId = await resolveUserId(req);
+    if (!userId || userId === 'default-user' || userId === 'anonymous' || userId === 'me') {
+      return [];
+    }
     return await communityService.get<any[]>(`community_shop_wishlist_${userId}`, []);
   });
 
   app.post('/community/shop/wishlist/:itemId', {
     config: { security: securityAccess.public() },
-  }, async (req) => {
+  }, async (req, reply) => {
     const userId = await resolveUserId(req);
+    if (!userId || userId === 'default-user' || userId === 'anonymous' || userId === 'me') {
+      return reply.status(401).send({ success: false, message: 'Harap masuk terlebih dahulu', isWishlisted: false, wishlist: [] });
+    }
     const { itemId } = req.params as { itemId: string };
 
     const wishlistKey = `community_shop_wishlist_${userId}`;

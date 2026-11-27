@@ -815,8 +815,7 @@ async function setupCommunityApi(app) {
                         value JSONB NOT NULL,
                         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                     );
-                    -- Clear legacy dummy data from shop and quest storage
-                    DELETE FROM anticeil_key_value WHERE key IN ('community_shop_items', 'community_shop_collections', 'community_shop_featured', 'community_quests_list');
+                    -- Persistent fullstack shop and quest storage preserved
                 `);
             } catch (alterErr) {}
 
@@ -6244,16 +6243,48 @@ async function setupCommunityApi(app) {
 
     const getShopWishlistHandler = async (req, reply) => {
         const userId = getReqUserId(req);
-        const wishlist = await kvGet(`community_shop_wishlist_${userId}`, []);
-        return reply.send(wishlist);
+        if (!userId || userId === 'default-user' || userId === 'anonymous') {
+            return reply.send([]);
+        }
+        let wishlist = await kvGet(`community_shop_wishlist_${userId}`, null);
+        if (!Array.isArray(wishlist)) {
+            const ds = await getDb();
+            if (ds && userId && userId !== 'default-user' && userId !== 'anonymous') {
+                try {
+                    const rows = await ds.query('SELECT widgets FROM anticeil_user_profiles WHERE user_id = $1 LIMIT 1', [userId]);
+                    if (rows && rows.length > 0 && rows[0].widgets) {
+                        const w = typeof rows[0].widgets === 'string' ? JSON.parse(rows[0].widgets) : rows[0].widgets;
+                        if (Array.isArray(w.wishlist)) wishlist = w.wishlist;
+                    }
+                } catch (e) {}
+            }
+        }
+        return reply.send(Array.isArray(wishlist) ? wishlist : []);
     };
 
     const toggleShopWishlistHandler = async (req, reply) => {
         const userId = getReqUserId(req);
+        if (!userId || userId === 'default-user' || userId === 'anonymous') {
+            return reply.status(401).send({ success: false, message: 'Harap masuk terlebih dahulu', isWishlisted: false, wishlist: [] });
+        }
         const { itemId } = req.params || {};
 
         const wishlistKey = `community_shop_wishlist_${userId}`;
-        const currentWishlist = await kvGet(wishlistKey, []);
+        let currentWishlist = await kvGet(wishlistKey, null);
+        const ds = await getDb();
+
+        if (!Array.isArray(currentWishlist) && ds && userId && userId !== 'default-user' && userId !== 'anonymous') {
+            try {
+                const rows = await ds.query('SELECT widgets FROM anticeil_user_profiles WHERE user_id = $1 LIMIT 1', [userId]);
+                if (rows && rows.length > 0 && rows[0].widgets) {
+                    const w = typeof rows[0].widgets === 'string' ? JSON.parse(rows[0].widgets) : rows[0].widgets;
+                    if (Array.isArray(w.wishlist)) currentWishlist = w.wishlist;
+                }
+            } catch (e) {}
+        }
+        if (!Array.isArray(currentWishlist)) {
+            currentWishlist = [];
+        }
 
         let updatedWishlist;
         let isWishlisted;
@@ -6262,8 +6293,24 @@ async function setupCommunityApi(app) {
             updatedWishlist = currentWishlist.filter(i => i.id !== itemId);
             isWishlisted = false;
         } else {
-            const storedItems = await kvGet('community_shop_items', INITIAL_SHOP_ITEMS);
-            const target = storedItems.find(i => i.id === itemId);
+            const rawStored = await kvGet('community_shop_items', INITIAL_SHOP_ITEMS);
+            const storedItems = sanitizeShopItems(rawStored);
+            let target = storedItems.find(i => i.id === itemId);
+            if (!target && req.body && req.body.item) {
+                target = req.body.item;
+            }
+            if (!target && req.body && req.body.name) {
+                target = {
+                    id: itemId,
+                    name: req.body.name,
+                    category: req.body.category || 'avatar_decoration',
+                    collection: req.body.collection || 'Anticeil Custom',
+                    description: req.body.description || `Item wishlist: ${req.body.name}`,
+                    priceDew: Number(req.body.priceDew) || 400,
+                    priceIdr: Number(req.body.priceIdr) || 40000,
+                    previewIcon: req.body.previewIcon || '✨'
+                };
+            }
             if (target) {
                 updatedWishlist = [...currentWishlist, target];
                 isWishlisted = true;
@@ -6274,6 +6321,19 @@ async function setupCommunityApi(app) {
         }
 
         await kvSet(wishlistKey, updatedWishlist);
+
+        // Also synchronize into PostgreSQL anticeil_user_profiles table
+        if (ds && userId && userId !== 'default-user' && userId !== 'anonymous') {
+            try {
+                await ds.query(`
+                    UPDATE anticeil_user_profiles
+                    SET widgets = jsonb_set(COALESCE(widgets, '{}'::jsonb), '{wishlist}', $1::jsonb),
+                        updated_at = NOW()
+                    WHERE user_id = $2
+                `, [JSON.stringify(updatedWishlist), userId]);
+            } catch (e) {}
+        }
+
         return reply.send({ success: true, isWishlisted, wishlist: updatedWishlist });
     };
 
@@ -7086,6 +7146,9 @@ async function setupCommunityApi(app) {
         if (profileEffect) mergedWidgets.profileEffect = profileEffect;
         if (theme) mergedWidgets.profileTheme = theme;
         if (displayNameStyle) mergedWidgets.displayNameStyle = displayNameStyle;
+        if (Array.isArray(mergedWidgets.wishlist)) {
+            await kvSet(`community_shop_wishlist_${currentUserId}`, mergedWidgets.wishlist);
+        }
 
         if (ds) {
             try {
